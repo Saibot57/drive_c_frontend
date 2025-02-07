@@ -16,18 +16,18 @@ interface FileCardProps {
   showTags: boolean;
 }
 
-const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => (
-  <div className="py-2 border-b border-border dark:border-darkBorder last:border-b-0"> {/* Simple list item container */}
+export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => (
+  <div className="py-2 border-b border-gray-200 last:border-b-0">
     <a href={file.url}
        target="_blank"
        rel="noopener noreferrer"
-       className="text-text dark:text-darkText hover:underline font-medium block truncate"> {/* File name link - block and truncate classes */}
+       className="text-sm text-black hover:underline block leading-tight">
       {file.name}
     </a>
     {showTags && file.tags && file.tags.length > 0 && (
-      <div className="mt-1 flex flex-wrap gap-2 text-sm"> {/* Tags - reduced margin and smaller text */}
+      <div className="mt-1 flex flex-wrap gap-1">
         {file.tags.map((tag, idx) => (
-          <span key={idx} className="px-2 py-0.5 border border-border dark:border-darkBorder rounded-base text-xs bg-gray-100 dark:bg-gray-800"> {/* Tag spans - simplified styling */}
+          <span key={idx} className="px-1.5 py-0.5 bg-gray-100 text-xs rounded">
             {tag}
           </span>
         ))}
@@ -35,5 +35,3 @@ const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => (
     )}
   </div>
 );
-
-export { FileCard };
