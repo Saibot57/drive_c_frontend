@@ -8,9 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label"; // Import Label for checkbox label
+import { Label } from "@/components/ui/label";
 
-// Define interfaces here
 interface FileData {
   id: string;
   name: string;
@@ -37,7 +36,7 @@ export default function Home() {
   const [data, setData] = useState<{ data: SectionData[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showTags, setShowTags] = useState<boolean>(false); // Added showTags state
+  const [showTags, setShowTags] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,24 +71,23 @@ export default function Home() {
   if (!data || !data.data) {
     return <p>No data to display.</p>;
   }
+
   return (
     <div className="bg-white dark:bg-secondaryBlack bg-[linear-gradient(to_right,#80808033_1px,transparent_1px),linear-gradient(to_bottom,#80808033_1px,transparent_1px)] bg-[size:70px_70px] font-base">
-      <div className="flex items-center justify-end px-4 pt-8"> {/* Padded header area */}
+      <div className="flex items-center justify-end px-4 pt-8">
         <div className="flex items-center">
-        <Checkbox
-      id="showTags"
-      checked={showTags}
-      onCheckedChange={(checked) => {
-        setShowTags(checked === 'checked' || checked === true); // Revised comparison
-      }}
-    />
+          <Checkbox
+            id="showTags"
+            checked={showTags}
+            onCheckedChange={(checked) => setShowTags(checked === true)}
+          />
           <Label htmlFor="showTags" className="ml-2">Show Tags</Label>
         </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 px-4 py-8"> {/* Responsive grid for sections */}
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 px-4 py-8">
         {data.data.map((section) => (
-          <Section key={section.name} section={section} showTags={showTags} /> // Pass showTags to Section
+          <Section key={section.name} section={section} showTags={showTags} />
         ))}
       </div>
     </div>

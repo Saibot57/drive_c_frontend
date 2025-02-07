@@ -6,32 +6,36 @@ import { SectionData } from "@/app/page";
 
 interface SectionProps {
   section: SectionData;
-  showTags: boolean; // Receive showTags prop
+  showTags: boolean;
 }
 
-const Section: React.FC<SectionProps> = ({ section, showTags }) => ( // Receive showTags prop
+export const Section: React.FC<SectionProps> = ({ section, showTags }) => (
   <div className="mb-8">
-    <h2 className="text-xl font-bold mb-4 border-b-2 border-border dark:border-darkBorder pb-2">
+    <h2 className="text-xl font-bold mb-4 pb-2">
       {section.name}
     </h2>
-    <ScrollArea className="h-64 rounded-xl border-2 border-border dark:border-darkBorder p-4 bg-white dark:bg-secondaryBlack"> {/* Reduced ScrollArea height to h-64 */}
-      <div className="space-y-2"> {/* Reduced space between FileCard items */}
-        {section.files.map((file, idx) => (
-          <FileCard key={idx} file={file} showTags={showTags} /> // Pass showTags prop to FileCard
-        ))}
-        {Object.values(section.subsections || {}).map((subsection, idx) => (
-          <div key={idx} className="mt-4">
-            <h3 className="text-lg font-semibold mb-3 border-b border-border dark:border-darkBorder pb-1">{subsection.name}</h3>
-            <div className="space-y-2 ml-4"> {/* Reduced space and indented subsection files */}
-              {subsection.files.map((file, fileIdx) => (
-                <FileCard key={fileIdx} file={file} showTags={showTags} /> // Pass showTags prop to FileCard
-              ))}
-            </div>
+    <div className="rounded-xl border-4 border-black bg-[#ff6b6b] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+      <div className="bg-white w-full h-full">
+        <ScrollArea className="h-64 px-4 py-2">
+          <div className="space-y-2">
+            {section.files.map((file, idx) => (
+              <FileCard key={idx} file={file} showTags={showTags} />
+            ))}
+            {Object.values(section.subsections || {}).map((subsection, idx) => (
+              <div key={idx} className="mt-4">
+                <h3 className="text-lg font-semibold mb-3 pb-1">
+                  {subsection.name}
+                </h3>
+                <div className="space-y-2 ml-4">
+                  {subsection.files.map((file, fileIdx) => (
+                    <FileCard key={fileIdx} file={file} showTags={showTags} />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </ScrollArea>
       </div>
-    </ScrollArea>
+    </div>
   </div>
-);
-
-export { Section };
+)

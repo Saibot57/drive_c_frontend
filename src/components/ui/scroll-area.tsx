@@ -1,4 +1,3 @@
-// src/components/ui/scroll-area.tsx
 "use client"
 
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
@@ -11,10 +10,15 @@ const ScrollArea = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <ScrollAreaPrimitive.Root
     ref={ref}
-    className={cn("relative overflow-hidden rounded-base border-2 border-black bg-red-500", className)} // ADDED boxed styling here!
+    className={cn(
+      "relative overflow-hidden",
+      className
+    )}
     {...props}
   >
-    <ScrollAreaPrimitive.Viewport className="h-full w-full font-base text-black"> {/* Set text color to black */}
+    <ScrollAreaPrimitive.Viewport 
+      className="h-full w-full"
+    >
       {children}
     </ScrollAreaPrimitive.Viewport>
     <ScrollBar />
@@ -36,11 +40,13 @@ const ScrollBar = React.forwardRef<
         "h-full w-2.5 border-l border-l-transparent p-[1px]",
       orientation === "horizontal" &&
         "h-2.5 flex-col border-t border-t-transparent p-[1px]",
-      className,
+      className
     )}
     {...props}
   >
-    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-base bg-black" /> {/* Black scrollbar thumb */}
+    <ScrollAreaPrimitive.ScrollAreaThumb 
+      className="relative flex-1 rounded-full bg-black" 
+    />
   </ScrollAreaPrimitive.ScrollAreaScrollbar>
 ))
 ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
