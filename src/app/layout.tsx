@@ -1,13 +1,14 @@
 import type { Metadata } from 'next'
-import { DM_Sans } from 'next/font/google'
+import { Red_Hat_Text } from 'next/font/google'
 import './globals.css'
-//import { ThemeSwitcher } from '@/components/theme-switcher'
-//import { ThemeProvider } from '@/components/theme-provider'
 
-const dmSans = DM_Sans({ subsets: ['latin'] })
+const redHat = Red_Hat_Text({ 
+  subsets: ['latin'],
+  weight: ['400', '500', '700']  // Common weights, add or remove as needed
+})
 
 export const metadata: Metadata = {
-  title: 'Neobrutalism Saas template',
+  title: 'File Browser',
 }
 
 export default function RootLayout({
@@ -17,10 +18,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={dmSans.className}>
+      <body className={`${redHat.className} min-h-screen bg-[#fcd7d7]`}>
+        <div className="flex min-h-screen">
+          {/* Sidebar - we'll add content later */}
+          <div className="w-64 bg-[#fcd7d7] p-4 hidden md:block">
+            {/* Sidebar content will go here */}
+          </div>
 
-          {children}
-
+          {/* Main content area */}
+          <main className="flex-1 px-4 py-8">
+            {/* Main content */}
+            <div className="max-w-[1500px] mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
       </body>
     </html>
   )

@@ -1,13 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Section } from "@/components/FileList/Section";
-import { Button } from "@/components/ui/button";
+import { Search } from "@/components/search";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
 interface FileData {
@@ -37,6 +33,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showTags, setShowTags] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,6 +57,47 @@ export default function Home() {
     fetchData();
   }, []);
 
+  const filteredData = useMemo(() => {
+    if (!data?.data || !searchTerm.trim()) return data?.data;
+
+    const term = searchTerm.toLowerCase();
+    
+    return data.data.map(section => {
+      // Filter files in the main section
+      const filteredFiles = section.files.filter(file => 
+        file.name.toLowerCase().includes(term) ||
+        (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term)))
+      );
+
+      // Filter files in subsections
+      const filteredSubsections = Object.entries(section.subsections || {}).reduce((acc, [key, subsection]) => {
+        const filteredSubFiles = subsection.files.filter(file =>
+          file.name.toLowerCase().includes(term) ||
+          (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term)))
+        );
+
+        if (filteredSubFiles.length > 0) {
+          acc[key] = {
+            ...subsection,
+            files: filteredSubFiles
+          };
+        }
+
+        return acc;
+      }, {} as Record<string, SubSection>);
+
+      // Only return sections that have matching files
+      if (filteredFiles.length > 0 || Object.keys(filteredSubsections).length > 0) {
+        return {
+          ...section,
+          files: filteredFiles,
+          subsections: filteredSubsections
+        };
+      }
+      return null;
+    }).filter((section): section is SectionData => section !== null);
+  }, [data, searchTerm, showTags]);
+
   if (loading) {
     return <p>Loading...</p>;
   }
@@ -73,8 +111,9 @@ export default function Home() {
   }
 
   return (
-    <div className="bg-white dark:bg-secondaryBlack bg-[linear-gradient(to_right,#80808033_1px,transparent_1px),linear-gradient(to_bottom,#80808033_1px,transparent_1px)] bg-[size:70px_70px] font-base">
-      <div className="flex items-center justify-end px-4 pt-8">
+    <div className="bg-[#fcd7d7]">
+      <div className="flex items-center justify-between mb-8">
+        <Search onSearch={setSearchTerm} />
         <div className="flex items-center">
           <Checkbox
             id="showTags"
@@ -85,8 +124,8 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 px-4 py-8">
-        {data.data.map((section) => (
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {filteredData?.map((section) => (
           <Section key={section.name} section={section} showTags={showTags} />
         ))}
       </div>

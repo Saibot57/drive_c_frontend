@@ -17,11 +17,11 @@ interface FileCardProps {
 }
 
 export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => (
-  <div className="py-2 border-b border-gray-200 last:border-b-0">
+  <div className="py-0.5 border-0 border-gray-200 last:border-b-0">
     <a href={file.url}
        target="_blank"
        rel="noopener noreferrer"
-       className="text-sm text-black hover:underline block leading-tight">
+       className="text-sm text-black font-semibold hover:underline block leading-tight">
       {file.name}
     </a>
     {showTags && file.tags && file.tags.length > 0 && (
