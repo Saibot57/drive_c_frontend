@@ -23,7 +23,7 @@ export const Section: React.FC<SectionProps> = ({ section, showTags }) => (
             ))}
             {Object.values(section.subsections || {}).map((subsection, idx) => (
               <div key={idx} className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="text-xlg font-semibold mb-2">
                   {subsection.name}
                 </h3>
                 <div className="ml-4">

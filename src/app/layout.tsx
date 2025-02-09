@@ -21,7 +21,7 @@ export default function RootLayout({
       <body className={`${redHat.className} min-h-screen bg-[#fcd7d7]`}>
         <div className="flex min-h-screen">
           {/* Sidebar - we'll add content later */}
-          <div className="w-64 bg-[#fcd7d7] p-4 hidden md:block">
+          <div className="w-64 bg-[#fcd7d7] rounded-2xl border-2 border-white p-4 hidden md:block">
             {/* Sidebar content will go here */}
           </div>
 

@@ -5,6 +5,15 @@ import { Section } from "@/components/FileList/Section";
 import { Search } from "@/components/search";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
+import { Red_Hat_Text } from 'next/font/google'
+
+const redHat = Red_Hat_Text({ 
+  subsets: ['latin'],
+  weight: ['400', '500', '700']  // Common weights, add or remove as needed
+})
+
 
 interface FileData {
   id: string;
@@ -34,28 +43,35 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [showTags, setShowTags] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('https://tobiaslundh1.pythonanywhere.com/api/files');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const json = await response.json();
+      setData(json);
+    } catch (e: any) {
+      console.error("Fetch error:", e);
+      setError('Failed to load data.');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('https://tobiaslundh1.pythonanywhere.com/api/files');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const json = await response.json();
-        setData(json);
-      } catch (e: any) {
-        console.error("Fetch error:", e);
-        setError('Failed to load data.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+  };
 
   const filteredData = useMemo(() => {
     if (!data?.data || !searchTerm.trim()) return data?.data;
@@ -63,13 +79,11 @@ export default function Home() {
     const term = searchTerm.toLowerCase();
     
     return data.data.map(section => {
-      // Filter files in the main section
       const filteredFiles = section.files.filter(file => 
         file.name.toLowerCase().includes(term) ||
         (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term)))
       );
 
-      // Filter files in subsections
       const filteredSubsections = Object.entries(section.subsections || {}).reduce((acc, [key, subsection]) => {
         const filteredSubFiles = subsection.files.filter(file =>
           file.name.toLowerCase().includes(term) ||
@@ -86,7 +100,6 @@ export default function Home() {
         return acc;
       }, {} as Record<string, SubSection>);
 
-      // Only return sections that have matching files
       if (filteredFiles.length > 0 || Object.keys(filteredSubsections).length > 0) {
         return {
           ...section,
@@ -98,7 +111,7 @@ export default function Home() {
     }).filter((section): section is SectionData => section !== null);
   }, [data, searchTerm, showTags]);
 
-  if (loading) {
+  if (loading && !isRefreshing) {
     return <p>Loading...</p>;
   }
 
@@ -113,14 +126,24 @@ export default function Home() {
   return (
     <div className="bg-[#fcd7d7]">
       <div className="flex items-center justify-between mb-8">
-        <Search onSearch={setSearchTerm} />
-        <div className="flex items-center">
+        <div className="flex items-center gap-4 flex-1">
+          <Search onSearch={setSearchTerm} />
+          <Button 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="h-12 px-4 flex items-center gap-2 border-2 border-black bg-white hover:bg-white"
+          >
+            <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? '...' : 'Uppdatera'}
+          </Button>
+        </div>
+        <div className="flex items-center ml-4">
           <Checkbox
             id="showTags"
             checked={showTags}
             onCheckedChange={(checked) => setShowTags(checked === true)}
           />
-          <Label htmlFor="showTags" className="ml-2">Show Tags</Label>
+          <Label htmlFor="showTags" className="ml-2">Visa Taggar</Label>
         </div>
       </div>
 
