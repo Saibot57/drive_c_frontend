@@ -4,6 +4,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileCard } from "@/components/FileList/FileCard";
 import { SectionData } from "@/app/page";
 
+
+
 interface SectionProps {
   section: SectionData;
   showTags: boolean;
