@@ -7,13 +7,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import { Red_Hat_Text } from 'next/font/google'
+import { Red_Hat_Text } from 'next/font/google';
 
 const redHat = Red_Hat_Text({ 
   subsets: ['latin'],
-  weight: ['400', '500', '700']  // Common weights, add or remove as needed
-})
-
+  weight: ['400', '500', '700']
+});
 
 interface FileData {
   id: string;
@@ -60,6 +59,30 @@ export default function Home() {
       setError('Failed to load data.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setError(null);
+    
+    try {
+      // First trigger the backend update
+      const updateResponse = await fetch('https://tobiaslundh1.pythonanywhere.com/api/update', {
+        method: 'POST',
+      });
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.message || 'Failed to update data');
+      }
+
+      // Then fetch the updated data
+      await fetchData();
+    } catch (err) {
+      console.error('Update error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during update');
+    } finally {
       setIsRefreshing(false);
     }
   };
@@ -67,11 +90,6 @@ export default function Home() {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchData();
-  };
 
   const filteredData = useMemo(() => {
     if (!data?.data || !searchTerm.trim()) return data?.data;
