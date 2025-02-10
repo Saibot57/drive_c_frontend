@@ -70,12 +70,19 @@ export default function Home() {
       // First trigger the backend update
       const updateResponse = await fetch('https://tobiaslundh1.pythonanywhere.com/api/update', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
+      const updateData = await updateResponse.json();
+
       if (!updateResponse.ok) {
-        const errorData = await updateResponse.json();
-        throw new Error(errorData.message || 'Failed to update data');
+        throw new Error(updateData.message || 'Failed to update data');
       }
+
+      // Add a small delay to ensure the database has completed its update
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Then fetch the updated data
       await fetchData();
