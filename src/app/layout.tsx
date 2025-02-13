@@ -1,14 +1,16 @@
 import type { Metadata } from 'next'
 import { Red_Hat_Text } from 'next/font/google'
 import './globals.css'
+import { MainNav } from '@/components/MainNav'
+import { Sidebar } from '@/components/Sidebar'
 
 const redHat = Red_Hat_Text({ 
   subsets: ['latin'],
-  weight: ['400', '500', '700']  // Common weights, add or remove as needed
+  weight: ['400', '500', '700']
 })
 
 export const metadata: Metadata = {
-  title: 'File Browser',
+  title: 'Personal Dashboard',
 }
 
 export default function RootLayout({
@@ -19,15 +21,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${redHat.className} min-h-screen bg-[#fcd7d7]`}>
-        <div className="flex min-h-screen">
-          {/* Sidebar - we'll add content later */}
-          <div className="w-64 bg-[#fcd7d7] rounded-2xl border-2 border-white p-4 hidden md:block">
-            {/* Sidebar content will go here */}
-          </div>
+        {/* Main header */}
+        <MainNav />
+        
+        <div className="flex min-h-[calc(100vh-4rem)]">
+          {/* Sidebar */}
+          <Sidebar />
 
           {/* Main content area */}
           <main className="flex-1 px-4 py-8">
-            {/* Main content */}
             <div className="max-w-[1500px] mx-auto">
               {children}
             </div>
