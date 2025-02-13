@@ -20,9 +20,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${redHat.className} min-h-screen bg-[#fcd7d7]`}>
         {/* Header */}
-        <header className="w-full bg-[#ff6b6b] border-b-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-8">
-          <div className="max-w-[1500px] mx-auto px-4 py-6">
-            <h1 className="text-2xl font-bold text-white">File Browser</h1>
+        <header className="w-full px-4 py-4 mb-8">
+          <div className="max-w-[1500px] mx-auto bg-[#fcd7d7] rounded-2xl border-2 border-white p-4">
+            <h1 className="text-2xl font-bold">File Browser</h1>
           </div>
         </header>
 
