@@ -8,7 +8,7 @@ export function MainNav() {
       <div className="flex h-full items-center px-4">
         {/* Mobile menu button */}
         <Button
-          variant="ghost"
+          variant="neutral"  // Changed from "ghost" to "neutral"
           className="mr-4 h-12 w-12 rounded-xl border-2 border-black p-2 lg:hidden"
         >
           <MenuIcon className="h-6 w-6" />
