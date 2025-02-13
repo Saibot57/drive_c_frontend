@@ -18,7 +18,7 @@ export const Section: React.FC<SectionProps> = ({ section, showTags }) => (
     </h2>
     <div className="rounded-2xl border-2 border-black bg-[#ff6b6b] overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
       <div className="bg-#fcd7d7">
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-[450px]">
           <div className="p-4">
             {section.files.map((file, idx) => (
               <FileCard key={idx} file={file} showTags={showTags} />
