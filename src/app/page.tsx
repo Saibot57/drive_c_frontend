@@ -20,7 +20,7 @@ interface FileData {
   url: string;
   file_path: string;
   tags: string[];
-  NotebookLM?: string;
+  notebooklm?: string;
   created_time?: string;
 }
 
