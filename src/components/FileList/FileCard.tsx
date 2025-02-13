@@ -7,7 +7,7 @@ interface FileData {
   url: string;
   file_path: string;
   tags: string[];
-  notebooklm?: string;
+  NotebookLM?: string;  // Updated to match backend capitalization
   created_time?: string;
 }
 
@@ -27,9 +27,9 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => (
       >
         {file.name}
       </a>
-      {file.notebooklm && (
+      {file.NotebookLM && (
         <a
-          href={file.notebooklm}
+          href={file.NotebookLM}
           target="_blank"
           rel="noopener noreferrer"
           className="px-1.5 py-0.5 bg-gray-100 text-xs rounded hover:bg-gray-200"
