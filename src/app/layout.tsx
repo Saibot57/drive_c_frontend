@@ -11,12 +11,12 @@ const redHat = Red_Hat_Text({
 const monument = localFont({
   src: [
     {
-      path: './fonts/MonumentExtended-Regular.otf',
+      path: '../fonts/MonumentExtended-Regular.otf',
       weight: '400',
       style: 'normal',
     },
     {
-      path: './fonts/MonumentExtended-Ultrabold.otf',
+      path: '../fonts/MonumentExtended-Ultrabold.otf',
       weight: '700',
       style: 'normal',
     }
