@@ -22,7 +22,7 @@ export default function RootLayout({
         {/* Header */}
         <header className="w-full px-4 py-4 mb-8">
           <div className="max-w-[1500px] mx-auto bg-[#fcd7d7] rounded-2xl border-2 border-white p-4">
-            <h1 className="text-2xl font-bold">File Browser</h1>
+            <h1 className="text-2xl font-bold">Hitta grejer?</h1>
           </div>
         </header>
 
