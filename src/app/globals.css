@@ -9,6 +9,13 @@
   --text: #000;
   --border: #000;
 }
+
+@layer base {
+  .font-monument {
+    font-family: var(--font-monument);
+  }
+}
+
 @layer utilities {
   .font-light {
     font-weight: 300;
@@ -26,6 +33,7 @@
     font-weight: 700;
   }
 }
+
 @layer components {
   .neo-brutalist-card {
     @apply rounded-xl border-4 border-black bg-[#ff6b6b] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden;
