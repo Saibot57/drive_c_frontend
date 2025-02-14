@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  .font-monument {
+    font-family: var(--font-monument);
+  }
+}
+
 :root {
   --main: #ff6b6b;
   --overlay: rgba(0, 0, 0, 0.8);
