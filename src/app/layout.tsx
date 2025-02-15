@@ -36,14 +36,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${redHat.className} ${monument.variable} min-h-screen bg-[#fcd7d7]`}>
-        {/* Top Navigation Bar */}
-        <div className="fixed top-0 left-0 right-0 h-24 bg-[#fcd7d7] z-10">
-          {/* Bottom border that extends full width */}
+        {/* Sidebar - Now has higher z-index to appear "in front" */}
+        <div className="fixed top-0 left-0 bottom-0 w-24 border-r-2 border-black bg-[#fcd7d7] z-30">
+          {/* Sidebar content will go here */}
+        </div>
+
+        {/* Top Navigation Bar - Lower z-index */}
+        <div className="fixed top-0 left-24 right-0 h-24 bg-[#fcd7d7] z-20">
+          {/* Bottom border starts from sidebar */}
           <div className="absolute bottom-0 left-0 right-0 border-b-2 border-black"></div>
-          {/* Additional border that creates the square */}
-          <div className="absolute bottom-0 left-0 w-24 border-b-2 border-black"></div>
           
-          <div className="ml-24 h-full flex items-center px-8">
+          <div className="h-full flex items-center px-8">
             <h1 className="text-4xl font-monument mr-12">Bibliotek</h1>
             <nav className="flex space-x-8">
               <span className="text-3xl font-monument">Kalender</span>
@@ -51,11 +54,6 @@ export default function RootLayout({
               <span className="text-3xl font-monument">TBA</span>
             </nav>
           </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="fixed top-0 left-0 bottom-0 w-24 border-r-2 border-black bg-[#fcd7d7] z-20">
-          {/* Sidebar content will go here */}
         </div>
 
         {/* Main Content */}
