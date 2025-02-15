@@ -46,9 +46,9 @@ export default function RootLayout({
           <div className="ml-24 h-full flex items-center px-8">
             <h1 className="text-4xl font-monument mr-12">Bibliotek</h1>
             <nav className="flex space-x-8">
-              <span className="text-xl font-monument">Kalender</span>
-              <span className="text-xl font-monument">Schema</span>
-              <span className="text-xl font-monument">TBA</span>
+              <span className="text-3xl font-monument">Kalender</span>
+              <span className="text-3xl font-monument">Schema</span>
+              <span className="text-3xl font-monument">TBA</span>
             </nav>
           </div>
         </div>
