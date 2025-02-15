@@ -44,11 +44,11 @@ export default function RootLayout({
           <div className="absolute bottom-0 left-0 w-24 border-b-2 border-black"></div>
           
           <div className="ml-24 h-full flex items-center px-8">
-            <h1 className="text-2xl font-monument mr-12">Bibliotek</h1>
+            <h1 className="text-4xl font-monument mr-12">Bibliotek</h1>
             <nav className="flex space-x-8">
-              <span className="text-sm font-monument">Kalender</span>
-              <span className="text-sm font-monument">Schema</span>
-              <span className="text-sm font-monument">TBA</span>
+              <span className="text-xl font-monument">Kalender</span>
+              <span className="text-xl font-monument">Schema</span>
+              <span className="text-xl font-monument">TBA</span>
             </nav>
           </div>
         </div>
