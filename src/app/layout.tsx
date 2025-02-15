@@ -36,34 +36,29 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${redHat.className} ${monument.variable} min-h-screen bg-[#fcd7d7]`}>
-        {/* Header */}
-        <header className="w-full px-4 py-4 mb-8">
-          <div className="max-w-[1500px] mx-auto bg-[#fcd7d7] rounded-2xl border-2 border-white p-4">
-            <h1 className="text-2xl font-bold mb-4 font-monument">
-              Bibliotek
-            </h1>
+        {/* Top Navigation Bar */}
+        <div className="fixed top-0 left-0 right-0 h-16 border-b-2 border-black bg-[#fcd7d7] z-10">
+          <div className="ml-16 h-full flex items-center px-6">
+            <h1 className="text-xl font-monument mr-8">Bibliotek</h1>
             <nav className="flex space-x-6">
               <span className="text-sm font-monument">Kalender</span>
               <span className="text-sm font-monument">Schema</span>
               <span className="text-sm font-monument">TBA</span>
             </nav>
           </div>
-        </header>
-
-        <div className="flex min-h-[calc(100vh-120px)]">
-          {/* Sidebar - we'll add content later */}
-          <div className="w-64 bg-[#fcd7d7] rounded-2xl border-2 border-white p-4 hidden md:block">
-            {/* Sidebar content will go here */}
-          </div>
-
-          {/* Main content area */}
-          <main className="flex-1 px-4 py-8">
-            {/* Main content */}
-            <div className="max-w-[1500px] mx-auto">
-              {children}
-            </div>
-          </main>
         </div>
+
+        {/* Sidebar */}
+        <div className="fixed top-0 left-0 bottom-0 w-16 border-r-2 border-black bg-[#fcd7d7] z-20">
+          {/* Sidebar content will go here */}
+        </div>
+
+        {/* Main Content */}
+        <main className="ml-16 pt-16 p-6">
+          <div className="max-w-[1500px] mx-auto">
+            {children}
+          </div>
+        </main>
       </body>
     </html>
   )
