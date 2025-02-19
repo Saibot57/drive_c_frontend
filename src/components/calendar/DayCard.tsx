@@ -1,7 +1,7 @@
-// src/components/Calendar/DayCard.tsx
+// src/components/calendar/DayCard.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';  // Added useMemo import
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, MoreHorizontal } from "lucide-react";
@@ -20,6 +20,13 @@ export const DayCard: React.FC<DayCardProps> = ({
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const maxVisibleEvents = 4;
   const hasMoreEvents = events.length > maxVisibleEvents;
+  
+  const isToday = useMemo(() => {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear();
+  }, [date]);
 
   return (
     <div 
@@ -38,9 +45,11 @@ export const DayCard: React.FC<DayCardProps> = ({
         }`}
         onClick={onFlip}
       >
-        <div className="h-full border-2 border-black bg-white p-2">
-          <div className="font-bold">{date.getDate()}</div>
-          <ScrollArea className="h-[calc(100%-24px)]">
+        <div className={`h-full rounded-lg border-2 border-black bg-white p-2 ${
+          isToday ? 'shadow-[inset_0_0_0_2px_#ff6b6b]' : ''
+        } hover:shadow-neo transition-shadow`}>
+          <div className="font-monument text-lg">{date.getDate()}</div>
+          <ScrollArea className="h-[calc(100%-28px)]">
             {events.slice(0, maxVisibleEvents).map((event) => (
               <div key={event.id} className="mb-1">
                 <EventCard
@@ -52,7 +61,7 @@ export const DayCard: React.FC<DayCardProps> = ({
               </div>
             ))}
             {hasMoreEvents && (
-              <div className="text-xs text-gray-500 flex items-center gap-1">
+              <div className="text-xs text-gray-500 flex items-center gap-1 py-1 px-2 bg-gray-50 rounded">
                 <MoreHorizontal className="h-4 w-4" />
                 {events.length - maxVisibleEvents} more
               </div>
@@ -67,7 +76,7 @@ export const DayCard: React.FC<DayCardProps> = ({
           isFlipped ? '' : 'pointer-events-none'
         }`}
       >
-        <div className="relative h-full border-2 border-black bg-white">
+        <div className="relative h-full rounded-lg border-2 border-black bg-white shadow-neo">
           <Button
             onClick={onClose}
             className="absolute right-2 top-2 z-10"
@@ -82,10 +91,10 @@ export const DayCard: React.FC<DayCardProps> = ({
               onEventAdd={onEventAdd}
               date={date}
             />
-            <div className="flex-1 p-4">
-              <h3 className="mb-4 font-bold">Notes for {date.toLocaleDateString()}</h3>
+            <div className="flex-1 p-4 border-l-2 border-black">
+              <h3 className="mb-4 font-monument text-lg">Notes for {date.toLocaleDateString()}</h3>
               <textarea
-                className="h-full w-full border-2 border-black p-2"
+                className="h-[calc(100%-40px)] w-full rounded-lg border-2 border-black p-2 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]"
                 placeholder="Add day notes..."
               />
             </div>
