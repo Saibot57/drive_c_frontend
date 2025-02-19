@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Red_Hat_Text } from 'next/font/google'
 import localFont from 'next/font/local'
 import './globals.css'
+import { NavigationHeader } from '@/components/NavigationHeader'
 
 const redHat = Red_Hat_Text({
   subsets: ['latin'],
@@ -48,11 +49,7 @@ export default function RootLayout({
           
           <div className="h-full flex items-center px-8">
             <h1 className="text-4xl font-monument mr-12">Bibliotek</h1>
-            <nav className="flex space-x-8">
-              <span className="text-3xl font-monument">Kalender</span>
-              <span className="text-3xl font-monument">Schema</span>
-              <span className="text-3xl font-monument">TBA</span>
-            </nav>
+            <NavigationHeader />
           </div>
         </div>
 
