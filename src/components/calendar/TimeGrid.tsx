@@ -1,68 +1,129 @@
-// src/components/Calendar/TimeGrid.tsx
+// src/components/calendar/TimeGrid.tsx
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { TimeGridProps } from './types';
+import React, { useRef, useState, useCallback } from 'react';
+import { TimeGridProps, Event } from './types';
+import { EventCard } from './EventCard';
 
-export const TimeGrid: React.FC<TimeGridProps> = ({ events, onEventAdd, date }) => {
+export const TimeGrid: React.FC<TimeGridProps> = ({ 
+  events, 
+  onEventAdd, 
+  onEventUpdate,
+  date 
+}) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragEnd, setDragEnd] = useState<number | null>(null);
+  const [resizingEvent, setResizingEvent] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<{ start: string; end: string } | null>(null);
 
-  const hourToY = (hour: number): number => {
-    return ((hour - 6) / 14) * (gridRef.current?.clientHeight ?? 0);
+  // Constants for grid configuration
+  const GRID_START_HOUR = 6; // 6 AM
+  const GRID_END_HOUR = 20; // 8 PM
+  const GRID_TOTAL_HOURS = GRID_END_HOUR - GRID_START_HOUR;
+  const TIME_SLOT_HEIGHT = 15; // pixels per 15 minutes
+
+  const snapToGrid = (y: number): number => {
+    const slotSize = (gridRef.current?.clientHeight ?? 0) / (GRID_TOTAL_HOURS * 4);
+    return Math.round(y / slotSize) * slotSize;
   };
 
-  const yToHour = (y: number): number => {
+  const yToTime = (y: number): Date => {
     const height = gridRef.current?.clientHeight ?? 0;
-    return 6 + (y / height) * 14;
+    const hour = GRID_START_HOUR + (y / height) * GRID_TOTAL_HOURS;
+    const newDate = new Date(date);
+    newDate.setHours(Math.floor(hour));
+    newDate.setMinutes((hour % 1) * 60);
+    return newDate;
   };
 
-  const formatHour = (hour: number): string => {
-    const hours = Math.floor(hour);
-    const minutes = Math.round((hour - hours) * 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const timeToY = (time: Date): number => {
+    const hour = time.getHours() + time.getMinutes() / 60;
+    const normalizedHour = hour - GRID_START_HOUR;
+    return (normalizedHour / GRID_TOTAL_HOURS) * (gridRef.current?.clientHeight ?? 0);
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const formatTime = (date: Date): string => {
+    return date.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+  };
+
+  const getEventStyle = (event: Event, overlappingEvents: number = 1, position: number = 0) => {
+    const top = timeToY(event.start);
+    const height = timeToY(event.end) - top;
+    const width = overlappingEvents > 1 ? `${85 / overlappingEvents}%` : '85%';
+    const left = overlappingEvents > 1 ? `${(85 / overlappingEvents) * position + 10}%` : '10%';
+
+    return {
+      top: `${top}px`,
+      height: `${Math.max(TIME_SLOT_HEIGHT, height)}px`,
+      width,
+      left,
+    };
+  };
+
+  const findOverlappingEvents = (currentEvents: Event[]): Record<string, Event[]> => {
+    const eventGroups: Record<string, Event[]> = {};
+    
+    currentEvents.forEach(event => {
+      const overlapping = currentEvents.filter(e => 
+        e.id !== event.id &&
+        event.start < e.end &&
+        event.end > e.start
+      );
+      
+      if (overlapping.length > 0) {
+        const groupKey = [event.id, ...overlapping.map(e => e.id)].sort().join('-');
+        eventGroups[groupKey] = [event, ...overlapping];
+      }
+    });
+
+    return eventGroups;
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!gridRef.current) return;
     const rect = gridRef.current.getBoundingClientRect();
-    const y = e.clientY - rect.top;
+    const y = snapToGrid(e.clientY - rect.top);
     setIsDragging(true);
     setDragStart(y);
     setDragEnd(y);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging || !gridRef.current) return;
     const rect = gridRef.current.getBoundingClientRect();
-    const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+    const y = snapToGrid(Math.max(0, Math.min(e.clientY - rect.top, rect.height)));
     setDragEnd(y);
 
     if (dragStart !== null) {
-      const startHour = yToHour(Math.min(dragStart, y));
-      const endHour = yToHour(Math.max(dragStart, y));
+      const startTime = yToTime(Math.min(dragStart, y));
+      const endTime = yToTime(Math.max(dragStart, y));
       setDragPreview({
-        start: formatHour(startHour),
-        end: formatHour(endHour)
+        start: formatTime(startTime),
+        end: formatTime(endTime)
       });
     }
   };
 
   const handleMouseUp = () => {
     if (dragStart !== null && dragEnd !== null) {
-      const startHour = yToHour(Math.min(dragStart, dragEnd));
-      const endHour = yToHour(Math.max(dragStart, dragEnd));
+      const startTime = yToTime(Math.min(dragStart, dragEnd));
+      const endTime = yToTime(Math.max(dragStart, dragEnd));
       
-      const newEvent = {
-        title: 'New Event',
-        start: new Date(date.setHours(Math.floor(startHour), (startHour % 1) * 60)),
-        end: new Date(date.setHours(Math.floor(endHour), (endHour % 1) * 60)),
-      };
-      
-      onEventAdd(newEvent);
+      if (endTime.getTime() - startTime.getTime() >= 15 * 60 * 1000) { // Minimum 15 minutes
+        onEventAdd({
+          title: 'New Event',
+          start: startTime,
+          end: endTime,
+          notes: ''
+        });
+      }
     }
     
     setIsDragging(false);
@@ -71,10 +132,30 @@ export const TimeGrid: React.FC<TimeGridProps> = ({ events, onEventAdd, date }) 
     setDragPreview(null);
   };
 
-  const hours = Array.from({ length: 15 }, (_, i) => i + 6); // 6:00 to 20:00
+  const handleEventResize = useCallback((eventId: string, edge: 'top' | 'bottom', newY: number) => {
+    const event = events.find(e => e.id === eventId);
+    if (!event || !onEventUpdate) return;
+
+    const newTime = yToTime(newY);
+    if (edge === 'top') {
+      onEventUpdate(eventId, { start: newTime });
+    } else {
+      onEventUpdate(eventId, { end: newTime });
+    }
+  }, [events, onEventUpdate, yToTime]);
+
+  // Generate time slots
+  const timeSlots = Array.from(
+    { length: (GRID_END_HOUR - GRID_START_HOUR) * 4 }, 
+    (_, i) => {
+      const hour = GRID_START_HOUR + Math.floor(i / 4);
+      const minutes = (i % 4) * 15;
+      return { hour, minutes };
+    }
+  );
 
   return (
-    <div className="h-full w-1/3 border-r-2 border-black bg-white p-2">
+    <div className="h-full relative bg-white p-2">
       <div 
         ref={gridRef}
         className="relative h-full"
@@ -83,56 +164,89 @@ export const TimeGrid: React.FC<TimeGridProps> = ({ events, onEventAdd, date }) 
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {hours.map((hour) => (
-          <div key={hour} className="absolute w-full border-t border-gray-200" 
-               style={{ top: `${((hour - 6) / 14) * 100}%` }}>
-            <span className="text-xs font-bold">{hour}:00</span>
+        {/* Time slots */}
+        {timeSlots.map((slot, i) => (
+          <div
+            key={i}
+            className="absolute w-full border-t border-gray-200"
+            style={{ 
+              top: `${(i * TIME_SLOT_HEIGHT)}px`,
+              height: `${TIME_SLOT_HEIGHT}px`
+            }}
+          >
+            {slot.minutes === 0 && (
+              <span className="absolute -left-8 -top-3 text-xs font-bold">
+                {`${String(slot.hour).padStart(2, '0')}:00`}
+              </span>
+            )}
           </div>
         ))}
         
+        {/* Events */}
         {events.map((event) => {
-          const startHour = event.start.getHours() + event.start.getMinutes() / 60;
-          const endHour = event.end.getHours() + event.end.getMinutes() / 60;
-          const top = Math.max(0, ((startHour - 6) / 14) * 100);
-          const height = Math.min(100 - top, ((endHour - startHour) / 14) * 100);
-          const minHeight = 10; // Minimum height for very short events
+          const overlappingGroups = findOverlappingEvents(events);
+          let overlappingCount = 1;
+          let position = 0;
+
+          // Find if event is in an overlapping group
+          Object.values(overlappingGroups).forEach(group => {
+            if (group.find(e => e.id === event.id)) {
+              overlappingCount = group.length;
+              position = group.findIndex(e => e.id === event.id);
+            }
+          });
 
           return (
             <div
               key={event.id}
-              className="absolute left-6 right-2 bg-[#ff6b6b] border-2 border-black p-1 text-xs overflow-hidden"
-              style={{
-                top: `${top}%`,
-                height: `${Math.max(minHeight, height)}%`,
-              }}
+              className="absolute bg-[#ff6b6b] border-2 border-black rounded-lg overflow-hidden transition-all hover:shadow-neo"
+              style={getEventStyle(event, overlappingCount, position)}
             >
-              {event.title}
+              <EventCard 
+                event={event}
+                isPreview={true}
+                onEdit={onEventUpdate ? 
+                  () => onEventUpdate(event.id, { isEditing: true }) : 
+                  undefined
+                }
+              />
+              
+              {/* Resize handles */}
+              <div 
+                className="absolute top-0 left-0 w-full h-2 cursor-ns-resize"
+                onMouseDown={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  setIsResizing(true);
+                  setResizingEvent(event.id);
+                }}
+              />
+              <div 
+                className="absolute bottom-0 left-0 w-full h-2 cursor-ns-resize"
+                onMouseDown={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  setIsResizing(true);
+                  setResizingEvent(event.id);
+                }}
+              />
             </div>
           );
         })}
         
+        {/* Drag preview */}
         {isDragging && dragStart !== null && dragEnd !== null && (
           <div
-            className="absolute left-6 right-2 bg-[#90EE90] border-2 border-black p-1 text-xs"
+            className="absolute left-[10%] w-[85%] bg-[#90EE90] border-2 border-black rounded-lg p-1 text-xs"
             style={{
               top: `${Math.min(dragStart, dragEnd)}px`,
               height: `${Math.abs(dragEnd - dragStart)}px`,
-              boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)',
               animation: 'pulse 2s infinite'
             }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between text-black">
               <span className="font-bold">{dragPreview?.start}</span>
               <span className="mx-1">-</span>
               <span className="font-bold">{dragPreview?.end}</span>
             </div>
-            <style jsx>{`
-              @keyframes pulse {
-                0% { opacity: 0.7; }
-                50% { opacity: 0.9; }
-                100% { opacity: 0.7; }
-              }
-            `}</style>
           </div>
         )}
       </div>

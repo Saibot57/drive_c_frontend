@@ -38,6 +38,24 @@ export const Calendar = () => {
     }));
   };
 
+  const handleEventUpdate = (date: Date, eventId: string, updates: Partial<Event>) => {
+    const dateKey = formatDateKey(date);
+    setEvents(prev => ({
+      ...prev,
+      [dateKey]: prev[dateKey]?.map(event => 
+        event.id === eventId ? { ...event, ...updates } : event
+      ) || []
+    }));
+  };
+
+  const handleEventDelete = (date: Date, eventId: string) => {
+    const dateKey = formatDateKey(date);
+    setEvents(prev => ({
+      ...prev,
+      [dateKey]: prev[dateKey]?.filter(event => event.id !== eventId) || []
+    }));
+  };
+
   const renderCalendarDays = () => {
     const days = [];
     const daysInMonth = getDaysInMonth(currentDate);
@@ -144,6 +162,8 @@ export const Calendar = () => {
           isOpen={!!selectedDate}
           onClose={() => setSelectedDate(null)}
           onEventAdd={(event) => handleEventAdd(selectedDate, event)}
+          onEventUpdate={(id, updates) => handleEventUpdate(selectedDate, id, updates)}
+          onEventDelete={(id) => handleEventDelete(selectedDate, id)}
         />
       )}
     </>
