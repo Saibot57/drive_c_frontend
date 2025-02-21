@@ -59,14 +59,18 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
   const getEventStyle = (event: Event, overlappingEvents: number = 1, position: number = 0) => {
     const top = timeToY(event.start);
     const height = timeToY(event.end) - top;
-    const width = overlappingEvents > 1 ? `${85 / overlappingEvents}%` : '85%';
-    const left = overlappingEvents > 1 ? `${(85 / overlappingEvents) * position + 10}%` : '10%';
+    // Adjust the width and left calculations to account for the time labels on the left
+    const width = overlappingEvents > 1 ? `${(85 / overlappingEvents)}%` : '85%';
+    const left = overlappingEvents > 1 
+      ? `calc(12px + ${(85 / overlappingEvents) * position + 5}%)` 
+      : 'calc(12px + 5%)';
 
     return {
       top: `${top}px`,
       height: `${Math.max(TIME_SLOT_HEIGHT, height)}px`,
       width,
       left,
+      backgroundColor: event.color || '#ff6b6b',
     };
   };
 
@@ -175,6 +179,21 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
+        {/* Left side time labels with white background */}
+        <div className="absolute left-0 top-0 bottom-0 w-12 bg-white z-10 border-r border-gray-300">
+          {timeSlots.map((slot, i) => (
+            slot.minutes === 0 && (
+              <div 
+                key={i} 
+                className="absolute left-0 w-full text-center text-xs font-bold"
+                style={{ top: `${(i * TIME_SLOT_HEIGHT) - 6}px` }}
+              >
+                {`${String(slot.hour).padStart(2, '0')}:00`}
+              </div>
+            )
+          ))}
+        </div>
+
         {/* Time slots */}
         {timeSlots.map((slot, i) => (
           <div
@@ -182,15 +201,10 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
             className="absolute w-full border-t border-gray-200"
             style={{ 
               top: `${(i * TIME_SLOT_HEIGHT)}px`,
-              height: `${TIME_SLOT_HEIGHT}px`
+              height: `${TIME_SLOT_HEIGHT}px`,
+              left: '12px' // Offset to account for the time labels
             }}
-          >
-            {slot.minutes === 0 && (
-              <span className="absolute -left-6 -top-3 text-xs font-bold">
-                {`${String(slot.hour).padStart(2, '0')}:00`}
-              </span>
-            )}
-          </div>
+          />
         ))}
         
         {/* Events */}

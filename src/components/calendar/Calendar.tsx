@@ -21,7 +21,10 @@ export const Calendar = () => {
   };
 
   const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    // Get day of week (0-6, where 0 is Sunday)
+    let day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    // Convert to Monday-first format (0-6, where 0 is Monday)
+    return day === 0 ? 6 : day - 1;
   };
 
   const formatDateKey = (date: Date) => {
@@ -288,7 +291,7 @@ export const Calendar = () => {
         </div>
 
         <div className="grid grid-cols-7 gap-4 mb-4">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
             <div key={day} className="text-center font-monument text-lg">
               {day}
             </div>

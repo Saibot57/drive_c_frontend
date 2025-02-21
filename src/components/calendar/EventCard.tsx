@@ -60,7 +60,8 @@ export const EventCard: React.FC<EventCardProps> = ({
     return (
       <div 
         ref={cardRef}
-        className="calendar-event-card cursor-pointer"
+        className="cursor-pointer rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+        style={{ backgroundColor: event.color || '#ff6b6b' }}
       >
         <div className="flex items-center justify-between text-white">
           <span className="truncate">{event.title}</span>
@@ -74,13 +75,23 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   // Edit mode
   if (isEditing) {
+    const colorOptions = [
+      '#ff6b6b', // Default pink
+      '#4CAF50', // Green
+      '#2196F3', // Blue
+      '#FF9800', // Orange  
+      '#9C27B0', // Purple
+      '#607D8B'  // Blue Gray
+    ];
+
     return (
       <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center">
         <div 
           className="w-full max-w-lg bg-white rounded-xl border-2 border-black shadow-neo"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between p-6 border-b-2 border-black bg-[#ff6b6b]">
+          <div className="flex items-center justify-between p-6 border-b-2 border-black"
+               style={{ backgroundColor: editedEvent.color || '#ff6b6b' }}>
             <h2 className="font-monument text-2xl text-white">Edit Event</h2>
             <div className="flex gap-2">
               <Button
@@ -148,6 +159,24 @@ export const EventCard: React.FC<EventCardProps> = ({
                   }}
                   className="w-full border-2 border-black"
                 />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-monument text-sm mb-2">Event Color</label>
+              <div className="flex flex-wrap gap-2">
+                {colorOptions.map(color => (
+                  <button
+                    key={color}
+                    type="button"
+                    className={`w-8 h-8 rounded-full border-2 ${editedEvent.color === color ? 'border-black' : 'border-gray-300'}`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setEditedEvent({
+                      ...editedEvent,
+                      color: color
+                    })}
+                  />
+                ))}
               </div>
             </div>
 
