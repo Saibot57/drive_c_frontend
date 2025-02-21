@@ -18,6 +18,7 @@ export interface DayModalProps {
   onEventAdd: (event: Omit<Event, 'id'>) => void;
   onEventUpdate?: (id: string, event: Partial<Event>) => void;
   onEventDelete?: (id: string) => void;
+  onSaveNotes?: (notes: string) => void;
 }
 
 export interface DayCardProps {

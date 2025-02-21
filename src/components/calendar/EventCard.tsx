@@ -1,7 +1,7 @@
 // src/components/calendar/EventCard.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { EventCardProps } from './types';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +16,8 @@ export const EventCard: React.FC<EventCardProps> = ({
   onUpdate
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
   const [editedEvent, setEditedEvent] = useState(event);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { 
@@ -39,11 +39,17 @@ export const EventCard: React.FC<EventCardProps> = ({
     setIsEditing(false);
   };
 
+  // Allow the parent component to handle context menu
+  const handleContextMenu = (e: React.MouseEvent) => {
+    // The context menu logic is handled in the parent component
+    // This is intentionally left empty to allow event bubbling
+  };
+
   // Preview mode (compact card in calendar view)
   if (isPreview) {
     return (
       <div 
-        onClick={() => setShowDetails(true)}
+        ref={cardRef}
         className="calendar-event-card cursor-pointer"
       >
         <div className="flex items-center justify-between text-white">
@@ -51,67 +57,6 @@ export const EventCard: React.FC<EventCardProps> = ({
           <span className="text-[10px] opacity-80">
             {formatTime(event.start)}
           </span>
-        </div>
-      </div>
-    );
-  }
-
-  // Detailed view modal
-  if (showDetails && !isEditing) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center">
-        <div 
-          className="w-full max-w-lg bg-white rounded-xl border-2 border-black shadow-neo"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between p-6 border-b-2 border-black bg-[#ff6b6b]">
-            <h2 className="font-monument text-2xl text-white">{event.title}</h2>
-            <div className="flex gap-2">
-              {onEdit && (
-                <Button
-                  onClick={() => setIsEditing(true)}
-                  variant="neutral"
-                  className="h-8 w-8 p-0 bg-white"
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-              )}
-              {onDelete && (
-                <Button
-                  onClick={() => {
-                    onDelete(event.id);
-                    setShowDetails(false);
-                  }}
-                  variant="neutral"
-                  className="h-8 w-8 p-0 bg-white"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-              <Button
-                onClick={() => setShowDetails(false)}
-                variant="neutral"
-                className="h-8 w-8 p-0 bg-white"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="p-6 space-y-4">
-            <div className="flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4" />
-              <span>
-                {formatTime(event.start)} - {formatTime(event.end)}
-              </span>
-            </div>
-
-            {event.notes && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg border-2 border-black">
-                <p className="text-sm whitespace-pre-wrap">{event.notes}</p>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     );
@@ -208,6 +153,22 @@ export const EventCard: React.FC<EventCardProps> = ({
               />
             </div>
           </div>
+
+          <div className="flex justify-end gap-2 p-6 border-t-2 border-black">
+            <Button
+              onClick={handleCancel}
+              variant="neutral"
+              className="border-2 border-black bg-white hover:bg-gray-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              className="border-2 border-black bg-[#ff6b6b] text-white hover:bg-[#ff6b6b]/90"
+            >
+              Save Changes
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -216,7 +177,6 @@ export const EventCard: React.FC<EventCardProps> = ({
   // Default display (non-preview, non-editing)
   return (
     <div 
-      onClick={() => setShowDetails(true)}
       className="calendar-event-card cursor-pointer"
     >
       <div className="flex items-center justify-between text-white">

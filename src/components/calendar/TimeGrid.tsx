@@ -175,7 +175,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
             }}
           >
             {slot.minutes === 0 && (
-              <span className="absolute -left-8 -top-3 text-xs font-bold">
+              <span className="absolute -left-6 -top-3 text-xs font-bold">
                 {`${String(slot.hour).padStart(2, '0')}:00`}
               </span>
             )}
@@ -202,14 +202,11 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
               className="absolute bg-[#ff6b6b] border-2 border-black rounded-lg overflow-hidden transition-all hover:shadow-neo"
               style={getEventStyle(event, overlappingCount, position)}
             >
-              <EventCard 
-                event={event}
-                isPreview={true}
-                onEdit={onEventUpdate ? 
-                  () => onEventUpdate(event.id, { isEditing: true }) : 
-                  undefined
-                }
-              />
+              <div className="h-full w-full overflow-hidden">
+                <div className="text-[10px] font-bold text-white px-1 truncate">
+                  {event.title}
+                </div>
+              </div>
               
               {/* Resize handles */}
               <div 
