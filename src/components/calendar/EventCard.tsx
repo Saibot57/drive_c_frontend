@@ -1,7 +1,7 @@
 // src/components/calendar/EventCard.tsx
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { EventCardProps } from './types';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,15 @@ export const EventCard: React.FC<EventCardProps> = ({
   onDelete,
   onUpdate
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(event.isEditing || false);
   const [editedEvent, setEditedEvent] = useState(event);
   const cardRef = useRef<HTMLDivElement>(null);
+  
+  // Update local state when the event prop changes
+  useEffect(() => {
+    setEditedEvent(event);
+    setIsEditing(event.isEditing || false);
+  }, [event]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { 
@@ -29,7 +35,10 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   const handleSave = () => {
     if (onUpdate) {
-      onUpdate(event.id, editedEvent);
+      // Remove isEditing flag when saving
+      const updatedEvent = { ...editedEvent };
+      delete updatedEvent.isEditing;
+      onUpdate(event.id, updatedEvent);
     }
     setIsEditing(false);
   };
@@ -37,12 +46,13 @@ export const EventCard: React.FC<EventCardProps> = ({
   const handleCancel = () => {
     setEditedEvent(event);
     setIsEditing(false);
-  };
-
-  // Allow the parent component to handle context menu
-  const handleContextMenu = (e: React.MouseEvent) => {
-    // The context menu logic is handled in the parent component
-    // This is intentionally left empty to allow event bubbling
+    
+    // Also notify parent to remove isEditing flag
+    if (onUpdate) {
+      const updates = { ...event };
+      delete updates.isEditing;
+      onUpdate(event.id, updates);
+    }
   };
 
   // Preview mode (compact card in calendar view)
@@ -70,20 +80,20 @@ export const EventCard: React.FC<EventCardProps> = ({
           className="w-full max-w-lg bg-white rounded-xl border-2 border-black shadow-neo"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between p-6 border-b-2 border-black">
-            <h2 className="font-monument text-2xl">Edit Event</h2>
+          <div className="flex items-center justify-between p-6 border-b-2 border-black bg-[#ff6b6b]">
+            <h2 className="font-monument text-2xl text-white">Edit Event</h2>
             <div className="flex gap-2">
               <Button
                 onClick={handleSave}
                 variant="neutral"
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 bg-white hover:bg-gray-50"
               >
                 <Check className="h-4 w-4" />
               </Button>
               <Button
                 onClick={handleCancel}
                 variant="neutral"
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 bg-white hover:bg-gray-50"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -100,7 +110,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                   ...editedEvent,
                   title: e.target.value
                 })}
-                className="w-full"
+                className="w-full border-2 border-black"
               />
             </div>
 
@@ -119,7 +129,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                       start: newStart
                     });
                   }}
-                  className="w-full"
+                  className="w-full border-2 border-black"
                 />
               </div>
               <div className="flex-1">
@@ -136,7 +146,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                       end: newEnd
                     });
                   }}
-                  className="w-full"
+                  className="w-full border-2 border-black"
                 />
               </div>
             </div>
@@ -149,7 +159,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                   ...editedEvent,
                   notes: e.target.value
                 })}
-                className="w-full min-h-[100px]"
+                className="w-full min-h-[100px] border-2 border-black"
               />
             </div>
           </div>

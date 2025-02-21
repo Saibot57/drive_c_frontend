@@ -3,11 +3,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { DayCard } from './DayCard';
 import { DayModal } from './DayModal';
 import { Event } from './types';
-import { calendarService } from '@/services/calendarService'; // Import the service
+import { calendarService } from '@/services/calendarService';
 
 export const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -74,13 +74,17 @@ export const Calendar = () => {
   // Updated to save to backend
   const handleEventAdd = async (date: Date, event: Omit<Event, 'id'>) => {
     try {
+      // Make a copy of the event to remove any UI-specific fields
+      const eventToSave = { ...event };
+      delete eventToSave.isEditing;
+      
       // Prepare event for backend
       const backendEvent = {
-        title: event.title,
-        start: event.start.toISOString(),
-        end: event.end.toISOString(),
-        notes: event.notes,
-        color: event.color
+        title: eventToSave.title,
+        start: eventToSave.start.toISOString(),
+        end: eventToSave.end.toISOString(),
+        notes: eventToSave.notes,
+        color: eventToSave.color
       };
       
       // Save to backend
@@ -93,7 +97,8 @@ export const Calendar = () => {
         start: new Date(savedEvent.start),
         end: new Date(savedEvent.end),
         notes: savedEvent.notes,
-        color: savedEvent.color
+        color: savedEvent.color,
+        isEditing: event.isEditing // Preserve the editing state if it was set
       };
       
       const dateKey = formatDateKey(date);
@@ -110,21 +115,33 @@ export const Calendar = () => {
   // Updated to save to backend
   const handleEventUpdate = async (date: Date, eventId: string, updates: Partial<Event>) => {
     try {
-      // Prepare updates for backend
-      const backendUpdates: any = { ...updates };
-      
-      // Convert Date objects to ISO strings
-      if (updates.start) backendUpdates.start = updates.start.toISOString();
-      if (updates.end) backendUpdates.end = updates.end.toISOString();
-      
-      // Remove any fields that shouldn't be sent to the backend
-      delete backendUpdates.isEditing;
-      
-      // Update on backend
-      await calendarService.updateEvent(eventId, backendUpdates);
-      
-      // Update local state
+      // Get the existing event to merge with updates
       const dateKey = formatDateKey(date);
+      const existingEvent = events[dateKey]?.find(e => e.id === eventId);
+      
+      if (!existingEvent) {
+        console.error(`Event with ID ${eventId} not found for date ${dateKey}`);
+        return;
+      }
+      
+      // Make a copy of the updates to remove any UI-specific fields before sending to backend
+      const updatesToSave = { ...updates };
+      delete updatesToSave.isEditing;
+      
+      // Only send to backend if we have fields to update
+      if (Object.keys(updatesToSave).length > 0) {
+        // Prepare updates for backend
+        const backendUpdates: any = { ...updatesToSave };
+        
+        // Convert Date objects to ISO strings
+        if (updatesToSave.start) backendUpdates.start = updatesToSave.start.toISOString();
+        if (updatesToSave.end) backendUpdates.end = updatesToSave.end.toISOString();
+        
+        // Update on backend
+        await calendarService.updateEvent(eventId, backendUpdates);
+      }
+      
+      // Update local state (including UI-specific fields)
       setEvents(prev => ({
         ...prev,
         [dateKey]: prev[dateKey]?.map(event => 
@@ -228,6 +245,12 @@ export const Calendar = () => {
         {error && (
           <div className="mb-4 p-2 bg-red-100 border border-red-300 text-red-700 rounded">
             {error}
+            <Button 
+              onClick={() => setError(null)}
+              className="ml-2 h-6 w-6 p-0 text-red-700 bg-transparent hover:bg-red-200"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         )}
         

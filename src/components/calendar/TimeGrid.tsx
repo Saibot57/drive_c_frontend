@@ -4,6 +4,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { TimeGridProps, Event } from './types';
 import { EventCard } from './EventCard';
+import EventConfirmationDialog from './EventConfirmationDialog';
 
 export const TimeGrid: React.FC<TimeGridProps> = ({ 
   events, 
@@ -18,6 +19,8 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
   const [dragEnd, setDragEnd] = useState<number | null>(null);
   const [resizingEvent, setResizingEvent] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<{ start: string; end: string } | null>(null);
+  const [showEventDialog, setShowEventDialog] = useState(false);
+  const [newEventTimes, setNewEventTimes] = useState<{ start: Date; end: Date } | null>(null);
 
   // Constants for grid configuration
   const GRID_START_HOUR = 6; // 6 AM
@@ -117,12 +120,9 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
       const endTime = yToTime(Math.max(dragStart, dragEnd));
       
       if (endTime.getTime() - startTime.getTime() >= 15 * 60 * 1000) { // Minimum 15 minutes
-        onEventAdd({
-          title: 'New Event',
-          start: startTime,
-          end: endTime,
-          notes: ''
-        });
+        // Instead of directly creating the event, show the dialog
+        setNewEventTimes({ start: startTime, end: endTime });
+        setShowEventDialog(true);
       }
     }
     
@@ -130,6 +130,17 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
     setDragStart(null);
     setDragEnd(null);
     setDragPreview(null);
+  };
+
+  const handleEventConfirm = (eventDetails: Omit<Event, 'id'>) => {
+    onEventAdd(eventDetails);
+    setShowEventDialog(false);
+    setNewEventTimes(null);
+  };
+
+  const handleDialogClose = () => {
+    setShowEventDialog(false);
+    setNewEventTimes(null);
   };
 
   const handleEventResize = useCallback((eventId: string, edge: 'top' | 'bottom', newY: number) => {
@@ -247,6 +258,17 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
           </div>
         )}
       </div>
+
+      {/* Event Creation Dialog */}
+      {showEventDialog && newEventTimes && (
+        <EventConfirmationDialog
+          isOpen={showEventDialog}
+          onClose={handleDialogClose}
+          onConfirm={handleEventConfirm}
+          startTime={newEventTimes.start}
+          endTime={newEventTimes.end}
+        />
+      )}
     </div>
   );
 };

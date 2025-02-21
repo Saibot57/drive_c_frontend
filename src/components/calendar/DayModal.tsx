@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Plus, Save, MoreVertical, Edit, Trash } from "lucide-react";
-import { DayModalProps } from './types';
+import { DayModalProps, Event } from './types';
 import { TimeGrid } from './TimeGrid';
 import { EventCard } from './EventCard';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,6 +28,7 @@ export const DayModal: React.FC<DayModalProps> = ({
   const [notesError, setNotesError] = useState<string | null>(null);
   const [contextMenuEvent, setContextMenuEvent] = useState<{ id: string, x: number, y: number } | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
+  const [eventBeingEdited, setEventBeingEdited] = useState<string | null>(null);
 
   // Fetch day notes when modal opens
   useEffect(() => {
@@ -93,7 +94,8 @@ export const DayModal: React.FC<DayModalProps> = ({
       title: 'New Event',
       start: startTime,
       end: endTime,
-      notes: ''
+      notes: '',
+      isEditing: true // Start in editing mode
     });
     setQuickEventMode(false);
   };
@@ -102,6 +104,34 @@ export const DayModal: React.FC<DayModalProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setContextMenuEvent({ id: eventId, x: e.clientX, y: e.clientY });
+  };
+
+  const handleEventUpdate = (eventId: string, updates: Partial<Event>) => {
+    // Check if this was previously being edited
+    if (eventBeingEdited === eventId && !updates.isEditing) {
+      setEventBeingEdited(null);
+    }
+    
+    // If we're entering edit mode, track this event
+    if (updates.isEditing) {
+      setEventBeingEdited(eventId);
+    }
+
+    // Pass the update to the parent
+    if (onEventUpdate) {
+      onEventUpdate(eventId, updates);
+    }
+  };
+
+  const handleEditEvent = (eventId: string) => {
+    setEventBeingEdited(eventId);
+    if (onEventUpdate) {
+      onEventUpdate(eventId, { isEditing: true });
+    }
+    setSelectedEvent(null);
+    if (contextMenuEvent) {
+      setContextMenuEvent(null);
+    }
   };
 
   if (!isOpen) return null;
@@ -143,7 +173,7 @@ export const DayModal: React.FC<DayModalProps> = ({
               <TimeGrid 
                 events={events}
                 onEventAdd={onEventAdd}
-                onEventUpdate={onEventUpdate}
+                onEventUpdate={handleEventUpdate}
                 date={date}
               />
             </div>
@@ -176,7 +206,8 @@ export const DayModal: React.FC<DayModalProps> = ({
                     >
                       <EventCard 
                         event={event}
-                        isPreview 
+                        isPreview
+                        onUpdate={handleEventUpdate}
                       />
                     </div>
                   ))}
@@ -233,12 +264,7 @@ export const DayModal: React.FC<DayModalProps> = ({
             <div className="flex flex-col">
               <button 
                 className="px-4 py-2 text-left hover:bg-gray-100 flex items-center"
-                onClick={() => {
-                  if (onEventUpdate) {
-                    onEventUpdate(contextMenuEvent.id, { isEditing: true });
-                    setContextMenuEvent(null);
-                  }
-                }}
+                onClick={() => handleEditEvent(contextMenuEvent.id)}
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
@@ -260,7 +286,7 @@ export const DayModal: React.FC<DayModalProps> = ({
         )}
 
         {/* Event Detail View */}
-        {selectedEventData && (
+        {selectedEventData && !eventBeingEdited && (
           <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center">
             <div 
               className="w-[90vw] max-w-xl bg-white rounded-xl border-2 border-black shadow-neo"
@@ -296,12 +322,7 @@ export const DayModal: React.FC<DayModalProps> = ({
                   Close
                 </Button>
                 <Button
-                  onClick={() => {
-                    if (onEventUpdate) {
-                      onEventUpdate(selectedEventData.id, { isEditing: true });
-                      setSelectedEvent(null);
-                    }
-                  }}
+                  onClick={() => handleEditEvent(selectedEventData.id)}
                   variant="neutral"
                   className="h-10 px-4 ml-2 border-2 border-black bg-[#ff6b6b] text-white hover:bg-[#ff6b6b]/90"
                 >
