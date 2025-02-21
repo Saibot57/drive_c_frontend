@@ -10,6 +10,7 @@ import { TimeGrid } from './TimeGrid';
 import { EventCard } from './EventCard';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { calendarService } from '@/services/calendarService';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 export const DayModal: React.FC<DayModalProps> = ({
   date,
@@ -124,9 +125,17 @@ export const DayModal: React.FC<DayModalProps> = ({
   };
 
   const handleEditEvent = (eventId: string) => {
+    // Find the event in the events array
+    const eventToEdit = events.find(e => e.id === eventId);
+    if (!eventToEdit) return;
+    
     setEventBeingEdited(eventId);
     if (onEventUpdate) {
-      onEventUpdate(eventId, { isEditing: true });
+      // This ensures the isEditing flag is correctly set
+      onEventUpdate(eventId, { 
+        ...eventToEdit,
+        isEditing: true 
+      });
     }
     setSelectedEvent(null);
     if (contextMenuEvent) {
@@ -166,89 +175,104 @@ export const DayModal: React.FC<DayModalProps> = ({
           </Button>
         </div>
 
-        <div className="flex h-[calc(100%-5rem)]">
-          {/* Time Grid Section - Now 1/3 width */}
-          <div className="w-1/3 border-r-2 border-black">
-            <div className="h-full">
-              <TimeGrid 
-                events={events}
-                onEventAdd={onEventAdd}
-                onEventUpdate={handleEventUpdate}
-                date={date}
-              />
-            </div>
-          </div>
-
-          {/* Events & Notes Section - Now 2/3 width */}
-          <div className="w-2/3 flex flex-col h-full">
-            {/* Events List */}
-            <div className="flex-1 p-6 border-b-2 border-black">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-monument text-lg">Events</h3>
-                <Button
-                  onClick={handleQuickEventAdd}
-                  variant="neutral"
-                  className="h-8 px-2 border-2 border-black bg-white hover:bg-gray-50"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Event
-                </Button>
+        <div className="h-[calc(100%-5rem)]">
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* Time Grid Section */}
+            <ResizablePanel defaultSize={35} minSize={25}>
+              <div className="h-full border-r-2 border-black">
+                <TimeGrid 
+                  events={events}
+                  onEventAdd={onEventAdd}
+                  onEventUpdate={handleEventUpdate}
+                  date={date}
+                />
               </div>
-              
-              <ScrollArea className="h-[calc(100%-2rem)]">
-                <div className="space-y-2">
-                  {sortedEvents.map(event => (
-                    <div 
-                      key={event.id}
-                      onContextMenu={(e) => handleContextMenu(e, event.id)}
-                      onClick={() => setSelectedEvent(event.id)}
-                      className="relative"
-                    >
-                      <EventCard 
-                        event={event}
-                        isPreview
-                        onUpdate={handleEventUpdate}
-                      />
+            </ResizablePanel>
+            
+            <ResizableHandle withHandle />
+            
+            {/* Events & Notes Section */}
+            <ResizablePanel defaultSize={65}>
+              <ResizablePanelGroup direction="vertical">
+                {/* Events List */}
+                <ResizablePanel 
+                  defaultSize={40} 
+                  minSize={20}
+                >
+                  <div className="h-full border-b-2 border-black p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-monument text-lg">Events</h3>
+                      <Button
+                        onClick={handleQuickEventAdd}
+                        variant="neutral"
+                        className="h-8 px-2 border-2 border-black bg-white hover:bg-gray-50"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Event
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
-
-            {/* Notes Section */}
-            <div className="flex-1 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-monument text-lg">Notes</h3>
-                <Button
-                  onClick={handleSaveNotes}
-                  disabled={isNotesSaving}
-                  variant="neutral"
-                  className="h-8 px-2 border-2 border-black bg-white hover:bg-gray-50"
-                >
-                  <Save className="h-4 w-4 mr-1" />
-                  Save
-                </Button>
-              </div>
-              
-              {isNotesLoading ? (
-                <div className="flex items-center justify-center h-[calc(100%-2rem)]">
-                  <p>Loading notes...</p>
-                </div>
-              ) : (
-                <>
-                  {notesError && (
-                    <div className="text-red-500 text-sm mb-2">{notesError}</div>
-                  )}
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Add notes for this day..."
-                    className="w-full h-[calc(100%-2rem)] rounded-lg border-2 border-black p-2 resize-none"
-                  />
-                </>
-              )}
-            </div>
-          </div>
+                    
+                    <ScrollArea className="h-[calc(100%-3rem)]">
+                      <div className="space-y-2">
+                        {sortedEvents.map(event => (
+                          <div 
+                            key={event.id}
+                            onContextMenu={(e) => handleContextMenu(e, event.id)}
+                            onClick={() => setSelectedEvent(event.id)}
+                            className="relative"
+                          >
+                            <EventCard 
+                              event={event}
+                              isPreview
+                              onUpdate={handleEventUpdate}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </ResizablePanel>
+                
+                <ResizableHandle withHandle />
+                
+                {/* Notes Section */}
+                <ResizablePanel defaultSize={60}>
+                  <div className="p-6 h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-monument text-lg">Notes</h3>
+                      <Button
+                        onClick={handleSaveNotes}
+                        disabled={isNotesSaving}
+                        variant="neutral"
+                        className="h-8 px-2 border-2 border-black bg-white hover:bg-gray-50"
+                      >
+                        <Save className="h-4 w-4 mr-1" />
+                        Save
+                      </Button>
+                    </div>
+                    
+                    {isNotesLoading ? (
+                      <div className="flex items-center justify-center h-full">
+                        <p>Loading notes...</p>
+                      </div>
+                    ) : (
+                      <>
+                        {notesError && (
+                          <div className="text-red-500 text-sm mb-2">{notesError}</div>
+                        )}
+                        <Textarea
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          placeholder="Add notes for this day..."
+                          className="w-full flex-1 rounded-lg border-2 border-black p-2 resize-none"
+                        />
+                      </>
+                    )}
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
 
         {/* Context Menu */}
@@ -292,7 +316,8 @@ export const DayModal: React.FC<DayModalProps> = ({
               className="w-[90vw] max-w-xl bg-white rounded-xl border-2 border-black shadow-neo"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b-2 border-black bg-[#ff6b6b] text-center">
+              <div className="p-6 border-b-2 border-black text-center"
+                   style={{ backgroundColor: selectedEventData.color || '#ff6b6b' }}>
                 <h2 className="font-monument text-xl text-white">{selectedEventData.title}</h2>
                 <div className="text-white mt-1">
                   {selectedEventData.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
