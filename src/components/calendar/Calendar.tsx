@@ -1,17 +1,20 @@
 // src/components/calendar/Calendar.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayCard } from './DayCard';
 import { DayModal } from './DayModal';
 import { Event } from './types';
+import { calendarService } from '@/services/calendarService'; // Import the service
 
 export const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [events, setEvents] = useState<Record<string, Event[]>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -25,35 +28,131 @@ export const Calendar = () => {
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   };
 
-  const handleEventAdd = (date: Date, event: Omit<Event, 'id'>) => {
-    const dateKey = formatDateKey(date);
-    const newEvent = {
-      ...event,
-      id: Math.random().toString(36).substr(2, 9)
+  // Fetch events from the backend when the month changes
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setIsLoading(true);
+        const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+        
+        const backendEvents = await calendarService.getEvents(startOfMonth, endOfMonth);
+        
+        // Convert backend events to frontend format and organize by date
+        const eventsByDate: Record<string, Event[]> = {};
+        
+        backendEvents.forEach(backendEvent => {
+          const event: Event = {
+            id: backendEvent.id,
+            title: backendEvent.title,
+            start: new Date(backendEvent.start),
+            end: new Date(backendEvent.end),
+            notes: backendEvent.notes,
+            color: backendEvent.color
+          };
+          
+          const dateKey = formatDateKey(event.start);
+          if (!eventsByDate[dateKey]) {
+            eventsByDate[dateKey] = [];
+          }
+          
+          eventsByDate[dateKey].push(event);
+        });
+        
+        setEvents(eventsByDate);
+      } catch (error) {
+        console.error("Failed to fetch events:", error);
+        setError("Failed to load events");
+      } finally {
+        setIsLoading(false);
+      }
     };
+    
+    fetchEvents();
+  }, [currentDate]);
 
-    setEvents(prev => ({
-      ...prev,
-      [dateKey]: [...(prev[dateKey] || []), newEvent]
-    }));
+  // Updated to save to backend
+  const handleEventAdd = async (date: Date, event: Omit<Event, 'id'>) => {
+    try {
+      // Prepare event for backend
+      const backendEvent = {
+        title: event.title,
+        start: event.start.toISOString(),
+        end: event.end.toISOString(),
+        notes: event.notes,
+        color: event.color
+      };
+      
+      // Save to backend
+      const savedEvent = await calendarService.createEvent(backendEvent);
+      
+      // Update local state with the returned event (including the ID)
+      const newEvent: Event = {
+        id: savedEvent.id,
+        title: savedEvent.title,
+        start: new Date(savedEvent.start),
+        end: new Date(savedEvent.end),
+        notes: savedEvent.notes,
+        color: savedEvent.color
+      };
+      
+      const dateKey = formatDateKey(date);
+      setEvents(prev => ({
+        ...prev,
+        [dateKey]: [...(prev[dateKey] || []), newEvent]
+      }));
+    } catch (error) {
+      console.error("Failed to save event:", error);
+      setError("Failed to save event");
+    }
   };
 
-  const handleEventUpdate = (date: Date, eventId: string, updates: Partial<Event>) => {
-    const dateKey = formatDateKey(date);
-    setEvents(prev => ({
-      ...prev,
-      [dateKey]: prev[dateKey]?.map(event => 
-        event.id === eventId ? { ...event, ...updates } : event
-      ) || []
-    }));
+  // Updated to save to backend
+  const handleEventUpdate = async (date: Date, eventId: string, updates: Partial<Event>) => {
+    try {
+      // Prepare updates for backend
+      const backendUpdates: any = { ...updates };
+      
+      // Convert Date objects to ISO strings
+      if (updates.start) backendUpdates.start = updates.start.toISOString();
+      if (updates.end) backendUpdates.end = updates.end.toISOString();
+      
+      // Remove any fields that shouldn't be sent to the backend
+      delete backendUpdates.isEditing;
+      
+      // Update on backend
+      await calendarService.updateEvent(eventId, backendUpdates);
+      
+      // Update local state
+      const dateKey = formatDateKey(date);
+      setEvents(prev => ({
+        ...prev,
+        [dateKey]: prev[dateKey]?.map(event => 
+          event.id === eventId ? { ...event, ...updates } : event
+        ) || []
+      }));
+    } catch (error) {
+      console.error("Failed to update event:", error);
+      setError("Failed to update event");
+    }
   };
 
-  const handleEventDelete = (date: Date, eventId: string) => {
-    const dateKey = formatDateKey(date);
-    setEvents(prev => ({
-      ...prev,
-      [dateKey]: prev[dateKey]?.filter(event => event.id !== eventId) || []
-    }));
+  // Updated to delete from backend
+  const handleEventDelete = async (date: Date, eventId: string) => {
+    try {
+      // Delete from backend
+      await calendarService.deleteEvent(eventId);
+      
+      // Update local state
+      const dateKey = formatDateKey(date);
+      setEvents(prev => ({
+        ...prev,
+        [dateKey]: prev[dateKey]?.filter(event => event.id !== eventId) || []
+      }));
+    } catch (error) {
+      console.error("Failed to delete event:", error);
+      setError("Failed to delete event");
+    }
   };
 
   const renderCalendarDays = () => {
@@ -106,9 +205,32 @@ export const Calendar = () => {
            date.getFullYear() === today.getFullYear();
   };
 
+  const handleSaveNotes = async (notes: string) => {
+    try {
+      if (selectedDate) {
+        await calendarService.saveDayNote(selectedDate, notes);
+      }
+    } catch (error) {
+      console.error("Failed to save notes:", error);
+      setError("Failed to save notes");
+    }
+  };
+
   return (
     <>
       <div className="relative p-4 bg-white rounded-xl border-2 border-black shadow-neo">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+            <p>Loading events...</p>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-4 p-2 bg-red-100 border border-red-300 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+        
         <div className="mb-6 flex items-center justify-between border-b-2 border-black pb-4">
           <h2 className="text-4xl font-monument uppercase">
             {currentDate.toLocaleString('default', { month: 'long' })} {currentDate.getFullYear()}
@@ -164,6 +286,7 @@ export const Calendar = () => {
           onEventAdd={(event) => handleEventAdd(selectedDate, event)}
           onEventUpdate={(id, updates) => handleEventUpdate(selectedDate, id, updates)}
           onEventDelete={(id) => handleEventDelete(selectedDate, id)}
+          onSaveNotes={(notes) => handleSaveNotes(notes)}
         />
       )}
     </>
