@@ -52,7 +52,9 @@ export const DayModal: React.FC<DayModalProps> = ({
       setIsNotesLoading(true);
       setNotesError(null);
       
+      console.log('Fetching day notes for:', date);
       const dayNote = await calendarService.getDayNote(date);
+      console.log('Retrieved day notes:', dayNote);
       setNotes(dayNote.notes || '');
     } catch (error) {
       console.error("Error fetching day notes:", error);
@@ -67,7 +69,9 @@ export const DayModal: React.FC<DayModalProps> = ({
       setIsNotesSaving(true);
       setNotesError(null);
       
+      console.log('Saving day notes:', notes);
       await calendarService.saveDayNote(date, notes);
+      console.log('Notes saved successfully');
       
       // Call parent handler if provided
       if (onSaveNotes) {
@@ -91,6 +95,7 @@ export const DayModal: React.FC<DayModalProps> = ({
     const endTime = new Date(date);
     endTime.setHours(currentHour + 2, 0, 0, 0);
 
+    console.log('Adding quick event');
     onEventAdd({
       title: 'New Event',
       start: startTime,
@@ -104,10 +109,13 @@ export const DayModal: React.FC<DayModalProps> = ({
   const handleContextMenu = (e: React.MouseEvent, eventId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('Context menu opened for event:', eventId);
     setContextMenuEvent({ id: eventId, x: e.clientX, y: e.clientY });
   };
 
   const handleEventUpdate = (eventId: string, updates: Partial<Event>) => {
+    console.log('Handling event update in DayModal:', eventId, updates);
+    
     // Check if this was previously being edited
     if (eventBeingEdited === eventId && !updates.isEditing) {
       setEventBeingEdited(null);
@@ -125,6 +133,7 @@ export const DayModal: React.FC<DayModalProps> = ({
   };
 
   const handleEditEvent = (eventId: string) => {
+    console.log('Editing event:', eventId);
     // Find the event in the events array
     const eventToEdit = events.find(e => e.id === eventId);
     if (!eventToEdit) return;

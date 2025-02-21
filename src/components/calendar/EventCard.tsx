@@ -21,6 +21,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   
   // Update local state when the event prop changes
   useEffect(() => {
+    console.log("EventCard received event:", event);
     setEditedEvent(event);
     setIsEditing(event.isEditing || false);
   }, [event]);
@@ -34,6 +35,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   };
 
   const handleSave = () => {
+    console.log("Saving edited event:", editedEvent);
     if (onUpdate) {
       // Remove isEditing flag when saving
       const updatedEvent = { ...editedEvent };
@@ -44,6 +46,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   };
 
   const handleCancel = () => {
+    console.log("Cancelling edit for event:", event.id);
     setEditedEvent(event);
     setIsEditing(false);
     
@@ -51,7 +54,7 @@ export const EventCard: React.FC<EventCardProps> = ({
     if (onUpdate) {
       const updates = { ...event };
       delete updates.isEditing;
-      onUpdate(event.id, updates);
+      onUpdate(event.id, { isEditing: false });
     }
   };
 
@@ -132,13 +135,15 @@ export const EventCard: React.FC<EventCardProps> = ({
                   type="time"
                   value={formatTime(editedEvent.start)}
                   onChange={(e) => {
-                    const [hours, minutes] = e.target.value.split(':');
-                    const newStart = new Date(editedEvent.start);
-                    newStart.setHours(parseInt(hours), parseInt(minutes));
-                    setEditedEvent({
-                      ...editedEvent,
-                      start: newStart
-                    });
+                    const [hours, minutes] = e.target.value.split(':').map(Number);
+                    if (!isNaN(hours) && !isNaN(minutes)) {
+                      const newStart = new Date(editedEvent.start);
+                      newStart.setHours(hours, minutes);
+                      setEditedEvent({
+                        ...editedEvent,
+                        start: newStart
+                      });
+                    }
                   }}
                   className="w-full border-2 border-black"
                 />
@@ -149,13 +154,15 @@ export const EventCard: React.FC<EventCardProps> = ({
                   type="time"
                   value={formatTime(editedEvent.end)}
                   onChange={(e) => {
-                    const [hours, minutes] = e.target.value.split(':');
-                    const newEnd = new Date(editedEvent.end);
-                    newEnd.setHours(parseInt(hours), parseInt(minutes));
-                    setEditedEvent({
-                      ...editedEvent,
-                      end: newEnd
-                    });
+                    const [hours, minutes] = e.target.value.split(':').map(Number);
+                    if (!isNaN(hours) && !isNaN(minutes)) {
+                      const newEnd = new Date(editedEvent.end);
+                      newEnd.setHours(hours, minutes);
+                      setEditedEvent({
+                        ...editedEvent,
+                        end: newEnd
+                      });
+                    }
                   }}
                   className="w-full border-2 border-black"
                 />
@@ -217,6 +224,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   return (
     <div 
       className="calendar-event-card cursor-pointer"
+      style={{ backgroundColor: event.color || '#ff6b6b' }}
     >
       <div className="flex items-center justify-between text-white">
         <span className="truncate">{event.title}</span>

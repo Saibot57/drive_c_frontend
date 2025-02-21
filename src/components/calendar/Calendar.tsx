@@ -62,6 +62,7 @@ export const Calendar = () => {
           eventsByDate[dateKey].push(event);
         });
         
+        console.log('Organized events by date:', eventsByDate);
         setEvents(eventsByDate);
       } catch (error) {
         console.error("Failed to fetch events:", error);
@@ -74,12 +75,12 @@ export const Calendar = () => {
     fetchEvents();
   }, [currentDate]);
 
-  // Updated to save to backend
+  // Create a new event
   const handleEventAdd = async (date: Date, event: Omit<Event, 'id'>) => {
     try {
       // Make a copy of the event to remove any UI-specific fields
       const eventToSave = { ...event };
-      delete eventToSave.isEditing;
+      delete (eventToSave as any).isEditing;
       
       // Prepare event for backend
       const backendEvent = {
@@ -89,6 +90,8 @@ export const Calendar = () => {
         notes: eventToSave.notes,
         color: eventToSave.color
       };
+      
+      console.log('Saving new event to backend:', backendEvent);
       
       // Save to backend
       const savedEvent = await calendarService.createEvent(backendEvent);
@@ -109,15 +112,19 @@ export const Calendar = () => {
         ...prev,
         [dateKey]: [...(prev[dateKey] || []), newEvent]
       }));
+      
+      console.log('Event added successfully:', newEvent);
     } catch (error) {
       console.error("Failed to save event:", error);
       setError("Failed to save event");
     }
   };
 
-  // Updated to save to backend
+  // Update an existing event
   const handleEventUpdate = async (date: Date, eventId: string, updates: Partial<Event>) => {
     try {
+      console.log(`Updating event ${eventId} with:`, updates);
+      
       // Get the existing event to merge with updates
       const dateKey = formatDateKey(date);
       const existingEvent = events[dateKey]?.find(e => e.id === eventId);
@@ -140,35 +147,50 @@ export const Calendar = () => {
         if (updatesToSave.start) backendUpdates.start = updatesToSave.start.toISOString();
         if (updatesToSave.end) backendUpdates.end = updatesToSave.end.toISOString();
         
+        console.log('Sending updates to backend:', backendUpdates);
+        
         // Update on backend
         await calendarService.updateEvent(eventId, backendUpdates);
+        console.log('Backend update successful');
       }
       
       // Update local state (including UI-specific fields)
-      setEvents(prev => ({
-        ...prev,
-        [dateKey]: prev[dateKey]?.map(event => 
-          event.id === eventId ? { ...event, ...updates } : event
-        ) || []
-      }));
+      setEvents(prev => {
+        const updated = { 
+          ...prev,
+          [dateKey]: prev[dateKey]?.map(event => 
+            event.id === eventId ? { ...event, ...updates } : event
+          ) || []
+        };
+        console.log('Updated local state:', updated);
+        return updated;
+      });
     } catch (error) {
       console.error("Failed to update event:", error);
       setError("Failed to update event");
     }
   };
 
-  // Updated to delete from backend
+  // Delete an event
   const handleEventDelete = async (date: Date, eventId: string) => {
     try {
+      console.log(`Deleting event ${eventId}`);
+      
       // Delete from backend
       await calendarService.deleteEvent(eventId);
       
       // Update local state
       const dateKey = formatDateKey(date);
-      setEvents(prev => ({
-        ...prev,
-        [dateKey]: prev[dateKey]?.filter(event => event.id !== eventId) || []
-      }));
+      setEvents(prev => {
+        const updated = {
+          ...prev,
+          [dateKey]: prev[dateKey]?.filter(event => event.id !== eventId) || []
+        };
+        console.log('Updated local state after deletion:', updated);
+        return updated;
+      });
+      
+      console.log('Event deleted successfully');
     } catch (error) {
       console.error("Failed to delete event:", error);
       setError("Failed to delete event");
@@ -228,7 +250,9 @@ export const Calendar = () => {
   const handleSaveNotes = async (notes: string) => {
     try {
       if (selectedDate) {
+        console.log('Saving notes for date:', selectedDate, notes);
         await calendarService.saveDayNote(selectedDate, notes);
+        console.log('Notes saved successfully');
       }
     } catch (error) {
       console.error("Failed to save notes:", error);

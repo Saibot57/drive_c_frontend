@@ -45,7 +45,7 @@ export interface CalendarEvent {
         }
         
         const data = await response.json();
-        console.log(`Retrieved ${data.data?.length || 0} events`);
+        console.log(`Retrieved ${data.data?.length || 0} events:`, data.data);
         return data.data || [];
       } catch (error) {
         console.error('Error fetching events:', error);
@@ -55,7 +55,7 @@ export interface CalendarEvent {
     
     async createEvent(event: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> {
       try {
-        console.log(`Creating event: ${JSON.stringify(event)}`);
+        console.log(`Creating event:`, event);
         const response = await fetch(`${API_URL}/events`, {
           method: 'POST',
           headers: {
@@ -71,7 +71,7 @@ export interface CalendarEvent {
         }
         
         const data = await response.json();
-        console.log(`Event created with ID: ${data.data?.id}`);
+        console.log(`Event created with ID: ${data.data?.id}`, data.data);
         return data.data;
       } catch (error) {
         console.error('Error creating event:', error);
@@ -81,7 +81,7 @@ export interface CalendarEvent {
     
     async updateEvent(id: string, updates: Partial<CalendarEvent>): Promise<CalendarEvent> {
       try {
-        console.log(`Updating event ${id}: ${JSON.stringify(updates)}`);
+        console.log(`Updating event ${id}:`, updates);
         const response = await fetch(`${API_URL}/events/${id}`, {
           method: 'PUT',
           headers: {
@@ -97,7 +97,7 @@ export interface CalendarEvent {
         }
         
         const data = await response.json();
-        console.log(`Event updated successfully`);
+        console.log(`Event updated successfully:`, data.data);
         return data.data;
       } catch (error) {
         console.error('Error updating event:', error);
@@ -132,13 +132,19 @@ export interface CalendarEvent {
         const response = await fetch(`${API_URL}/notes/${dateStr}`);
         
         if (!response.ok) {
+          // A 404 is expected if no note exists yet
+          if (response.status === 404) {
+            console.log(`No note found for ${dateStr}`);
+            return { date: dateStr, notes: '' };
+          }
+          
           const errorText = await response.text();
           console.error(`Note fetch error (${response.status}): ${errorText}`);
           throw new Error(`Error fetching day note: ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log(`Retrieved note for ${dateStr}`);
+        console.log(`Retrieved note for ${dateStr}:`, data.data);
         return data.data;
       } catch (error) {
         console.error('Error fetching day note:', error);
@@ -149,7 +155,7 @@ export interface CalendarEvent {
     async saveDayNote(date: Date, notes: string): Promise<DayNote> {
       try {
         const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
-        console.log(`Saving note for date: ${dateStr}`);
+        console.log(`Saving note for date: ${dateStr}`, notes);
         const response = await fetch(`${API_URL}/notes/${dateStr}`, {
           method: 'POST',
           headers: {
@@ -165,7 +171,7 @@ export interface CalendarEvent {
         }
         
         const data = await response.json();
-        console.log(`Note saved successfully for ${dateStr}`);
+        console.log(`Note saved successfully for ${dateStr}:`, data.data);
         return data.data;
       } catch (error) {
         console.error('Error saving day note:', error);
