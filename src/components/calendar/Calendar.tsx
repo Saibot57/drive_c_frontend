@@ -134,6 +134,11 @@ export const Calendar = () => {
         return;
       }
       
+      // Check if we're toggling edit mode
+      if ('isEditing' in updates) {
+        console.log(`Setting isEditing=${updates.isEditing} for event ${eventId}`);
+      }
+      
       // Make a copy of the updates to remove any UI-specific fields before sending to backend
       const updatesToSave = { ...updates };
       delete updatesToSave.isEditing;
@@ -156,14 +161,14 @@ export const Calendar = () => {
       
       // Update local state (including UI-specific fields)
       setEvents(prev => {
-        const updated = { 
+        const updatedEvents = { 
           ...prev,
           [dateKey]: prev[dateKey]?.map(event => 
             event.id === eventId ? { ...event, ...updates } : event
           ) || []
         };
-        console.log('Updated local state:', updated);
-        return updated;
+        console.log('Updated local state:', updatedEvents[dateKey].find(e => e.id === eventId));
+        return updatedEvents;
       });
     } catch (error) {
       console.error("Failed to update event:", error);

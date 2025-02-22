@@ -19,12 +19,17 @@ export const EventCard: React.FC<EventCardProps> = ({
   const [editedEvent, setEditedEvent] = useState(event);
   const cardRef = useRef<HTMLDivElement>(null);
   
+  console.log(`EventCard rendering with event:`, event.title, "isEditing:", event.isEditing);
+  
   // Update local state when the event prop changes
   useEffect(() => {
-    console.log("EventCard received event:", event);
+    console.log("EventCard received updated event:", event.title, "isEditing:", event.isEditing);
     setEditedEvent(event);
-    setIsEditing(event.isEditing || false);
-  }, [event]);
+    if (event.isEditing !== isEditing) {
+      console.log(`Setting isEditing state to ${event.isEditing}`);
+      setIsEditing(event.isEditing || false);
+    }
+  }, [event, event.isEditing]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { 

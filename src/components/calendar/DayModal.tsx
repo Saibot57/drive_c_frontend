@@ -11,6 +11,7 @@ import { EventCard } from './EventCard';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { calendarService } from '@/services/calendarService';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { DebugButton } from './DebugButton';
 
 export const DayModal: React.FC<DayModalProps> = ({
   date,
@@ -136,20 +137,34 @@ export const DayModal: React.FC<DayModalProps> = ({
     console.log('Editing event:', eventId);
     // Find the event in the events array
     const eventToEdit = events.find(e => e.id === eventId);
-    if (!eventToEdit) return;
+    if (!eventToEdit) {
+      console.error(`Event with ID ${eventId} not found`);
+      return;
+    }
     
+    // Set state to track which event is being edited
     setEventBeingEdited(eventId);
+    
+    // Force the isEditing flag to true to open the edit dialog
     if (onEventUpdate) {
-      // This ensures the isEditing flag is correctly set
-      onEventUpdate(eventId, { 
+      console.log('Setting isEditing to true for event:', eventId);
+      // A complete object with isEditing set to true
+      const updatedEvent: Partial<Event> = { 
         ...eventToEdit,
         isEditing: true 
-      });
+      };
+      console.log('Updated event object:', updatedEvent);
+      onEventUpdate(eventId, updatedEvent);
+    } else {
+      console.error('onEventUpdate handler is not defined');
     }
+    
+    // Close any other dialogs or menus
     setSelectedEvent(null);
-    if (contextMenuEvent) {
-      setContextMenuEvent(null);
-    }
+    setContextMenuEvent(null);
+    
+    // Extra confirmation that the dialog should be open
+    console.log('Edit dialog should open now for event:', eventId);
   };
 
   if (!isOpen) return null;
@@ -226,16 +241,31 @@ export const DayModal: React.FC<DayModalProps> = ({
                         {sortedEvents.map(event => (
                           <div 
                             key={event.id}
-                            onContextMenu={(e) => handleContextMenu(e, event.id)}
-                            onClick={() => setSelectedEvent(event.id)}
-                            className="relative"
+                            className="relative flex items-center"
                           >
-                            <EventCard 
-                              event={event}
-                              isPreview
-                              onUpdate={handleEventUpdate}
-                              onEdit={() => setSelectedEvent(event.id)}
-                            />
+                            <div 
+                              className="flex-grow"
+                              onContextMenu={(e) => handleContextMenu(e, event.id)}
+                              onClick={() => setSelectedEvent(event.id)}
+                            >
+                              <EventCard 
+                                event={event}
+                                isPreview
+                                onUpdate={handleEventUpdate}
+                                onEdit={() => setSelectedEvent(event.id)}
+                              />
+                            </div>
+                            {/* Explicit edit button outside the event card */}
+                            <button
+                              className="ml-2 p-1 bg-white border border-black rounded-md flex items-center justify-center hover:bg-gray-100"
+                              onClick={() => {
+                                console.log("Explicit edit button clicked for:", event.id);
+                                handleEditEvent(event.id);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" /> 
+                              <span className="ml-1 text-xs">Edit</span>
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -368,6 +398,14 @@ export const DayModal: React.FC<DayModalProps> = ({
           </div>
         )}
       </div>
+      
+      {/* Debug button for development */}
+      <DebugButton 
+        events={events}
+        selectedEvent={selectedEvent}
+        editingEvent={eventBeingEdited}
+        onForceEdit={handleEditEvent}
+      />
     </div>
   );
 };
