@@ -11,6 +11,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
   events, 
   onEventAdd, 
   onEventUpdate,
+  onEdit,
   date 
 }) => {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -133,7 +134,6 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
       const endTime = yToTime(Math.max(dragStart, dragEnd));
       
       if (endTime.getTime() - startTime.getTime() >= 15 * 60 * 1000) { // Minimum 15 minutes
-        // Instead of directly creating the event, show the dialog
         setNewEventTimes({ start: startTime, end: endTime });
         setShowEventDialog(true);
       }
@@ -167,6 +167,14 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
       onEventUpdate(eventId, { end: newTime });
     }
   }, [events, onEventUpdate, yToTime]);
+
+  const handleEditClick = (e: React.MouseEvent, eventId: string) => {
+    e.stopPropagation();
+    if (onEdit) {
+      console.log("TimeGrid: Edit button clicked for event:", eventId);
+      onEdit(eventId);
+    }
+  };
 
   // Generate time slots
   const timeSlots = Array.from(
@@ -222,7 +230,6 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
           let overlappingCount = 1;
           let position = 0;
 
-          // Find if event is in an overlapping group
           Object.values(overlappingGroups).forEach(group => {
             if (group.find(e => e.id === event.id)) {
               overlappingCount = group.length;
@@ -237,10 +244,9 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
               style={getEventStyle(event, overlappingCount, position)}
               onClick={(e) => {
                 e.stopPropagation();
-                // Show event details or directly edit
-                if (onEventUpdate) {
+                if (onEdit) {
                   console.log("TimeGrid: Event clicked:", event.id);
-                  onEventUpdate(event.id, { isEditing: true });
+                  onEdit(event.id);
                 }
               }}
             >
@@ -250,16 +256,10 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
                 </div>
               </div>
               
-              {/* Edit button that appears on hover - larger and more clickable */}
+              {/* Edit button */}
               <button
                 className="absolute right-1 top-1 bg-white text-black rounded-full h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onEventUpdate) {
-                    console.log("TimeGrid: Edit button clicked for event:", event.id);
-                    onEventUpdate(event.id, { isEditing: true });
-                  }
-                }}
+                onClick={(e) => handleEditClick(e, event.id)}
                 aria-label="Edit event"
               >
                 <Edit2 className="h-3 w-3" />

@@ -45,6 +45,7 @@ export interface TimeGridProps {
   events: Event[];
   onEventAdd: (event: Omit<Event, 'id'>) => void;
   onEventUpdate?: (id: string, updates: Partial<Event>) => void;
+  onEdit?: (id: string) => void;  // New prop for edit handling
   date: Date;
 }
 
