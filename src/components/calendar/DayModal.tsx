@@ -1,4 +1,3 @@
-// src/components/calendar/DayModal.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -31,13 +30,11 @@ export const DayModal: React.FC<DayModalProps> = ({
   const [contextMenuEvent, setContextMenuEvent] = useState<{ id: string, x: number, y: number } | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [eventBeingEdited, setEventBeingEdited] = useState<string | null>(null);
-
-  // Define fetchDayNotes first with useCallback
+  
   const fetchDayNotes = useCallback(async () => {
     try {
       setIsNotesLoading(true);
       setNotesError(null);
-      
       console.log('Fetching day notes for:', date);
       const dayNote = await calendarService.getDayNote(date);
       console.log('Retrieved day notes:', dayNote);
@@ -50,14 +47,12 @@ export const DayModal: React.FC<DayModalProps> = ({
     }
   }, [date]);
 
-  // Fetch day notes when modal opens
   useEffect(() => {
     if (isOpen && date) {
       fetchDayNotes();
     }
   }, [isOpen, date, fetchDayNotes]);
 
-  // Handle closing context menu on click outside
   useEffect(() => {
     if (contextMenuEvent) {
       const handleClickOutside = () => setContextMenuEvent(null);
@@ -75,7 +70,6 @@ export const DayModal: React.FC<DayModalProps> = ({
       await calendarService.saveDayNote(date, notes);
       console.log('Notes saved successfully');
       
-      // Call parent handler if provided
       if (onSaveNotes) {
         onSaveNotes(notes);
       }
@@ -103,7 +97,7 @@ export const DayModal: React.FC<DayModalProps> = ({
       start: startTime,
       end: endTime,
       notes: '',
-      isEditing: true // Start in editing mode
+      isEditing: true
     });
     setQuickEventMode(false);
   };
@@ -118,38 +112,34 @@ export const DayModal: React.FC<DayModalProps> = ({
   const handleEventUpdate = (eventId: string, updates: Partial<Event>) => {
     console.log('Handling event update in DayModal:', eventId, updates);
     
-    // Check if this was previously being edited
-    if (eventBeingEdited === eventId && !updates.isEditing) {
+    if (updates.isEditing === false) {
+      console.log('Closing edit mode for event:', eventId);
       setEventBeingEdited(null);
     }
     
-    // If we're entering edit mode, track this event
-    if (updates.isEditing) {
+    if (updates.isEditing === true) {
+      console.log('Opening edit mode for event:', eventId);
       setEventBeingEdited(eventId);
     }
 
-    // Pass the update to the parent
     if (onEventUpdate) {
+      console.log('Passing update to parent:', updates);
       onEventUpdate(eventId, updates);
     }
   };
 
   const handleEditEvent = (eventId: string) => {
     console.log('Editing event:', eventId);
-    // Find the event in the events array
     const eventToEdit = events.find(e => e.id === eventId);
     if (!eventToEdit) {
       console.error(`Event with ID ${eventId} not found`);
       return;
     }
     
-    // Set state to track which event is being edited
     setEventBeingEdited(eventId);
     
-    // Force the isEditing flag to true to open the edit dialog
     if (onEventUpdate) {
       console.log('Setting isEditing to true for event:', eventId);
-      // A complete object with isEditing set to true
       const updatedEvent: Partial<Event> = { 
         ...eventToEdit,
         isEditing: true 
@@ -160,11 +150,9 @@ export const DayModal: React.FC<DayModalProps> = ({
       console.error('onEventUpdate handler is not defined');
     }
     
-    // Close any other dialogs or menus
     setSelectedEvent(null);
     setContextMenuEvent(null);
     
-    // Extra confirmation that the dialog should be open
     console.log('Edit dialog should open now for event:', eventId);
   };
 
