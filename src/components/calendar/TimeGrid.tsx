@@ -4,6 +4,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { TimeGridProps, Event } from './types';
 import { EventCard } from './EventCard';
+import { Edit2 } from "lucide-react";
 import EventConfirmationDialog from './EventConfirmationDialog';
 
 export const TimeGrid: React.FC<TimeGridProps> = ({ 
@@ -60,9 +61,10 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
     const top = timeToY(event.start);
     const height = timeToY(event.end) - top;
     // Adjust the width and left calculations to account for the time labels on the left
-    const width = overlappingEvents > 1 ? `${(85 / overlappingEvents)}%` : '85%';
+    // and ensure events don't extend beyond the visible area
+    const width = overlappingEvents > 1 ? `${(80 / overlappingEvents)}%` : '80%';
     const left = overlappingEvents > 1 
-      ? `calc(12px + ${(85 / overlappingEvents) * position + 5}%)` 
+      ? `calc(12px + ${(80 / overlappingEvents) * position + 5}%)` 
       : 'calc(12px + 5%)';
 
     return {
@@ -71,6 +73,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
       width,
       left,
       backgroundColor: event.color || '#ff6b6b',
+      overflow: 'hidden' // Ensure text doesn't overflow
     };
   };
 
@@ -224,14 +227,28 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
           return (
             <div
               key={event.id}
-              className="absolute bg-[#ff6b6b] border-2 border-black rounded-lg overflow-hidden transition-all hover:shadow-neo"
+              className="absolute border-2 border-black rounded-lg overflow-hidden transition-all hover:shadow-neo group"
               style={getEventStyle(event, overlappingCount, position)}
             >
               <div className="h-full w-full overflow-hidden">
-                <div className="text-[10px] font-bold text-white px-1 truncate">
+                <div className="text-[10px] font-bold text-white px-1 truncate pr-5">
                   {event.title}
                 </div>
               </div>
+              
+              {/* Edit button that appears on hover */}
+              <button
+                className="absolute right-1 top-1 bg-white text-black rounded-full h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onEventUpdate) {
+                    console.log("Edit button clicked for event:", event.id);
+                    onEventUpdate(event.id, { isEditing: true });
+                  }
+                }}
+              >
+                <Edit2 className="h-2 w-2" />
+              </button>
               
               {/* Resize handles */}
               <div 

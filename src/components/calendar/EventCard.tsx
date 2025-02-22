@@ -63,15 +63,30 @@ export const EventCard: React.FC<EventCardProps> = ({
     return (
       <div 
         ref={cardRef}
-        className="cursor-pointer rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+        className="cursor-pointer rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group relative"
         style={{ backgroundColor: event.color || '#ff6b6b' }}
+        onClick={() => onEdit && onEdit(event.id)}
       >
         <div className="flex items-center justify-between text-white">
-          <span className="truncate">{event.title}</span>
+          <span className="truncate pr-5">{event.title}</span>
           <span className="text-[10px] opacity-80">
             {formatTime(event.start)}
           </span>
         </div>
+        
+        {/* Edit button that appears on hover */}
+        <button
+          className="absolute right-1 top-1 bg-white text-black rounded-full h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onUpdate) {
+              console.log("Edit button clicked for event:", event.id);
+              onUpdate(event.id, { isEditing: true });
+            }
+          }}
+        >
+          <Edit2 className="h-2 w-2" />
+        </button>
       </div>
     );
   }

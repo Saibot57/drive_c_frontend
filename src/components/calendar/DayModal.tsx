@@ -234,6 +234,7 @@ export const DayModal: React.FC<DayModalProps> = ({
                               event={event}
                               isPreview
                               onUpdate={handleEventUpdate}
+                              onEdit={() => setSelectedEvent(event.id)}
                             />
                           </div>
                         ))}
