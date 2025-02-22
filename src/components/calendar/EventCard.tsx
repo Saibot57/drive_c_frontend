@@ -68,24 +68,25 @@ export const EventCard: React.FC<EventCardProps> = ({
         onClick={() => onEdit && onEdit(event.id)}
       >
         <div className="flex items-center justify-between text-white">
-          <span className="truncate pr-5">{event.title}</span>
+          <span className="truncate pr-6">{event.title}</span>
           <span className="text-[10px] opacity-80">
             {formatTime(event.start)}
           </span>
         </div>
         
-        {/* Edit button that appears on hover */}
+        {/* Edit button that appears on hover - larger and more clickable */}
         <button
-          className="absolute right-1 top-1 bg-white text-black rounded-full h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute right-1 top-1 bg-white text-black rounded-full h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30"
           onClick={(e) => {
             e.stopPropagation();
             if (onUpdate) {
-              console.log("Edit button clicked for event:", event.id);
+              console.log("EventCard: Edit button clicked for event:", event.id);
               onUpdate(event.id, { isEditing: true });
             }
           }}
+          aria-label="Edit event"
         >
-          <Edit2 className="h-2 w-2" />
+          <Edit2 className="h-3 w-3" />
         </button>
       </div>
     );
@@ -103,7 +104,7 @@ export const EventCard: React.FC<EventCardProps> = ({
     ];
 
     return (
-      <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center">
+      <div className="fixed inset-0 z-[100] bg-black/20 flex items-center justify-center">
         <div 
           className="w-full max-w-lg bg-white rounded-xl border-2 border-black shadow-neo"
           onClick={(e) => e.stopPropagation()}

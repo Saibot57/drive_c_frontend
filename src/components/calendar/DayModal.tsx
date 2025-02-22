@@ -288,7 +288,7 @@ export const DayModal: React.FC<DayModalProps> = ({
         {/* Context Menu */}
         {contextMenuEvent && (
           <div 
-            className="fixed z-50 bg-white border-2 border-black rounded-lg shadow-neo overflow-hidden"
+            className="fixed z-[90] bg-white border-2 border-black rounded-lg shadow-neo overflow-hidden"
             style={{
               left: `${contextMenuEvent.x}px`,
               top: `${contextMenuEvent.y}px`
@@ -321,7 +321,7 @@ export const DayModal: React.FC<DayModalProps> = ({
 
         {/* Event Detail View */}
         {selectedEventData && !eventBeingEdited && (
-          <div className="fixed inset-0 z-50 bg-black/20 flex items-center justify-center">
+          <div className="fixed inset-0 z-[100] bg-black/20 flex items-center justify-center">
             <div 
               className="w-[90vw] max-w-xl bg-white rounded-xl border-2 border-black shadow-neo"
               onClick={(e) => e.stopPropagation()}

@@ -60,12 +60,18 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
   const getEventStyle = (event: Event, overlappingEvents: number = 1, position: number = 0) => {
     const top = timeToY(event.start);
     const height = timeToY(event.end) - top;
-    // Adjust the width and left calculations to account for the time labels on the left
-    // and ensure events don't extend beyond the visible area
-    const width = overlappingEvents > 1 ? `${(80 / overlappingEvents)}%` : '80%';
+    
+    // Ensure events don't extend beyond the visible area and leave enough space
+    // for the time label column
+    const timeColumnWidth = 30; // px
+    const width = overlappingEvents > 1 
+      ? `calc(100% - ${timeColumnWidth}px - 10px - ${(100 / overlappingEvents) * (overlappingEvents - position - 1)}%)`
+      : `calc(100% - ${timeColumnWidth}px - 10px)`;
+      
+    // Position events to start after the time column with a small gap
     const left = overlappingEvents > 1 
-      ? `calc(12px + ${(80 / overlappingEvents) * position + 5}%)` 
-      : 'calc(12px + 5%)';
+      ? `calc(${timeColumnWidth}px + 5px + ${(100 / overlappingEvents) * position}%)`
+      : `calc(${timeColumnWidth}px + 5px)`;
 
     return {
       top: `${top}px`,
@@ -183,7 +189,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
         onMouseLeave={handleMouseUp}
       >
         {/* Left side time labels with white background */}
-        <div className="absolute left-0 top-0 bottom-0 w-12 bg-white z-10 border-r border-gray-300">
+        <div className="absolute left-0 top-0 bottom-0 w-[30px] bg-white z-20 border-r border-gray-300">
           {timeSlots.map((slot, i) => (
             slot.minutes === 0 && (
               <div 
@@ -191,7 +197,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
                 className="absolute left-0 w-full text-center text-xs font-bold"
                 style={{ top: `${(i * TIME_SLOT_HEIGHT) - 6}px` }}
               >
-                {`${String(slot.hour).padStart(2, '0')}:00`}
+                {`${String(slot.hour).padStart(2, '0')}`}
               </div>
             )
           ))}
@@ -205,7 +211,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
             style={{ 
               top: `${(i * TIME_SLOT_HEIGHT)}px`,
               height: `${TIME_SLOT_HEIGHT}px`,
-              left: '12px' // Offset to account for the time labels
+              left: '30px' // Offset to account for the time labels
             }}
           />
         ))}
@@ -229,25 +235,34 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
               key={event.id}
               className="absolute border-2 border-black rounded-lg overflow-hidden transition-all hover:shadow-neo group"
               style={getEventStyle(event, overlappingCount, position)}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Show event details or directly edit
+                if (onEventUpdate) {
+                  console.log("TimeGrid: Event clicked:", event.id);
+                  onEventUpdate(event.id, { isEditing: true });
+                }
+              }}
             >
-              <div className="h-full w-full overflow-hidden">
-                <div className="text-[10px] font-bold text-white px-1 truncate pr-5">
+              <div className="h-full w-full overflow-hidden p-1">
+                <div className="text-[10px] font-bold text-white truncate">
                   {event.title}
                 </div>
               </div>
               
-              {/* Edit button that appears on hover */}
+              {/* Edit button that appears on hover - larger and more clickable */}
               <button
-                className="absolute right-1 top-1 bg-white text-black rounded-full h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute right-1 top-1 bg-white text-black rounded-full h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onEventUpdate) {
-                    console.log("Edit button clicked for event:", event.id);
+                    console.log("TimeGrid: Edit button clicked for event:", event.id);
                     onEventUpdate(event.id, { isEditing: true });
                   }
                 }}
+                aria-label="Edit event"
               >
-                <Edit2 className="h-2 w-2" />
+                <Edit2 className="h-3 w-3" />
               </button>
               
               {/* Resize handles */}
