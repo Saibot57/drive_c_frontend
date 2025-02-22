@@ -7,7 +7,13 @@ export interface Event {
   end: Date;
   notes?: string;
   color?: string;
-  isEditing?: boolean;
+}
+
+export interface EventEditDialogProps {
+  event: Event;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (eventId: string, updates: Partial<Event>) => void;
 }
 
 export interface DayModalProps {
@@ -48,5 +54,5 @@ export interface EventConfirmationDialogProps {
   onConfirm: (eventDetails: Omit<Event, 'id'>) => void;
   startTime: Date;
   endTime: Date;
-  event?: Event; // For editing existing events
+  event?: Event;
 }

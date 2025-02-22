@@ -1,4 +1,3 @@
-// src/components/calendar/Calendar.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -31,7 +30,6 @@ export const Calendar = () => {
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   };
 
-  // Fetch events from the backend when the month changes
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -62,7 +60,6 @@ export const Calendar = () => {
           eventsByDate[dateKey].push(event);
         });
         
-        console.log('Organized events by date:', eventsByDate);
         setEvents(eventsByDate);
       } catch (error) {
         console.error("Failed to fetch events:", error);
@@ -75,36 +72,28 @@ export const Calendar = () => {
     fetchEvents();
   }, [currentDate]);
 
-  // Create a new event
   const handleEventAdd = async (date: Date, event: Omit<Event, 'id'>) => {
     try {
-      // Make a copy of the event to remove any UI-specific fields
-      const eventToSave = { ...event };
-      delete (eventToSave as any).isEditing;
-      
       // Prepare event for backend
       const backendEvent = {
-        title: eventToSave.title,
-        start: eventToSave.start.toISOString(),
-        end: eventToSave.end.toISOString(),
-        notes: eventToSave.notes,
-        color: eventToSave.color
+        title: event.title,
+        start: event.start.toISOString(),
+        end: event.end.toISOString(),
+        notes: event.notes,
+        color: event.color
       };
-      
-      console.log('Saving new event to backend:', backendEvent);
       
       // Save to backend
       const savedEvent = await calendarService.createEvent(backendEvent);
       
-      // Update local state with the returned event (including the ID)
+      // Update local state with the returned event
       const newEvent: Event = {
         id: savedEvent.id,
         title: savedEvent.title,
         start: new Date(savedEvent.start),
         end: new Date(savedEvent.end),
         notes: savedEvent.notes,
-        color: savedEvent.color,
-        isEditing: event.isEditing // Preserve the editing state if it was set
+        color: savedEvent.color
       };
       
       const dateKey = formatDateKey(date);
@@ -113,19 +102,14 @@ export const Calendar = () => {
         [dateKey]: [...(prev[dateKey] || []), newEvent]
       }));
       
-      console.log('Event added successfully:', newEvent);
     } catch (error) {
       console.error("Failed to save event:", error);
       setError("Failed to save event");
     }
   };
 
-  // Update an existing event
   const handleEventUpdate = async (date: Date, eventId: string, updates: Partial<Event>) => {
     try {
-      console.log(`Updating event ${eventId} with:`, updates);
-      
-      // Get the existing event to merge with updates
       const dateKey = formatDateKey(date);
       const existingEvent = events[dateKey]?.find(e => e.id === eventId);
       
@@ -134,32 +118,17 @@ export const Calendar = () => {
         return;
       }
       
-      // Check if we're toggling edit mode
-      if ('isEditing' in updates) {
-        console.log(`Setting isEditing=${updates.isEditing} for event ${eventId}`);
-      }
+      // Prepare updates for backend
+      const backendUpdates: any = { ...updates };
       
-      // Make a copy of the updates to remove any UI-specific fields before sending to backend
-      const updatesToSave = { ...updates };
-      delete updatesToSave.isEditing;
+      // Convert Date objects to ISO strings
+      if (updates.start) backendUpdates.start = updates.start.toISOString();
+      if (updates.end) backendUpdates.end = updates.end.toISOString();
       
-      // Only send to backend if we have fields to update
-      if (Object.keys(updatesToSave).length > 0) {
-        // Prepare updates for backend
-        const backendUpdates: any = { ...updatesToSave };
-        
-        // Convert Date objects to ISO strings
-        if (updatesToSave.start) backendUpdates.start = updatesToSave.start.toISOString();
-        if (updatesToSave.end) backendUpdates.end = updatesToSave.end.toISOString();
-        
-        console.log('Sending updates to backend:', backendUpdates);
-        
-        // Update on backend
-        await calendarService.updateEvent(eventId, backendUpdates);
-        console.log('Backend update successful');
-      }
+      // Update on backend
+      await calendarService.updateEvent(eventId, backendUpdates);
       
-      // Update local state (including UI-specific fields)
+      // Update local state
       setEvents(prev => {
         const updatedEvents = { 
           ...prev,
@@ -167,7 +136,6 @@ export const Calendar = () => {
             event.id === eventId ? { ...event, ...updates } : event
           ) || []
         };
-        console.log('Updated local state:', updatedEvents[dateKey].find(e => e.id === eventId));
         return updatedEvents;
       });
     } catch (error) {
@@ -176,7 +144,6 @@ export const Calendar = () => {
     }
   };
 
-  // Delete an event
   const handleEventDelete = async (date: Date, eventId: string) => {
     try {
       console.log(`Deleting event ${eventId}`);

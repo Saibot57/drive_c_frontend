@@ -55,7 +55,7 @@ export const DebugButton: React.FC<DebugButtonProps> = ({
             <div key={event.id} className="flex items-center justify-between border-b py-1">
               <div>
                 {event.title} 
-                {event.isEditing && <span className="text-green-600 ml-1">(editing)</span>}
+                {event.id === editingEvent && <span className="text-green-600 ml-1">(editing)</span>}
               </div>
               <button
                 className="bg-blue-500 text-white px-1 py-0.5 text-[10px] rounded"

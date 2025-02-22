@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Plus, Save, MoreVertical, Edit, Trash } from "lucide-react";
+import { X, Plus, Save, Edit, Trash } from "lucide-react";
 import { DayModalProps, Event } from './types';
 import { TimeGrid } from './TimeGrid';
 import { EventCard } from './EventCard';
+import { EventEditDialog } from './EventEditDialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { calendarService } from '@/services/calendarService';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -29,7 +30,7 @@ export const DayModal: React.FC<DayModalProps> = ({
   const [notesError, setNotesError] = useState<string | null>(null);
   const [contextMenuEvent, setContextMenuEvent] = useState<{ id: string, x: number, y: number } | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
-  const [eventBeingEdited, setEventBeingEdited] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   
   const fetchDayNotes = useCallback(async () => {
     try {
@@ -96,8 +97,7 @@ export const DayModal: React.FC<DayModalProps> = ({
       title: 'New Event',
       start: startTime,
       end: endTime,
-      notes: '',
-      isEditing: true
+      notes: ''
     });
     setQuickEventMode(false);
   };
@@ -109,51 +109,23 @@ export const DayModal: React.FC<DayModalProps> = ({
     setContextMenuEvent({ id: eventId, x: e.clientX, y: e.clientY });
   };
 
-  const handleEventUpdate = (eventId: string, updates: Partial<Event>) => {
-    console.log('Handling event update in DayModal:', eventId, updates);
-    
-    if (updates.isEditing === false) {
-      console.log('Closing edit mode for event:', eventId);
-      setEventBeingEdited(null);
-    }
-    
-    if (updates.isEditing === true) {
-      console.log('Opening edit mode for event:', eventId);
-      setEventBeingEdited(eventId);
-    }
-
-    if (onEventUpdate) {
-      console.log('Passing update to parent:', updates);
-      onEventUpdate(eventId, updates);
-    }
-  };
-
   const handleEditEvent = (eventId: string) => {
-    console.log('Editing event:', eventId);
     const eventToEdit = events.find(e => e.id === eventId);
     if (!eventToEdit) {
       console.error(`Event with ID ${eventId} not found`);
       return;
     }
     
-    setEventBeingEdited(eventId);
-    
-    if (onEventUpdate) {
-      console.log('Setting isEditing to true for event:', eventId);
-      const updatedEvent: Partial<Event> = { 
-        ...eventToEdit,
-        isEditing: true 
-      };
-      console.log('Updated event object:', updatedEvent);
-      onEventUpdate(eventId, updatedEvent);
-    } else {
-      console.error('onEventUpdate handler is not defined');
-    }
-    
+    setEditingEvent(eventToEdit);
     setSelectedEvent(null);
     setContextMenuEvent(null);
-    
-    console.log('Edit dialog should open now for event:', eventId);
+  };
+
+  const handleEventSave = (eventId: string, updates: Partial<Event>) => {
+    if (onEventUpdate) {
+      onEventUpdate(eventId, updates);
+    }
+    setEditingEvent(null);
   };
 
   if (!isOpen) return null;
@@ -196,7 +168,9 @@ export const DayModal: React.FC<DayModalProps> = ({
                 <TimeGrid 
                   events={events}
                   onEventAdd={onEventAdd}
-                  onEventUpdate={handleEventUpdate}
+                  onEventUpdate={(id, updates) => {
+                    if (onEventUpdate) onEventUpdate(id, updates);
+                  }}
                   date={date}
                 />
               </div>
@@ -240,17 +214,13 @@ export const DayModal: React.FC<DayModalProps> = ({
                               <EventCard 
                                 event={event}
                                 isPreview
-                                onUpdate={handleEventUpdate}
-                                onEdit={() => setSelectedEvent(event.id)}
+                                onEdit={() => handleEditEvent(event.id)}
                               />
                             </div>
                             {/* Explicit edit button outside the event card */}
                             <button
                               className="ml-2 p-1 bg-white border border-black rounded-md flex items-center justify-center hover:bg-gray-100"
-                              onClick={() => {
-                                console.log("Explicit edit button clicked for:", event.id);
-                                handleEditEvent(event.id);
-                              }}
+                              onClick={() => handleEditEvent(event.id)}
                             >
                               <Edit className="h-4 w-4" /> 
                               <span className="ml-1 text-xs">Edit</span>
@@ -339,7 +309,7 @@ export const DayModal: React.FC<DayModalProps> = ({
         )}
 
         {/* Event Detail View */}
-        {selectedEventData && !eventBeingEdited && (
+        {selectedEventData && !editingEvent && (
           <div className="fixed inset-0 z-[100] bg-black/20 flex items-center justify-center">
             <div 
               className="w-[90vw] max-w-xl bg-white rounded-xl border-2 border-black shadow-neo"
@@ -386,13 +356,23 @@ export const DayModal: React.FC<DayModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Event Edit Dialog */}
+        {editingEvent && (
+          <EventEditDialog
+            event={editingEvent}
+            isOpen={true}
+            onClose={() => setEditingEvent(null)}
+            onSave={handleEventSave}
+          />
+        )}
       </div>
       
       {/* Debug button for development */}
       <DebugButton 
         events={events}
         selectedEvent={selectedEvent}
-        editingEvent={eventBeingEdited}
+        editingEvent={editingEvent?.id || null}
         onForceEdit={handleEditEvent}
       />
     </div>
