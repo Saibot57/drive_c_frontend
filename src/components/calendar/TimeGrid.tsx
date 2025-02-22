@@ -1,7 +1,7 @@
 // src/components/calendar/TimeGrid.tsx
 'use client';
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import { TimeGridProps, Event } from './types';
 import { EventCard } from './EventCard';
 import { Edit2 } from "lucide-react";
@@ -34,14 +34,14 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
     return Math.round(y / slotSize) * slotSize;
   };
 
-  const yToTime = (y: number): Date => {
+  const yToTime = useCallback((y: number): Date => {
     const height = gridRef.current?.clientHeight ?? 0;
     const hour = GRID_START_HOUR + (y / height) * GRID_TOTAL_HOURS;
     const newDate = new Date(date);
     newDate.setHours(Math.floor(hour));
     newDate.setMinutes((hour % 1) * 60);
     return newDate;
-  };
+  }, [date, GRID_START_HOUR, GRID_TOTAL_HOURS]);
 
   const timeToY = (time: Date): number => {
     const hour = time.getHours() + time.getMinutes() / 60;

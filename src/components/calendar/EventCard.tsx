@@ -29,7 +29,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       console.log(`Setting isEditing state to ${event.isEditing}`);
       setIsEditing(event.isEditing || false);
     }
-  }, [event, event.isEditing]);
+  }, [event, event.isEditing, isEditing]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { 

@@ -1,7 +1,7 @@
 // src/components/calendar/DayModal.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Plus, Save, MoreVertical, Edit, Trash } from "lucide-react";
@@ -32,23 +32,8 @@ export const DayModal: React.FC<DayModalProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [eventBeingEdited, setEventBeingEdited] = useState<string | null>(null);
 
-  // Fetch day notes when modal opens
-  useEffect(() => {
-    if (isOpen && date) {
-      fetchDayNotes();
-    }
-  }, [isOpen, date]);
-
-  // Handle closing context menu on click outside
-  useEffect(() => {
-    if (contextMenuEvent) {
-      const handleClickOutside = () => setContextMenuEvent(null);
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [contextMenuEvent]);
-
-  const fetchDayNotes = async () => {
+  // Define fetchDayNotes first with useCallback
+  const fetchDayNotes = useCallback(async () => {
     try {
       setIsNotesLoading(true);
       setNotesError(null);
@@ -63,7 +48,23 @@ export const DayModal: React.FC<DayModalProps> = ({
     } finally {
       setIsNotesLoading(false);
     }
-  };
+  }, [date]);
+
+  // Fetch day notes when modal opens
+  useEffect(() => {
+    if (isOpen && date) {
+      fetchDayNotes();
+    }
+  }, [isOpen, date, fetchDayNotes]);
+
+  // Handle closing context menu on click outside
+  useEffect(() => {
+    if (contextMenuEvent) {
+      const handleClickOutside = () => setContextMenuEvent(null);
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenuEvent]);
 
   const handleSaveNotes = async () => {
     try {

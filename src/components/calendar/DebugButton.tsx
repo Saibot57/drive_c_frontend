@@ -72,7 +72,7 @@ export const DebugButton: React.FC<DebugButtonProps> = ({
       </div>
       
       <div className="bg-gray-100 p-2 rounded text-[10px]">
-        <p>Click "Force Edit" to directly trigger the edit dialog for an event.</p>
+        <p>Click &ldquo;Force Edit&rdquo; to directly trigger the edit dialog for an event.</p>
       </div>
     </div>
   );
