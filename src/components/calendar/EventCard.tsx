@@ -39,9 +39,9 @@ export const EventCard: React.FC<EventCardProps> = ({
   const handleSave = () => {
     console.log("Saving edited event:", editedEvent);
     if (onUpdate) {
-      // Remove isEditing flag when saving
-      const updatedEvent = { ...editedEvent };
-      delete updatedEvent.isEditing;
+      // Create a new object with all edits, but explicitly set isEditing to false
+      const updatedEvent = { ...editedEvent, isEditing: false };
+      console.log("Sending updated event to parent:", updatedEvent);
       onUpdate(event.id, updatedEvent);
     }
   };
@@ -49,8 +49,9 @@ export const EventCard: React.FC<EventCardProps> = ({
   const handleCancel = () => {
     console.log("Cancelling edit for event:", event.id);
     
-    // Also notify parent to remove isEditing flag
+    // Explicitly set isEditing to false to close the dialog
     if (onUpdate) {
+      console.log("Setting isEditing to false to close dialog");
       onUpdate(event.id, { isEditing: false });
     }
   };
@@ -185,12 +186,14 @@ export const EventCard: React.FC<EventCardProps> = ({
               onClick={handleCancel}
               variant="neutral"
               className="border-2 border-black bg-white hover:bg-gray-50"
+              type="button"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
               className="border-2 border-black bg-[#ff6b6b] text-white hover:bg-[#ff6b6b]/90"
+              type="button"
             >
               Save Changes
             </Button>
