@@ -217,14 +217,7 @@ export const DayModal: React.FC<DayModalProps> = ({
                                 onEdit={() => handleEditEvent(event.id)}
                               />
                             </div>
-                            {/* Explicit edit button outside the event card */}
-                            <button
-                              className="ml-2 p-1 bg-white border border-black rounded-md flex items-center justify-center hover:bg-gray-100"
-                              onClick={() => handleEditEvent(event.id)}
-                            >
-                              <Edit className="h-4 w-4" /> 
-                              <span className="ml-1 text-xs">Edit</span>
-                            </button>
+                          
                           </div>
                         ))}
                       </div>
