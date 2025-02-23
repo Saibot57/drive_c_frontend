@@ -262,7 +262,7 @@ export const Calendar = () => {
               onClick={goToToday} 
               className={`border-2 border-black transition-colors ${
                 isCurrentMonth(currentDate) 
-                  ? 'bg-[#ff6b6b] text-white hover:bg-[#ff6b6b]/90'
+                  ? 'bg-white text-black hover:bg-[#ff6b6b]/90'
                   : 'bg-white hover:bg-gray-50'
               }`}
               variant="default"
