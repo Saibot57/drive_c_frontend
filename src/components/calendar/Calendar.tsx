@@ -267,7 +267,7 @@ export const Calendar = () => {
               }`}
               variant="default"
             >
-              Today
+              Idag
             </Button>
             <Button 
               onClick={prevMonth} 
