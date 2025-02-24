@@ -172,8 +172,8 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredData?.map((section) => (
+      <div className="grid gap-8 grid-cols-1 md:grid-cols-2">
+                {filteredData?.map((section) => (
           <Section key={section.name} section={section} showTags={showTags} />
         ))}
       </div>

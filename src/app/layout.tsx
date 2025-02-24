@@ -1,14 +1,32 @@
 import type { Metadata } from 'next'
 import { Red_Hat_Text } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
+import { NavigationHeader } from '@/components/NavigationHeader'
 
-const redHat = Red_Hat_Text({ 
+const redHat = Red_Hat_Text({
   subsets: ['latin'],
-  weight: ['400', '500', '700']  // Common weights, add or remove as needed
+  weight: ['400', '500', '700']
+})
+
+const monument = localFont({
+  src: [
+    {
+      path: '../fonts/MonumentExtended-Regular.otf',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/MonumentExtended-Ultrabold.otf',
+      weight: '700',
+      style: 'normal',
+    }
+  ],
+  variable: '--font-monument'
 })
 
 export const metadata: Metadata = {
-  title: 'File Browser',
+  title: 'Bibliotek',
 }
 
 export default function RootLayout({
@@ -18,21 +36,29 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${redHat.className} min-h-screen bg-[#fcd7d7]`}>
-        <div className="flex min-h-screen">
-          {/* Sidebar - we'll add content later */}
-          <div className="w-64 bg-[#fcd7d7] rounded-2xl border-2 border-white p-4 hidden md:block">
-            {/* Sidebar content will go here */}
-          </div>
-
-          {/* Main content area */}
-          <main className="flex-1 px-4 py-8">
-            {/* Main content */}
-            <div className="max-w-[1500px] mx-auto">
-              {children}
-            </div>
-          </main>
+      <body className={`${redHat.className} ${monument.variable} min-h-screen bg-[#fcd7d7]`}>
+        {/* Sidebar - Now has higher z-index to appear "in front" */}
+        <div className="fixed top-0 left-0 bottom-0 w-24 border-r-2 border-black bg-[#fcd7d7] z-30">
+          {/* Sidebar content will go here */}
         </div>
+
+        {/* Top Navigation Bar - Lower z-index */}
+        <div className="fixed top-0 left-24 right-0 h-24 bg-[#fcd7d7] z-20">
+          {/* Bottom border starts from sidebar */}
+          <div className="absolute bottom-0 left-0 right-0 border-b-2 border-black"></div>
+          
+          <div className="h-full flex items-center px-8">
+            <h1 className="text-4xl font-monument mr-12">Bibliotek</h1>
+            <NavigationHeader />
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <main className="ml-24 pt-32 px-8">
+          <div className="max-w-[1000px] mx-auto">
+            {children}
+          </div>
+        </main>
       </body>
     </html>
   )
