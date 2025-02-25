@@ -3,6 +3,7 @@ import { Red_Hat_Text } from 'next/font/google'
 import localFont from 'next/font/local'
 import './globals.css'
 import { NavigationHeader } from '@/components/NavigationHeader'
+import { NavigationDrawer } from '@/components/NavigationDrawer'
 
 const redHat = Red_Hat_Text({
   subsets: ['latin'],
@@ -37,24 +38,21 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${redHat.className} ${monument.variable} min-h-screen bg-[#fcd7d7]`}>
-        {/* Sidebar - Now has higher z-index to appear "in front" */}
-        <div className="fixed top-0 left-0 bottom-0 w-24 border-r-2 border-black bg-[#fcd7d7] z-30">
-          {/* Sidebar content will go here */}
-        </div>
+        {/* Navigation Drawer */}
+        <NavigationDrawer />
 
-        {/* Top Navigation Bar - Lower z-index */}
-        <div className="fixed top-0 left-24 right-0 h-24 bg-[#fcd7d7] z-20">
-          {/* Bottom border starts from sidebar */}
+        {/* Top Navigation Bar */}
+        <div className="fixed top-0 left-0 right-0 h-24 bg-[#fcd7d7] z-20">
+          {/* Bottom border */}
           <div className="absolute bottom-0 left-0 right-0 border-b-2 border-black"></div>
           
-          <div className="h-full flex items-center px-8">
-            <h1 className="text-4xl font-monument mr-12">Bibliotek</h1>
+          <div className="h-full flex items-center px-8 ml-16">
             <NavigationHeader />
           </div>
         </div>
 
         {/* Main Content */}
-        <main className="ml-24 pt-32 px-8">
+        <main className="pt-32 px-8">
           <div className="max-w-[1000px] mx-auto">
             {children}
           </div>

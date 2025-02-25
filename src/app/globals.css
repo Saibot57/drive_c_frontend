@@ -84,6 +84,41 @@
   .calendar-time-slot {
     @apply absolute w-full border-t border-gray-200 transition-colors hover:bg-gray-50;
   }
+  
+  /* Schedule specific components */
+  .schedule-container {
+    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6;
+  }
+  .schedule-box {
+    @apply border-2 border-black p-1 cursor-move rounded-lg transition-all;
+  }
+  .schedule-box:hover {
+    @apply shadow-[2px_2px_0px_0px_rgba(0,0,0,1)];
+  }
+  .schedule-grid {
+    @apply border-2 border-black bg-white rounded-lg overflow-auto;
+  }
+  .schedule-grid-header {
+    @apply bg-[#ff6b6b] text-white font-medium border-b-2 border-black p-2 font-monument;
+  }
+  .schedule-grid-cell {
+    @apply border-2 border-black p-1 transition-all; 
+  }
+  .schedule-button {
+    @apply flex items-center justify-center border-2 border-black p-2 rounded-lg transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px];
+  }
+  .schedule-button-primary {
+    @apply bg-[#ff6b6b] text-white;
+  }
+  .schedule-button-secondary {
+    @apply bg-white;
+  }
+  .schedule-input {
+    @apply border-2 border-black rounded-lg p-2 w-full transition-all;
+  }
+  .schedule-input:focus {
+    @apply shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] translate-x-[-2px] translate-y-[-2px] outline-none;
+  }
 }
 
 /* Calendar Animations */
@@ -107,4 +142,15 @@
 
 .time-preview-animation {
   animation: slideIn 0.2s ease-out forwards;
+}
+
+/* Schedule animations */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.schedule-shake {
+  animation: shake 0.5s ease-in-out;
 }
