@@ -1,4 +1,3 @@
-// src/components/NavigationHeader.tsx
 'use client';
 
 import Link from 'next/link'
@@ -17,7 +16,14 @@ export function NavigationHeader() {
       >
         Kalender
       </Link>
-      <span className="text-3xl font-monument">Schema</span>
+      <Link 
+        href="/features/schedule" 
+        className={`text-3xl font-monument transition-colors ${
+          pathname === '/features/schedule' ? 'text-[#ff6b6b]' : 'hover:text-[#ff6b6b]'
+        }`}
+      >
+        Schema
+      </Link>
       <span className="text-3xl font-monument">TBA</span>
     </nav>
   )
