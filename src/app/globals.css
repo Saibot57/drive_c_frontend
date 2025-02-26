@@ -197,5 +197,35 @@
 /* Make schedule container more compact as well */
 .schedule-container {
   @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4;
+
+  /* Add these styles to your globals.css */
+
+/* Horizontal navigation styles */
+.horizontal-nav {
+  @apply flex items-center space-x-4;
+}
+
+.horizontal-nav-item {
+  @apply flex items-center py-1 px-2 rounded-lg transition-colors;
+}
+
+.horizontal-nav-item-active {
+  @apply text-[#ff6b6b] font-medium;
+}
+
+.horizontal-nav-item-inactive {
+  @apply hover:text-[#ff6b6b];
+}
+
+/* Reduce margin-top for feature containers */
+.calendar-container, 
+.schedule-container {
+  @apply mt-2;
+}
+
+/* Ensure content is immediately below the header */
+.pt-16 {
+  padding-top: 4.5rem;
+}
 }
 }

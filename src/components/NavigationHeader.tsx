@@ -1,6 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { BookOpen, Calendar, Layout, HelpCircle } from 'lucide-react';
 
 export function NavigationHeader() {
   const pathname = usePathname();
@@ -26,9 +28,35 @@ export function NavigationHeader() {
     }
   };
 
+  // Navigation items with their paths and icons
+  const navItems = [
+    { name: 'Bibliotek', path: '/', icon: <BookOpen className="h-5 w-5" /> },
+    { name: 'Kalender', path: '/features/calendar', icon: <Calendar className="h-5 w-5" /> },
+    { name: 'Schema', path: '/features/schedule', icon: <Layout className="h-5 w-5" /> },
+    { name: 'TBA', path: '#', icon: <HelpCircle className="h-5 w-5" /> }
+  ];
+
   return (
-    <div className="flex items-center">
+    <div className="flex items-center justify-between w-full">
       <h2 className="text-4xl font-monument">{getTitle()}</h2>
+      
+      {/* Navigation Links */}
+      <nav className="flex items-center space-x-6">
+        {navItems.map((item) => (
+          <Link 
+            key={item.name}
+            href={item.path} 
+            className={`flex items-center ${
+              pathname === item.path 
+                ? 'text-[#ff6b6b] font-bold' 
+                : 'text-black hover:text-[#ff6b6b]'
+            } transition-colors`}
+          >
+            {item.icon}
+            <span className="ml-2 font-monument">{item.name}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }
