@@ -284,8 +284,8 @@ export default function ScheduleApp() {
 
   return (
     <div className="w-full mx-auto px-0">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-monument">Schemaläggning</h1>
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-3xl font-monument">Schemaläggning</h1>
         <HeaderActions
           onClearSchedule={handleClearSchedule}
           onExportSchedule={handleExportSchedule}
@@ -316,7 +316,7 @@ export default function ScheduleApp() {
         }}
       />
       
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col md:flex-row gap-3 mb-3">
         {/* Left side - Available Boxes */}
         <div className="w-full md:w-3/4">
           <BoxList
@@ -328,7 +328,7 @@ export default function ScheduleApp() {
         </div>
         
         {/* Right side - Form and Statistics */}
-        <div className="w-full md:w-1/4 space-y-4">
+        <div className="w-full md:w-1/4 space-y-3">
           <BoxCreationForm
             boxes={boxes}
             setBoxes={setBoxes}

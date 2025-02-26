@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type { Metadata } from 'next'
 import { Red_Hat_Text } from 'next/font/google'
 import localFont from 'next/font/local'
@@ -42,7 +43,7 @@ export default function RootLayout({
         <NavigationDrawer />
 
         {/* Top Navigation Bar */}
-        <div className="fixed top-0 left-0 right-0 h-24 bg-[#fcd7d7] z-20">
+        <div className="fixed top-0 left-0 right-0 h-16 bg-[#fcd7d7] z-20">
           {/* Bottom border */}
           <div className="absolute bottom-0 left-0 right-0 border-b-2 border-black"></div>
           
@@ -52,7 +53,7 @@ export default function RootLayout({
         </div>
 
         {/* Main Content */}
-        <main className="pt-32 px-8">
+        <main className="pt-20 px-8">
           <div className="max-w-[1000px] mx-auto">
             {children}
           </div>

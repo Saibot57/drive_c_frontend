@@ -15,10 +15,10 @@ export function NavigationDrawer() {
 
   // Navigation items with their paths and icons
   const navItems = [
-    { name: 'Bibliotek', path: '/', icon: <BookOpen className="h-6 w-6" /> },
-    { name: 'Kalender', path: '/features/calendar', icon: <Calendar className="h-6 w-6" /> },
-    { name: 'Schema', path: '/features/schedule', icon: <Layout className="h-6 w-6" /> },
-    { name: 'TBA', path: '#', icon: <HelpCircle className="h-6 w-6" /> }
+    { name: 'Bibliotek', path: '/', icon: <BookOpen className="h-5 w-5" /> },
+    { name: 'Kalender', path: '/features/calendar', icon: <Calendar className="h-5 w-5" /> },
+    { name: 'Schema', path: '/features/schedule', icon: <Layout className="h-5 w-5" /> },
+    { name: 'TBA', path: '#', icon: <HelpCircle className="h-5 w-5" /> }
   ];
 
   // Close the drawer when clicking outside
@@ -31,13 +31,13 @@ export function NavigationDrawer() {
       {/* Menu button */}
       <button 
         onClick={toggleDrawer} 
-        className="nav-toggle-button top-6 left-6 h-12 w-12"
+        className="nav-toggle-button top-4 left-4 h-10 w-10"
         aria-label="Toggle navigation menu"
       >
         {isOpen ? (
-          <X className="h-6 w-6" />
+          <X className="h-5 w-5" />
         ) : (
-          <Menu className="h-6 w-6" />
+          <Menu className="h-5 w-5" />
         )}
       </button>
 
@@ -53,8 +53,8 @@ export function NavigationDrawer() {
       <div 
         className={`nav-drawer ${isOpen ? 'nav-drawer-open' : 'nav-drawer-closed'}`}
       >
-        <div className="pt-24 px-4">
-          <nav className="flex flex-col space-y-6 items-start">
+        <div className="pt-16 px-4">
+          <nav className="flex flex-col space-y-4 items-start">
             {navItems.map((item) => (
               <Link 
                 key={item.name}
@@ -63,7 +63,7 @@ export function NavigationDrawer() {
                 onClick={() => setIsOpen(false)}
               >
                 {item.icon}
-                <span className="text-2xl font-monument">{item.name}</span>
+                <span className="text-xl font-monument">{item.name}</span>
               </Link>
             ))}
           </nav>

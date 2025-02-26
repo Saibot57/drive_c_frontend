@@ -153,4 +153,49 @@
 
 .schedule-shake {
   animation: shake 0.5s ease-in-out;
+  /* Add these styles to your globals.css */
+
+/* Navigation drawer positioning and styling */
+.nav-toggle-button {
+  @apply fixed z-40 flex items-center justify-center rounded-full border-2 border-black bg-white transition-all;
+}
+
+.nav-drawer {
+  @apply fixed left-0 top-0 h-full w-64 border-r-2 border-black bg-[#fcd7d7] z-30 transition-transform duration-300 ease-in-out;
+}
+
+.nav-drawer-open {
+  @apply transform-none;
+}
+
+.nav-drawer-closed {
+  @apply -translate-x-full;
+}
+
+.nav-item {
+  @apply flex items-center gap-3 p-2 rounded-lg transition-colors;
+}
+
+.nav-item-active {
+  @apply bg-[#ff6b6b] text-white font-semibold;
+}
+
+.nav-item-inactive {
+  @apply hover:bg-white/30;
+}
+
+/* Compact the calendar container to reduce vertical space */
+.calendar-container {
+  @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] py-2;
+}
+
+/* Also make grid cells more compact */
+.calendar-day-card {
+  @apply h-full border-2 border-black bg-white transition-transform duration-300;
+}
+
+/* Make schedule container more compact as well */
+.schedule-container {
+  @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4;
+}
 }

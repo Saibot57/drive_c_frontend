@@ -150,19 +150,19 @@ export default function Home() {
 
   return (
     <div className="bg-[#fcd7d7]">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4 flex-1">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3 flex-1">
           <Search onSearch={setSearchTerm} />
           <Button 
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="h-12 px-4 flex items-center gap-2 border-2 border-black bg-white hover:bg-white"
+            className="h-10 px-3 flex items-center gap-2 border-2 border-black bg-white hover:bg-white"
           >
             <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? '...' : 'Uppdatera'}
           </Button>
         </div>
-        <div className="flex items-center ml-4">
+        <div className="flex items-center ml-3">
           <Checkbox
             id="showTags"
             checked={showTags}
@@ -172,8 +172,8 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="grid gap-8 grid-cols-1 md:grid-cols-2">
-                {filteredData?.map((section) => (
+      <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
+        {filteredData?.map((section) => (
           <Section key={section.name} section={section} showTags={showTags} />
         ))}
       </div>
