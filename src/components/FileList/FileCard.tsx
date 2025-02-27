@@ -1,10 +1,10 @@
 // src/components/FileList/FileCard.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 
 interface FileData {
   id: string;
   name: string;
-  url: string;
+  url: string; // This can be null or empty for notes
   file_path: string;
   tags: string[];
   notebooklm?: string;
@@ -17,12 +17,20 @@ interface FileCardProps {
 }
 
 export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
-  // Check if the file is likely a note (has no external URL)
-  const isNote = !file.url || file.url.trim() === '';
+  // Debug logging to understand file structure
+  useEffect(() => {
+    console.log("File data:", file);
+  }, [file]);
+
+  // Check if the file is likely a note (has no external URL or null URL)
+  const isNote = !file.url || file.url === null || file.url.trim() === '';
   
   // Function to determine if a path is a text file
   const isTextFile = (path: string) => {
     const textExtensions = ['.txt', '.md', '.text', ''];
+    // Handle case where there's no extension
+    if (!path.includes('.')) return true;
+    
     const extension = path.substring(path.lastIndexOf('.')).toLowerCase();
     return textExtensions.includes(extension);
   };
@@ -31,10 +39,12 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
   const openInNotes = isNote && isTextFile(file.name);
 
   const handleOpenNotes = (e: React.MouseEvent) => {
-    if (openInNotes) {
-      // Explicitly open in a new tab
-      window.open(`/features/notes?path=${encodeURIComponent(file.file_path)}`, '_blank');
-    }
+    e.preventDefault(); // Prevent default behavior
+    e.stopPropagation(); // Stop event propagation
+    
+    console.log("Opening note:", file.file_path);
+    // Explicitly open in a new tab
+    window.open(`/features/notes?path=${encodeURIComponent(file.file_path)}`, '_blank');
   };
 
   return (
@@ -43,7 +53,8 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
         {openInNotes ? (
           <button 
             onClick={handleOpenNotes}
-            className="text-sm text-black font-semibold hover:underline block leading-tight text-left"
+            className="text-sm text-black font-semibold hover:underline block leading-tight text-left cursor-pointer"
+            style={{ textDecoration: 'underline' }} // Make it obviously clickable
           >
             {file.name} <span className="text-xs text-gray-500">(edit)</span>
           </button>
