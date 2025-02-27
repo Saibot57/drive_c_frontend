@@ -64,8 +64,7 @@ export interface NoteFile {
         console.log(`Directory created at ${path}`);
       } catch (error) {
         console.error('Error creating directory:', error);
-        // For development until backend is ready
-        console.log(`Mock: Created directory at ${path}`);
+        throw error;
       }
     },
     
@@ -94,8 +93,7 @@ export interface NoteFile {
         console.log(`Note saved at ${path}`);
       } catch (error) {
         console.error('Error saving note:', error);
-        // For development until backend is ready
-        console.log(`Mock: Saved note at ${path}`);
+        throw error;
       }
     },
     
@@ -110,20 +108,34 @@ export interface NoteFile {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Error fetching note (${response.status}): ${errorText}`);
+          
+          // If the note doesn't exist (404), throw a specific error
+          if (response.status === 404) {
+            throw new Error(`Note not found at ${path}`);
+          }
+          
           throw new Error(`Error fetching note: ${response.statusText}`);
         }
         
         const data = await response.json();
+        
+        if (!data.data || typeof data.data.content !== 'string') {
+          console.error('Invalid response format:', data);
+          throw new Error('Invalid response format from server');
+        }
+        
         console.log(`Retrieved note content:`, data.data);
-        return data.data;
+        
+        // Make sure we always return a properly formatted NoteContent
+        return {
+          content: data.data.content || '',
+          tags: Array.isArray(data.data.tags) ? data.data.tags : [],
+          description: data.data.description || '',
+          ...(data.data.id ? { id: data.data.id } : {})
+        };
       } catch (error) {
         console.error('Error fetching note content:', error);
-        // Return mock data for development until backend is ready
-        return {
-          content: `This is a mock note for ${path}`,
-          tags: ['mock', 'development'],
-          description: 'This is a mock note for development purposes',
-        };
+        throw error;
       }
     }
   };

@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { TerminalOutput } from './TerminalOutput';
@@ -64,32 +63,40 @@ export const Terminal: React.FC = () => {
     if (!isClient) return;
 
     const handleQueryParams = async () => {
-      // Get query parameters from URL
-      const params = new URLSearchParams(window.location.search);
-      const pathParam = params.get('path');
-      
-      if (pathParam) {
-        // Get the directory from the path
-        const lastSlashIndex = pathParam.lastIndexOf('/');
-        if (lastSlashIndex >= 0) {
-          const directory = pathParam.substring(0, lastSlashIndex) || '/';
-          const fileName = pathParam.substring(lastSlashIndex + 1);
-          
-          // Update the current directory
-          setState(prev => ({
-            ...prev,
-            currentDirectory: directory
-          }));
-          
-          // Add message to history
-          addToHistory({ 
-            type: 'output', 
-            content: `Changed directory to ${directory}` 
-          });
-          
-          // Start editor with this file
-          await startEditor(fileName, 'edit');
+      try {
+        // Get query parameters from URL
+        const params = new URLSearchParams(window.location.search);
+        const pathParam = params.get('path');
+        
+        if (pathParam) {
+          // Get the directory from the path
+          const lastSlashIndex = pathParam.lastIndexOf('/');
+          if (lastSlashIndex >= 0) {
+            const directory = pathParam.substring(0, lastSlashIndex) || '/';
+            const fileName = pathParam.substring(lastSlashIndex + 1);
+            
+            // Update the current directory
+            setState(prev => ({
+              ...prev,
+              currentDirectory: directory
+            }));
+            
+            // Add message to history
+            addToHistory({ 
+              type: 'output', 
+              content: `Changed directory to ${directory}` 
+            });
+            
+            // Start editor with this file
+            await startEditor(fileName, 'edit');
+          }
         }
+      } catch (error) {
+        console.error('Error loading note from URL parameter:', error);
+        addToHistory({
+          type: 'output',
+          content: `Error loading note: ${error instanceof Error ? error.message : String(error)}`
+        });
       }
     };
     
@@ -136,6 +143,9 @@ export const Terminal: React.FC = () => {
         case 'edit':
           await startEditor(args[0], command);
           break;
+        case 'open':
+          await openNote(args[0]);
+          break;
         case 'clear':
           clearTerminal();
           break;
@@ -164,6 +174,7 @@ Available commands:
   mkdir <name>      Create a new directory
   new <filename>    Create a new note
   edit <filename>   Edit an existing note
+  open <filename>   Open and view a note (read-only)
   clear             Clear terminal history
 `.trim(),
     });
@@ -274,25 +285,27 @@ Available commands:
       return;
     }
 
-    setMode('editor');
-    setState(prev => ({
-      ...prev,
-      editorFileName: filename,
-      editorContent: '',
-      editorMetadata: {
-        tags: [],
-        description: '',
-      },
-    }));
-
-    // If editing existing file, load its content
+    const path = state.currentDirectory === '/' 
+      ? `/${filename}` 
+      : `${state.currentDirectory}/${filename}`;
+    
     if (command === 'edit') {
-      const path = state.currentDirectory === '/' 
-        ? `/${filename}` 
-        : `${state.currentDirectory}/${filename}`;
-      
       try {
+        // Set mode to editor first, so the UI updates
+        setMode('editor');
+        setState(prev => ({
+          ...prev,
+          editorFileName: filename,
+          editorContent: '',
+          editorMetadata: {
+            tags: [],
+            description: '',
+          },
+        }));
+        
         const noteContent = await notesService.getNoteContent(path);
+        
+        // Then update the state with the loaded content
         setState(prev => ({
           ...prev,
           editorContent: noteContent.content,
@@ -301,10 +314,69 @@ Available commands:
             description: noteContent.description || '',
           },
         }));
+        
+        addToHistory({
+          type: 'output',
+          content: `Loaded note: ${filename}`,
+        });
       } catch (error) {
-        // If error, just create a new file
-        console.log(`Creating new file: ${filename}`);
+        console.log(`Creating new file: ${filename} (${error})`);
+        
+        // If error, create a new file but stay in editor mode
+        setMode('editor');
+        setState(prev => ({
+          ...prev,
+          editorFileName: filename,
+          editorContent: '',
+          editorMetadata: {
+            tags: [],
+            description: '',
+          },
+        }));
+        
+        addToHistory({
+          type: 'output',
+          content: `Creating new file: ${filename}`,
+        });
       }
+    } else {
+      // New file case - just setup the editor
+      setMode('editor');
+      setState(prev => ({
+        ...prev,
+        editorFileName: filename,
+        editorContent: '',
+        editorMetadata: {
+          tags: [],
+          description: '',
+        },
+      }));
+    }
+  };
+
+  const openNote = async (filename: string) => {
+    if (!filename) {
+      addToHistory({
+        type: 'output',
+        content: 'Usage: open <filename>',
+      });
+      return;
+    }
+
+    try {
+      const path = state.currentDirectory === '/' 
+        ? `/${filename}` 
+        : `${state.currentDirectory}/${filename}`;
+      
+      const noteContent = await notesService.getNoteContent(path);
+      
+      // Display note content in terminal output
+      addToHistory({
+        type: 'output',
+        content: `--- ${filename} ---\n\n${noteContent.content}\n\nTags: ${noteContent.tags.join(', ')}\nDescription: ${noteContent.description}`,
+      });
+    } catch (error) {
+      throw new Error(`Failed to open note: ${error}`);
     }
   };
 
