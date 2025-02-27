@@ -221,6 +221,40 @@ export interface NoteFile {
         console.error('Error moving file:', error);
         throw error;
       }
+    },
+    
+    async deleteFile(path: string): Promise<void> {
+      try {
+        console.log(`Deleting file at path: ${path}`);
+        const encodedPath = encodeURIComponent(path);
+        const url = `${API_URL}/notes/file?path=${encodedPath}`;
+        
+        console.log("Delete API call URL:", url);
+        const response = await fetch(url, {
+          method: 'DELETE',
+        });
+        
+        const responseText = await response.text();
+        console.log("Delete API response:", responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Error parsing JSON response:", e);
+          throw new Error(`Invalid response format: ${responseText}`);
+        }
+        
+        if (!response.ok) {
+          console.error(`Error deleting file (${response.status}):`, data);
+          throw new Error(`Error deleting file: ${data.message || response.statusText}`);
+        }
+        
+        console.log(`File successfully deleted at ${path}`);
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        throw error;
+      }
     }
   };
   

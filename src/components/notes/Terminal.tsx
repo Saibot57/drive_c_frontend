@@ -16,6 +16,10 @@ export interface TerminalState {
     tags: string[];
     description: string;
   };
+  awaitingConfirmation: {
+    type: string;
+    path: string;
+  } | null;
 }
 
 export const Terminal: React.FC = () => {
@@ -33,6 +37,7 @@ export const Terminal: React.FC = () => {
       tags: [],
       description: '',
     },
+    awaitingConfirmation: null
   });
   const [isClient, setIsClient] = useState(false);
 
@@ -167,6 +172,57 @@ export const Terminal: React.FC = () => {
     // Add command to history
     addToHistory({ type: 'command', content: input });
 
+    // Check if we're waiting for a confirmation
+    if (state.awaitingConfirmation) {
+      const response = input.trim().toLowerCase();
+      
+      if (response === 'y' || response === 'yes') {
+        try {
+          if (state.awaitingConfirmation.type === 'delete') {
+            // Execute the actual delete operation
+            await notesService.deleteFile(state.awaitingConfirmation.path);
+            addToHistory({
+              type: 'output',
+              content: `Successfully deleted ${state.awaitingConfirmation.path}`,
+            });
+          }
+          // Reset the confirmation state
+          setState(prev => ({
+            ...prev,
+            awaitingConfirmation: null
+          }));
+        } catch (error) {
+          addToHistory({
+            type: 'output',
+            content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          });
+          setState(prev => ({
+            ...prev,
+            awaitingConfirmation: null
+          }));
+        }
+      } else if (response === 'n' || response === 'no') {
+        addToHistory({
+          type: 'output',
+          content: 'Operation cancelled.',
+        });
+        // Reset the confirmation state
+        setState(prev => ({
+          ...prev,
+          awaitingConfirmation: null
+        }));
+      } else {
+        addToHistory({
+          type: 'output',
+          content: 'Please respond with "y" or "n".',
+        });
+      }
+      
+      // Clear input and return early
+      setInput('');
+      return;
+    }
+
     // Process command
     const commandParts = input.trim().split(' ');
     const command = commandParts[0].toLowerCase();
@@ -199,6 +255,10 @@ export const Terminal: React.FC = () => {
         case 'move':
           await moveFile(args[0], args[1]);
           break;
+        case 'delete':
+        case 'rm':
+          await deleteFile(args[0]);
+          break;
         case 'clear':
           clearTerminal();
           break;
@@ -229,6 +289,8 @@ Available commands:
   edit <filename>   Edit an existing note
   open <filename>   Open and view a note (read-only)
   move <src> <dst>  Move a file or directory to a new location
+  delete <path>     Delete a file or directory
+  rm <path>         Alias for delete
   clear             Clear terminal history
 `.trim(),
     });
@@ -477,12 +539,55 @@ Available commands:
     }
   };
 
+  const deleteFile = async (path: string) => {
+    if (!path) {
+      addToHistory({
+        type: 'output',
+        content: 'Usage: delete <path> or rm <path>',
+      });
+      return;
+    }
+    
+    try {
+      // Convert to absolute path if not already
+      let targetPath = path;
+      if (!targetPath.startsWith('/')) {
+        targetPath = state.currentDirectory === '/' 
+          ? `/${targetPath}` 
+          : `${state.currentDirectory}/${targetPath}`;
+      }
+      
+      // Normalize path
+      targetPath = targetPath.replace(/\/+/g, '/');
+      
+      // Confirm deletion
+      const confirmMessage = `Are you sure you want to delete "${targetPath}"? This cannot be undone. (y/n)`;
+      addToHistory({
+        type: 'output',
+        content: confirmMessage,
+      });
+      
+      // Set a flag to wait for confirmation
+      setState(prev => ({
+        ...prev,
+        awaitingConfirmation: {
+          type: 'delete',
+          path: targetPath,
+        }
+      }));
+      
+    } catch (error) {
+      throw new Error(`Failed to delete file: ${error}`);
+    }
+  };
+
   const clearTerminal = () => {
     setState(prev => ({
       ...prev,
       history: [
         { type: 'output', content: 'Terminal cleared' },
       ],
+      awaitingConfirmation: null
     }));
   };
 
