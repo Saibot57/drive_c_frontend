@@ -30,18 +30,23 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
   // Only treat it as a note if it's also a text file
   const openInNotes = isNote && isTextFile(file.name);
 
+  const handleOpenNotes = (e: React.MouseEvent) => {
+    if (openInNotes) {
+      // Explicitly open in a new tab
+      window.open(`/features/notes?path=${encodeURIComponent(file.file_path)}`, '_blank');
+    }
+  };
+
   return (
     <div className="py-0.5 border-0 border-gray-200 last:border-b-0">
       <div className="flex items-center gap-1">
         {openInNotes ? (
-          <a 
-            href={`/features/notes?path=${encodeURIComponent(file.file_path)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-black font-semibold hover:underline block leading-tight"
+          <button 
+            onClick={handleOpenNotes}
+            className="text-sm text-black font-semibold hover:underline block leading-tight text-left"
           >
             {file.name} <span className="text-xs text-gray-500">(edit)</span>
-          </a>
+          </button>
         ) : (
           <a 
             href={file.url}
