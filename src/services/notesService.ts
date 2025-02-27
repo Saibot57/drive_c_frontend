@@ -26,21 +26,31 @@ export interface NoteFile {
         const encodedPath = encodeURIComponent(path);
         const url = `${API_URL}/notes/files?path=${encodedPath}`;
         
+        console.log("API call URL:", url);
         const response = await fetch(url);
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error listing files (${response.status}): ${errorText}`);
-          throw new Error(`Error listing files: ${response.statusText}`);
+        const responseText = await response.text();
+        console.log("API response:", responseText);
+        
+        // Parse the response text
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Error parsing JSON response:", e);
+          throw new Error(`Invalid response format: ${responseText}`);
         }
         
-        const data = await response.json();
+        if (!response.ok) {
+          console.error(`Error listing files (${response.status}):`, data);
+          throw new Error(`Error listing files: ${data.message || response.statusText}`);
+        }
+        
         console.log(`Retrieved ${data.data?.length || 0} files:`, data.data);
         return data.data || [];
       } catch (error) {
         console.error('Error listing files:', error);
-        // Return mock data for development until backend is ready
-        return getMockFiles(path);
+        return getMockFiles(path); // Fallback to mock data
       }
     },
     
@@ -55,10 +65,20 @@ export interface NoteFile {
           body: JSON.stringify({ path }),
         });
         
+        const responseText = await response.text();
+        console.log("API response:", responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Error parsing JSON response:", e);
+          throw new Error(`Invalid response format: ${responseText}`);
+        }
+        
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error creating directory (${response.status}): ${errorText}`);
-          throw new Error(`Error creating directory: ${response.statusText}`);
+          console.error(`Error creating directory (${response.status}):`, data);
+          throw new Error(`Error creating directory: ${data.message || response.statusText}`);
         }
         
         console.log(`Directory created at ${path}`);
@@ -71,23 +91,40 @@ export interface NoteFile {
     async saveNote(path: string, content: string, metadata: { tags: string[], description: string }): Promise<void> {
       try {
         console.log(`Saving note at path: ${path}`);
+        console.log("Content length:", content.length);
+        console.log("Metadata:", metadata);
+        
+        const requestBody = {
+          path,
+          content,
+          tags: metadata.tags.join(','),
+          description: metadata.description,
+        };
+        
+        console.log("Request body:", JSON.stringify(requestBody));
+        
         const response = await fetch(`${API_URL}/notes/file`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            path,
-            content,
-            tags: metadata.tags.join(','),
-            description: metadata.description,
-          }),
+          body: JSON.stringify(requestBody),
         });
         
+        const responseText = await response.text();
+        console.log("API response:", responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Error parsing JSON response:", e);
+          throw new Error(`Invalid response format: ${responseText}`);
+        }
+        
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error saving note (${response.status}): ${errorText}`);
-          throw new Error(`Error saving note: ${response.statusText}`);
+          console.error(`Error saving note (${response.status}):`, data);
+          throw new Error(`Error saving note: ${data.message || response.statusText}`);
         }
         
         console.log(`Note saved at ${path}`);
@@ -103,21 +140,31 @@ export interface NoteFile {
         const encodedPath = encodeURIComponent(path);
         const url = `${API_URL}/notes/file?path=${encodedPath}`;
         
+        console.log("API call URL:", url);
         const response = await fetch(url);
         
+        const responseText = await response.text();
+        console.log("API response:", responseText);
+        
+        // Parse the response text
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Error parsing JSON response:", e);
+          throw new Error(`Invalid response format: ${responseText}`);
+        }
+        
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error fetching note (${response.status}): ${errorText}`);
+          console.error(`Error fetching note (${response.status}):`, data);
           
           // If the note doesn't exist (404), throw a specific error
           if (response.status === 404) {
             throw new Error(`Note not found at ${path}`);
           }
           
-          throw new Error(`Error fetching note: ${response.statusText}`);
+          throw new Error(`Error fetching note: ${data.message || response.statusText}`);
         }
-        
-        const data = await response.json();
         
         if (!data.data || typeof data.data.content !== 'string') {
           console.error('Invalid response format:', data);
@@ -135,6 +182,43 @@ export interface NoteFile {
         };
       } catch (error) {
         console.error('Error fetching note content:', error);
+        throw error;
+      }
+    },
+    
+    async moveFile(sourcePath: string, destinationPath: string): Promise<void> {
+      try {
+        console.log(`Moving file from ${sourcePath} to ${destinationPath}`);
+        const response = await fetch(`${API_URL}/notes/move`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            source: sourcePath,
+            destination: destinationPath,
+          }),
+        });
+        
+        const responseText = await response.text();
+        console.log("Move API response:", responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Error parsing JSON response:", e);
+          throw new Error(`Invalid response format: ${responseText}`);
+        }
+        
+        if (!response.ok) {
+          console.error(`Error moving file (${response.status}):`, data);
+          throw new Error(`Error moving file: ${data.message || response.statusText}`);
+        }
+        
+        console.log(`File moved successfully from ${sourcePath} to ${destinationPath}`);
+      } catch (error) {
+        console.error('Error moving file:', error);
         throw error;
       }
     }

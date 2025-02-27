@@ -61,7 +61,7 @@ export const Terminal: React.FC = () => {
   // Only use router on the client side
   useEffect(() => {
     if (!isClient) return;
-
+  
     const handleQueryParams = async () => {
       try {
         // Get query parameters from URL
@@ -69,11 +69,15 @@ export const Terminal: React.FC = () => {
         const pathParam = params.get('path');
         
         if (pathParam) {
+          console.log("Found path parameter:", pathParam);
+          
           // Get the directory from the path
           const lastSlashIndex = pathParam.lastIndexOf('/');
           if (lastSlashIndex >= 0) {
             const directory = pathParam.substring(0, lastSlashIndex) || '/';
             const fileName = pathParam.substring(lastSlashIndex + 1);
+            
+            console.log(`Directory: ${directory}, Filename: ${fileName}`);
             
             // Update the current directory
             setState(prev => ({
@@ -87,12 +91,58 @@ export const Terminal: React.FC = () => {
               content: `Changed directory to ${directory}` 
             });
             
-            // Start editor with this file
-            await startEditor(fileName, 'edit');
+            // First try to get content to see if the file exists
+            try {
+              const path = directory === '/' 
+                ? `/${fileName}` 
+                : `${directory}/${fileName}`;
+              
+              console.log("Attempting to load note from path:", path);
+              const noteContent = await notesService.getNoteContent(path);
+              
+              if (noteContent) {
+                console.log("Successfully loaded note content:", noteContent);
+                
+                // Start editor with this file
+                setMode('editor');
+                setState(prev => ({
+                  ...prev,
+                  editorFileName: fileName,
+                  editorContent: noteContent.content || '',
+                  editorMetadata: {
+                    tags: Array.isArray(noteContent.tags) ? noteContent.tags : [],
+                    description: noteContent.description || '',
+                  },
+                }));
+                
+                addToHistory({
+                  type: 'output',
+                  content: `Loaded note: ${fileName}`,
+                });
+              }
+            } catch (error) {
+              console.error("Error loading note:", error);
+              // Start with a new file instead
+              setMode('editor');
+              setState(prev => ({
+                ...prev,
+                editorFileName: fileName,
+                editorContent: '',
+                editorMetadata: {
+                  tags: [],
+                  description: '',
+                },
+              }));
+              
+              addToHistory({
+                type: 'output',
+                content: `Creating new file: ${fileName}`,
+              });
+            }
           }
         }
       } catch (error) {
-        console.error('Error loading note from URL parameter:', error);
+        console.error('Error handling URL parameter:', error);
         addToHistory({
           type: 'output',
           content: `Error loading note: ${error instanceof Error ? error.message : String(error)}`
@@ -146,6 +196,9 @@ export const Terminal: React.FC = () => {
         case 'open':
           await openNote(args[0]);
           break;
+        case 'move':
+          await moveFile(args[0], args[1]);
+          break;
         case 'clear':
           clearTerminal();
           break;
@@ -175,6 +228,7 @@ Available commands:
   new <filename>    Create a new note
   edit <filename>   Edit an existing note
   open <filename>   Open and view a note (read-only)
+  move <src> <dst>  Move a file or directory to a new location
   clear             Clear terminal history
 `.trim(),
     });
@@ -284,33 +338,33 @@ Available commands:
       });
       return;
     }
-
+  
     const path = state.currentDirectory === '/' 
       ? `/${filename}` 
       : `${state.currentDirectory}/${filename}`;
     
+    // Set initial editor state
+    setMode('editor');
+    setState(prev => ({
+      ...prev,
+      editorFileName: filename,
+      // Don't reset these to empty initially - let them stay with previous values until we update them below
+      // This helps prevent flickering to empty state while loading
+    }));
+    
     if (command === 'edit') {
       try {
-        // Set mode to editor first, so the UI updates
-        setMode('editor');
-        setState(prev => ({
-          ...prev,
-          editorFileName: filename,
-          editorContent: '',
-          editorMetadata: {
-            tags: [],
-            description: '',
-          },
-        }));
-        
+        console.log(`Loading note content from: ${path}`);
         const noteContent = await notesService.getNoteContent(path);
         
-        // Then update the state with the loaded content
+        console.log("Content loaded successfully:", noteContent);
+        
+        // Only update the state after successfully loading the content
         setState(prev => ({
           ...prev,
-          editorContent: noteContent.content,
+          editorContent: noteContent.content || '',
           editorMetadata: {
-            tags: noteContent.tags,
+            tags: Array.isArray(noteContent.tags) ? noteContent.tags : [],
             description: noteContent.description || '',
           },
         }));
@@ -320,13 +374,11 @@ Available commands:
           content: `Loaded note: ${filename}`,
         });
       } catch (error) {
-        console.log(`Creating new file: ${filename} (${error})`);
+        console.log(`Failed to load note, creating new file: ${filename} (${error})`);
         
-        // If error, create a new file but stay in editor mode
-        setMode('editor');
+        // If error, create a new file
         setState(prev => ({
           ...prev,
-          editorFileName: filename,
           editorContent: '',
           editorMetadata: {
             tags: [],
@@ -340,11 +392,9 @@ Available commands:
         });
       }
     } else {
-      // New file case - just setup the editor
-      setMode('editor');
+      // New file case - set up the editor with empty content
       setState(prev => ({
         ...prev,
-        editorFileName: filename,
         editorContent: '',
         editorMetadata: {
           tags: [],
@@ -377,6 +427,53 @@ Available commands:
       });
     } catch (error) {
       throw new Error(`Failed to open note: ${error}`);
+    }
+  };
+
+  const moveFile = async (source: string, destination: string) => {
+    if (!source || !destination) {
+      addToHistory({
+        type: 'output',
+        content: 'Usage: move <source_path> <destination_path>',
+      });
+      return;
+    }
+    
+    try {
+      // Convert to absolute paths if not already
+      let sourcePath = source;
+      if (!sourcePath.startsWith('/')) {
+        sourcePath = state.currentDirectory === '/' 
+          ? `/${sourcePath}` 
+          : `${state.currentDirectory}/${sourcePath}`;
+      }
+      
+      let destPath = destination;
+      if (!destPath.startsWith('/')) {
+        destPath = state.currentDirectory === '/' 
+          ? `/${destPath}` 
+          : `${state.currentDirectory}/${destPath}`;
+      }
+      
+      // Normalize paths
+      sourcePath = sourcePath.replace(/\/+/g, '/');
+      destPath = destPath.replace(/\/+/g, '/');
+      
+      // If destination is a directory, append the source filename
+      if (destPath.endsWith('/')) {
+        const sourceFileName = sourcePath.split('/').pop();
+        destPath = `${destPath}${sourceFileName}`;
+      }
+      
+      // Call the moveFile API
+      await notesService.moveFile(sourcePath, destPath);
+      
+      addToHistory({
+        type: 'output',
+        content: `Successfully moved ${sourcePath} to ${destPath}`,
+      });
+    } catch (error) {
+      throw new Error(`Failed to move file: ${error}`);
     }
   };
 
