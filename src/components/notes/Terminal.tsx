@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { TerminalOutput } from './TerminalOutput';
@@ -19,6 +20,7 @@ export interface TerminalState {
 }
 
 export const Terminal: React.FC = () => {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>('command');
   const [input, setInput] = useState('');
   const [state, setState] = useState<TerminalState>({
@@ -51,6 +53,36 @@ export const Terminal: React.FC = () => {
       inputRef.current.focus();
     }
   }, [mode]);
+
+  // Handle URL path parameters on page load
+  useEffect(() => {
+    // Check for path query parameter
+    if (router.query.path && typeof router.query.path === 'string') {
+      const notePath = router.query.path;
+      
+      // Get the directory from the path
+      const lastSlashIndex = notePath.lastIndexOf('/');
+      if (lastSlashIndex >= 0) {
+        const directory = notePath.substring(0, lastSlashIndex) || '/';
+        const fileName = notePath.substring(lastSlashIndex + 1);
+        
+        // Update the current directory
+        setState(prev => ({
+          ...prev,
+          currentDirectory: directory
+        }));
+        
+        // Add message to history
+        addToHistory({ 
+          type: 'output', 
+          content: `Changed directory to ${directory}` 
+        });
+        
+        // Start editor with this file
+        startEditor(fileName, 'edit');
+      }
+    }
+  }, [router.query.path]);
 
   const addToHistory = (entry: { type: 'command' | 'output'; content: string }) => {
     setState(prev => ({
