@@ -70,10 +70,10 @@
   
   /* Calendar specific components */
   .calendar-container {
-    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)];
+    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] py-2;
   }
   .calendar-day-card {
-    @apply h-full border-2 border-black bg-white transition-transform duration-500;
+    @apply h-full border-2 border-black bg-white transition-transform duration-300;
   }
   .calendar-event-card {
     @apply rounded border-2 border-black bg-[#ff6b6b] p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)];
@@ -87,7 +87,7 @@
   
   /* Schedule specific components */
   .schedule-container {
-    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6;
+    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4;
   }
   .schedule-box {
     @apply border-2 border-black p-1 cursor-move rounded-lg transition-all;
@@ -118,6 +118,15 @@
   }
   .schedule-input:focus {
     @apply shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] translate-x-[-2px] translate-y-[-2px] outline-none;
+  }
+  
+  /* Notes specific components */
+  .notes-container {
+    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6;
+  }
+  
+  .terminal-output {
+    @apply font-mono text-sm whitespace-pre-wrap;
   }
 }
 
@@ -153,7 +162,17 @@
 
 .schedule-shake {
   animation: shake 0.5s ease-in-out;
-  /* Add these styles to your globals.css */
+}
+
+/* Notes animations */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.cursor-blink {
+  animation: cursor-blink 1s infinite;
+}
 
 /* Navigation drawer positioning and styling */
 .nav-toggle-button {
@@ -184,22 +203,6 @@
   @apply hover:bg-white/30;
 }
 
-/* Compact the calendar container to reduce vertical space */
-.calendar-container {
-  @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] py-2;
-}
-
-/* Also make grid cells more compact */
-.calendar-day-card {
-  @apply h-full border-2 border-black bg-white transition-transform duration-300;
-}
-
-/* Make schedule container more compact as well */
-.schedule-container {
-  @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4;
-
-  /* Add these styles to your globals.css */
-
 /* Horizontal navigation styles */
 .horizontal-nav {
   @apply flex items-center space-x-4;
@@ -217,15 +220,7 @@
   @apply hover:text-[#ff6b6b];
 }
 
-/* Reduce margin-top for feature containers */
-.calendar-container, 
-.schedule-container {
-  @apply mt-2;
-}
-
 /* Ensure content is immediately below the header */
 .pt-16 {
   padding-top: 4.5rem;
-}
-}
 }
