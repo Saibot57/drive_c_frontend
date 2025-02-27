@@ -20,7 +20,6 @@ export interface TerminalState {
 }
 
 export const Terminal: React.FC = () => {
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>('command');
   const [input, setInput] = useState('');
   const [state, setState] = useState<TerminalState>({
@@ -36,9 +35,15 @@ export const Terminal: React.FC = () => {
       description: '',
     },
   });
+  const [isClient, setIsClient] = useState(false);
 
   const terminalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Set isClient to true once the component mounts
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Auto-scroll to bottom when history changes
   useEffect(() => {
@@ -54,35 +59,42 @@ export const Terminal: React.FC = () => {
     }
   }, [mode]);
 
-  // Handle URL path parameters on page load
+  // Only use router on the client side
   useEffect(() => {
-    // Check for path query parameter
-    if (router.query.path && typeof router.query.path === 'string') {
-      const notePath = router.query.path;
+    if (!isClient) return;
+
+    const handleQueryParams = async () => {
+      // Get query parameters from URL
+      const params = new URLSearchParams(window.location.search);
+      const pathParam = params.get('path');
       
-      // Get the directory from the path
-      const lastSlashIndex = notePath.lastIndexOf('/');
-      if (lastSlashIndex >= 0) {
-        const directory = notePath.substring(0, lastSlashIndex) || '/';
-        const fileName = notePath.substring(lastSlashIndex + 1);
-        
-        // Update the current directory
-        setState(prev => ({
-          ...prev,
-          currentDirectory: directory
-        }));
-        
-        // Add message to history
-        addToHistory({ 
-          type: 'output', 
-          content: `Changed directory to ${directory}` 
-        });
-        
-        // Start editor with this file
-        startEditor(fileName, 'edit');
+      if (pathParam) {
+        // Get the directory from the path
+        const lastSlashIndex = pathParam.lastIndexOf('/');
+        if (lastSlashIndex >= 0) {
+          const directory = pathParam.substring(0, lastSlashIndex) || '/';
+          const fileName = pathParam.substring(lastSlashIndex + 1);
+          
+          // Update the current directory
+          setState(prev => ({
+            ...prev,
+            currentDirectory: directory
+          }));
+          
+          // Add message to history
+          addToHistory({ 
+            type: 'output', 
+            content: `Changed directory to ${directory}` 
+          });
+          
+          // Start editor with this file
+          await startEditor(fileName, 'edit');
+        }
       }
-    }
-  }, [router.query.path]);
+    };
+    
+    handleQueryParams();
+  }, [isClient]); // Only run when isClient changes to true
 
   const addToHistory = (entry: { type: 'command' | 'output'; content: string }) => {
     setState(prev => ({

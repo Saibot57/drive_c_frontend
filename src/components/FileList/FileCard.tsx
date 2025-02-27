@@ -1,6 +1,5 @@
 // src/components/FileList/FileCard.tsx
 import React from 'react';
-import Link from 'next/link';
 
 interface FileData {
   id: string;
@@ -35,13 +34,14 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
     <div className="py-0.5 border-0 border-gray-200 last:border-b-0">
       <div className="flex items-center gap-1">
         {openInNotes ? (
-          <Link 
+          <a 
             href={`/features/notes?path=${encodeURIComponent(file.file_path)}`}
             target="_blank"
+            rel="noopener noreferrer"
             className="text-sm text-black font-semibold hover:underline block leading-tight"
           >
             {file.name} <span className="text-xs text-gray-500">(edit)</span>
-          </Link>
+          </a>
         ) : (
           <a 
             href={file.url}
