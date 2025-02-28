@@ -1,14 +1,11 @@
-'use client';
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Section } from "@/components/FileList/Section";
-import { FileCard } from "@/components/FileList/FileCard";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { CollapsibleNotes } from "@/components/FileList/CollapsibleNotes";
 import { Search } from "@/components/search";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Red_Hat_Text } from 'next/font/google';
 
 const redHat = Red_Hat_Text({ 
@@ -138,109 +135,51 @@ export default function Home() {
     }).filter((section): section is SectionData => section !== null);
   }, [data, searchTerm, showTags]);
 
-  // Check if a file is a note (no URL and is a text file)
-  const isNote = (file: FileData): boolean => {
-    const isNoUrl = !file.url || file.url === null || file.url.trim() === '';
-    const isTextFile = (path: string): boolean => {
-      const textExtensions = ['.txt', '.md', '.text', ''];
-      if (!path.includes('.')) return true;
-      const extension = path.substring(path.lastIndexOf('.')).toLowerCase();
-      return textExtensions.includes(extension);
-    };
-    return isNoUrl && isTextFile(file.name);
-  };
-
-  // Extract notes from all sections
-  const allNotes = useMemo(() => {
+  // Separate drive folders from notes
+  const driveFolders = useMemo(() => {
     if (!filteredData) return [];
-    
-    const notes: Array<{ file: FileData; section: string; subsection?: string }> = [];
-    
-    filteredData.forEach(section => {
-      // Notes in main section
-      section.files.forEach(file => {
-        if (isNote(file)) {
-          notes.push({ file, section: section.name });
-        }
-      });
-      
-      // Notes in subsections
-      Object.entries(section.subsections || {}).forEach(([subName, subsection]) => {
-        subsection.files.forEach(file => {
-          if (isNote(file)) {
-            notes.push({ 
-              file, 
-              section: section.name, 
-              subsection: subName 
-            });
-          }
-        });
-      });
+    return filteredData.filter(section => {
+      // Check if section is not a notes section (contains files with URL)
+      return section.files.some(file => file.url) || 
+             Object.values(section.subsections).some(subsection => 
+               subsection.files.some(file => file.url)
+             );
     });
-    
-    return notes;
   }, [filteredData]);
 
-  // Group notes by section
-  const groupedNotes = useMemo(() => {
-    const groups: Record<string, Array<{ file: FileData; subsection?: string }>> = {};
-    
-    allNotes.forEach(({ file, section, subsection }) => {
-      if (!groups[section]) {
-        groups[section] = [];
-      }
+  // Identify sections that contain notes (files without URL)
+  const noteSections = useMemo(() => {
+    if (!filteredData) return [];
+    return filteredData.filter(section => {
+      // Check if section contains notes (files without URL)
+      const hasNotes = section.files.some(file => !file.url || file.url === null || file.url.trim() === '');
+      const hasNoteSubsections = Object.values(section.subsections).some(subsection => 
+        subsection.files.some(file => !file.url || file.url === null || file.url.trim() === '')
+      );
+      return hasNotes || hasNoteSubsections;
+    }).map(section => {
+      // Filter out non-note files
+      const noteFiles = section.files.filter(file => !file.url || file.url === null || file.url.trim() === '');
       
-      groups[section].push({ file, subsection });
-    });
-    
-    return groups;
-  }, [allNotes]);
+      // Filter subsections to only include those with notes
+      const noteSubsections = Object.entries(section.subsections).reduce((acc, [key, subsection]) => {
+        const filteredFiles = subsection.files.filter(file => !file.url || file.url === null || file.url.trim() === '');
+        if (filteredFiles.length > 0) {
+          acc[key] = {
+            ...subsection,
+            files: filteredFiles
+          };
+        }
+        return acc;
+      }, {} as Record<string, SubSection>);
 
-  // Collapsible notes section component
-  const NotesSection: React.FC<{ 
-    groupedNotes: Record<string, Array<{ file: FileData; subsection?: string }>>;
-    showTags: boolean;
-  }> = ({ groupedNotes, showTags }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    
-    if (Object.keys(groupedNotes).length === 0) {
-      return null;
-    }
-    
-    return (
-      <div className="mt-5">
-        <button
-          className="w-full text-left p-4 bg-[#ff6b6b] text-white font-monument text-xl rounded-t-xl border-2 border-black flex justify-between items-center"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          <span>Notes</span>
-          <span>{isExpanded ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}</span>
-        </button>
-        
-        {isExpanded && (
-          <div className="rounded-b-xl border-2 border-t-0 border-black bg-[#ff6b6b] overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="bg-white p-4">
-              <ScrollArea className="h-[350px]">
-                {Object.entries(groupedNotes).map(([section, notes]) => (
-                  <div key={section} className="mb-4">
-                    <h3 className="text-xl font-monument mb-2">{section}</h3>
-                    <div className="ml-3">
-                      {notes.map(({ file, subsection }, idx) => (
-                        <div key={idx} className="mb-2">
-                          {subsection && <div className="text-sm text-gray-500 mb-1">{subsection}</div>}
-                          <FileCard file={file} showTags={showTags} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </ScrollArea>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+      return {
+        ...section,
+        files: noteFiles,
+        subsections: noteSubsections
+      };
+    });
+  }, [filteredData]);
 
   if (loading && !isRefreshing) {
     return <p>Loading...</p>;
@@ -278,14 +217,15 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Drive folders */}
       <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
-        {filteredData?.map((section) => (
+        {driveFolders.map((section) => (
           <Section key={section.name} section={section} showTags={showTags} />
         ))}
       </div>
-      
-      {/* Notes section */}
-      <NotesSection groupedNotes={groupedNotes} showTags={showTags} />
+
+      {/* Notes section (collapsed by default) */}
+      <CollapsibleNotes notes={noteSections} showTags={showTags} />
     </div>
   );
 }

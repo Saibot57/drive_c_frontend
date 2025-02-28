@@ -1,5 +1,6 @@
 // src/components/FileList/FileCard.tsx
 import React, { useEffect } from 'react';
+import { FileText, ExternalLink } from 'lucide-react';
 
 interface FileData {
   id: string;
@@ -17,11 +18,6 @@ interface FileCardProps {
 }
 
 export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
-  // Debug logging to understand file structure
-  useEffect(() => {
-    console.log("File data:", file);
-  }, [file]);
-
   // Check if the file is likely a note (has no external URL or null URL)
   const isNote = !file.url || file.url === null || file.url.trim() === '';
   
@@ -48,32 +44,38 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
   };
 
   return (
-    <div className="py-0.5 border-0 border-gray-200 last:border-b-0">
-      <div className="flex items-center gap-1">
+    <div className="py-1.5 border-b border-gray-200 last:border-b-0">
+      <div className="flex items-center gap-2">
         {openInNotes ? (
-          <button 
-            onClick={handleOpenNotes}
-            className="text-sm text-black font-semibold hover:underline block leading-tight text-left cursor-pointer"
-            style={{ textDecoration: 'underline' }} // Make it obviously clickable
-          >
-            {file.name} <span className="text-xs text-gray-500">(edit)</span>
-          </button>
+          <>
+            <FileText className="h-4 w-4 text-[#ff6b6b] flex-shrink-0" />
+            <button 
+              onClick={handleOpenNotes}
+              className="text-sm text-black font-semibold hover:underline block leading-tight text-left cursor-pointer flex-grow"
+              style={{ textDecoration: 'underline' }} // Make it obviously clickable
+            >
+              {file.name} <span className="text-xs text-gray-500">(edit)</span>
+            </button>
+          </>
         ) : (
-          <a 
-            href={file.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-black font-semibold hover:underline block leading-tight"
-          >
-            {file.name}
-          </a>
+          <>
+            <ExternalLink className="h-4 w-4 text-gray-600 flex-shrink-0" />
+            <a 
+              href={file.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-black font-semibold hover:underline block leading-tight flex-grow"
+            >
+              {file.name}
+            </a>
+          </>
         )}
         {file.notebooklm && (
           <a
             href={file.notebooklm}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#fcd7d7] font-bold hover:underline cursor-pointer ml-1"
+            className="text-[#fcd7d7] font-bold hover:underline cursor-pointer ml-1 flex-shrink-0"
             title="Open in NotebookLM"
           >
             *
