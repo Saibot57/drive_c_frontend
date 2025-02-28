@@ -45,7 +45,7 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
 
   return (
     <div className="py-1.5 last:border-b-0">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {openInNotes ? (
           <>
             <FileText className="h-4 w-4 text-[#ff6b6b] flex-shrink-0" />
