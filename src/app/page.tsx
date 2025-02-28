@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Section } from "@/components/FileList/Section";
 import { CollapsibleNotes } from "@/components/FileList/CollapsibleNotes";
