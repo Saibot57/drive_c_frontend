@@ -35,7 +35,7 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
   };
 
   return (
-    <div className="py-0.5 border-b border-gray-200 last:border-b-0"> {/* Reduced padding: py-0.5 */}
+    <div className="py-0.5 last:border-b-0"> {/* Reduced padding: py-0.5 */}
       <div className="flex items-center gap-2">
         {openInNotes ? (
           <button 
