@@ -1,7 +1,7 @@
 // src/components/calendar/DayCard.tsx
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MoreHorizontal } from "lucide-react";
 import { EventCard } from './EventCard';
@@ -12,7 +12,7 @@ export const DayCard: React.FC<DayCardProps> = ({
   events,
   onClick
 }) => {
-  const maxVisibleEvents = 3; // Reduced from 4 to provide more space per event
+  const maxVisibleEvents = 3; // Reduced to ensure better display
   const hasMoreEvents = events.length > maxVisibleEvents;
   
   const isToday = useMemo(() => {
@@ -27,11 +27,11 @@ export const DayCard: React.FC<DayCardProps> = ({
       onClick={onClick}
       className={`h-full rounded-lg border-2 border-black bg-white p-2 cursor-pointer flex flex-col
         ${isToday ? 'shadow-[inset_0_0_0_2px_#ff6b6b]' : ''}
-        hover:shadow-neo transition-shadow`}
+        hover:shadow-neo transition-shadow overflow-hidden`}
     >
       <div className="font-monument text-lg mb-1">{date.getDate()}</div>
-      <ScrollArea className="flex-1 overflow-y-auto">
-        <div className="space-y-1">
+      <ScrollArea className="flex-1 w-full">
+        <div className="space-y-1 w-full">
           {events.slice(0, maxVisibleEvents).map((event) => (
             <EventCard
               key={event.id}
@@ -40,7 +40,7 @@ export const DayCard: React.FC<DayCardProps> = ({
             />
           ))}
           {hasMoreEvents && (
-            <div className="text-xs text-gray-500 flex items-center justify-center gap-1 py-1 px-2 bg-gray-50 rounded mt-1">
+            <div className="text-xs text-gray-500 flex items-center justify-center gap-1 py-1 px-2 bg-gray-50 rounded mt-1 w-full">
               <MoreHorizontal className="h-4 w-4" />
               <span>{events.length - maxVisibleEvents} more</span>
             </div>

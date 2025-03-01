@@ -73,10 +73,10 @@
     @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] py-2;
   }
   .calendar-day-card {
-    @apply h-full border-2 border-black bg-white transition-transform duration-300;
+    @apply h-full border-2 border-black bg-white transition-transform duration-300 overflow-hidden;
   }
   .calendar-event-card {
-    @apply rounded border-2 border-black bg-[#ff6b6b] p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)];
+    @apply rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] w-full;
   }
   .calendar-time-grid {
     @apply h-full border-r-2 border-black bg-white;
