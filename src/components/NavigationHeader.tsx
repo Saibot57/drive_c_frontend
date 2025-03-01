@@ -1,7 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Calendar, Layout, FileText } from 'lucide-react';
+import { BookOpen, Calendar, Layout, FileText, BugOff } from 'lucide-react';
 
 export function NavigationHeader() {
   const pathname = usePathname();
@@ -17,6 +17,8 @@ export function NavigationHeader() {
         return 'Schema';
       case '/features/notes':
         return 'Anteckningar';
+      case '/features/snake':
+        return 'Snake';
       default:
         // Extract the last part of the path if it's a new route
         const pathParts = pathname.split('/').filter(Boolean);
@@ -34,7 +36,8 @@ export function NavigationHeader() {
     { name: 'Bibliotek', path: '/', icon: <BookOpen className="h-5 w-5" /> },
     { name: 'Kalender', path: '/features/calendar', icon: <Calendar className="h-5 w-5" /> },
     { name: 'Schema', path: '/features/schedule', icon: <Layout className="h-5 w-5" /> },
-    { name: 'Anteckningar', path: '/features/notes', icon: <FileText className="h-5 w-5" /> }
+    { name: 'Anteckningar', path: '/features/notes', icon: <FileText className="h-5 w-5" /> },
+    { name: 'Snake', path: '/features/snake', icon: <BugOff className="h-5 w-5" /> }
   ];
   
   return (
