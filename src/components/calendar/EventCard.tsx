@@ -24,19 +24,19 @@ export const EventCard: React.FC<EventCardProps> = ({
   if (isPreview) {
     return (
       <div 
-        className="cursor-pointer rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group relative"
+        className="cursor-pointer rounded border-2 border-black py-0.5 px-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group relative min-h-[22px] flex items-center"
         style={{ backgroundColor: event.color || '#ff6b6b' }}
         onClick={() => onEdit && onEdit(event.id)}
       >
-        <div className="flex items-center justify-between text-white">
-          <span className="truncate pr-6">{event.title}</span>
-          <span className="text-[10px] opacity-80">
+        <div className="flex items-center justify-between text-white w-full overflow-hidden">
+          <span className="truncate max-w-[70%] text-[10px] font-medium">{event.title}</span>
+          <span className="text-[9px] opacity-80 flex-shrink-0 ml-1">
             {formatTime(event.start)}
           </span>
         </div>
         
         <button
-          className="absolute right-1 top-1 bg-white text-black rounded-full h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30"
+          className="absolute right-0.5 top-0.5 bg-white text-black rounded-full h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30"
           onClick={(e) => {
             e.stopPropagation();
             if (onEdit) {
@@ -45,7 +45,7 @@ export const EventCard: React.FC<EventCardProps> = ({
           }}
           aria-label="Edit event"
         >
-          <Edit2 className="h-3 w-3" />
+          <Edit2 className="h-2.5 w-2.5" />
         </button>
       </div>
     );

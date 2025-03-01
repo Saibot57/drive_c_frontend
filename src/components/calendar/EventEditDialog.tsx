@@ -143,7 +143,8 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
                   const [hours, minutes] = e.target.value.split(':').map(Number);
                   if (!isNaN(hours) && !isNaN(minutes)) {
                     const newStart = new Date(editedEvent.start);
-                    newStart.setHours(hours, minutes);
+                    // Use more precise time setting with seconds and ms set to 0
+                    newStart.setHours(hours, minutes, 0, 0);
                     setEditedEvent({
                       ...editedEvent,
                       start: newStart
@@ -162,7 +163,8 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
                   const [hours, minutes] = e.target.value.split(':').map(Number);
                   if (!isNaN(hours) && !isNaN(minutes)) {
                     const newEnd = new Date(editedEvent.end);
-                    newEnd.setHours(hours, minutes);
+                    // Use more precise time setting with seconds and ms set to 0
+                    newEnd.setHours(hours, minutes, 0, 0);
                     setEditedEvent({
                       ...editedEvent,
                       end: newEnd

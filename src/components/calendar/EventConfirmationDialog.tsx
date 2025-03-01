@@ -42,12 +42,18 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Ensure consistent time handling by creating fresh date objects
+    const eventStart = new Date(start);
+    const eventEnd = new Date(end);
+    
     onConfirm({
       title: title || 'New Event',
       notes,
-      start,
-      end,
+      start: eventStart,
+      end: eventEnd,
     });
+    
     setTitle('');
     setNotes('');
   };
@@ -64,19 +70,22 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
     const [hours, minutes] = timeString.split(':').map(Number);
     
     if (field === 'start') {
+      // Create new date object to avoid reference issues
       const newStart = new Date(start);
-      newStart.setHours(hours, minutes);
+      // Set hours and minutes directly, keeping seconds and ms at 0
+      newStart.setHours(hours, minutes, 0, 0);
       setStart(newStart);
       
       // If end time is before new start time, adjust end time
       if (end < newStart) {
         const newEnd = new Date(newStart);
-        newEnd.setHours(newStart.getHours() + 1);
+        // Add one hour
+        newEnd.setHours(newEnd.getHours() + 1);
         setEnd(newEnd);
       }
     } else {
       const newEnd = new Date(end);
-      newEnd.setHours(hours, minutes);
+      newEnd.setHours(hours, minutes, 0, 0);
       
       // Ensure end time is after start time
       if (newEnd > start) {
@@ -84,7 +93,7 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
       } else {
         // If not, set end time to 1 hour after start
         const validEnd = new Date(start);
-        validEnd.setHours(start.getHours() + 1);
+        validEnd.setHours(validEnd.getHours() + 1);
         setEnd(validEnd);
       }
     }

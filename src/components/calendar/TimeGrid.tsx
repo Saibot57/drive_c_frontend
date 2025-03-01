@@ -38,9 +38,15 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
   const yToTime = useCallback((y: number): Date => {
     const height = gridRef.current?.clientHeight ?? 0;
     const hour = GRID_START_HOUR + (y / height) * GRID_TOTAL_HOURS;
+    const hours = Math.floor(hour);
+    const minutes = Math.floor((hour % 1) * 60);
+    
+    // Create a new date with the same day but with our calculated time
     const newDate = new Date(date);
-    newDate.setHours(Math.floor(hour));
-    newDate.setMinutes((hour % 1) * 60);
+    
+    // Use setHours with all parameters to avoid timezone issues
+    newDate.setHours(hours, minutes, 0, 0);
+    
     return newDate;
   }, [date, GRID_START_HOUR, GRID_TOTAL_HOURS]);
 
