@@ -51,15 +51,12 @@ export const Calendar = () => {
         const eventsByDate: Record<string, Event[]> = {};
         
         backendEvents.forEach(backendEvent => {
-          // Adjust for timezone when creating date from backend data
-          const startDate = new Date(new Date(backendEvent.start).getTime() + (new Date().getTimezoneOffset() * 60000));
-          const endDate = new Date(new Date(backendEvent.end).getTime() + (new Date().getTimezoneOffset() * 60000));
-          
+          // Create dates directly from ISO strings
           const event: Event = {
             id: backendEvent.id,
             title: backendEvent.title,
-            start: startDate,
-            end: endDate,
+            start: new Date(backendEvent.start), // Browser handles time zone conversion automatically
+            end: new Date(backendEvent.end),
             notes: backendEvent.notes,
             color: backendEvent.color
           };
@@ -86,15 +83,11 @@ export const Calendar = () => {
 
   const handleEventAdd = async (date: Date, event: Omit<Event, 'id'>) => {
     try {
-      // Create dates without timezone conversion
-      const localStart = new Date(event.start);
-      const localEnd = new Date(event.end);
-      
-      // Prepare event for backend - preserve the local time by adjusting for timezone offset
+      // Simply send the ISO strings directly to the backend
       const backendEvent = {
         title: event.title,
-        start: new Date(localStart.getTime() - (localStart.getTimezoneOffset() * 60000)).toISOString(),
-        end: new Date(localEnd.getTime() - (localEnd.getTimezoneOffset() * 60000)).toISOString(),
+        start: event.start.toISOString(), // No manual adjustment needed
+        end: event.end.toISOString(),     // No manual adjustment needed
         notes: event.notes,
         color: event.color
       };
@@ -102,12 +95,12 @@ export const Calendar = () => {
       // Save to backend
       const savedEvent = await calendarService.createEvent(backendEvent);
       
-      // Update local state with the returned event - adjust timezone back
+      // Create dates directly from ISO strings - browser will handle time zone conversion
       const newEvent: Event = {
         id: savedEvent.id,
         title: savedEvent.title,
-        start: new Date(new Date(savedEvent.start).getTime() + (new Date().getTimezoneOffset() * 60000)),
-        end: new Date(new Date(savedEvent.end).getTime() + (new Date().getTimezoneOffset() * 60000)),
+        start: new Date(savedEvent.start), // No manual adjustment needed
+        end: new Date(savedEvent.end),     // No manual adjustment needed
         notes: savedEvent.notes,
         color: savedEvent.color
       };
@@ -137,15 +130,13 @@ export const Calendar = () => {
       // Prepare updates for backend
       const backendUpdates: any = { ...updates };
       
-      // Convert Date objects to ISO strings with timezone preservation
+      // Convert Date objects to ISO strings without manual adjustments
       if (updates.start) {
-        const localStart = new Date(updates.start);
-        backendUpdates.start = new Date(localStart.getTime() - (localStart.getTimezoneOffset() * 60000)).toISOString();
+        backendUpdates.start = updates.start.toISOString();
       }
       
       if (updates.end) {
-        const localEnd = new Date(updates.end);
-        backendUpdates.end = new Date(localEnd.getTime() - (localEnd.getTimezoneOffset() * 60000)).toISOString();
+        backendUpdates.end = updates.end.toISOString();
       }
       
       // Update on backend
