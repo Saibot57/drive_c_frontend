@@ -30,6 +30,14 @@ export const Calendar = () => {
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   };
 
+  // Function to get week number for a date
+  const getWeekNumber = (date: Date) => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    // Add 1 to index 0
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  };
+
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -188,12 +196,18 @@ export const Calendar = () => {
     const days = [];
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
+    
+    // Track which dates belong to which week
+    const weekMap: Record<number, number> = {};
+    let currentWeekNumber = 0;
+    let currentWeek = [];
 
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < firstDay; i++) {
       days.push(
         <div key={`empty-${i}`} className="h-28 rounded-lg border-2 border-black/10 bg-gray-50" />
       );
+      currentWeek.push(null);
     }
 
     // Add cells for each day of the month
@@ -201,7 +215,7 @@ export const Calendar = () => {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       const dateKey = formatDateKey(date);
       const dayEvents = events[dateKey] || [];
-
+      
       days.push(
         <div key={day} className="relative h-28">
           <DayCard
@@ -211,9 +225,38 @@ export const Calendar = () => {
           />
         </div>
       );
+      
+      currentWeek.push(date);
+      
+      // If we have 7 days or it's the last day of the month, start a new week
+      if (currentWeek.length === 7 || day === daysInMonth) {
+        // Find the first non-null date in the week to get the week number
+        const firstDateInWeek = currentWeek.find(d => d !== null);
+        if (firstDateInWeek) {
+          currentWeekNumber = getWeekNumber(firstDateInWeek);
+          // Store the week number for each position
+          weekMap[days.length - currentWeek.length] = currentWeekNumber;
+        }
+        currentWeek = [];
+      }
     }
 
-    return days;
+    // Create week labels and calendar grid
+    const weekLabels = Object.entries(weekMap).map(([startIndex, weekNum]) => (
+      <div 
+        key={`week-${weekNum}`} 
+        className="absolute left-[-40px] flex items-center justify-center font-monument text-xs"
+        style={{ 
+          top: `${Math.floor(parseInt(startIndex) / 7) * 31 * 4}px`, // Position vertically
+          height: '31px',
+          width: '40px'
+        }}
+      >
+        v. {weekNum}
+      </div>
+    ));
+
+    return { days, weekLabels };
   };
 
   const prevMonth = () => {
@@ -246,6 +289,8 @@ export const Calendar = () => {
       setError("Failed to save notes");
     }
   };
+
+  const { days, weekLabels } = renderCalendarDays();
 
   return (
     <>
@@ -301,7 +346,7 @@ export const Calendar = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-3 mb-3">
+        <div className="grid grid-cols-7 gap-3 mb-3 ml-10">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
             <div key={day} className="text-center font-monument text-base">
               {day}
@@ -309,8 +354,16 @@ export const Calendar = () => {
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-3">
-          {renderCalendarDays()}
+        <div className="relative">
+          {/* Week number labels */}
+          <div className="absolute left-0 top-0 bottom-0 w-10">
+            {weekLabels}
+          </div>
+          
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-3 ml-10">
+            {days}
+          </div>
         </div>
       </div>
 
