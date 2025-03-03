@@ -245,7 +245,7 @@ export const Calendar = () => {
     const weekLabels = Object.entries(weekMap).map(([startIndex, weekNum]) => (
       <div 
         key={`week-${weekNum}`} 
-        className="absolute left-[-40px] flex items-center justify-center font-monument text-xs"
+        className="absolute left-[-45px] flex items-center justify-center font-monument text-xs"
         style={{ 
           top: `${Math.floor(parseInt(startIndex) / 7) * 31 * 4}px`, // Position vertically
           height: '31px',
