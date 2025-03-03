@@ -2,11 +2,14 @@
 'use client';
 
 import { Calendar } from "@/components/calendar/Calendar";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function CalendarPage() {
   return (
-    <div className="calendar-container">
-      <Calendar />
-    </div>
+    <ProtectedRoute>
+      <div className="calendar-container">
+        <Calendar />
+      </div>
+    </ProtectedRoute>
   );
 }

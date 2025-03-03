@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { Red_Hat_Text } from 'next/font/google';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { fetchWithAuth } from '@/services/authService';
 
 const redHat = Red_Hat_Text({ 
   subsets: ['latin'],
@@ -45,11 +47,13 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
+
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('https://tobiaslundh1.pythonanywhere.com/api/files');
+      const response = await fetchWithAuth(`${API_URL}/files`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -69,7 +73,7 @@ export default function Home() {
     
     try {
       // First trigger the backend update
-      const updateResponse = await fetch('https://tobiaslundh1.pythonanywhere.com/api/update', {
+      const updateResponse = await fetchWithAuth(`${API_URL}/update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -183,51 +187,51 @@ export default function Home() {
     });
   }, [filteredData]);
 
-  if (loading && !isRefreshing) {
-    return <p>Loading...</p>;
-  }
-
-  if (error) {
-    return <p>Error: {error}</p>;
-  }
-
-  if (!data || !data.data) {
-    return <p>No data to display.</p>;
-  }
-
   return (
-    <div className="bg-[#fcd7d7]">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3 flex-1">
-          <Search onSearch={setSearchTerm} />
-          <Button 
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="h-10 px-3 flex items-center gap-2 border-2 border-black bg-white hover:bg-white"
-          >
-            <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? '...' : 'Uppdatera'}
-          </Button>
+    <ProtectedRoute>
+      <div className="bg-[#fcd7d7]">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3 flex-1">
+            <Search onSearch={setSearchTerm} />
+            <Button 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="h-10 px-3 flex items-center gap-2 border-2 border-black bg-white hover:bg-white"
+            >
+              <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? '...' : 'Uppdatera'}
+            </Button>
+          </div>
+          <div className="flex items-center ml-3">
+            <Checkbox
+              id="showTags"
+              checked={showTags}
+              onCheckedChange={(checked) => setShowTags(checked === true)}
+            />
+            <Label htmlFor="showTags" className="ml-2">Visa Taggar</Label>
+          </div>
         </div>
-        <div className="flex items-center ml-3">
-          <Checkbox
-            id="showTags"
-            checked={showTags}
-            onCheckedChange={(checked) => setShowTags(checked === true)}
-          />
-          <Label htmlFor="showTags" className="ml-2">Visa Taggar</Label>
-        </div>
-      </div>
 
-      {/* Drive folders */}
-      <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
-        {driveFolders.map((section) => (
-          <Section key={section.name} section={section} showTags={showTags} />
-        ))}
-      </div>
+        {loading && !isRefreshing ? (
+          <p>Loading...</p>
+        ) : error ? (
+          <p>Error: {error}</p>
+        ) : !data || !data.data ? (
+          <p>No data to display.</p>
+        ) : (
+          <>
+            {/* Drive folders */}
+            <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
+              {driveFolders.map((section) => (
+                <Section key={section.name} section={section} showTags={showTags} />
+              ))}
+            </div>
 
-      {/* Notes section (collapsed by default) */}
-      <CollapsibleNotes notes={noteSections} showTags={showTags} />
-    </div>
+            {/* Notes section (collapsed by default) */}
+            <CollapsibleNotes notes={noteSections} showTags={showTags} />
+          </>
+        )}
+      </div>
+    </ProtectedRoute>
   );
 }

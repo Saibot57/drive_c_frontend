@@ -1,11 +1,14 @@
 'use client';
 
 import ScheduleApp from '@/components/schedule/ScheduleApp';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function SchedulePage() {
   return (
-    <div className="schedule-container">
-      <ScheduleApp />
-    </div>
+    <ProtectedRoute>
+      <div className="schedule-container">
+        <ScheduleApp />
+      </div>
+    </ProtectedRoute>
   );
 }
