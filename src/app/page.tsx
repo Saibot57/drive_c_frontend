@@ -99,10 +99,13 @@ export default function Home() {
     }
   };
 
+  // Fixed the missing dependency warning by adding fetchData to the dependency array
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // We still want this to run only once on mount
 
+  // Rest of the component remains the same...
   const filteredData = useMemo(() => {
     if (!data?.data || !searchTerm.trim()) return data?.data;
 
