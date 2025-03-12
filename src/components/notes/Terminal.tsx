@@ -500,6 +500,298 @@ export const Terminal: React.FC = () => {
     }
   };
 
+  // Define searchNotes function before it's used
+  const searchNotes = async (args: string[]) => {
+    if (args.length === 0) {
+      addToHistory({
+        type: 'output',
+        content: 'Usage: search <term> [--tag=<tag>] [--path=<path>]',
+      });
+      return;
+    }
+    
+    // Parse search arguments
+    let searchTerm = '';
+    let tagFilter: string | null = null;
+    let pathFilter: string | null = null;
+    
+    for (const arg of args) {
+      if (arg.startsWith('--tag=')) {
+        tagFilter = arg.substring(6);
+      } else if (arg.startsWith('--path=')) {
+        pathFilter = arg.substring(7);
+      } else if (!searchTerm) {
+        searchTerm = arg;
+      } else {
+        searchTerm += ' ' + arg;
+      }
+    }
+    
+    addToHistory({
+      type: 'output',
+      content: `Searching for "${searchTerm}"${tagFilter ? ` with tag "${tagFilter}"` : ''}${pathFilter ? ` in path "${pathFilter}"` : ''}...`,
+    });
+    
+    try {
+      // Implement search functionality by listing all files recursively
+      // and checking their contents
+      const results = await searchAllNotes(searchTerm, tagFilter, pathFilter);
+      
+      if (results.length === 0) {
+        addToHistory({
+          type: 'output',
+          content: 'No matching notes found.',
+        });
+        return;
+      }
+      
+      // Format search results
+      const formattedResults = results.map(result => 
+        `<span class="search-result-path">${result.path}</span>\n` +
+        `<span class="search-result-preview">${result.preview}</span>\n` +
+        `<span class="search-result-metadata">Tags: ${result.tags.join(', ')}</span>`
+      ).join('\n\n');
+      
+      addToHistory({
+        type: 'output',
+        content: `<span class="search-results-header">Found ${results.length} matching notes:</span>\n\n${formattedResults}`,
+      });
+    } catch (error) {
+      throw new Error(`Search failed: ${error}`);
+    }
+  };
+
+  // Helper function to search all notes
+  const searchAllNotes = async (
+    term: string, 
+    tagFilter: string | null, 
+    pathFilter: string | null
+  ): Promise<Array<{
+    path: string;
+    preview: string;
+    tags: string[];
+  }>> => {
+    // This is a simplified implementation. In a real application,
+    // you would want to implement this on the backend for efficiency.
+    // For now, we'll simulate by searching in a few directories
+    
+    const results: Array<{
+      path: string;
+      preview: string;
+      tags: string[];
+    }> = [];
+    
+    // Start from either the path filter or current directory
+    const startPath = pathFilter || state.currentDirectory;
+    
+    // List files in the starting directory
+    try {
+      await searchDirectory(startPath, term, tagFilter, results);
+    } catch (error) {
+      console.error(`Error searching in ${startPath}:`, error);
+    }
+    
+    return results;
+  };
+
+  // Helper function to search a directory recursively
+  const searchDirectory = async (
+    path: string,
+    term: string,
+    tagFilter: string | null,
+    results: Array<{
+      path: string;
+      preview: string;
+      tags: string[];
+    }>
+  ) => {
+    try {
+      const files = await notesService.listFiles(path);
+      
+      // Check each file in the directory
+      for (const file of files) {
+        if (file.is_folder) {
+          // Recursively search subdirectories
+          const subPath = path === '/' ? `/${file.name}` : `${path}/${file.name}`;
+          await searchDirectory(subPath, term, tagFilter, results);
+        } else {
+          // Check if it's a note file (not a link)
+          if (!file.url || file.url.trim() === '') {
+            const filePath = path === '/' ? `/${file.name}` : `${path}/${file.name}`;
+            
+            try {
+              const noteContent = await notesService.getNoteContent(filePath);
+              
+              // Apply tag filter if specified
+              if (tagFilter && (!noteContent.tags || !noteContent.tags.some(tag => 
+                tag.toLowerCase().includes(tagFilter.toLowerCase())
+              ))) {
+                continue;
+              }
+              
+              // Check if content matches search term
+              if (noteContent.content.toLowerCase().includes(term.toLowerCase()) ||
+                  file.name.toLowerCase().includes(term.toLowerCase())) {
+                
+                // Create a preview by finding and highlighting the context around the match
+                let preview = '';
+                const lowerContent = noteContent.content.toLowerCase();
+                const termIdx = lowerContent.indexOf(term.toLowerCase());
+                
+                if (termIdx >= 0) {
+                  // Get context (50 chars before and after)
+                  const startIdx = Math.max(0, termIdx - 50);
+                  const endIdx = Math.min(noteContent.content.length, termIdx + term.length + 50);
+                  preview = noteContent.content.substring(startIdx, endIdx);
+                  
+                  // Add ellipsis if truncated
+                  if (startIdx > 0) preview = '...' + preview;
+                  if (endIdx < noteContent.content.length) preview = preview + '...';
+                  
+                  // Highlight the matching term
+                  const regex = new RegExp(term, 'gi');
+                  preview = preview.replace(regex, match => `<span class="search-highlight">${match}</span>`);
+                } else {
+                  // If we matched on filename but not content, just take the first 100 chars
+                  preview = noteContent.content.substring(0, 100) + (noteContent.content.length > 100 ? '...' : '');
+                }
+                
+                results.push({
+                  path: filePath,
+                  preview,
+                  tags: noteContent.tags || []
+                });
+              }
+            } catch (error) {
+              console.error(`Error searching file ${filePath}:`, error);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error listing files in ${path}:`, error);
+    }
+  };
+
+  // Define handleTemplateCommand before it's used
+  const handleTemplateCommand = async (args: string[]) => {
+    // Import template service
+    const { getTemplates, isBuiltInTemplate, saveTemplate, deleteTemplate, getTemplateNames } = 
+      await import('../../services/templateService');
+    
+    if (args.length === 0) {
+      // List all available templates
+      const templates = getTemplates();
+      const templateList = Object.entries(templates).map(([name, template]) => {
+        const isBuiltIn = isBuiltInTemplate(name);
+        return `${name} - ${template.description} ${isBuiltIn ? '(built-in)' : '(custom)'}`;
+      }).join('\n');
+      
+      addToHistory({
+        type: 'output',
+        content: `Available templates:\n${templateList}\n\nUse 'template save <name>' to save the current note as a template.\nUse 'template delete <name>' to remove a custom template.`,
+      });
+      return;
+    }
+    
+    const subCommand = args[0].toLowerCase();
+    
+    if (subCommand === 'save') {
+      if (args.length < 2) {
+        addToHistory({
+          type: 'output',
+          content: 'Usage: template save <template_name> [description]',
+        });
+        return;
+      }
+      
+      // Check if we're in command mode (can't save a template from command mode)
+      if (mode === 'command') {
+        addToHistory({
+          type: 'output',
+          content: '<span class="error">Cannot save template: You must be editing a note first.</span>',
+        });
+        return;
+      }
+      
+      const templateName = args[1];
+      
+      // Get description if provided
+      const description = args.slice(2).join(' ') || `Custom template: ${templateName}`;
+      
+      // Check if trying to overwrite a built-in template
+      if (isBuiltInTemplate(templateName)) {
+        addToHistory({
+          type: 'output',
+          content: `<span class="error">Cannot overwrite built-in template: ${templateName}</span>`,
+        });
+        return;
+      }
+      
+      // Create template object
+      const template = {
+        name: templateName,
+        content: state.editorContent,
+        tags: state.editorMetadata.tags,
+        description
+      };
+      
+      // Save the template
+      const success = saveTemplate(templateName, template);
+      
+      if (success) {
+        addToHistory({
+          type: 'output',
+          content: `<span class="success">Template saved: ${templateName}</span>`,
+        });
+      } else {
+        addToHistory({
+          type: 'output',
+          content: `<span class="error">Failed to save template: ${templateName}</span>`,
+        });
+      }
+    } else if (subCommand === 'delete' || subCommand === 'rm') {
+      if (args.length < 2) {
+        addToHistory({
+          type: 'output',
+          content: 'Usage: template delete <template_name>',
+        });
+        return;
+      }
+      
+      const templateName = args[1];
+      
+      // Check if trying to delete a built-in template
+      if (isBuiltInTemplate(templateName)) {
+        addToHistory({
+          type: 'output',
+          content: `<span class="error">Cannot delete built-in template: ${templateName}</span>`,
+        });
+        return;
+      }
+      
+      // Delete the template
+      const success = deleteTemplate(templateName);
+      
+      if (success) {
+        addToHistory({
+          type: 'output',
+          content: `<span class="success">Template deleted: ${templateName}</span>`,
+        });
+      } else {
+        addToHistory({
+          type: 'output',
+          content: `<span class="error">Template not found: ${templateName}</span>`,
+        });
+      }
+    } else {
+      addToHistory({
+        type: 'output',
+        content: 'Unknown template command. Available commands: save, delete',
+      });
+    }
+  };
+
   const executeCommand = async (command: string, args: string[]) => {
     switch (command) {
       case 'help':
@@ -1039,3 +1331,139 @@ Tips:
       type: 'output',
       content: `<span class="success">Alias created: ${aliasName} => ${aliasCommand}</span>`,
     });
+  };
+
+  const handleSaveNote = async (content: string, metadata: { tags: string[], description: string }) => {
+    try {
+      const path = state.currentDirectory === '/' 
+        ? `/${state.editorFileName}` 
+        : `${state.currentDirectory}/${state.editorFileName}`;
+      
+      await notesService.saveNote(path, content, metadata);
+      
+      setMode('command');
+      addToHistory({
+        type: 'output',
+        content: `<span class="success">Note saved: ${state.editorFileName}</span>`,
+      });
+    } catch (error) {
+      addToHistory({
+        type: 'output',
+        content: `<span class="error">Error saving note: ${error instanceof Error ? error.message : String(error)}</span>`,
+      });
+      setMode('command');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setMode('command');
+    addToHistory({
+      type: 'output',
+      content: 'Edit canceled',
+    });
+  };
+
+  // Render terminal or editor based on current mode
+  return (
+    <div className="neo-brutalist-card w-full">
+      <div className="neo-brutalist-content relative">
+        <div className="flex items-center justify-between bg-[#ff6b6b] text-white px-4 py-2 mb-4 border-b-2 border-black">
+          <h2 className="font-monument text-xl">
+            {mode === 'command' ? `Terminal: ${state.currentDirectory}` : `Editing: ${state.editorFileName}`}
+          </h2>
+          <div className="text-xs font-mono">bibliotek@notes:~</div>
+        </div>
+
+        {mode === 'command' ? (
+          <div className="flex flex-col h-[70vh]">
+            <div 
+              ref={terminalRef}
+              className="flex-1 overflow-auto p-4 font-mono text-sm whitespace-pre-wrap"
+            >
+              <TerminalOutput history={state.history} />
+            </div>
+            <form onSubmit={handleCommandSubmit} className="flex items-center border-t-2 border-black p-2">
+              <span className="text-[#ff6b6b] font-bold mr-2">$</span>
+              <Textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1 resize-none overflow-hidden border-none focus-visible:ring-0 font-mono"
+                rows={1}
+                placeholder="Type a command..."
+                onKeyDown={handleKeyDown}
+              />
+            </form>
+          </div>
+        ) : (
+          <TerminalEditor 
+            initialContent={state.editorContent}
+            initialMetadata={state.editorMetadata}
+            onSave={handleSaveNote}
+            onCancel={handleCancelEdit}
+          />
+        )}
+      </div>
+      
+      {/* CSS for terminal text styling */}
+      <style jsx global>{`
+        .folder {
+          color: #4169E1; /* Royal Blue for folders */
+          font-weight: bold;
+        }
+        .markdown-file {
+          color: #228B22; /* Forest Green for markdown */
+        }
+        .text-file {
+          color: #000000; /* Black for text files */
+        }
+        .json-file {
+          color: #FF8C00; /* Dark Orange for JSON */
+        }
+        .code-file {
+          color: #9932CC; /* Dark Orchid for code files */
+        }
+        .regular-file {
+          color: #696969; /* Dim Gray for regular files */
+        }
+        .success {
+          color: #228B22; /* Forest Green for success messages */
+        }
+        .error {
+          color: #B22222; /* Firebrick for errors */
+        }
+        .warning {
+          color: #FF8C00; /* Dark Orange for warnings */
+        }
+        .note-header {
+          color: #1E90FF; /* Dodger Blue for note headers */
+          font-weight: bold;
+        }
+        .note-metadata {
+          color: #708090; /* Slate Gray for metadata */
+          font-style: italic;
+        }
+        .search-results-header {
+          color: #4169E1; /* Royal Blue for search headers */
+          font-weight: bold;
+        }
+        .search-result-path {
+          color: #228B22; /* Forest Green for file paths */
+          font-weight: bold;
+        }
+        .search-result-preview {
+          color: #000000; /* Black for preview text */
+        }
+        .search-result-metadata {
+          color: #708090; /* Slate Gray for metadata */
+          font-style: italic;
+        }
+        .search-highlight {
+          background-color: #FFFF00; /* Yellow highlight for search matches */
+          color: #000000;
+          font-weight: bold;
+        }
+      `}</style>
+    </div>
+  );
+};
