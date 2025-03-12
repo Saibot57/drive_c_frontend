@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, X } from 'lucide-react';
+import { Save, X, FileText } from 'lucide-react';
 
 interface TerminalEditorProps {
   initialContent: string;
@@ -23,6 +23,11 @@ export const TerminalEditor: React.FC<TerminalEditorProps> = ({
   const [content, setContent] = useState(initialContent);
   const [tagsInput, setTagsInput] = useState(initialMetadata.tags.join(', '));
   const [description, setDescription] = useState(initialMetadata.description);
+  
+  // Template creation state
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
 
   const handleSave = () => {
     const tags = tagsInput
@@ -34,6 +39,35 @@ export const TerminalEditor: React.FC<TerminalEditorProps> = ({
       tags,
       description,
     });
+  };
+
+  const handleSaveAsTemplate = async () => {
+    try {
+      // Import template service
+      const { saveTemplate } = await import('../../services/templateService');
+      
+      // Create template object
+      const template = {
+        name: templateName,
+        content: content,
+        tags: tagsInput.split(',').map(tag => tag.trim()).filter(Boolean),
+        description: templateDescription || description
+      };
+      
+      // Save the template
+      const success = saveTemplate(templateName, template);
+      
+      if (success) {
+        // Show success message
+        alert(`Template saved: ${templateName}`);
+        setShowTemplateForm(false);
+      } else {
+        alert(`Failed to save template: ${templateName}`);
+      }
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert(`Error saving template: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   return (
@@ -78,6 +112,14 @@ export const TerminalEditor: React.FC<TerminalEditorProps> = ({
             <X className="mr-2 h-4 w-4" />
             Cancel
           </Button>
+          <Button
+            onClick={() => setShowTemplateForm(true)}
+            variant="neutral"
+            className="flex items-center"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Save as Template
+          </Button>
           <Button 
             onClick={handleSave}
             className="flex items-center"
@@ -87,6 +129,43 @@ export const TerminalEditor: React.FC<TerminalEditorProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Template creation form */}
+      {showTemplateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full border-2 border-black">
+            <h3 className="text-lg font-bold mb-4">Save as Template</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Template Name</label>
+                <Input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="my-template-name"
+                  className="border-2 border-black"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Template Description</label>
+                <Input
+                  value={templateDescription}
+                  onChange={(e) => setTemplateDescription(e.target.value)}
+                  placeholder={description || "Brief description of this template"}
+                  className="border-2 border-black"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 mt-6">
+              <Button variant="neutral" onClick={() => setShowTemplateForm(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveAsTemplate}>
+                Save Template
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
