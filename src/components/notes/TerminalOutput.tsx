@@ -15,7 +15,7 @@ export const TerminalOutput: React.FC<TerminalOutputProps> = ({ history }) => {
               <span>{entry.content}</span>
             </div>
           ) : (
-            <div className="pl-4 text-gray-800">{entry.content}</div>
+            <div className="pl-4 text-gray-800" dangerouslySetInnerHTML={{ __html: entry.content }} />
           )}
         </div>
       ))}
