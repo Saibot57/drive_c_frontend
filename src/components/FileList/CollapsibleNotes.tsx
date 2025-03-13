@@ -30,34 +30,47 @@ export const CollapsibleNotes: React.FC<CollapsibleNotesProps> = ({ notes, showT
       
       {isExpanded && (
         <div className="grid gap-5 grid-cols-1 md:grid-cols-2 mt-4">
+          {/* Render each section */}
           {notes.map((section) => (
             <div key={section.name} className="mb-5">
               <h2 className="text-2xl font-monument mb-2">
                 {section.name}
               </h2>
-              <div className="rounded-2xl border-2 border-black bg-[#ff6b6b] overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <div className="bg-white">
-                  <ScrollArea className="h-[350px]">
-                    <div className="p-3">
-                      {section.files.map((file, idx) => (
-                        <FileCard key={idx} file={file} showTags={showTags} />
-                      ))}
-                      {Object.values(section.subsections || {}).map((subsection, idx) => (
-                        <div key={idx} className="mt-3">
-                          <h3 className="text-xl font-monument mb-1">
-                            {subsection.name}
-                          </h3>
-                          <div className="ml-3">
-                            {subsection.files.map((file, fileIdx) => (
-                              <FileCard key={fileIdx} file={file} showTags={showTags} />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+              
+              {/* Main section files */}
+              {section.files.length > 0 && (
+                <div className="rounded-2xl border-2 border-black bg-[#ff6b6b] overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-5">
+                  <div className="bg-white">
+                    <ScrollArea className="h-[200px]">
+                      <div className="p-3">
+                        {section.files.map((file, idx) => (
+                          <FileCard key={idx} file={file} showTags={showTags} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
                 </div>
-              </div>
+              )}
+              
+              {/* Render each subsection as a separate box */}
+              {Object.values(section.subsections || {}).map((subsection, idx) => (
+                <div key={idx} className="mb-5">
+                  <h3 className="text-xl font-monument mb-1">
+                    {subsection.name}
+                  </h3>
+                  <div className="rounded-2xl border-2 border-black bg-[#ff6b6b] overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <div className="bg-white">
+                      <ScrollArea className="h-[300px]">
+                        <div className="p-3">
+                          {subsection.files.map((file, fileIdx) => (
+                            <FileCard key={fileIdx} file={file} showTags={showTags} />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
