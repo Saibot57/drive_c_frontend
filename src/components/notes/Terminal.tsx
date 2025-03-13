@@ -1334,27 +1334,66 @@ Tips:
     });
   };
 
-  const handleSaveNote = async (content: string, metadata: { tags: string[], description: string }) => {
-    try {
-      const path = state.currentDirectory === '/' 
-        ? `/${state.editorFileName}` 
-        : `${state.currentDirectory}/${state.editorFileName}`;
+// Update the handleSaveNote function in Terminal.tsx
+const handleSaveNote = async (newFilename: string, content: string, metadata: { tags: string[], description: string }) => {
+  try {
+    const currentPath = state.currentDirectory === '/' 
+      ? `/${state.editorFileName}` 
+      : `${state.currentDirectory}/${state.editorFileName}`;
+    
+    // Check if the filename has been changed
+    if (newFilename !== state.editorFileName) {
+      // Create path for the new file
+      const newPath = state.currentDirectory === '/' 
+        ? `/${newFilename}` 
+        : `${state.currentDirectory}/${newFilename}`;
       
-      await notesService.saveNote(path, content, metadata);
+      // First save to the new location
+      await notesService.saveNote(newPath, content, metadata);
+      
+      // Then delete the old file if it exists
+      try {
+        // Only attempt to delete if this wasn't a new file
+        const files = await notesService.listFiles(state.currentDirectory);
+        const fileExists = files.some(file => file.name === state.editorFileName);
+        
+        if (fileExists) {
+          await notesService.deleteFile(currentPath);
+        }
+      } catch (error) {
+        console.error('Error deleting old file:', error);
+        // Continue even if delete failed
+      }
+      
+      // Update the state with the new filename
+      setState(prev => ({
+        ...prev,
+        editorFileName: newFilename
+      }));
+      
+      setMode('command');
+      addToHistory({
+        type: 'output',
+        content: `<span class="success">Note renamed and saved: ${state.editorFileName} → ${newFilename}</span>`,
+      });
+    } else {
+      // Just save to the current path if filename hasn't changed
+      await notesService.saveNote(currentPath, content, metadata);
       
       setMode('command');
       addToHistory({
         type: 'output',
         content: `<span class="success">Note saved: ${state.editorFileName}</span>`,
       });
-    } catch (error) {
-      addToHistory({
-        type: 'output',
-        content: `<span class="error">Error saving note: ${error instanceof Error ? error.message : String(error)}</span>`,
-      });
-      setMode('command');
     }
-  };
+  } catch (error) {
+    addToHistory({
+      type: 'output',
+      content: `<span class="error">Error saving note: ${error instanceof Error ? error.message : String(error)}</span>`,
+    });
+    setMode('command');
+  }
+};
 
   const handleCancelEdit = () => {
     setMode('command');
@@ -1379,35 +1418,37 @@ return (
         <TerminalHelpGuide />
         
         <div className="flex-1">
-          {mode === 'command' ? (
-            <div className="flex flex-col h-[70vh]">
-              <div
-                ref={terminalRef}
-                className="flex-1 overflow-auto p-4 font-mono text-sm whitespace-pre-wrap"
-              >
-                <TerminalOutput history={state.history} />
-              </div>
-              <form onSubmit={handleCommandSubmit} className="flex items-center border-t-2 border-black p-2">
-                <span className="text-[#ff6b6b] font-bold mr-2">$</span>
-                <Textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  className="flex-1 resize-none overflow-hidden border-none focus-visible:ring-0 font-mono"
-                  rows={1}
-                  placeholder="Type a command..."
-                  onKeyDown={handleKeyDown}
-                />
-              </form>
-            </div>
-          ) : (
-            <TerminalEditor
-              initialContent={state.editorContent}
-              initialMetadata={state.editorMetadata}
-              onSave={handleSaveNote}
-              onCancel={handleCancelEdit}
-            />
-          )}
+        // Replace this section in Terminal.tsx where TerminalEditor is rendered
+{mode === 'command' ? (
+  <div className="flex flex-col h-[70vh]">
+    <div
+      ref={terminalRef}
+      className="flex-1 overflow-auto p-4 font-mono text-sm whitespace-pre-wrap"
+    >
+      <TerminalOutput history={state.history} />
+    </div>
+    <form onSubmit={handleCommandSubmit} className="flex items-center border-t-2 border-black p-2">
+      <span className="text-[#ff6b6b] font-bold mr-2">$</span>
+      <Textarea
+        ref={inputRef}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        className="flex-1 resize-none overflow-hidden border-none focus-visible:ring-0 font-mono"
+        rows={1}
+        placeholder="Type a command..."
+        onKeyDown={handleKeyDown}
+      />
+    </form>
+  </div>
+) : (
+  <TerminalEditor
+    initialContent={state.editorContent}
+    initialFilename={state.editorFileName}
+    initialMetadata={state.editorMetadata}
+    onSave={handleSaveNote}
+    onCancel={handleCancelEdit}
+  />
+)}
         </div>
       </div>
     </div>

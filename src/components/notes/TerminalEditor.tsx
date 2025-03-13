@@ -2,25 +2,29 @@ import React, { useState } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, X, FileText } from 'lucide-react';
+import { Save, X, FileText, Edit2 } from 'lucide-react';
 
 interface TerminalEditorProps {
   initialContent: string;
+  initialFilename: string;
   initialMetadata: {
     tags: string[];
     description: string;
   };
-  onSave: (content: string, metadata: { tags: string[]; description: string }) => void;
+  onSave: (filename: string, content: string, metadata: { tags: string[]; description: string }) => void;
   onCancel: () => void;
 }
 
 export const TerminalEditor: React.FC<TerminalEditorProps> = ({
   initialContent,
+  initialFilename,
   initialMetadata,
   onSave,
   onCancel,
 }) => {
   const [content, setContent] = useState(initialContent);
+  const [filename, setFilename] = useState(initialFilename);
+  const [isEditingFilename, setIsEditingFilename] = useState(false);
   const [tagsInput, setTagsInput] = useState(initialMetadata.tags.join(', '));
   const [description, setDescription] = useState(initialMetadata.description);
   
@@ -35,7 +39,7 @@ export const TerminalEditor: React.FC<TerminalEditorProps> = ({
       .map(tag => tag.trim())
       .filter(Boolean);
     
-    onSave(content, {
+    onSave(filename, content, {
       tags,
       description,
     });
@@ -70,8 +74,42 @@ export const TerminalEditor: React.FC<TerminalEditorProps> = ({
     }
   };
 
+  const toggleFilenameEdit = () => {
+    setIsEditingFilename(!isEditingFilename);
+  };
+
   return (
     <div className="flex flex-col h-[70vh]">
+      <div className="border-b-2 border-black p-4">
+        <div className="flex items-center">
+          {isEditingFilename ? (
+            <Input
+              value={filename}
+              onChange={(e) => setFilename(e.target.value)}
+              className="w-full border-2 border-black mr-2"
+              autoFocus
+              onBlur={toggleFilenameEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  toggleFilenameEdit();
+                }
+              }}
+            />
+          ) : (
+            <h3 className="flex-1 text-lg font-medium truncate mr-2">{filename}</h3>
+          )}
+          <Button 
+            onClick={toggleFilenameEdit} 
+            variant="neutral" 
+            size="sm"
+            className="flex items-center"
+          >
+            <Edit2 className="h-4 w-4" />
+            <span className="ml-1">{isEditingFilename ? 'Done' : 'Rename'}</span>
+          </Button>
+        </div>
+      </div>
+      
       <div className="flex-1 p-4">
         <Textarea
           value={content}
