@@ -1418,7 +1418,7 @@ return (
         <TerminalHelpGuide />
         
         <div className="flex-1">
-        // Replace this section in Terminal.tsx where TerminalEditor is rendered
+
 {mode === 'command' ? (
   <div className="flex flex-col h-[70vh]">
     <div
