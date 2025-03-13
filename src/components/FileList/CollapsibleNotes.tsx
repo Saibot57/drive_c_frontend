@@ -12,7 +12,7 @@ interface CollapsibleNotesProps {
 }
 
 export const CollapsibleNotes: React.FC<CollapsibleNotesProps> = ({ notes, showTags }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   if (!notes || notes.length === 0) {
     return null;
