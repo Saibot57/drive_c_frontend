@@ -121,9 +121,9 @@
   }
   
   /* Notes specific components */
-  .notes-container {
-    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6;
-  }
+.notes-container {
+  @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 w-full max-w-[1500px] mx-auto;
+}
   
   .terminal-output {
     @apply font-mono text-sm whitespace-pre-wrap;
