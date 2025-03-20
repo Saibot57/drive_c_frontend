@@ -224,3 +224,209 @@
 .pt-16 {
   padding-top: 4.5rem;
 }
+/* Add these styles to src/app/globals.css */
+
+/* Window styling */
+.window-container {
+  transform-origin: top left;
+  transition: box-shadow 0.2s ease;
+}
+
+.window-container:hover {
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+}
+
+.window-drag-handle {
+  user-select: none;
+  cursor: move;
+}
+
+/* Add grid overlay styles */
+.grid-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Animation for window focus */
+@keyframes windowFocus {
+  0% { box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.8); }
+  100% { box-shadow: 6px 6px 0px 0px rgba(0,0,0,1); }
+}
+
+.window-focus {
+  animation: windowFocus 0.2s ease forwards;
+}
+
+/* Window taskbar */
+.window-taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background-color: #fcd7d7;
+  border-top: 2px solid black;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  z-index: 50;
+}
+
+.taskbar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 2px solid black;
+  background-color: white;
+  margin-right: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.taskbar-item:hover {
+  transform: translateY(-2px);
+}
+
+.taskbar-item-active {
+  background-color: #ff6b6b;
+  color: white;
+}
+
+/* Maximize/minimize animations */
+@keyframes maximizeWindow {
+  0% { transform: scale(0.95); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.window-maximizing {
+  animation: maximizeWindow 0.2s ease forwards;
+}
+
+@keyframes minimizeWindow {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0; }
+}
+
+.window-minimizing {
+  animation: minimizeWindow 0.2s ease forwards;
+  pointer-events: none;
+}
+
+/* Resize handle styles */
+.resize-handle {
+  position: absolute;
+  background-color: transparent;
+}
+
+.resize-handle-n {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.resize-handle-e {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+}
+
+.resize-handle-s {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.resize-handle-w {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+}
+
+.resize-handle-ne {
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nesw-resize;
+}
+
+.resize-handle-se {
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nwse-resize;
+}
+
+.resize-handle-sw {
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nesw-resize;
+}
+
+.resize-handle-nw {
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  cursor: nwse-resize;
+}
+/* Add these to your globals.css file */
+
+/* Terminal-specific window adaptations */
+.window-container .terminal-help-guide {
+  height: 100%;
+}
+
+/* Make the terminal fill its container */
+.window-container .neo-brutalist-card {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.window-container .neo-brutalist-content {
+  height: 100%;
+  border-radius: 0;
+}
+
+/* Fix scrolling in the terminal */
+.window-container .terminal-output {
+  max-height: calc(100% - 40px);
+}
+
+/* Handle help guide toggle spacing in window */
+.window-container .toggle-button {
+  height: 40px;
+}
+
+/* Fix editor mode height */
+.window-container .terminal-editor {
+  height: 100%;
+}
+
+/* Terminal edit mode fixes */
+.window-container .terminal-editor textarea {
+  height: 100% !important;
+  min-height: 150px;
+}
