@@ -74,12 +74,11 @@ export const TodoList: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col bg-white">
       <div className="flex items-center justify-between bg-[#ff6b6b] text-white px-4 py-2 border-b-2 border-black">
-        <h2 className="font-monument text-xl">Todo List</h2>
         {todos.some(todo => todo.completed) && (
           <Button 
             onClick={clearCompleted}
             variant="neutral"
-            className="h-8 px-2 text-xs flex items-center border border-white text-white bg-transparent hover:bg-white/20"
+            className="h-8 px-2 text-xs flex items-center border border-white text-white bg-transparent hover:bg-white/20 ml-auto"
           >
             <CheckSquare className="h-3 w-3 mr-1" />
             Clear completed
