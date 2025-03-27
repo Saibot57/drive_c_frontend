@@ -73,20 +73,20 @@ export const TodoList: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col bg-white">
-      <div className="flex items-center justify-between bg-[#ff6b6b] text-white px-4 py-2 border-b-2 border-black">
-        {todos.some(todo => todo.completed) && (
-          <Button 
-            onClick={clearCompleted}
-            variant="neutral"
-            className="h-8 px-2 text-xs flex items-center border border-white text-white bg-transparent hover:bg-white/20 ml-auto"
-          >
-            <CheckSquare className="h-3 w-3 mr-1" />
-            Clear completed
-          </Button>
-        )}
-      </div>
-      
       <ScrollArea className="flex-1 p-4">
+        {todos.some(todo => todo.completed) && (
+          <div className="flex justify-end mb-3">
+            <Button 
+              onClick={clearCompleted}
+              variant="neutral"
+              className="h-8 px-2 text-xs flex items-center border-2 border-black bg-white hover:bg-gray-50"
+            >
+              <CheckSquare className="h-3 w-3 mr-1" />
+              Clear completed
+            </Button>
+          </div>
+        )}
+      
         {sortedTodos.length === 0 ? (
           <p className="text-gray-500 text-center py-4">No tasks yet. Add one below!</p>
         ) : (
