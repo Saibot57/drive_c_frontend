@@ -1,15 +1,32 @@
 // src/app/workspace/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { WindowProvider, useWindowManager } from '@/contexts/WindowContext';
 import TerminalWindowWrapper from '@/components/notes/TerminalWindowWrapper';
-import { Terminal as TerminalIcon } from 'lucide-react';
+import TodoWindowWrapper from '@/components/todo/TodoWindowWrapper';
+import { Terminal as TerminalIcon, ListTodo } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const WindowControlButtons = () => {
   const { openWindow } = useWindowManager();
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1000,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div className="fixed bottom-4 left-4 flex gap-2 z-50">
@@ -22,6 +39,20 @@ const WindowControlButtons = () => {
       >
         <TerminalIcon className="h-4 w-4" />
         <span>Terminal</span>
+      </Button>
+      
+      <Button 
+        onClick={() => openWindow('todo', <TodoWindowWrapper />, 'Todo List', {
+          dimensions: { width: 300, height: 400 },
+          position: { 
+            x: Math.max(50, windowSize.width - 350),  // Bottom right positioning
+            y: Math.max(50, windowSize.height - 450)
+          }
+        })}
+        className="flex items-center gap-2 bg-[#ff6b6b] text-white border-2 border-black"
+      >
+        <ListTodo className="h-4 w-4" />
+        <span>Todo</span>
       </Button>
     </div>
   );
