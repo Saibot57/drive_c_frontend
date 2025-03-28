@@ -11,7 +11,6 @@ import { RefreshCw } from "lucide-react";
 import { Red_Hat_Text } from 'next/font/google';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
-import { notesService } from '@/services/notesService';
 
 const redHat = Red_Hat_Text({ 
   subsets: ['latin'],
@@ -59,75 +58,13 @@ export default function Home() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const json = await response.json();
-      
-      // Process the data to normalize directory paths
-      const normalizedData = normalizeDirectoryData(json.data);
-      
-      setData({ data: normalizedData });
+      setData(json);
     } catch (e: any) {
       console.error("Fetch error:", e);
       setError('Failed to load data.');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Function to normalize directory paths in the data
-  const normalizeDirectoryData = (sections: SectionData[]): SectionData[] => {
-    // First, create a map to merge sections with the same normalized name
-    const sectionMap = new Map<string, SectionData>();
-    
-    for (const section of sections) {
-      // Normalize section name (use lowercase as we did in notesService)
-      const normalizedName = section.name.toLowerCase();
-      
-      if (sectionMap.has(normalizedName)) {
-        // Merge with existing section
-        const existingSection = sectionMap.get(normalizedName)!;
-        
-        // Merge files
-        existingSection.files = [...existingSection.files, ...section.files];
-        
-        // Merge subsections
-        for (const [key, subsection] of Object.entries(section.subsections)) {
-          const normalizedSubName = subsection.name.toLowerCase();
-          if (existingSection.subsections[normalizedSubName]) {
-            // If subsection exists, merge files
-            existingSection.subsections[normalizedSubName].files = [
-              ...existingSection.subsections[normalizedSubName].files,
-              ...subsection.files
-            ];
-          } else {
-            // Add new subsection
-            existingSection.subsections[normalizedSubName] = {
-              ...subsection,
-              name: normalizedSubName // Use normalized name
-            };
-          }
-        }
-      } else {
-        // Create new normalized section
-        const normalizedSubsections: Record<string, SubSection> = {};
-        
-        // Normalize subsection names
-        for (const [key, subsection] of Object.entries(section.subsections)) {
-          const normalizedSubName = subsection.name.toLowerCase();
-          normalizedSubsections[normalizedSubName] = {
-            ...subsection,
-            name: normalizedSubName // Use normalized name
-          };
-        }
-        
-        sectionMap.set(normalizedName, {
-          name: normalizedName, // Use normalized name
-          files: section.files,
-          subsections: normalizedSubsections
-        });
-      }
-    }
-    
-    // Convert map back to array
-    return Array.from(sectionMap.values());
   };
 
   const handleRefresh = async () => {
