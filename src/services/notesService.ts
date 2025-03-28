@@ -19,12 +19,66 @@ export interface NoteContent {
 }
   
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
+
+// Function to normalize a directory path (convert directory parts to lowercase)
+const normalizeDirectoryPath = (path: string): string => {
+    // If it's the root directory, return as is
+    if (path === '/') return path;
+
+    // Split the path into segments
+    const parts = path.split('/').filter(Boolean);
+    
+    // Check if this is an absolute path
+    const isAbsolute = path.startsWith('/');
+    
+    // Convert all directory parts to lowercase
+    const normalizedParts = parts.map(part => part.toLowerCase());
+    
+    // Reconstruct the normalized path
+    let normalizedPath = normalizedParts.join('/');
+    if (isAbsolute) normalizedPath = '/' + normalizedPath;
+    if (path.endsWith('/')) normalizedPath += '/';
+    
+    return normalizedPath;
+};
+
+// Function to normalize a file path (normalizes directory parts but keeps filename as is)
+const normalizeFilePath = (path: string): string => {
+    // If it's the root directory, return as is
+    if (path === '/') return path;
+
+    // Split the path into segments
+    const parts = path.split('/').filter(Boolean);
+    
+    // Check if this is an absolute path
+    const isAbsolute = path.startsWith('/');
+    
+    // Normalize all parts except the last one (filename)
+    const normalizedParts = parts.map((part, index) => {
+        // If it's the last part, don't normalize it (keep the filename as is)
+        if (index === parts.length - 1) {
+            return part;
+        }
+        
+        // For directory parts, normalize to lowercase
+        return part.toLowerCase();
+    });
+    
+    // Reconstruct the normalized path
+    let normalizedPath = normalizedParts.join('/');
+    if (isAbsolute) normalizedPath = '/' + normalizedPath;
+    
+    return normalizedPath;
+};
   
 export const notesService = {
     async listFiles(path: string): Promise<NoteFile[]> {
         try {
-            console.log(`Fetching files from path: ${path}`);
-            const encodedPath = encodeURIComponent(path);
+            // Normalize the directory path
+            const normalizedPath = normalizeDirectoryPath(path);
+            
+            console.log(`Fetching files from path: ${path} (normalized: ${normalizedPath})`);
+            const encodedPath = encodeURIComponent(normalizedPath);
             const url = `${API_URL}/notes/files?path=${encodedPath}`;
             
             console.log("API call URL:", url);
@@ -57,10 +111,13 @@ export const notesService = {
     
     async createDirectory(path: string): Promise<void> {
         try {
-            console.log(`Creating directory at path: ${path}`);
+            // Normalize the directory path
+            const normalizedPath = normalizeDirectoryPath(path);
+            
+            console.log(`Creating directory at path: ${path} (normalized: ${normalizedPath})`);
             const response = await fetchWithAuth(`${API_URL}/notes/directory`, {
                 method: 'POST',
-                body: JSON.stringify({ path }),
+                body: JSON.stringify({ path: normalizedPath }),
             });
             
             const responseText = await response.text();
@@ -79,7 +136,7 @@ export const notesService = {
                 throw new Error(`Error creating directory: ${data.message || response.statusText}`);
             }
             
-            console.log(`Directory created at ${path}`);
+            console.log(`Directory created at ${normalizedPath}`);
         } catch (error) {
             console.error('Error creating directory:', error);
             throw error;
@@ -88,12 +145,15 @@ export const notesService = {
     
     async saveNote(path: string, content: string, metadata: { tags: string[], description: string }): Promise<void> {
         try {
-            console.log(`Saving note at path: ${path}`);
+            // Normalize the file path (directory parts but keep filename)
+            const normalizedPath = normalizeFilePath(path);
+            
+            console.log(`Saving note at path: ${path} (normalized: ${normalizedPath})`);
             console.log("Content length:", content.length);
             console.log("Metadata:", metadata);
             
             const requestBody = {
-                path,
+                path: normalizedPath,
                 content,
                 tags: metadata.tags.join(','),
                 description: metadata.description,
@@ -122,7 +182,7 @@ export const notesService = {
                 throw new Error(`Error saving note: ${data.message || response.statusText}`);
             }
             
-            console.log(`Note saved at ${path}`);
+            console.log(`Note saved at ${normalizedPath}`);
         } catch (error) {
             console.error('Error saving note:', error);
             throw error;
@@ -131,8 +191,11 @@ export const notesService = {
     
     async getNoteContent(path: string): Promise<NoteContent> {
         try {
-            console.log(`Fetching note content from: ${path}`);
-            const encodedPath = encodeURIComponent(path);
+            // Normalize the file path (directory parts but keep filename)
+            const normalizedPath = normalizeFilePath(path);
+            
+            console.log(`Fetching note content from: ${path} (normalized: ${normalizedPath})`);
+            const encodedPath = encodeURIComponent(normalizedPath);
             const url = `${API_URL}/notes/file?path=${encodedPath}`;
             
             console.log("API call URL:", url);
@@ -155,7 +218,7 @@ export const notesService = {
                 
                 // If the note doesn't exist (404), throw a specific error
                 if (response.status === 404) {
-                    throw new Error(`Note not found at ${path}`);
+                    throw new Error(`Note not found at ${normalizedPath}`);
                 }
                 
                 throw new Error(`Error fetching note: ${data.message || response.statusText}`);
@@ -183,12 +246,22 @@ export const notesService = {
     
     async moveFile(sourcePath: string, destinationPath: string): Promise<void> {
         try {
-            console.log(`Moving file from ${sourcePath} to ${destinationPath}`);
+            // Normalize the source path (if it's a file, keep the filename as is)
+            const normalizedSourcePath = normalizeFilePath(sourcePath);
+            
+            // For the destination path, we need to handle it based on whether it's a directory or file
+            // If destinationPath ends with '/', treat it as a directory
+            const isDestinationDirectory = destinationPath.endsWith('/');
+            const normalizedDestinationPath = isDestinationDirectory
+                ? normalizeDirectoryPath(destinationPath)
+                : normalizeFilePath(destinationPath);
+            
+            console.log(`Moving file from ${sourcePath} (normalized: ${normalizedSourcePath}) to ${destinationPath} (normalized: ${normalizedDestinationPath})`);
             const response = await fetchWithAuth(`${API_URL}/notes/move`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    source: sourcePath,
-                    destination: destinationPath,
+                    source: normalizedSourcePath,
+                    destination: normalizedDestinationPath,
                 }),
             });
             
@@ -208,7 +281,7 @@ export const notesService = {
                 throw new Error(`Error moving file: ${data.message || response.statusText}`);
             }
             
-            console.log(`File moved successfully from ${sourcePath} to ${destinationPath}`);
+            console.log(`File moved successfully from ${normalizedSourcePath} to ${normalizedDestinationPath}`);
         } catch (error) {
             console.error('Error moving file:', error);
             throw error;
@@ -217,8 +290,11 @@ export const notesService = {
     
     async deleteFile(path: string): Promise<void> {
         try {
-            console.log(`Deleting file at path: ${path}`);
-            const encodedPath = encodeURIComponent(path);
+            // Normalize the path
+            const normalizedPath = normalizeFilePath(path);
+            
+            console.log(`Deleting file at path: ${path} (normalized: ${normalizedPath})`);
+            const encodedPath = encodeURIComponent(normalizedPath);
             const url = `${API_URL}/notes/file?path=${encodedPath}`;
             
             console.log("Delete API call URL:", url);
@@ -242,10 +318,14 @@ export const notesService = {
                 throw new Error(`Error deleting file: ${data.message || response.statusText}`);
             }
             
-            console.log(`File successfully deleted at ${path}`);
+            console.log(`File successfully deleted at ${normalizedPath}`);
         } catch (error) {
             console.error('Error deleting file:', error);
             throw error;
         }
-    }
+    },
+
+    // Expose normalization functions for use elsewhere in the application
+    normalizeDirectoryPath,
+    normalizeFilePath
 };

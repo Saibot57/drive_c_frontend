@@ -6,6 +6,9 @@ import { TerminalEditor } from './TerminalEditor';
 import { TerminalHelpGuide } from './TerminalHelpGuide';
 import { notesService, NoteFile } from '../../services/notesService';
 
+// Import the path normalization functions directly
+const { normalizeDirectoryPath, normalizeFilePath } = notesService;
+
 type Mode = 'command' | 'editor';
 
 export interface TerminalState {
@@ -129,16 +132,19 @@ export const Terminal: React.FC = () => {
             
             console.log(`Directory: ${directory}, Filename: ${fileName}`);
             
+            // Normalize the directory for case-insensitivity
+            const normalizedDirectory = normalizeDirectoryPath(directory);
+            
             // Update the current directory
             setState(prev => ({
               ...prev,
-              currentDirectory: directory
+              currentDirectory: normalizedDirectory
             }));
             
             // Add message to history
             addToHistory({ 
               type: 'output', 
-              content: `Changed directory to ${directory}` 
+              content: `Changed directory to ${normalizedDirectory}` 
             });
             
             // First try to get content to see if the file exists
@@ -344,13 +350,16 @@ export const Terminal: React.FC = () => {
         }
       }
       
+      // Normalize the directory path for case-insensitive completion
+      basePath = normalizeDirectoryPath(basePath);
+      
       try {
         // List files in the directory
         const files = await notesService.listFiles(basePath);
         
         // Filter files that match the current path argument
         const matchingFiles = files.filter(file => 
-          file.name.startsWith(pathArg)
+          file.name.toLowerCase().startsWith(pathArg.toLowerCase())
         );
         
         if (matchingFiles.length === 1) {
@@ -521,6 +530,10 @@ export const Terminal: React.FC = () => {
         tagFilter = arg.substring(6);
       } else if (arg.startsWith('--path=')) {
         pathFilter = arg.substring(7);
+        // Normalize the path filter for case-insensitivity
+        if (pathFilter) {
+          pathFilter = normalizeDirectoryPath(pathFilter);
+        }
       } else if (!searchTerm) {
         searchTerm = arg;
       } else {
@@ -951,6 +964,9 @@ Tips:
       newPath = newPath.slice(0, -1);
     }
 
+    // Apply directory normalization for case-insensitivity
+    newPath = normalizeDirectoryPath(newPath);
+
     setState(prev => ({
       ...prev,
       currentDirectory: newPath,
@@ -976,6 +992,7 @@ Tips:
         ? `/${name}` 
         : `${state.currentDirectory}/${name}`;
       
+      // notesService.createDirectory will normalize the path
       await notesService.createDirectory(path);
       
       addToHistory({
@@ -1077,6 +1094,7 @@ Tips:
     if (command === 'edit') {
       try {
         console.log(`Loading note content from: ${path}`);
+        // notesService.getNoteContent will normalize the path
         const noteContent = await notesService.getNoteContent(path);
         
         console.log("Content loaded successfully:", noteContent);
@@ -1140,6 +1158,7 @@ Tips:
         ? `/${filename}` 
         : `${state.currentDirectory}/${filename}`;
       
+      // notesService.getNoteContent will normalize the path
       const noteContent = await notesService.getNoteContent(path);
       
       // Display note content in terminal output
@@ -1187,7 +1206,7 @@ Tips:
         destPath = `${destPath}${sourceFileName}`;
       }
       
-      // Call the moveFile API
+      // Call the moveFile API (notesService.moveFile will normalize the paths)
       await notesService.moveFile(sourcePath, destPath);
       
       addToHistory({
@@ -1220,8 +1239,14 @@ Tips:
       // Normalize path
       targetPath = targetPath.replace(/\/+/g, '/');
       
+      // Handle file vs. directory by checking if path ends with '/'
+      const isDirectory = targetPath.endsWith('/');
+      const normalizedPath = isDirectory 
+        ? normalizeDirectoryPath(targetPath)
+        : normalizeFilePath(targetPath);
+      
       // Confirm deletion
-      const confirmMessage = `<span class="warning">Are you sure you want to delete "${targetPath}"? This cannot be undone. (y/n)</span>`;
+      const confirmMessage = `<span class="warning">Are you sure you want to delete "${normalizedPath}"? This cannot be undone. (y/n)</span>`;
       addToHistory({
         type: 'output',
         content: confirmMessage,
@@ -1232,7 +1257,7 @@ Tips:
         ...prev,
         awaitingConfirmation: {
           type: 'delete',
-          path: targetPath,
+          path: normalizedPath,
         }
       }));
       
@@ -1334,66 +1359,65 @@ Tips:
     });
   };
 
-// Update the handleSaveNote function in Terminal.tsx
-const handleSaveNote = async (newFilename: string, content: string, metadata: { tags: string[], description: string }) => {
-  try {
-    const currentPath = state.currentDirectory === '/' 
-      ? `/${state.editorFileName}` 
-      : `${state.currentDirectory}/${state.editorFileName}`;
-    
-    // Check if the filename has been changed
-    if (newFilename !== state.editorFileName) {
-      // Create path for the new file
-      const newPath = state.currentDirectory === '/' 
-        ? `/${newFilename}` 
-        : `${state.currentDirectory}/${newFilename}`;
+  const handleSaveNote = async (newFilename: string, content: string, metadata: { tags: string[], description: string }) => {
+    try {
+      const currentPath = state.currentDirectory === '/' 
+        ? `/${state.editorFileName}` 
+        : `${state.currentDirectory}/${state.editorFileName}`;
       
-      // First save to the new location
-      await notesService.saveNote(newPath, content, metadata);
-      
-      // Then delete the old file if it exists
-      try {
-        // Only attempt to delete if this wasn't a new file
-        const files = await notesService.listFiles(state.currentDirectory);
-        const fileExists = files.some(file => file.name === state.editorFileName);
+      // Check if the filename has been changed
+      if (newFilename !== state.editorFileName) {
+        // Create path for the new file
+        const newPath = state.currentDirectory === '/' 
+          ? `/${newFilename}` 
+          : `${state.currentDirectory}/${newFilename}`;
         
-        if (fileExists) {
-          await notesService.deleteFile(currentPath);
+        // First save to the new location (notesService.saveNote will normalize the path)
+        await notesService.saveNote(newPath, content, metadata);
+        
+        // Then delete the old file if it exists
+        try {
+          // Only attempt to delete if this wasn't a new file
+          const files = await notesService.listFiles(state.currentDirectory);
+          const fileExists = files.some(file => file.name === state.editorFileName);
+          
+          if (fileExists) {
+            await notesService.deleteFile(currentPath);
+          }
+        } catch (error) {
+          console.error('Error deleting old file:', error);
+          // Continue even if delete failed
         }
-      } catch (error) {
-        console.error('Error deleting old file:', error);
-        // Continue even if delete failed
+        
+        // Update the state with the new filename
+        setState(prev => ({
+          ...prev,
+          editorFileName: newFilename
+        }));
+        
+        setMode('command');
+        addToHistory({
+          type: 'output',
+          content: `<span class="success">Note renamed and saved: ${state.editorFileName} → ${newFilename}</span>`,
+        });
+      } else {
+        // Just save to the current path if filename hasn't changed
+        await notesService.saveNote(currentPath, content, metadata);
+        
+        setMode('command');
+        addToHistory({
+          type: 'output',
+          content: `<span class="success">Note saved: ${state.editorFileName}</span>`,
+        });
       }
-      
-      // Update the state with the new filename
-      setState(prev => ({
-        ...prev,
-        editorFileName: newFilename
-      }));
-      
-      setMode('command');
+    } catch (error) {
       addToHistory({
         type: 'output',
-        content: `<span class="success">Note renamed and saved: ${state.editorFileName} → ${newFilename}</span>`,
+        content: `<span class="error">Error saving note: ${error instanceof Error ? error.message : String(error)}</span>`,
       });
-    } else {
-      // Just save to the current path if filename hasn't changed
-      await notesService.saveNote(currentPath, content, metadata);
-      
       setMode('command');
-      addToHistory({
-        type: 'output',
-        content: `<span class="success">Note saved: ${state.editorFileName}</span>`,
-      });
     }
-  } catch (error) {
-    addToHistory({
-      type: 'output',
-      content: `<span class="error">Error saving note: ${error instanceof Error ? error.message : String(error)}</span>`,
-    });
-    setMode('command');
-  }
-};
+  };
 
   const handleCancelEdit = () => {
     setMode('command');
