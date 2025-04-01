@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { WindowProvider, useWindowManager } from '@/contexts/WindowContext';
 import TerminalWindowWrapper from '@/components/notes/TerminalWindowWrapper';
 import TodoWindowWrapper from '@/components/todo/TodoWindowWrapper';
-import { Terminal as TerminalIcon, ListTodo } from 'lucide-react';
+import PomodoroWindowWrapper from '@/components/pomodoro/PomodoroWindowWrapper';
+import { Terminal as TerminalIcon, ListTodo, Timer } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const WindowControlButtons = () => {
@@ -35,7 +36,7 @@ const WindowControlButtons = () => {
           dimensions: { width: 800, height: 600 },
           position: { x: 50, y: 50 }
         })}
-        className="flex items-center gap-2 bg-[#ff6b6b] text-white border-2 border-black"
+        className="flex items-center gap-2 bg-main text-mtext border-2 border-border"
       >
         <TerminalIcon className="h-4 w-4" />
         <span>Terminal</span>
@@ -49,10 +50,24 @@ const WindowControlButtons = () => {
             y: Math.max(50, windowSize.height - 450)
           }
         })}
-        className="flex items-center gap-2 bg-[#ff6b6b] text-white border-2 border-black"
+        className="flex items-center gap-2 bg-main text-mtext border-2 border-border"
       >
         <ListTodo className="h-4 w-4" />
         <span>Todo</span>
+      </Button>
+      
+      <Button 
+        onClick={() => openWindow('pomodoro', <PomodoroWindowWrapper />, 'Pomodoro Timer', {
+          dimensions: { width: 350, height: 500 },
+          position: { 
+            x: Math.max(50, windowSize.width / 2 - 175),  // Center positioning
+            y: Math.max(50, windowSize.height / 2 - 250)
+          }
+        })}
+        className="flex items-center gap-2 bg-main text-mtext border-2 border-border"
+      >
+        <Timer className="h-4 w-4" />
+        <span>Pomodoro</span>
       </Button>
     </div>
   );
@@ -90,7 +105,7 @@ const WorkspacePage = () => {
             
             {/* Grid toggle button */}
             <Button
-              className="fixed bottom-4 right-4 bg-white border-2 border-black"
+              className="fixed bottom-4 right-4 bg-white border-2 border-border"
               onClick={() => setShowGrid(!showGrid)}
             >
               {showGrid ? 'Hide Grid' : 'Show Grid'}
