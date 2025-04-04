@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { TerminalOutput } from './TerminalOutput';
@@ -48,6 +49,9 @@ export const Terminal: React.FC = () => {
   });
   const [isClient, setIsClient] = useState(false);
 
+  // Get window manager at the component level
+  const [openWindowFunction, setOpenWindowFunction] = useState<((id: string, component: React.ReactNode, title: string, options?: any) => void) | null>(null);
+
   const terminalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
@@ -84,6 +88,45 @@ export const Terminal: React.FC = () => {
         }
       }
     }
+  }, []);
+
+  // Set up the window manager function once when component mounts
+  useEffect(() => {
+    const setupWindowManager = async () => {
+      try {
+        const { useWindowManager } = await import('@/contexts/WindowContext');
+        
+        // We need to create a small component to access the hook and get the function
+        // This is a workaround since we can't use hooks directly in our component functions
+        const WindowManagerSetup = () => {
+          const { openWindow } = useWindowManager();
+          
+          // Use useEffect to set our state variable when the component renders
+          React.useEffect(() => {
+            setOpenWindowFunction(() => openWindow);
+          }, [openWindow]);
+          
+          return null;
+        };
+        
+        // Render the setup component temporarily to get access to the hook
+        const tempElement = document.createElement('div');
+        document.body.appendChild(tempElement);
+        
+        // Using ReactDOM to render
+        ReactDOM.render(<WindowManagerSetup />, tempElement);
+        
+        // Clean up after setup
+        setTimeout(() => {
+          ReactDOM.unmountComponentAtNode(tempElement);
+          document.body.removeChild(tempElement);
+        }, 0);
+      } catch (error) {
+        console.error('Error setting up window manager:', error);
+      }
+    };
+    
+    setupWindowManager();
   }, []);
 
   // Auto-scroll to bottom when history changes
@@ -794,33 +837,42 @@ export const Terminal: React.FC = () => {
     }
   };
 
-  // Import windowManager (this is just for type info, actual import happens in useEffect)
-  const windowManager = { openWindow: (id: string, component: React.ReactNode, title: string, options?: any) => {} };
-  
   // Helper function to open a note in a window
   const openNoteInWindow = async (path: string, filename: string) => {
-    // Dynamically import required components to avoid circular dependencies
-    const { default: NotesWindowWrapper } = await import('./NotesWindowWrapper');
-    const { useWindowManager } = await import('@/contexts/WindowContext');
+    if (!openWindowFunction) {
+      addToHistory({
+        type: 'output',
+        content: `<span class="error">Unable to open window: window manager not initialized</span>`,
+      });
+      return;
+    }
     
-    // Get the windowManager from the context
-    const { openWindow } = useWindowManager();
-    
-    // Open the window
-    openWindow(
-      `note-${path}-${filename}`, 
-      <NotesWindowWrapper filename={filename} path={path} />, 
-      filename,
-      {
-        dimensions: { width: 800, height: 600 },
-        position: { x: 100, y: 100 }
-      }
-    );
-    
-    addToHistory({
-      type: 'output',
-      content: `<span class="success">Opened note in window: ${filename}</span>`,
-    });
+    try {
+      // Dynamically import required components to avoid circular dependencies
+      const { default: NotesWindowWrapper } = await import('./NotesWindowWrapper');
+      
+      // Open the window using our saved function
+      openWindowFunction(
+        `note-${path}-${filename}`, 
+        <NotesWindowWrapper filename={filename} path={path} />, 
+        filename,
+        {
+          dimensions: { width: 800, height: 600 },
+          position: { x: 100, y: 100 }
+        }
+      );
+      
+      addToHistory({
+        type: 'output',
+        content: `<span class="success">Opened note in window: ${filename}</span>`,
+      });
+    } catch (error) {
+      console.error('Error opening note in window:', error);
+      addToHistory({
+        type: 'output',
+        content: `<span class="error">Error opening note in window: ${error instanceof Error ? error.message : String(error)}</span>`,
+      });
+    }
   };
   
   const executeCommand = async (command: string, args: string[]) => {
@@ -918,14 +970,18 @@ export const Terminal: React.FC = () => {
       case 'explorer':
         // Open the notes explorer
         try {
+          if (!openWindowFunction) {
+            addToHistory({
+              type: 'output',
+              content: `<span class="error">Unable to open Notes Explorer: window manager not initialized</span>`,
+            });
+            return;
+          }
+          
           const { default: NotesExplorerWrapper } = await import('./NotesExplorerWrapper');
-          const { useWindowManager } = await import('@/contexts/WindowContext');
           
-          // Get the windowManager from the context
-          const { openWindow } = useWindowManager();
-          
-          // Open the explorer window
-          openWindow(
+          // Open the explorer window using our saved function
+          openWindowFunction(
             `notes-explorer-${Date.now()}`, 
             <NotesExplorerWrapper />, 
             'Notes Explorer',
@@ -1453,66 +1509,65 @@ Tips:
     });
   };
 
-// Update the handleSaveNote function in Terminal.tsx
-const handleSaveNote = async (newFilename: string, content: string, metadata: { tags: string[], description: string }) => {
-  try {
-    const currentPath = state.currentDirectory === '/' 
-      ? `/${state.editorFileName}` 
-      : `${state.currentDirectory}/${state.editorFileName}`;
-    
-    // Check if the filename has been changed
-    if (newFilename !== state.editorFileName) {
-      // Create path for the new file
-      const newPath = state.currentDirectory === '/' 
-        ? `/${newFilename}` 
-        : `${state.currentDirectory}/${newFilename}`;
+  const handleSaveNote = async (newFilename: string, content: string, metadata: { tags: string[], description: string }) => {
+    try {
+      const currentPath = state.currentDirectory === '/' 
+        ? `/${state.editorFileName}` 
+        : `${state.currentDirectory}/${state.editorFileName}`;
       
-      // First save to the new location
-      await notesService.saveNote(newPath, content, metadata);
-      
-      // Then delete the old file if it exists
-      try {
-        // Only attempt to delete if this wasn't a new file
-        const files = await notesService.listFiles(state.currentDirectory);
-        const fileExists = files.some(file => file.name === state.editorFileName);
+      // Check if the filename has been changed
+      if (newFilename !== state.editorFileName) {
+        // Create path for the new file
+        const newPath = state.currentDirectory === '/' 
+          ? `/${newFilename}` 
+          : `${state.currentDirectory}/${newFilename}`;
         
-        if (fileExists) {
-          await notesService.deleteFile(currentPath);
+        // First save to the new location
+        await notesService.saveNote(newPath, content, metadata);
+        
+        // Then delete the old file if it exists
+        try {
+          // Only attempt to delete if this wasn't a new file
+          const files = await notesService.listFiles(state.currentDirectory);
+          const fileExists = files.some(file => file.name === state.editorFileName);
+          
+          if (fileExists) {
+            await notesService.deleteFile(currentPath);
+          }
+        } catch (error) {
+          console.error('Error deleting old file:', error);
+          // Continue even if delete failed
         }
-      } catch (error) {
-        console.error('Error deleting old file:', error);
-        // Continue even if delete failed
+        
+        // Update the state with the new filename
+        setState(prev => ({
+          ...prev,
+          editorFileName: newFilename
+        }));
+        
+        setMode('command');
+        addToHistory({
+          type: 'output',
+          content: `<span class="success">Note renamed and saved: ${state.editorFileName} → ${newFilename}</span>`,
+        });
+      } else {
+        // Just save to the current path if filename hasn't changed
+        await notesService.saveNote(currentPath, content, metadata);
+        
+        setMode('command');
+        addToHistory({
+          type: 'output',
+          content: `<span class="success">Note saved: ${state.editorFileName}</span>`,
+        });
       }
-      
-      // Update the state with the new filename
-      setState(prev => ({
-        ...prev,
-        editorFileName: newFilename
-      }));
-      
-      setMode('command');
+    } catch (error) {
       addToHistory({
         type: 'output',
-        content: `<span class="success">Note renamed and saved: ${state.editorFileName} → ${newFilename}</span>`,
+        content: `<span class="error">Error saving note: ${error instanceof Error ? error.message : String(error)}</span>`,
       });
-    } else {
-      // Just save to the current path if filename hasn't changed
-      await notesService.saveNote(currentPath, content, metadata);
-      
       setMode('command');
-      addToHistory({
-        type: 'output',
-        content: `<span class="success">Note saved: ${state.editorFileName}</span>`,
-      });
     }
-  } catch (error) {
-    addToHistory({
-      type: 'output',
-      content: `<span class="error">Error saving note: ${error instanceof Error ? error.message : String(error)}</span>`,
-    });
-    setMode('command');
-  }
-};
+  };
 
   const handleCancelEdit = () => {
     setMode('command');
@@ -1522,115 +1577,115 @@ const handleSaveNote = async (newFilename: string, content: string, metadata: { 
     });
   };
 
-// Render terminal or editor based on current mode
-return (
-  <div className="neo-brutalist-card w-full">
-    <div className="neo-brutalist-content relative">
-      <div className="flex items-center justify-between bg-[#ff6b6b] text-white px-4 py-2 mb-4 border-b-2 border-black">
-        <h2 className="font-monument text-xl">
-          {mode === 'command' ? `Terminal: ${state.currentDirectory}` : `Editing: ${state.editorFileName}`}
-        </h2>
-        <div className="text-xs font-mono">bibliotek@notes:~</div>
+  // Render terminal or editor based on current mode
+  return (
+    <div className="neo-brutalist-card w-full">
+      <div className="neo-brutalist-content relative">
+        <div className="flex items-center justify-between bg-[#ff6b6b] text-white px-4 py-2 mb-4 border-b-2 border-black">
+          <h2 className="font-monument text-xl">
+            {mode === 'command' ? `Terminal: ${state.currentDirectory}` : `Editing: ${state.editorFileName}`}
+          </h2>
+          <div className="text-xs font-mono">bibliotek@notes:~</div>
+        </div>
+
+        <div className="flex">
+          <TerminalHelpGuide />
+          
+          <div className="flex-1">
+
+  {mode === 'command' ? (
+    <div className="flex flex-col h-[70vh]">
+      <div
+        ref={terminalRef}
+        className="flex-1 overflow-auto p-4 font-mono text-sm whitespace-pre-wrap"
+      >
+        <TerminalOutput history={state.history} />
       </div>
-
-      <div className="flex">
-        <TerminalHelpGuide />
-        
-        <div className="flex-1">
-
-{mode === 'command' ? (
-  <div className="flex flex-col h-[70vh]">
-    <div
-      ref={terminalRef}
-      className="flex-1 overflow-auto p-4 font-mono text-sm whitespace-pre-wrap"
-    >
-      <TerminalOutput history={state.history} />
+      <form onSubmit={handleCommandSubmit} className="flex items-center border-t-2 border-black p-2">
+        <span className="text-[#ff6b6b] font-bold mr-2">$</span>
+        <Textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="flex-1 resize-none overflow-hidden border-none focus-visible:ring-0 font-mono"
+          rows={1}
+          placeholder="Type a command..."
+          onKeyDown={handleKeyDown}
+        />
+      </form>
     </div>
-    <form onSubmit={handleCommandSubmit} className="flex items-center border-t-2 border-black p-2">
-      <span className="text-[#ff6b6b] font-bold mr-2">$</span>
-      <Textarea
-        ref={inputRef}
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        className="flex-1 resize-none overflow-hidden border-none focus-visible:ring-0 font-mono"
-        rows={1}
-        placeholder="Type a command..."
-        onKeyDown={handleKeyDown}
-      />
-    </form>
-  </div>
-) : (
-  <TerminalEditor
-    initialContent={state.editorContent}
-    initialFilename={state.editorFileName}
-    initialMetadata={state.editorMetadata}
-    onSave={handleSaveNote}
-    onCancel={handleCancelEdit}
-  />
-)}
+  ) : (
+    <TerminalEditor
+      initialContent={state.editorContent}
+      initialFilename={state.editorFileName}
+      initialMetadata={state.editorMetadata}
+      onSave={handleSaveNote}
+      onCancel={handleCancelEdit}
+    />
+  )}
+          </div>
         </div>
       </div>
+      
+      {/* CSS for terminal text styling */}
+      <style jsx global>{`
+        .folder {
+          color: #4169E1; /* Royal Blue for folders */
+          font-weight: bold;
+        }
+        .markdown-file {
+          color: #228B22; /* Forest Green for markdown */
+        }
+        .text-file {
+          color: #000000; /* Black for text files */
+        }
+        .json-file {
+          color: #FF8C00; /* Dark Orange for JSON */
+        }
+        .code-file {
+          color: #9932CC; /* Dark Orchid for code files */
+        }
+        .regular-file {
+          color: #696969; /* Dim Gray for regular files */
+        }
+        .success {
+          color: #228B22; /* Forest Green for success messages */
+        }
+        .error {
+          color: #B22222; /* Firebrick for errors */
+        }
+        .warning {
+          color: #FF8C00; /* Dark Orange for warnings */
+        }
+        .note-header {
+          color: #1E90FF; /* Dodger Blue for note headers */
+          font-weight: bold;
+        }
+        .note-metadata {
+          color: #708090; /* Slate Gray for metadata */
+          font-style: italic;
+        }
+        .search-results-header {
+          color: #4169E1; /* Royal Blue for search headers */
+          font-weight: bold;
+        }
+        .search-result-path {
+          color: #228B22; /* Forest Green for file paths */
+          font-weight: bold;
+        }
+        .search-result-preview {
+          color: #000000; /* Black for preview text */
+        }
+        .search-result-metadata {
+          color: #708090; /* Slate Gray for metadata */
+          font-style: italic;
+        }
+        .search-highlight {
+          background-color: #FFFF00; /* Yellow highlight for search matches */
+          color: #000000;
+          font-weight: bold;
+        }
+      `}</style>
     </div>
-    
-    {/* CSS for terminal text styling */}
-    <style jsx global>{`
-      .folder {
-        color: #4169E1; /* Royal Blue for folders */
-        font-weight: bold;
-      }
-      .markdown-file {
-        color: #228B22; /* Forest Green for markdown */
-      }
-      .text-file {
-        color: #000000; /* Black for text files */
-      }
-      .json-file {
-        color: #FF8C00; /* Dark Orange for JSON */
-      }
-      .code-file {
-        color: #9932CC; /* Dark Orchid for code files */
-      }
-      .regular-file {
-        color: #696969; /* Dim Gray for regular files */
-      }
-      .success {
-        color: #228B22; /* Forest Green for success messages */
-      }
-      .error {
-        color: #B22222; /* Firebrick for errors */
-      }
-      .warning {
-        color: #FF8C00; /* Dark Orange for warnings */
-      }
-      .note-header {
-        color: #1E90FF; /* Dodger Blue for note headers */
-        font-weight: bold;
-      }
-      .note-metadata {
-        color: #708090; /* Slate Gray for metadata */
-        font-style: italic;
-      }
-      .search-results-header {
-        color: #4169E1; /* Royal Blue for search headers */
-        font-weight: bold;
-      }
-      .search-result-path {
-        color: #228B22; /* Forest Green for file paths */
-        font-weight: bold;
-      }
-      .search-result-preview {
-        color: #000000; /* Black for preview text */
-      }
-      .search-result-metadata {
-        color: #708090; /* Slate Gray for metadata */
-        font-style: italic;
-      }
-      .search-highlight {
-        background-color: #FFFF00; /* Yellow highlight for search matches */
-        color: #000000;
-        font-weight: bold;
-      }
-    `}</style>
-  </div>
-);
-}
+  );
+};

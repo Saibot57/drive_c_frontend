@@ -1,7 +1,7 @@
 // src/components/notes/NotesExplorer.tsx
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { notesService, NoteFile } from '@/services/notesService';
 import { useWindowManager } from '@/contexts/WindowContext';
 import { Button } from '@/components/ui/button';
@@ -93,6 +93,62 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     }
   }, [showNewFolderInput, showNewFileInput]);
   
+  // Handler for navigating to a directory (use useCallback to prevent dependency issues)
+  const navigateToDirectory = useCallback((path: string) => {
+    setCurrentPath(path);
+    setSelectedItem(null);
+  }, []);
+
+  // Handler for opening a note in a window (use useCallback to prevent dependency issues)
+  const openNoteInWindow = useCallback((file: NoteFile) => {
+    // Get path and filename
+    const filePath = file.file_path;
+    const lastSlashIndex = filePath.lastIndexOf('/');
+    
+    const path = lastSlashIndex > 0 ? filePath.substring(0, lastSlashIndex) : '/';
+    const filename = lastSlashIndex >= 0 ? filePath.substring(lastSlashIndex + 1) : filePath;
+    
+    // Open the window
+    openWindow(
+      `note-${file.id}`, 
+      <NotesWindowWrapper filename={filename} path={path} />, 
+      filename,
+      {
+        dimensions: { width: 800, height: 600 },
+        position: { x: 100, y: 100 }
+      }
+    );
+    
+    // Close the explorer if onClose is provided
+    if (onClose) {
+      onClose();
+    }
+  }, [openWindow, onClose]);
+  
+  // Handler for clicking on an item in the file tree (use useCallback to prevent dependency issues)
+  const handleItemClick = useCallback((file: NoteFile) => {
+    setSelectedItem(file.id);
+    
+    if (file.is_folder) {
+      if (isSearching) {
+        // If searching, navigate to the folder and clear search
+        setSearchTerm('');
+        setIsSearching(false);
+        const folderPath = file.file_path.substring(0, file.file_path.lastIndexOf('/')) || '/';
+        navigateToDirectory(folderPath);
+      } else {
+        // Toggle folder expansion
+        setExpandedFolders(prev => ({
+          ...prev,
+          [file.id]: !prev[file.id]
+        }));
+      }
+    } else {
+      // Open the file in a new window
+      openNoteInWindow(file);
+    }
+  }, [isSearching, navigateToDirectory, openNoteInWindow]);
+  
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -167,7 +223,7 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [files, searchResults, isSearching, selectedItem, expandedFolders, currentPath]);
+  }, [files, searchResults, isSearching, selectedItem, expandedFolders, currentPath, handleItemClick]);
   
   // Handle search
   useEffect(() => {
@@ -230,62 +286,6 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     };
     
     return searchInDirectory('/');
-  };
-  
-  // Handler for navigating to a directory
-  const navigateToDirectory = (path: string) => {
-    setCurrentPath(path);
-    setSelectedItem(null);
-  };
-  
-  // Handler for clicking on an item in the file tree
-  const handleItemClick = (file: NoteFile) => {
-    setSelectedItem(file.id);
-    
-    if (file.is_folder) {
-      if (isSearching) {
-        // If searching, navigate to the folder and clear search
-        setSearchTerm('');
-        setIsSearching(false);
-        const folderPath = file.file_path.substring(0, file.file_path.lastIndexOf('/')) || '/';
-        navigateToDirectory(folderPath);
-      } else {
-        // Toggle folder expansion
-        setExpandedFolders(prev => ({
-          ...prev,
-          [file.id]: !prev[file.id]
-        }));
-      }
-    } else {
-      // Open the file in a new window
-      openNoteInWindow(file);
-    }
-  };
-  
-  // Handler for opening a note in a window
-  const openNoteInWindow = (file: NoteFile) => {
-    // Get path and filename
-    const filePath = file.file_path;
-    const lastSlashIndex = filePath.lastIndexOf('/');
-    
-    const path = lastSlashIndex > 0 ? filePath.substring(0, lastSlashIndex) : '/';
-    const filename = lastSlashIndex >= 0 ? filePath.substring(lastSlashIndex + 1) : filePath;
-    
-    // Open the window
-    openWindow(
-      `note-${file.id}`, 
-      <NotesWindowWrapper filename={filename} path={path} />, 
-      filename,
-      {
-        dimensions: { width: 800, height: 600 },
-        position: { x: 100, y: 100 }
-      }
-    );
-    
-    // Close the explorer if onClose is provided
-    if (onClose) {
-      onClose();
-    }
   };
   
   // Handler for creating a new folder
