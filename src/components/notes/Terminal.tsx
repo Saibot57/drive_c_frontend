@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import ReactDOM from 'react-dom';
-import { Textarea } from '@/components/ui/textarea';
+import { createRoot } from 'react-dom/client';import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { TerminalOutput } from './TerminalOutput';
 import { TerminalEditor } from './TerminalEditor';
@@ -114,12 +113,12 @@ export const Terminal: React.FC = () => {
         document.body.appendChild(tempElement);
         
         // Using ReactDOM to render
-        ReactDOM.render(<WindowManagerSetup />, tempElement);
-        
+        const root = createRoot(tempElement);
+        root.render(<WindowManagerSetup />);
+
         // Clean up after setup
         setTimeout(() => {
-          ReactDOM.unmountComponentAtNode(tempElement);
-          document.body.removeChild(tempElement);
+root.unmount();          document.body.removeChild(tempElement);
         }, 0);
       } catch (error) {
         console.error('Error setting up window manager:', error);
