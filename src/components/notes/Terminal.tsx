@@ -289,7 +289,8 @@ export const Terminal: React.FC = () => {
     if (words.length === 1) {
       const availableCommands = [
         'help', 'ls', 'cd', 'mkdir', 'new', 'edit', 'open', 
-        'move', 'delete', 'rm', 'clear', 'search', 'alias'
+        'move', 'delete', 'rm', 'clear', 'search', 'alias',
+        'window', 'explorer', 'template'
       ];
       
       // Add user-defined aliases to the available commands
@@ -316,7 +317,7 @@ export const Terminal: React.FC = () => {
     }
     
     // Path completion for commands that take file/directory paths
-    if (['cd', 'edit', 'open', 'new', 'move', 'delete', 'rm'].includes(currentCommand)) {
+    if (['cd', 'edit', 'open', 'new', 'move', 'delete', 'rm', 'window'].includes(currentCommand)) {
       let pathArg = words[words.length - 1];
       let basePath = state.currentDirectory;
       
@@ -793,6 +794,35 @@ export const Terminal: React.FC = () => {
     }
   };
 
+  // Import windowManager (this is just for type info, actual import happens in useEffect)
+  const windowManager = { openWindow: (id: string, component: React.ReactNode, title: string, options?: any) => {} };
+  
+  // Helper function to open a note in a window
+  const openNoteInWindow = async (path: string, filename: string) => {
+    // Dynamically import required components to avoid circular dependencies
+    const { default: NotesWindowWrapper } = await import('./NotesWindowWrapper');
+    const { useWindowManager } = await import('@/contexts/WindowContext');
+    
+    // Get the windowManager from the context
+    const { openWindow } = useWindowManager();
+    
+    // Open the window
+    openWindow(
+      `note-${path}-${filename}`, 
+      <NotesWindowWrapper filename={filename} path={path} />, 
+      filename,
+      {
+        dimensions: { width: 800, height: 600 },
+        position: { x: 100, y: 100 }
+      }
+    );
+    
+    addToHistory({
+      type: 'output',
+      content: `<span class="success">Opened note in window: ${filename}</span>`,
+    });
+  };
+  
   const executeCommand = async (command: string, args: string[]) => {
     switch (command) {
       case 'help':
@@ -808,10 +838,60 @@ export const Terminal: React.FC = () => {
         await createDirectory(args[0]);
         break;
       case 'new':
-        await startEditor(args.join(' '), command);
+        // Check for window flag
+        if (args.includes('--window')) {
+          // Remove the window flag
+          const filteredArgs = args.filter(arg => arg !== '--window');
+          
+          // Parse the filename
+          const filename = filteredArgs.join(' ');
+          if (!filename) {
+            addToHistory({
+              type: 'output',
+              content: 'Usage: new <filename> --window',
+            });
+            return;
+          }
+          
+          // Open in window
+          await openNoteInWindow(state.currentDirectory, filename);
+        } else {
+          await startEditor(args.join(' '), command);
+        }
         break;
       case 'edit':
-        await startEditor(args.join(' '), command);
+        // Check for window flag
+        if (args.includes('--window')) {
+          // Remove the window flag
+          const filteredArgs = args.filter(arg => arg !== '--window');
+          
+          // Parse the filename
+          const filename = filteredArgs.join(' ');
+          if (!filename) {
+            addToHistory({
+              type: 'output',
+              content: 'Usage: edit <filename> --window',
+            });
+            return;
+          }
+          
+          // Open in window
+          await openNoteInWindow(state.currentDirectory, filename);
+        } else {
+          await startEditor(args.join(' '), command);
+        }
+        break;
+      case 'window':
+        // Syntax: window <filename>
+        if (!args[0]) {
+          addToHistory({
+            type: 'output',
+            content: 'Usage: window <filename>',
+          });
+          return;
+        }
+        
+        await openNoteInWindow(state.currentDirectory, args[0]);
         break;
       case 'open':
         await openNote(args[0]);
@@ -835,6 +915,38 @@ export const Terminal: React.FC = () => {
       case 'template':
         await handleTemplateCommand(args);
         break;
+      case 'explorer':
+        // Open the notes explorer
+        try {
+          const { default: NotesExplorerWrapper } = await import('./NotesExplorerWrapper');
+          const { useWindowManager } = await import('@/contexts/WindowContext');
+          
+          // Get the windowManager from the context
+          const { openWindow } = useWindowManager();
+          
+          // Open the explorer window
+          openWindow(
+            `notes-explorer-${Date.now()}`, 
+            <NotesExplorerWrapper />, 
+            'Notes Explorer',
+            {
+              dimensions: { width: 500, height: 600 },
+              position: { x: 120, y: 120 }
+            }
+          );
+          
+          addToHistory({
+            type: 'output',
+            content: `<span class="success">Opened Notes Explorer</span>`,
+          });
+        } catch (error) {
+          console.error('Error opening Notes Explorer:', error);
+          addToHistory({
+            type: 'output',
+            content: `<span class="error">Error opening Notes Explorer: ${error instanceof Error ? error.message : String(error)}</span>`,
+          });
+        }
+        break;
       default:
         addToHistory({
           type: 'output',
@@ -848,24 +960,31 @@ export const Terminal: React.FC = () => {
       type: 'output',
       content: `
 Available commands:
-  help              Show this help message
-  ls [path]         List files in current or specified directory
-  cd <path>         Change current directory
-  mkdir <name>      Create a new directory
-  new <filename>    Create a new note
-  edit <filename>   Edit an existing note
-  open <filename>   Open and view a note (read-only)
-  move <src> <dst>  Move a file or directory to a new location
-  delete <path>     Delete a file or directory
-  rm <path>         Alias for delete
-  clear             Clear terminal history
-  alias [name] [definition]  Manage command aliases
+  help                        Show this help message
+  ls [path]                   List files in current or specified directory
+  cd <path>                   Change current directory
+  mkdir <name>                Create a new directory
+  new <filename>              Create a new note
+  new <filename> --window     Create a new note in a separate window
+  edit <filename>             Edit an existing note
+  edit <filename> --window    Edit an existing note in a separate window
+  window <filename>           Open a note in a separate window
+  open <filename>             Open and view a note (read-only)
+  move <src> <dst>            Move a file or directory to a new location
+  delete <path>               Delete a file or directory
+  rm <path>                   Alias for delete
+  clear                       Clear terminal history
+  alias [name] [definition]   Manage command aliases
   search <term> [--tag=<tag>] [--path=<path>]  Search for notes
+  template                    Manage note templates
+  explorer                    Open the Notes Explorer in a window
   
 Tips:
   • Use arrow keys (↑/↓) to navigate command history
   • Use Tab key for command and path auto-completion
   • Use semicolons (;) to chain multiple commands
+  • Add --window flag to edit/new commands to open in a window
+  • Use multiple windows to work on several notes simultaneously
 `.trim(),
     });
   };
@@ -1513,4 +1632,5 @@ return (
       }
     `}</style>
   </div>
-);}
+);
+}

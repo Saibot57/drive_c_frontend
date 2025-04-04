@@ -7,7 +7,7 @@ import { WindowProvider, useWindowManager } from '@/contexts/WindowContext';
 import TerminalWindowWrapper from '@/components/notes/TerminalWindowWrapper';
 import TodoWindowWrapper from '@/components/todo/TodoWindowWrapper';
 import PomodoroWindowWrapper from '@/components/pomodoro/PomodoroWindowWrapper';
-import { Terminal as TerminalIcon, ListTodo, Timer } from 'lucide-react';
+import { Terminal as TerminalIcon, ListTodo, Timer, FileText } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const WindowControlButtons = () => {
@@ -40,6 +40,22 @@ const WindowControlButtons = () => {
       >
         <TerminalIcon className="h-4 w-4" />
         <span>Terminal</span>
+      </Button>
+      
+      <Button 
+        onClick={async () => {
+          // Dynamically import NotesExplorerWrapper to avoid circular dependencies
+          const { default: NotesExplorerWrapper } = await import('@/components/notes/NotesExplorerWrapper');
+          
+          openWindow('notes-explorer', <NotesExplorerWrapper />, 'Notes Explorer', {
+            dimensions: { width: 500, height: 600 },
+            position: { x: 100, y: 100 }
+          });
+        }}
+        className="flex items-center gap-2 bg-main text-mtext border-2 border-border"
+      >
+        <FileText className="h-4 w-4" />
+        <span>Notes</span>
       </Button>
       
       <Button 
