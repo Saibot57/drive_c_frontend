@@ -11,7 +11,7 @@ export interface CalendarEvent {
     color?: string;
 }
 
-// For creating events - supports both Date objects and timestamps
+// For creating events - supports Date objects, timestamps, and strings
 export type EventInput = {
     title: string;
     notes?: string;
@@ -20,9 +20,11 @@ export type EventInput = {
     // Either Date objects
     { start: Date; end: Date; } |
     // Or timestamp numbers
-    { start: number; end: number; }
+    { start: number; end: number; } |
+    // Or string dates (for backward compatibility)
+    { start: string; end: string; }
 );
-  
+
 export interface DayNote {
     id?: string;
     date: string; // ISO date string (YYYY-MM-DD)
