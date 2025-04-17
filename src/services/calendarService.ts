@@ -69,14 +69,13 @@ export const calendarService = {
         }
     },
     
-    // Accept both Date objects and number timestamps
     async createEvent(event: EventInput): Promise<CalendarEvent> {
         try {
-            // Convert to millisecond timestamps
+            // Convert to millisecond timestamps based on input type
             const eventData = {
                 title: event.title,
-                start: event.start instanceof Date ? event.start.getTime() : event.start,
-                end: event.end instanceof Date ? event.end.getTime() : event.end,
+                start: convertToTimestamp(event.start),
+                end: convertToTimestamp(event.end),
                 notes: event.notes,
                 color: event.color
             };
@@ -102,24 +101,23 @@ export const calendarService = {
         }
     },
     
-    // Accept both Date objects and number timestamps for updates
     async updateEvent(id: string, updates: Partial<{
         title?: string;
-        start?: Date | number;
-        end?: Date | number;
+        start?: Date | number | string;
+        end?: Date | number | string;
         notes?: string;
         color?: string;
     }>): Promise<CalendarEvent> {
         try {
-            // Convert Date objects to milliseconds
+            // Convert Date or string to millisecond timestamps
             const eventUpdates: any = { ...updates };
             
-            if (updates.start instanceof Date) {
-                eventUpdates.start = updates.start.getTime();
+            if (updates.start !== undefined) {
+                eventUpdates.start = convertToTimestamp(updates.start);
             }
             
-            if (updates.end instanceof Date) {
-                eventUpdates.end = updates.end.getTime();
+            if (updates.end !== undefined) {
+                eventUpdates.end = convertToTimestamp(updates.end);
             }
             
             console.log(`Updating event ${id}:`, eventUpdates);
@@ -214,3 +212,16 @@ export const calendarService = {
         }
     }
 };
+
+// Helper function to convert various date formats to millisecond timestamps
+function convertToTimestamp(value: Date | number | string): number {
+    if (value instanceof Date) {
+        return value.getTime();
+    } else if (typeof value === 'string') {
+        // Try to parse ISO string to Date first, then get timestamp
+        return new Date(value).getTime();
+    } else {
+        // Already a number timestamp
+        return value;
+    }
+}
