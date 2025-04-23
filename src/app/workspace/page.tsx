@@ -13,7 +13,8 @@ import FileSectionsDropdown from '@/components/FileList/FileSectionsDropdown';
 import dynamic from 'next/dynamic';
 
 // Dynamically import FileListWindowWrapper to avoid potential circular dependencies
-const FileListWindowWrapper = dynamic(() => import('@/components/FileList/FileListWindowwrapper'), {
+// Use a relative import path for FileListWindowWrapper since the alias path isn't working
+const FileListWindowWrapper = dynamic(() => import('@/components/FileList/FileListWindowWrapper'), {
   loading: () => <p>Loading...</p>,
 });
 
