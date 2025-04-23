@@ -149,12 +149,27 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
               
               <div className="flex items-center">
                 <Tags className="h-4 w-4 mr-1" />
-                <Checkbox
-                  id="showTagsWindow"
-                  checked={showTags}
-                  onCheckedChange={(checked) => setShowTags(checked === true)}
-                  className="h-4 w-4"
-                />
+                <div className="h-4 w-4 relative">
+                  <input
+                    type="checkbox"
+                    id="showTagsWindow"
+                    checked={showTags}
+                    onChange={(e) => setShowTags(e.target.checked)}
+                    className="h-4 w-4 border-2 border-black absolute top-0 left-0 z-10 rounded-sm appearance-none checked:bg-black"
+                  />
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="white" 
+                    strokeWidth="4" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    className={`h-4 w-4 absolute top-0 left-0 z-20 pointer-events-none transition-opacity ${showTags ? 'opacity-100' : 'opacity-0'}`}
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
