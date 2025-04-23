@@ -65,8 +65,8 @@ export function NavigationHeader() {
                 href={item.path}
                 className={`flex items-center ${
                   pathname === item.path
-                    ? 'text-[#ff6b6b] font-bold'
-                    : 'text-black hover:text-[#ff6b6b]'
+                    ? 'border-b-2 border-black font-medium'
+                    : 'text-black hover:border-b-2 hover:border-black'
                 } transition-colors`}
               >
                 {item.icon}

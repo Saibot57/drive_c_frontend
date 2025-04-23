@@ -196,11 +196,11 @@
 }
 
 .nav-item-active {
-  @apply bg-[#ff6b6b] text-white font-semibold;
+  @apply border-b-2 border-black font-medium;
 }
 
 .nav-item-inactive {
-  @apply hover:bg-white/30;
+  @apply hover:border-b-2 hover:border-black;
 }
 
 /* Horizontal navigation styles */
@@ -209,15 +209,15 @@
 }
 
 .horizontal-nav-item {
-  @apply flex items-center py-1 px-2 rounded-lg transition-colors;
+  @apply flex items-center py-1 px-2 transition-colors;
 }
 
 .horizontal-nav-item-active {
-  @apply text-[#ff6b6b] font-medium;
+  @apply border-b-2 border-black font-medium;
 }
 
 .horizontal-nav-item-inactive {
-  @apply hover:text-[#ff6b6b];
+  @apply hover:border-b-2 hover:border-black;
 }
 
 /* Ensure content is immediately below the header */
