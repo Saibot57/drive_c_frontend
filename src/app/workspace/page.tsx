@@ -9,6 +9,13 @@ import TodoWindowWrapper from '@/components/todo/TodoWindowWrapper';
 import PomodoroWindowWrapper from '@/components/pomodoro/PomodoroWindowWrapper';
 import { Terminal as TerminalIcon, ListTodo, Timer, FileText } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import FileSectionsDropdown from '@/components/FileList/FileSectionsDropdown';
+import dynamic from 'next/dynamic';
+
+// Dynamically import FileListWindowWrapper to avoid potential circular dependencies
+const FileListWindowWrapper = dynamic(() => import('@/components/FileList/FileListWindowwrapper'), {
+  loading: () => <p>Loading...</p>,
+});
 
 const WindowControlButtons = () => {
   const { openWindow } = useWindowManager();
@@ -28,6 +35,19 @@ const WindowControlButtons = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const handleSectionSelect = (section: any) => {
+    // Open a new window with the selected section
+    openWindow(
+      `file-section-${section.id}`, 
+      <FileListWindowWrapper initialData={section.data} />, 
+      `Files: ${section.name}`, 
+      {
+        dimensions: { width: 600, height: 500 },
+        position: { x: 150, y: 100 }
+      }
+    );
+  };
 
   return (
     <div className="fixed bottom-4 left-4 flex gap-2 z-50">
@@ -57,6 +77,9 @@ const WindowControlButtons = () => {
         <FileText className="h-4 w-4" />
         <span>Notes</span>
       </Button>
+
+      {/* New Files dropdown button */}
+      <FileSectionsDropdown onSectionSelect={handleSectionSelect} />
       
       <Button 
         onClick={() => openWindow('todo', <TodoWindowWrapper />, 'Todo List', {

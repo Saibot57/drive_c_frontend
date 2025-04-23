@@ -27,7 +27,8 @@ export const Calendar = () => {
   };
 
   const formatDateKey = (date: Date) => {
-    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+    // Ensure consistent zero-padding for month and day
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
 
   // Function to get week number for a date
@@ -51,12 +52,12 @@ export const Calendar = () => {
         const eventsByDate: Record<string, Event[]> = {};
         
         backendEvents.forEach(backendEvent => {
-          // Create dates directly from ISO strings
+          // Create dates from millisecond timestamps
           const event: Event = {
             id: backendEvent.id,
             title: backendEvent.title,
-            start: new Date(backendEvent.start), // Browser handles time zone conversion automatically
-            end: new Date(backendEvent.end),
+            start: new Date(Number(backendEvent.start)), // Ensure timestamp is treated as number
+            end: new Date(Number(backendEvent.end)),     // Ensure timestamp is treated as number
             notes: backendEvent.notes,
             color: backendEvent.color
           };
@@ -83,11 +84,11 @@ export const Calendar = () => {
 
   const handleEventAdd = async (date: Date, event: Omit<Event, 'id'>) => {
     try {
-      // Simply send the ISO strings directly to the backend
+      // Simply send the millisecond timestamp directly to the backend
       const backendEvent = {
         title: event.title,
-        start: event.start.toISOString(), // No manual adjustment needed
-        end: event.end.toISOString(),     // No manual adjustment needed
+        start: event.start.getTime(), // Convert to millisecond timestamp
+        end: event.end.getTime(),     // Convert to millisecond timestamp
         notes: event.notes,
         color: event.color
       };
@@ -95,12 +96,12 @@ export const Calendar = () => {
       // Save to backend
       const savedEvent = await calendarService.createEvent(backendEvent);
       
-      // Create dates directly from ISO strings - browser will handle time zone conversion
+      // Create dates from millisecond timestamps
       const newEvent: Event = {
         id: savedEvent.id,
         title: savedEvent.title,
-        start: new Date(savedEvent.start), // No manual adjustment needed
-        end: new Date(savedEvent.end),     // No manual adjustment needed
+        start: new Date(Number(savedEvent.start)), // Create Date from timestamp
+        end: new Date(Number(savedEvent.end)),     // Create Date from timestamp
         notes: savedEvent.notes,
         color: savedEvent.color
       };
@@ -127,16 +128,15 @@ export const Calendar = () => {
         return;
       }
       
-      // Prepare updates for backend
+      // Prepare updates for backend - convert Date objects to millisecond timestamps
       const backendUpdates: any = { ...updates };
       
-      // Convert Date objects to ISO strings without manual adjustments
       if (updates.start) {
-        backendUpdates.start = updates.start.toISOString();
+        backendUpdates.start = updates.start.getTime();
       }
       
       if (updates.end) {
-        backendUpdates.end = updates.end.toISOString();
+        backendUpdates.end = updates.end.getTime();
       }
       
       // Update on backend
