@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, BookOpen, Calendar, Layout, HelpCircle } from 'lucide-react';
+import { Menu, X, BookOpen, Calendar, Layout, FileText, Layers } from 'lucide-react';
 
 export function NavigationDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,7 +18,8 @@ export function NavigationDrawer() {
     { name: 'Bibliotek', path: '/', icon: <BookOpen className="h-5 w-5" /> },
     { name: 'Kalender', path: '/features/calendar', icon: <Calendar className="h-5 w-5" /> },
     { name: 'Schema', path: '/features/schedule', icon: <Layout className="h-5 w-5" /> },
-    { name: 'TBA', path: '#', icon: <HelpCircle className="h-5 w-5" /> }
+    { name: 'Anteckningar', path: '/features/notes', icon: <FileText className="h-5 w-5" /> },
+    { name: 'Workspace', path: '/workspace', icon: <Layers className="h-5 w-5" /> }
   ];
 
   // Close the drawer when clicking outside

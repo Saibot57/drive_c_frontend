@@ -1,7 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Calendar, Layout, FileText, LogOut, User } from 'lucide-react';
+import { BookOpen, Calendar, Layout, FileText, LogOut, User, Layers } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
@@ -22,6 +22,8 @@ export function NavigationHeader() {
         return 'Schema';
       case '/features/notes':
         return 'Anteckningar';
+      case '/workspace':
+        return 'Workspace';
       default:
         // Extract the last part of the path if it's a new route
         const pathParts = pathname.split('/').filter(Boolean);
@@ -39,7 +41,8 @@ export function NavigationHeader() {
     { name: 'Bibliotek', path: '/', icon: <BookOpen className="h-5 w-5" /> },
     { name: 'Kalender', path: '/features/calendar', icon: <Calendar className="h-5 w-5" /> },
     { name: 'Schema', path: '/features/schedule', icon: <Layout className="h-5 w-5" /> },
-    { name: 'Anteckningar', path: '/features/notes', icon: <FileText className="h-5 w-5" /> }
+    { name: 'Anteckningar', path: '/features/notes', icon: <FileText className="h-5 w-5" /> },
+    { name: 'Workspace', path: '/workspace', icon: <Layers className="h-5 w-5" /> }
   ];
 
   // Handle logout
