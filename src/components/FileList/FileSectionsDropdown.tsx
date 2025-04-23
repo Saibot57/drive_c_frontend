@@ -90,7 +90,7 @@ const FileSectionsDropdown: React.FC<FileSectionsDropdownProps> = ({ onSectionSe
       </Button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white border-2 border-black rounded-lg shadow-lg z-30">
+        <div className="absolute bottom-full left-0 mb-1 w-56 bg-white border-2 border-black rounded-lg shadow-lg z-30">
           <div className="py-1">
             {loading && (
               <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
