@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Section } from "@/components/FileList/Section";
 import { Search } from "@/components/search";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +10,7 @@ import { fetchWithAuth } from '@/services/authService';
 import { SectionData } from "@/app/page";
 import { FileCard } from "@/components/FileList/FileCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search as SearchIcon, Tags } from "lucide-react";
 
 interface FileListWindowWrapperProps {
   sectionId?: string;
@@ -27,6 +27,7 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
   const [showTags, setShowTags] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showSearch, setShowSearch] = useState<boolean>(false);
+  const [showTagToggle, setShowTagToggle] = useState<boolean>(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 
@@ -46,7 +47,7 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
       setLoading(true);
       setError(null);
       try {
-        // Fetch the specific section - you may need to modify your API endpoint to support this
+        // Fetch the specific section
         const response = await fetchWithAuth(`${API_URL}/files/section/${sectionId}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -115,72 +116,87 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
 
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="flex items-center justify-between mb-4 p-2 border-b-2 border-black">
-        <div className="flex items-center">
-          {showSearch ? (
-            <div className="flex-1 mr-2">
-              <Search onSearch={setSearchTerm} />
+      {filteredData && (
+        <>
+          <div className="flex items-center justify-between mb-2 px-2">
+            <h2 className="text-2xl font-monument">{filteredData.name}</h2>
+            <div className="flex items-center space-x-2">
+              {showSearch ? (
+                <div className="relative w-56 mr-2">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full pl-8 py-1 pr-2 border-2 border-black rounded-lg text-sm"
+                  />
+                  <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <button
+                    onClick={() => setShowSearch(false)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowSearch(true)}
+                  className="p-1 rounded-lg hover:bg-gray-100"
+                  title="Search"
+                >
+                  <SearchIcon className="h-5 w-5" />
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowTagToggle(!showTagToggle)}
+                className="p-1 rounded-lg hover:bg-gray-100"
+                title="Toggle tags visibility"
+              >
+                <Tags className="h-5 w-5" />
+              </button>
+              
+              {showTagToggle && (
+                <div className="flex items-center ml-1">
+                  <Checkbox
+                    id="showTagsWindow"
+                    checked={showTags}
+                    onCheckedChange={(checked) => setShowTags(checked === true)}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="showTagsWindow" className="ml-1 text-sm">
+                    Show Tags
+                  </Label>
+                </div>
+              )}
             </div>
-          ) : (
-            <Button 
-              onClick={() => setShowSearch(true)} 
-              className="h-9 px-3 border-2 border-black bg-white hover:bg-white"
-            >
-              Search
-            </Button>
-          )}
-          {showSearch && (
-            <Button 
-              onClick={() => setShowSearch(false)} 
-              className="h-9 px-3 border-2 border-black bg-white hover:bg-white"
-            >
-              Close
-            </Button>
-          )}
-        </div>
-        <div className="flex items-center ml-3">
-          <Checkbox
-            id="showTagsWindow"
-            checked={showTags}
-            onCheckedChange={(checked) => setShowTags(checked === true)}
-          />
-          <Label htmlFor="showTagsWindow" className="ml-2">Show Tags</Label>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-hidden">
-        {filteredData && (
-          <>
-            <h2 className="text-2xl font-monument mb-2 px-2">
-              {filteredData.name}
-            </h2>
-            
-            <div className="rounded-2xl border-2 border-black bg-[#ff6b6b] overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mx-2">
-              <div className="bg-white">
-                <ScrollArea className="h-[calc(100%-1rem)]">
-                  <div className="p-3">
-                    {filteredData.files && filteredData.files.map((file, idx) => (
-                      <FileCard key={idx} file={file} showTags={showTags} />
-                    ))}
-                    {filteredData.subsections && Object.values(filteredData.subsections).map((subsection, idx) => (
-                      <div key={idx} className="mt-3">
-                        <h3 className="text-xl font-monument mb-1">
-                          {subsection.name}
-                        </h3>
-                        <div className="ml-3">
-                          {subsection.files.map((file: any, fileIdx: number) => (
-                            <FileCard key={fileIdx} file={file} showTags={showTags} />
-                          ))}
-                        </div>
+          </div>
+          
+          <div className="flex-1 overflow-hidden">
+            <div className="rounded-2xl border-2 border-black overflow-hidden h-full">
+              <ScrollArea className="h-full">
+                <div className="p-3">
+                  {filteredData.files && filteredData.files.map((file, idx) => (
+                    <FileCard key={idx} file={file} showTags={showTags} />
+                  ))}
+                  {filteredData.subsections && Object.values(filteredData.subsections).map((subsection, idx) => (
+                    <div key={idx} className="mt-3">
+                      <h3 className="text-xl font-monument mb-1">
+                        {subsection.name}
+                      </h3>
+                      <div className="ml-3">
+                        {subsection.files.map((file: any, fileIdx: number) => (
+                          <FileCard key={fileIdx} file={file} showTags={showTags} />
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
