@@ -27,7 +27,6 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
   const [showTags, setShowTags] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showSearch, setShowSearch] = useState<boolean>(false);
-  const [showTagToggle, setShowTagToggle] = useState<boolean>(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 
@@ -148,27 +147,15 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
                 </button>
               )}
               
-              <button
-                onClick={() => setShowTagToggle(!showTagToggle)}
-                className="p-1 rounded-lg hover:bg-gray-100"
-                title="Toggle tags visibility"
-              >
-                <Tags className="h-5 w-5" />
-              </button>
-              
-              {showTagToggle && (
-                <div className="flex items-center ml-1">
-                  <Checkbox
-                    id="showTagsWindow"
-                    checked={showTags}
-                    onCheckedChange={(checked) => setShowTags(checked === true)}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="showTagsWindow" className="ml-1 text-sm">
-                    Show Tags
-                  </Label>
-                </div>
-              )}
+              <div className="flex items-center">
+                <Tags className="h-4 w-4 mr-1" />
+                <Checkbox
+                  id="showTagsWindow"
+                  checked={showTags}
+                  onCheckedChange={(checked) => setShowTags(checked === true)}
+                  className="h-4 w-4"
+                />
+              </div>
             </div>
           </div>
           
