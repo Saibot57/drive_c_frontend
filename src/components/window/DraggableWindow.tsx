@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Maximize2, Minimize2, X, Move } from 'lucide-react';
+import { Maximize2, Minimize2, X, Move, CornerRightDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DraggableWindowProps {
@@ -49,6 +49,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const [preMaximizeState, setPreMaximizeState] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [showResizeHandles, setShowResizeHandles] = useState(false);
 
   const windowRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0 });
@@ -209,38 +210,80 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         transform: 'translate(0, 0)', // Used to enable GPU acceleration
       }}
       onClick={handleWindowClick}
+      onMouseEnter={() => setShowResizeHandles(true)}
+      onMouseLeave={() => setShowResizeHandles(false)}
     >
-      {/* Window resize handles */}
-      <div
-        className="absolute top-0 left-0 w-3 h-3 cursor-nwse-resize z-20"
+      {/* Window resize handles - now with hover states */}
+      <div 
+        className={`
+          absolute top-0 left-0 w-4 h-4 cursor-nwse-resize z-20
+          transition-colors duration-200
+          ${showResizeHandles ? 'bg-black/10' : 'bg-transparent'}
+        `}
         onMouseDown={(e) => handleResizeStart(e, 'nw')}
       />
-      <div
-        className="absolute top-0 right-0 w-3 h-3 cursor-nesw-resize z-20"
+      <div 
+        className={`
+          absolute top-0 right-0 w-4 h-4 cursor-nesw-resize z-20
+          transition-colors duration-200
+          ${showResizeHandles ? 'bg-black/10' : 'bg-transparent'}
+        `}
         onMouseDown={(e) => handleResizeStart(e, 'ne')}
       />
-      <div
-        className="absolute bottom-0 left-0 w-3 h-3 cursor-nesw-resize z-20"
+      <div 
+        className={`
+          absolute bottom-0 left-0 w-4 h-4 cursor-nesw-resize z-20
+          transition-colors duration-200
+          ${showResizeHandles ? 'bg-black/10' : 'bg-transparent'}
+        `}
         onMouseDown={(e) => handleResizeStart(e, 'sw')}
       />
-      <div
-        className="absolute bottom-0 right-0 w-3 h-3 cursor-nwse-resize z-20"
+      
+      {/* Prominent bottom-right resize handle */}
+      <div 
+        className={`
+          absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize z-30
+          flex items-center justify-center
+          border-l-2 border-t-2 border-black bg-white
+          transition-opacity duration-200
+          ${showResizeHandles ? 'opacity-100' : 'opacity-40'}
+        `}
         onMouseDown={(e) => handleResizeStart(e, 'se')}
-      />
-      <div
-        className="absolute top-0 left-3 right-3 h-3 cursor-ns-resize z-20"
+      >
+        <CornerRightDown className="h-4 w-4 text-black/70" />
+      </div>
+      
+      {/* Edge resize handles with hover effects */}
+      <div 
+        className={`
+          absolute top-0 left-4 right-4 h-3 cursor-ns-resize z-20
+          transition-colors duration-200
+          ${showResizeHandles ? 'bg-black/5' : 'bg-transparent'}
+        `}
         onMouseDown={(e) => handleResizeStart(e, 'n')}
       />
-      <div
-        className="absolute bottom-0 left-3 right-3 h-3 cursor-ns-resize z-20"
-        onMouseDown={(e) => handleResizeStart(e, 'e')}
+      <div 
+        className={`
+          absolute bottom-0 left-6 right-6 h-3 cursor-ns-resize z-20
+          transition-colors duration-200
+          ${showResizeHandles ? 'bg-black/5' : 'bg-transparent'}
+        `}
+        onMouseDown={(e) => handleResizeStart(e, 's')}
       />
-      <div
-        className="absolute left-0 top-3 bottom-3 w-3 cursor-ew-resize z-20"
+      <div 
+        className={`
+          absolute left-0 top-4 bottom-4 w-3 cursor-ew-resize z-20
+          transition-colors duration-200
+          ${showResizeHandles ? 'bg-black/5' : 'bg-transparent'}
+        `}
         onMouseDown={(e) => handleResizeStart(e, 'w')}
       />
-      <div
-        className="absolute right-0 top-3 bottom-3 w-3 cursor-ew-resize z-20"
+      <div 
+        className={`
+          absolute right-0 top-4 bottom-6 w-3 cursor-ew-resize z-20
+          transition-colors duration-200
+          ${showResizeHandles ? 'bg-black/5' : 'bg-transparent'}
+        `}
         onMouseDown={(e) => handleResizeStart(e, 'e')}
       />
 
