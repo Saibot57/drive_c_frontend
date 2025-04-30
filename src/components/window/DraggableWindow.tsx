@@ -239,18 +239,21 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         onMouseDown={(e) => handleResizeStart(e, 'sw')}
       />
       
-      {/* Prominent bottom-right resize handle */}
+      {/* Triangular bottom-right resize handle */}
       <div 
-        className={`
-          absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize z-30
-          flex items-center justify-center
-          border-l-2 border-t-2 border-black bg-white
-          transition-opacity duration-200
-          ${showResizeHandles ? 'opacity-100' : 'opacity-40'}
-        `}
+        className="absolute bottom-0 right-0 w-14 h-14 cursor-nwse-resize z-30"
         onMouseDown={(e) => handleResizeStart(e, 'se')}
       >
-        <CornerRightDown className="h-4 w-4 text-black/70" />
+        <div 
+          className="absolute bottom-0 right-0 w-0 h-0 
+            border-b-[14px] border-r-[14px] 
+            border-b-[#fe5a75] border-r-[#fe5a75]
+            transition-opacity duration-200"
+          style={{
+            opacity: showResizeHandles ? 0.9 : 0.5,
+            filter: 'drop-shadow(-1px -1px 0px rgba(0,0,0,0.3))'
+          }}
+        />
       </div>
       
       {/* Edge resize handles with hover effects */}
