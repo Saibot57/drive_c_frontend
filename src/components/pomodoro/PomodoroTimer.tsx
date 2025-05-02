@@ -67,6 +67,7 @@ export const PomodoroTimer: React.FC = () => {
   const animationFrameRef = useRef<number | null>(null);
   const lastUpdateTimeRef = useRef<number | null>(null);
   const completionHandlerRef = useRef<NodeJS.Timeout | null>(null);
+  const isActiveRef = useRef<boolean>(false); // Track active state for immediate access
 
   // Initialize audio
   useEffect(() => {
@@ -84,6 +85,11 @@ export const PomodoroTimer: React.FC = () => {
       }
     };
   }, []);
+
+  // Keep isActiveRef in sync with isActive state
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
 
   // Load settings and stats from localStorage
   useEffect(() => {
@@ -193,55 +199,12 @@ export const PomodoroTimer: React.FC = () => {
     }
   };
 
-  // New timer implementation using requestAnimationFrame and timestamps
-  const startTimer = (duration = timeLeft) => {
-    // Stop any existing timer
-    stopTimer();
-    
-    // Set the end time based on current time + remaining seconds
-    const now = Date.now();
-    timerEndRef.current = now + (duration * 1000);
-    lastUpdateTimeRef.current = now;
-    
-    // Set timer state to active
-    setIsActive(true);
-    
-    // Start the timer update loop
-    updateTimer();
-    
-    // Set a backup timeout to ensure timer completion (handles background tab scenarios)
-    completionHandlerRef.current = setTimeout(() => {
-      if (isActive && Date.now() >= timerEndRef.current!) {
-        stopTimer();
-        setTimeLeft(0);
-        handleTimerCompletion();
-      }
-    }, duration * 1000 + 100); // Add 100ms buffer
-  };
-  
-  const stopTimer = () => {
-    // Cancel animation frame
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    
-    // Clear backup timeout
-    if (completionHandlerRef.current !== null) {
-      clearTimeout(completionHandlerRef.current);
-      completionHandlerRef.current = null;
-    }
-    
-    // Reset timing refs
-    timerEndRef.current = null;
-    lastUpdateTimeRef.current = null;
-  };
-  
+  // New updateTimer function that uses requestAnimationFrame
   const updateTimer = () => {
     const now = Date.now();
     
-    // Only update if timer is active and end time is set
-    if (isActive && timerEndRef.current !== null) {
+    // Use the ref to check active state
+    if (isActiveRef.current && timerEndRef.current !== null) {
       const remaining = Math.max(0, timerEndRef.current - now);
       const seconds = Math.ceil(remaining / 1000);
       
@@ -266,6 +229,51 @@ export const PomodoroTimer: React.FC = () => {
     }
   };
 
+  // New timer implementation using requestAnimationFrame and timestamps
+  const startTimer = (duration = timeLeft) => {
+    // Stop any existing timer
+    stopTimer();
+    
+    // Set the end time based on current time + remaining seconds
+    const now = Date.now();
+    timerEndRef.current = now + (duration * 1000);
+    lastUpdateTimeRef.current = now;
+    
+    // Set timer state to active (both state and ref)
+    setIsActive(true);
+    isActiveRef.current = true;
+    
+    // Start the timer update loop
+    updateTimer();
+    
+    // Set a backup timeout to ensure timer completion (handles background tab scenarios)
+    completionHandlerRef.current = setTimeout(() => {
+      if (isActiveRef.current && timerEndRef.current !== null && Date.now() >= timerEndRef.current) {
+        stopTimer();
+        setTimeLeft(0);
+        handleTimerCompletion();
+      }
+    }, duration * 1000 + 100); // Add 100ms buffer
+  };
+  
+  const stopTimer = () => {
+    // Cancel animation frame
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    // Clear backup timeout
+    if (completionHandlerRef.current !== null) {
+      clearTimeout(completionHandlerRef.current);
+      completionHandlerRef.current = null;
+    }
+    
+    // Reset timing refs
+    timerEndRef.current = null;
+    lastUpdateTimeRef.current = null;
+  };
+
   // Adjust pause/play functionality
   const toggleTimer = () => {
     if (!isActive) {
@@ -273,13 +281,14 @@ export const PomodoroTimer: React.FC = () => {
     } else {
       stopTimer();
       setIsActive(false);
+      isActiveRef.current = false;
     }
   };
 
   // Add visibilitychange event to handle background/foreground transitions
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isActive && timerEndRef.current !== null) {
+      if (document.visibilityState === 'visible' && isActiveRef.current && timerEndRef.current !== null) {
         // When page becomes visible again, recalculate remaining time
         const now = Date.now();
         const remaining = Math.max(0, timerEndRef.current - now);
@@ -301,12 +310,13 @@ export const PomodoroTimer: React.FC = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isActive]);
+  }, []);  // No dependencies needed as we use refs
 
   // Reset timer to initial state based on current mode
   const resetTimer = () => {
     stopTimer();
     setIsActive(false);
+    isActiveRef.current = false;
     
     if (currentMode === 'work') {
       setTimeLeft(settings.workDuration * 60);
@@ -321,6 +331,7 @@ export const PomodoroTimer: React.FC = () => {
   const switchMode = (mode: TimerMode) => {
     stopTimer();
     setIsActive(false);
+    isActiveRef.current = false;
     setCurrentMode(mode);
     
     if (mode === 'work') {
