@@ -60,8 +60,13 @@ export const PomodoroTimer: React.FC = () => {
   });
 
   // Refs
-  const timerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // New time tracking refs
+  const timerEndRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const lastUpdateTimeRef = useRef<number | null>(null);
+  const completionHandlerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize audio
   useEffect(() => {
@@ -111,106 +116,216 @@ export const PomodoroTimer: React.FC = () => {
     localStorage.setItem('pomodoro-stats', JSON.stringify(stats));
   }, [stats]);
 
-  // Timer logic
-  useEffect(() => {
-    if (isActive) {
-      timerRef.current = window.setInterval(() => {
-        setTimeLeft(prevTime => {
-          if (prevTime <= 1) {
-            clearInterval(timerRef.current!);
-            
-            // Play notification sound
-            if (settings.soundEnabled && audioRef.current) {
-              audioRef.current.play().catch(e => console.error('Error playing sound:', e));
-            }
-            
-            // Handle timer completion based on current mode
-            if (currentMode === 'work') {
-              // Update stats
-              const today = new Date().toISOString().split('T')[0];
-              setStats(prev => {
-                const updatedDailyLog = { ...prev.dailyLog };
-                if (!updatedDailyLog[today]) {
-                  updatedDailyLog[today] = {
-                    date: today,
-                    sessionsCompleted: 0,
-                    workTime: 0
-                  };
-                }
-                
-                updatedDailyLog[today].sessionsCompleted += 1;
-                updatedDailyLog[today].workTime += settings.workDuration * 60;
-                
-                return {
-                  ...prev,
-                  sessionsCompleted: prev.sessionsCompleted + 1,
-                  totalWorkTime: prev.totalWorkTime + settings.workDuration * 60,
-                  dailyLog: updatedDailyLog
-                };
-              });
-              
-              // Increment session count
-              const newSessionsCount = sessionsCount + 1;
-              setSessionsCount(newSessionsCount);
-              
-              // Determine if we should take a long break
-              const isLongBreak = newSessionsCount % settings.longBreakInterval === 0;
-              const nextMode = isLongBreak ? 'longBreak' : 'shortBreak';
-              setCurrentMode(nextMode);
-              
-              // Set timer for appropriate break
-              const nextDuration = isLongBreak 
-                ? settings.longBreakDuration 
-                : settings.shortBreakDuration;
-              
-              setTimeLeft(nextDuration * 60);
-              
-              // Auto-start break if enabled
-              setIsActive(settings.autoStartBreaks);
-            } else {
-              // Break is complete, switch to work mode
-              setCurrentMode('work');
-              setTimeLeft(settings.workDuration * 60);
-              
-              // Update break stats
-              const breakDuration = currentMode === 'shortBreak' 
-                ? settings.shortBreakDuration 
-                : settings.longBreakDuration;
-              setStats(prev => ({
-                ...prev,
-                totalBreakTime: prev.totalBreakTime + breakDuration * 60
-              }));
-              
-              // Auto-start next pomodoro if enabled
-              setIsActive(settings.autoStartPomodoros);
-            }
-            
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
+  // Handle timer completion
+  const handleTimerCompletion = () => {
+    // Play notification sound
+    if (settings.soundEnabled && audioRef.current) {
+      audioRef.current.play().catch(e => console.error('Error playing sound:', e));
     }
     
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+    // Handle timer completion based on current mode
+    if (currentMode === 'work') {
+      // Update stats
+      const today = new Date().toISOString().split('T')[0];
+      setStats(prev => {
+        const updatedDailyLog = { ...prev.dailyLog };
+        if (!updatedDailyLog[today]) {
+          updatedDailyLog[today] = {
+            date: today,
+            sessionsCompleted: 0,
+            workTime: 0
+          };
+        }
+        
+        updatedDailyLog[today].sessionsCompleted += 1;
+        updatedDailyLog[today].workTime += settings.workDuration * 60;
+        
+        return {
+          ...prev,
+          sessionsCompleted: prev.sessionsCompleted + 1,
+          totalWorkTime: prev.totalWorkTime + settings.workDuration * 60,
+          dailyLog: updatedDailyLog
+        };
+      });
+      
+      // Increment session count
+      const newSessionsCount = sessionsCount + 1;
+      setSessionsCount(newSessionsCount);
+      
+      // Determine if we should take a long break
+      const isLongBreak = newSessionsCount % settings.longBreakInterval === 0;
+      const nextMode = isLongBreak ? 'longBreak' : 'shortBreak';
+      setCurrentMode(nextMode);
+      
+      // Set timer for appropriate break
+      const nextDuration = isLongBreak 
+        ? settings.longBreakDuration 
+        : settings.shortBreakDuration;
+      
+      setTimeLeft(nextDuration * 60);
+      
+      // Auto-start break if enabled
+      if (settings.autoStartBreaks) {
+        setTimeout(() => startTimer(nextDuration * 60), 300);
+      } else {
+        setIsActive(false);
+      }
+    } else {
+      // Break is complete, switch to work mode
+      setCurrentMode('work');
+      setTimeLeft(settings.workDuration * 60);
+      
+      // Update break stats
+      const breakDuration = currentMode === 'shortBreak' 
+        ? settings.shortBreakDuration 
+        : settings.longBreakDuration;
+      setStats(prev => ({
+        ...prev,
+        totalBreakTime: prev.totalBreakTime + breakDuration * 60
+      }));
+      
+      // Auto-start next pomodoro if enabled
+      if (settings.autoStartPomodoros) {
+        setTimeout(() => startTimer(settings.workDuration * 60), 300);
+      } else {
+        setIsActive(false);
+      }
+    }
+  };
+
+  // New timer implementation using requestAnimationFrame and timestamps
+  const startTimer = (duration = timeLeft) => {
+    // Stop any existing timer
+    stopTimer();
+    
+    // Set the end time based on current time + remaining seconds
+    const now = Date.now();
+    timerEndRef.current = now + (duration * 1000);
+    lastUpdateTimeRef.current = now;
+    
+    // Set timer state to active
+    setIsActive(true);
+    
+    // Start the timer update loop
+    updateTimer();
+    
+    // Set a backup timeout to ensure timer completion (handles background tab scenarios)
+    completionHandlerRef.current = setTimeout(() => {
+      if (isActive && Date.now() >= timerEndRef.current!) {
+        stopTimer();
+        setTimeLeft(0);
+        handleTimerCompletion();
+      }
+    }, duration * 1000 + 100); // Add 100ms buffer
+  };
+  
+  const stopTimer = () => {
+    // Cancel animation frame
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    // Clear backup timeout
+    if (completionHandlerRef.current !== null) {
+      clearTimeout(completionHandlerRef.current);
+      completionHandlerRef.current = null;
+    }
+    
+    // Reset timing refs
+    timerEndRef.current = null;
+    lastUpdateTimeRef.current = null;
+  };
+  
+  const updateTimer = () => {
+    const now = Date.now();
+    
+    // Only update if timer is active and end time is set
+    if (isActive && timerEndRef.current !== null) {
+      const remaining = Math.max(0, timerEndRef.current - now);
+      const seconds = Math.ceil(remaining / 1000);
+      
+      // Update UI if time has changed
+      if (Math.floor(seconds) !== timeLeft) {
+        setTimeLeft(Math.floor(seconds));
+      }
+      
+      // Check if timer has completed
+      if (seconds <= 0) {
+        stopTimer();
+        setTimeLeft(0);
+        handleTimerCompletion();
+        return;
+      }
+      
+      // Update last update time
+      lastUpdateTimeRef.current = now;
+      
+      // Schedule next update using requestAnimationFrame for smooth UI updates
+      animationFrameRef.current = requestAnimationFrame(updateTimer);
+    }
+  };
+
+  // Adjust pause/play functionality
+  const toggleTimer = () => {
+    if (!isActive) {
+      startTimer();
+    } else {
+      stopTimer();
+      setIsActive(false);
+    }
+  };
+
+  // Add visibilitychange event to handle background/foreground transitions
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isActive && timerEndRef.current !== null) {
+        // When page becomes visible again, recalculate remaining time
+        const now = Date.now();
+        const remaining = Math.max(0, timerEndRef.current - now);
+        
+        if (remaining <= 0) {
+          // Timer should have completed while in background
+          stopTimer();
+          setTimeLeft(0);
+          handleTimerCompletion();
+        } else {
+          // Timer is still running, update UI with current time
+          setTimeLeft(Math.ceil(remaining / 1000));
+        }
       }
     };
-  }, [isActive, currentMode, sessionsCount, settings]);
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isActive]);
 
   // Reset timer to initial state based on current mode
   const resetTimer = () => {
+    stopTimer();
     setIsActive(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
     
     if (currentMode === 'work') {
       setTimeLeft(settings.workDuration * 60);
     } else if (currentMode === 'shortBreak') {
+      setTimeLeft(settings.shortBreakDuration * 60);
+    } else {
+      setTimeLeft(settings.longBreakDuration * 60);
+    }
+  };
+
+  // Switch between timer modes manually
+  const switchMode = (mode: TimerMode) => {
+    stopTimer();
+    setIsActive(false);
+    setCurrentMode(mode);
+    
+    if (mode === 'work') {
+      setTimeLeft(settings.workDuration * 60);
+    } else if (mode === 'shortBreak') {
       setTimeLeft(settings.shortBreakDuration * 60);
     } else {
       setTimeLeft(settings.longBreakDuration * 60);
@@ -224,25 +339,6 @@ export const PomodoroTimer: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Toggle timer active state
-  const toggleTimer = () => {
-    setIsActive(!isActive);
-  };
-
-  // Switch between timer modes manually
-  const switchMode = (mode: TimerMode) => {
-    setCurrentMode(mode);
-    setIsActive(false);
-    
-    if (mode === 'work') {
-      setTimeLeft(settings.workDuration * 60);
-    } else if (mode === 'shortBreak') {
-      setTimeLeft(settings.shortBreakDuration * 60);
-    } else {
-      setTimeLeft(settings.longBreakDuration * 60);
-    }
-  };
-
   // Clear all stats
   const clearStats = () => {
     if (window.confirm('Are you sure you want to clear all statistics? This cannot be undone.')) {
@@ -254,6 +350,13 @@ export const PomodoroTimer: React.FC = () => {
       });
     }
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      stopTimer();
+    };
+  }, []);
 
   // Get background color based on mode
   const getBackgroundColor = () => {
