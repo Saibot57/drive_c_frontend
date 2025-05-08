@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, X, FileText, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Save, X, FileText, Info } from 'lucide-react';
 import { notesService } from '@/services/notesService';
 
 interface NotesWindowEditorProps {
@@ -22,7 +22,6 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
   // State for the editor
   const [content, setContent] = useState('');
   const [filename, setFilename] = useState(initialFilename);
-  const [isEditingFilename, setIsEditingFilename] = useState(false);
   const [tagsInput, setTagsInput] = useState('');
   const [description, setDescription] = useState('');
   const [currentPath, setCurrentPath] = useState(initialPath || '/');
@@ -38,6 +37,9 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
+
+  // Get path info for the header
+  const pathInfo = currentPath === '/' ? '/' : currentPath + '/';
 
   // Load note content if it exists
   useEffect(() => {
@@ -151,10 +153,6 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
     }
   };
 
-  const toggleFilenameEdit = () => {
-    setIsEditingFilename(!isEditingFilename);
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -166,17 +164,21 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
     );
   }
 
+  // Create the header content to be passed to DraggableWindow
+  const headerContent = (
+    <div className="flex items-center ml-2 mr-auto">
+      <span className="text-xs text-white/90">
+        {pathInfo}
+      </span>
+      {error && <span className="text-red-200 text-xs ml-2">Error: {error}</span>}
+      {saveSuccess && <span className="text-green-200 text-xs ml-2">Saved!</span>}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Path info - now much smaller and minimal */}
-      <div className="text-xs text-gray-500 p-1 border-b border-gray-200 bg-gray-50">
-        Path: {currentPath === '/' ? '/' : currentPath + '/'}
-        {error && <span className="text-red-500 ml-2">Error: {error}</span>}
-        {saveSuccess && <span className="text-green-500 ml-2">Saved!</span>}
-      </div>
-      
-      {/* Main editor area */}
-      <div className="flex-1 p-4">
+    <div className="flex flex-col h-full">      
+      {/* Main editor area - reduced padding */}
+      <div className="flex-1 p-2">
         <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -186,86 +188,87 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
         />
       </div>
       
-      {/* Footer with collapsible metadata */}
-      <div className="border-t-2 border-black p-4">
-        {/* Metadata toggle */}
-        <div 
-          className="flex items-center justify-between mb-2 cursor-pointer"
-          onClick={() => setShowMetadata(!showMetadata)}
-        >
-          <span className="text-sm font-medium">
-            {showMetadata ? 'Hide Metadata' : 'Show Metadata (Tags & Description)'}
-          </span>
-          {showMetadata ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+      {/* Footer with collapsible metadata - reduced padding */}
+      <div className="border-t-2 border-black p-2">
+        {/* Metadata toggle with info icon */}
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => setShowMetadata(!showMetadata)}
+            className="flex items-center text-xs text-gray-600 hover:text-gray-900"
+          >
+            <Info className="h-4 w-4 mr-1" />
+            {showMetadata ? 'Hide metadata' : 'Show metadata'}
+          </button>
+          
+          {/* Status indicators moved to header */}
         </div>
         
         {/* Collapsible metadata section */}
         {showMetadata && (
-          <div className="space-y-4 mb-4 animate-in fade-in duration-200">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Tags (comma separated)</label>
+          <div className="space-y-2 mb-2 animate-in fade-in duration-200">
+            <div className="space-y-1">
+              <label className="block text-xs font-medium">Tags (comma separated)</label>
               <Input
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                className="w-full border-2 border-black"
+                className="w-full border-2 border-black h-8 text-sm"
                 placeholder="productivity, ideas, todo"
               />
             </div>
             
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Description</label>
+            <div className="space-y-1">
+              <label className="block text-xs font-medium">Description</label>
               <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full border-2 border-black"
+                className="w-full border-2 border-black h-8 text-sm"
                 placeholder="Brief description of this note"
               />
             </div>
           </div>
         )}
         
-        {/* Action buttons - kept in the same place as requested */}
+        {/* Action buttons */}
         <div className="flex justify-end space-x-2">
           {onClose && (
             <Button 
               onClick={onClose}
               variant="neutral"
-              className="flex items-center border-2 border-black bg-white hover:bg-gray-50"
+              size="sm"
+              className="flex items-center border-2 border-black bg-white hover:bg-gray-50 h-8"
             >
-              <X className="mr-2 h-4 w-4" />
+              <X className="mr-1 h-3 w-3" />
               Close
             </Button>
           )}
           <Button
             onClick={() => setShowTemplateForm(true)}
             variant="neutral"
-            className="flex items-center border-2 border-black bg-white hover:bg-gray-50"
+            size="sm"
+            className="flex items-center border-2 border-black bg-white hover:bg-gray-50 h-8"
           >
-            <FileText className="mr-2 h-4 w-4" />
+            <FileText className="mr-1 h-3 w-3" />
             Save as Template
           </Button>
           <Button 
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center border-2 border-black bg-main text-white hover:bg-main/90"
+            size="sm"
+            className="flex items-center border-2 border-black bg-main text-white hover:bg-main/90 h-8"
           >
-            <Save className="mr-2 h-4 w-4" />
+            <Save className="mr-1 h-3 w-3" />
             {isSaving ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </div>
 
-      {/* Template creation form - unchanged */}
+      {/* Template creation form */}
       {showTemplateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full border-2 border-black">
-            <h3 className="text-lg font-bold mb-4">Save as Template</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
+          <div className="bg-white p-4 rounded-lg shadow-lg max-w-md w-full border-2 border-black">
+            <h3 className="text-lg font-bold mb-3">Save as Template</h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
                 <label className="block text-sm font-medium">Template Name</label>
                 <Input
                   value={templateName}
@@ -274,7 +277,7 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
                   className="border-2 border-black"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label className="block text-sm font-medium">Template Description</label>
                 <Input
                   value={templateDescription}
@@ -284,11 +287,20 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
                 />
               </div>
             </div>
-            <div className="flex justify-end space-x-2 mt-6">
-              <Button variant="neutral" className="border-2 border-black bg-white" onClick={() => setShowTemplateForm(false)}>
+            <div className="flex justify-end space-x-2 mt-4">
+              <Button 
+                variant="neutral" 
+                size="sm" 
+                className="border-2 border-black bg-white" 
+                onClick={() => setShowTemplateForm(false)}
+              >
                 Cancel
               </Button>
-              <Button className="border-2 border-black bg-main text-white" onClick={handleSaveAsTemplate}>
+              <Button 
+                size="sm" 
+                className="border-2 border-black bg-main text-white" 
+                onClick={handleSaveAsTemplate}
+              >
                 Save Template
               </Button>
             </div>

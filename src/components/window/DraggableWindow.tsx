@@ -292,46 +292,46 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         onMouseDown={(e) => handleResizeStart(e, 'e')}
       />
 
-      {/* Window header - UPDATED with headerContent support */}
+      {/* Window header - UPDATED with slimmer design */}
       <div
         className={cn(
-          'window-drag-handle flex items-center justify-between p-2 bg-[#ff6b6b] border-b-2 border-black h-10 text-white',
+          'window-drag-handle flex items-center justify-between px-2 py-1 bg-[#ff6b6b] border-b-2 border-black h-8 text-white',
           headerClassName
         )}
         onMouseDown={handleMouseDown}
       >
-        <div className="flex items-center gap-2">
-          <Move className="h-4 w-4 cursor-move" />
-          <h3 className="font-monument text-sm truncate">{title}</h3>
+        <div className="flex items-center gap-1 overflow-hidden">
+          <Move className="h-3 w-3 cursor-move flex-shrink-0" />
+          <h3 className="font-monument text-xs truncate">{title}</h3>
           
           {/* Additional content slot - can be passed from parent components */}
           {headerContent}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1 flex-shrink-0">
           <button
-            className="h-6 w-6 flex items-center justify-center hover:bg-black/10 rounded-sm transition-colors"
+            className="h-5 w-5 flex items-center justify-center hover:bg-black/10 rounded-sm transition-colors"
             onClick={toggleMaximize}
           >
-            {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {isMaximized ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
           </button>
           {onClose && (
             <button
-              className="h-6 w-6 flex items-center justify-center hover:bg-black/10 rounded-sm transition-colors"
+              className="h-5 w-5 flex items-center justify-center hover:bg-black/10 rounded-sm transition-colors"
               onClick={onClose}
             >
-              <X className="h-4 w-4" />
+              <X className="h-3 w-3" />
             </button>
           )}
         </div>
       </div>
 
-      {/* Window content */}
+      {/* Window content - adjust height for slimmer header */}
       <div 
         className={cn(
           'neo-brutalist-content w-full overflow-auto',
           contentClassName
         )}
-        style={{ height: `calc(100% - 40px)` }}
+        style={{ height: `calc(100% - 32px)` }} // Adjusted from 40px to 32px for slimmer header
       >
         {children}
       </div>
