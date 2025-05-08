@@ -429,4 +429,30 @@
 .window-container .terminal-editor textarea {
   height: 100% !important;
   min-height: 150px;
+/* Add these styles to your globals.css file */
+
+/* Improve event display */
+.calendar-event-card {
+  @apply rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] w-full flex flex-col;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* Ensure proper ScrollArea behavior */
+.calendar-day-card .scroll-area-viewport {
+  width: 100% !important;
+}
+
+/* Make sure calendar cells handle text properly */
+.calendar-container .calendar-day-card {
+  overflow: visible;
+}
+
+/* Make ScrollArea properly handle content */
+.calendar-day-card [data-radix-scroll-area-viewport] > div {
+  display: block !important;
+  width: 100% !important;
+}
+  
 }

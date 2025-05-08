@@ -29,22 +29,23 @@ export const EventCard: React.FC<EventCardProps> = ({
         className="cursor-pointer rounded border-2 border-black py-1 px-1.5 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group relative w-full flex flex-col"
         style={{ 
           backgroundColor: event.color || '#ff6b6b',
-          minHeight: '22px'
+          minHeight: '22px',
+          wordBreak: 'break-word' // Add word-break to ensure text wraps
         }}
         onClick={() => onEdit && onEdit(event.id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex items-start text-white w-full">
-          <span className="truncate max-w-full text-[10px] font-medium">
+          <span className="whitespace-normal break-words max-w-full text-[10px] font-medium">
             {event.title}
           </span>
         </div>
         
         {isHovered && (
           <div className="flex items-center text-white text-[9px] mt-0.5">
-            <Clock className="h-2.5 w-2.5 mr-0.5" />
-            <span>{formatTime(event.start)}</span>
+            <Clock className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" />
+            <span className="whitespace-nowrap">{formatTime(event.start)}</span>
           </div>
         )}
         
@@ -68,11 +69,14 @@ export const EventCard: React.FC<EventCardProps> = ({
   return (
     <div 
       className="calendar-event-card cursor-pointer"
-      style={{ backgroundColor: event.color || '#ff6b6b' }}
+      style={{ 
+        backgroundColor: event.color || '#ff6b6b',
+        wordBreak: 'break-word' // Add word-break to ensure text wraps
+      }}
     >
       <div className="flex items-center justify-between text-white">
-        <span className="truncate">{event.title}</span>
-        <span className="text-[10px] opacity-80">
+        <span className="whitespace-normal break-words">{event.title}</span>
+        <span className="text-[10px] opacity-80 whitespace-nowrap ml-1 flex-shrink-0">
           {formatTime(event.start)} - {formatTime(event.end)}
         </span>
       </div>

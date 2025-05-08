@@ -27,7 +27,7 @@ export const DayCard: React.FC<DayCardProps> = ({
       onClick={onClick}
       className={`h-full rounded-lg border-2 border-black bg-white p-2 cursor-pointer flex flex-col
         ${isToday ? 'shadow-[inset_0_0_0_2px_#ff6b6b]' : ''}
-        hover:shadow-neo transition-shadow overflow-hidden`}
+        hover:shadow-neo transition-shadow`}
     >
       <div className="font-monument text-lg mb-1">{date.getDate()}</div>
       <ScrollArea className="flex-1 w-full">
