@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X, CheckSquare } from "lucide-react";
+import { X, CheckSquare, GripVertical } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Todo {
@@ -10,11 +10,14 @@ interface Todo {
   text: string;
   completed: boolean;
   createdAt: number;
+  order?: number; // Added for manual sorting
 }
 
 export const TodoList: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState('');
+  const [draggedTodo, setDraggedTodo] = useState<string | null>(null);
+  const [dragOverTodo, setDragOverTodo] = useState<string | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -41,7 +44,8 @@ export const TodoList: React.FC = () => {
       id: Date.now().toString(),
       text: newTodo.trim(),
       completed: false,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      order: todos.length // Set initial order to list length
     }]);
     setNewTodo('');
   };
@@ -63,11 +67,61 @@ export const TodoList: React.FC = () => {
     setTodos(todos.filter(todo => !todo.completed));
   };
 
-  // Sort todos: incomplete first, then by creation date (newest first)
+  // Handle drag start
+  const handleDragStart = (id: string) => {
+    setDraggedTodo(id);
+  };
+
+  // Handle drag over
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (id !== draggedTodo) {
+      setDragOverTodo(id);
+    }
+  };
+
+  // Handle drop
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    if (!draggedTodo || !dragOverTodo) return;
+    
+    // Reorder the todos
+    const updatedTodos = [...todos];
+    const draggedIndex = updatedTodos.findIndex(todo => todo.id === draggedTodo);
+    const dropIndex = updatedTodos.findIndex(todo => todo.id === dragOverTodo);
+    
+    if (draggedIndex === -1 || dropIndex === -1) return;
+    
+    // Remove the dragged item
+    const [draggedItem] = updatedTodos.splice(draggedIndex, 1);
+    
+    // Insert it at the new position
+    updatedTodos.splice(dropIndex, 0, draggedItem);
+    
+    // Update the order property for all todos
+    const reorderedTodos = updatedTodos.map((todo, index) => ({
+      ...todo,
+      order: index
+    }));
+    
+    setTodos(reorderedTodos);
+    setDraggedTodo(null);
+    setDragOverTodo(null);
+  };
+
+  // Sort todos: incomplete first, then by manual order or creation date
   const sortedTodos = [...todos].sort((a, b) => {
     if (a.completed !== b.completed) {
       return a.completed ? 1 : -1;
     }
+    
+    // If both have the same completion status, sort by order if available
+    if (a.order !== undefined && b.order !== undefined) {
+      return a.order - b.order;
+    }
+    
+    // Fall back to creation date
     return b.createdAt - a.createdAt;
   });
 
@@ -92,7 +146,24 @@ export const TodoList: React.FC = () => {
         ) : (
           <ul className="space-y-2">
             {sortedTodos.map(todo => (
-              <li key={todo.id} className={`flex items-center p-2 border-2 border-black rounded-lg transition-colors ${todo.completed ? 'bg-gray-50' : 'bg-white'}`}>
+              <li 
+                key={todo.id} 
+                className={`flex items-center p-2 border-2 border-black rounded-lg transition-colors 
+                  ${todo.completed ? 'bg-gray-50' : 'bg-white'}
+                  ${dragOverTodo === todo.id ? 'border-dashed' : ''}
+                  ${draggedTodo === todo.id ? 'opacity-50' : ''}`}
+                draggable
+                onDragStart={() => handleDragStart(todo.id)}
+                onDragOver={(e) => handleDragOver(e, todo.id)}
+                onDrop={handleDrop}
+                onDragEnd={() => {
+                  setDraggedTodo(null);
+                  setDragOverTodo(null);
+                }}
+              >
+                <div className="cursor-move mr-2">
+                  <GripVertical className="h-4 w-4 text-gray-400" />
+                </div>
                 <Checkbox 
                   checked={todo.completed} 
                   onCheckedChange={() => toggleTodo(todo.id)}
