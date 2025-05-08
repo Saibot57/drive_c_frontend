@@ -2,12 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  .font-monument {
-    font-family: var(--font-monument);
-  }
-}
-
+/* Globala CSS Variabler */
 :root {
   --main: #ff6b6b;
   --overlay: rgba(0, 0, 0, 0.8);
@@ -16,67 +11,42 @@
   --border: #000;
 }
 
+/* Tailwind Base Layer */
 @layer base {
   .font-monument {
     font-family: var(--font-monument);
   }
-  
-  /* Remove the problematic styles */
-  /* * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  } */
 }
 
-@layer utilities {
-  .font-light {
-    font-weight: 300;
-  }
-  .font-regular {
-    font-weight: 400;
-  }
-  .font-medium {
-    font-weight: 500;
-  }
-  .font-semibold {
-    font-weight: 600;
-  }
-  .font-bold {
-    font-weight: 700;
-  }
-  
-  /* Calendar 3D utilities */
-  .preserve-3d {
-    transform-style: preserve-3d;
-    perspective: 1000px;
-  }
-  .backface-hidden {
-    backface-visibility: hidden;
-  }
-  .rotate-x-180 {
-    transform: rotateX(180deg);
-  }
-}
-
+/* Tailwind Components Layer */
 @layer components {
+  /* Generella Komponenter */
   .neo-brutalist-card {
     @apply rounded-xl border-4 border-black bg-[#ff6b6b] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden;
   }
   .neo-brutalist-content {
     @apply bg-white w-full h-full p-4;
   }
-  
-  /* Calendar specific components */
+
+  /* Kalender-specifika Komponenter */
   .calendar-container {
     @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] py-2;
   }
   .calendar-day-card {
-    @apply h-full border-2 border-black bg-white transition-transform duration-300 overflow-hidden;
+    @apply h-full border-2 border-black bg-white transition-transform duration-300 overflow-visible; /* overflow: visible för text */
+  }
+  .calendar-day-card .scroll-area-viewport { /* Säkerställ korrekt ScrollArea beteende */
+    width: 100% !important;
+  }
+  .calendar-day-card [data-radix-scroll-area-viewport] > div { /* Se till att ScrollArea hanterar innehåll korrekt */
+    display: block !important;
+    width: 100% !important;
   }
   .calendar-event-card {
-    @apply rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] w-full;
+    @apply rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] w-full flex flex-col;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
   .calendar-time-grid {
     @apply h-full border-r-2 border-black bg-white;
@@ -84,8 +54,8 @@
   .calendar-time-slot {
     @apply absolute w-full border-t border-gray-200 transition-colors hover:bg-gray-50;
   }
-  
-  /* Schedule specific components */
+
+  /* Schema-specifika Komponenter */
   .schedule-container {
     @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4;
   }
@@ -102,7 +72,7 @@
     @apply bg-[#ff6b6b] text-white font-medium border-b-2 border-black p-2 font-monument;
   }
   .schedule-grid-cell {
-    @apply border-2 border-black p-1 transition-all; 
+    @apply border-2 border-black p-1 transition-all;
   }
   .schedule-button {
     @apply flex items-center justify-center border-2 border-black p-2 rounded-lg transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px];
@@ -119,62 +89,78 @@
   .schedule-input:focus {
     @apply shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] translate-x-[-2px] translate-y-[-2px] outline-none;
   }
-  
-  /* Notes specific components */
-.notes-container {
-  @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 w-full max-w-[1500px] mx-auto;
-}
-  
+
+  /* Anteckningar-specifika Komponenter */
+  .notes-container {
+    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 w-full max-w-[1500px] mx-auto;
+  }
   .terminal-output {
     @apply font-mono text-sm whitespace-pre-wrap;
   }
-}
 
-/* Calendar Animations */
-@keyframes pulse {
-  0% { opacity: 0.7; }
-  50% { opacity: 0.9; }
-  100% { opacity: 0.7; }
-}
-
-/* Calendar Time Preview Animation */
-@keyframes slideIn {
-  from {
-    transform: translateY(-10px);
-    opacity: 0;
+  /* Fönster-specifika komponentanpassningar (för terminal etc.) */
+  .window-container .terminal-help-guide {
+    height: 100%;
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+  .window-container .neo-brutalist-card { /* Gör terminalen att fylla sin container */
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .window-container .neo-brutalist-content {
+    height: 100%;
+    border-radius: 0;
+  }
+  .window-container .terminal-output { /* Fixa scrollning i terminalen */
+    max-height: calc(100% - 40px);
+  }
+  .window-container .toggle-button { /* Hantera hjälpmanualens toggle-knapp i fönster */
+    height: 40px;
+  }
+  .window-container .terminal-editor { /* Fixa höjd för redigeringsläge */
+    height: 100%;
+  }
+  .window-container .terminal-editor textarea { /* Fixar för terminalens redigeringsläge */
+    height: 100% !important;
+    min-height: 150px;
   }
 }
 
-.time-preview-animation {
-  animation: slideIn 0.2s ease-out forwards;
+/* Tailwind Utilities Layer */
+@layer utilities {
+  .font-light {
+    font-weight: 300;
+  }
+  .font-regular {
+    font-weight: 400;
+  }
+  .font-medium {
+    font-weight: 500;
+  }
+  .font-semibold {
+    font-weight: 600;
+  }
+  .font-bold {
+    font-weight: 700;
+  }
+
+  /* Kalender 3D utilities */
+  .preserve-3d {
+    transform-style: preserve-3d;
+    perspective: 1000px;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+  .rotate-x-180 {
+    transform: rotateX(180deg);
+  }
 }
 
-/* Schedule animations */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
-}
-
-.schedule-shake {
-  animation: shake 0.5s ease-in-out;
-}
-
-/* Notes animations */
-@keyframes cursor-blink {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-.cursor-blink {
-  animation: cursor-blink 1s infinite;
-}
-
-/* Navigation drawer positioning and styling */
+/* Navigationsstilar */
 .nav-toggle-button {
   @apply fixed z-40 flex items-center justify-center rounded-full border-2 border-black bg-white transition-all;
 }
@@ -203,7 +189,7 @@
   @apply hover:border-b-2 hover:border-black;
 }
 
-/* Horizontal navigation styles */
+/* Horisontella navigationsstilar */
 .horizontal-nav {
   @apply flex items-center space-x-4;
 }
@@ -220,13 +206,12 @@
   @apply hover:border-b-2 hover:border-black;
 }
 
-/* Ensure content is immediately below the header */
-.pt-16 {
+/* Layout Hjälpklasser */
+.pt-16 { /* Säkerställ att innehåll är direkt under headern */
   padding-top: 4.5rem;
 }
-/* Add these styles to src/app/globals.css */
 
-/* Window styling */
+/* Fönsterhanteringsstilar */
 .window-container {
   transform-origin: top left;
   transition: box-shadow 0.2s ease;
@@ -241,8 +226,7 @@
   cursor: move;
 }
 
-/* Add grid overlay styles */
-.grid-overlay {
+.grid-overlay { /* Grid overlay stilar */
   position: fixed;
   top: 0;
   left: 0;
@@ -252,25 +236,19 @@
   z-index: 0;
 }
 
-/* Animation for window focus */
-@keyframes windowFocus {
-  0% { box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.8); }
-  100% { box-shadow: 6px 6px 0px 0px rgba(0,0,0,1); }
-}
-
-.window-focus {
+.window-focus { /* Används med animation */
   animation: windowFocus 0.2s ease forwards;
 }
 
-/* Window taskbar */
+/* Fönster aktivitetsfält */
 .window-taskbar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   height: 48px;
-  background-color: #fcd7d7;
-  border-top: 2px solid black;
+  background-color: #fcd7d7; /* --bg var(--bg) om du vill använda variabel */
+  border-top: 2px solid black; /* --border var(--border) */
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -282,7 +260,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border: 2px solid black;
+  border: 2px solid black; /* --border var(--border) */
   background-color: white;
   margin-right: 8px;
   border-radius: 4px;
@@ -295,164 +273,85 @@
 }
 
 .taskbar-item-active {
-  background-color: #ff6b6b;
+  background-color: #ff6b6b; /* --main var(--main) */
   color: white;
 }
 
-/* Maximize/minimize animations */
-@keyframes maximizeWindow {
-  0% { transform: scale(0.95); opacity: 0.9; }
-  100% { transform: scale(1); opacity: 1; }
+.window-maximizing { /* Används med animation */
+  animation: maximizeWindow 0.2s ease forwards;
 }
 
-.window-maximizing {
-  animation: maximizeWindow 0.2s ease forwards;
+.window-minimizing { /* Används med animation */
+  animation: minimizeWindow 0.2s ease forwards;
+  pointer-events: none;
+}
+
+/* Ändra storlek handtag stilar */
+.resize-handle {
+  position: absolute;
+  background-color: transparent;
+}
+.resize-handle-n { top: 0; left: 0; right: 0; height: 4px; cursor: ns-resize; }
+.resize-handle-e { top: 0; right: 0; bottom: 0; width: 4px; cursor: ew-resize; }
+.resize-handle-s { bottom: 0; left: 0; right: 0; height: 4px; cursor: ns-resize; }
+.resize-handle-w { top: 0; left: 0; bottom: 0; width: 4px; cursor: ew-resize; }
+.resize-handle-ne { top: 0; right: 0; width: 8px; height: 8px; cursor: nesw-resize; }
+.resize-handle-se { bottom: 0; right: 0; width: 8px; height: 8px; cursor: nwse-resize; }
+.resize-handle-sw { bottom: 0; left: 0; width: 8px; height: 8px; cursor: nesw-resize; }
+.resize-handle-nw { top: 0; left: 0; width: 8px; height: 8px; cursor: nwse-resize; }
+
+
+/* Animationsklasser (kopplade till keyframes nedan) */
+.time-preview-animation {
+  animation: slideIn 0.2s ease-out forwards;
+}
+.schedule-shake {
+  animation: shake 0.5s ease-in-out;
+}
+.cursor-blink {
+  animation: cursor-blink 1s infinite;
+}
+
+/* Keyframe Animationer */
+@keyframes pulse { /* Kalender animation */
+  0% { opacity: 0.7; }
+  50% { opacity: 0.9; }
+  100% { opacity: 0.7; }
+}
+
+@keyframes slideIn { /* Kalender tid förhandsgranskning animation */
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shake { /* Schema animation */
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes cursor-blink { /* Anteckningar animation */
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes windowFocus { /* Fönster fokus animation */
+  0% { box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.8); }
+  100% { box-shadow: 6px 6px 0px 0px rgba(0,0,0,1); }
+}
+
+@keyframes maximizeWindow { /* Maximera/minimera animationer */
+  0% { transform: scale(0.95); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes minimizeWindow {
   0% { transform: scale(1); opacity: 1; }
   100% { transform: scale(0.8); opacity: 0; }
-}
-
-.window-minimizing {
-  animation: minimizeWindow 0.2s ease forwards;
-  pointer-events: none;
-}
-
-/* Resize handle styles */
-.resize-handle {
-  position: absolute;
-  background-color: transparent;
-}
-
-.resize-handle-n {
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  cursor: ns-resize;
-}
-
-.resize-handle-e {
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 4px;
-  cursor: ew-resize;
-}
-
-.resize-handle-s {
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  cursor: ns-resize;
-}
-
-.resize-handle-w {
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 4px;
-  cursor: ew-resize;
-}
-
-.resize-handle-ne {
-  top: 0;
-  right: 0;
-  width: 8px;
-  height: 8px;
-  cursor: nesw-resize;
-}
-
-.resize-handle-se {
-  bottom: 0;
-  right: 0;
-  width: 8px;
-  height: 8px;
-  cursor: nwse-resize;
-}
-
-.resize-handle-sw {
-  bottom: 0;
-  left: 0;
-  width: 8px;
-  height: 8px;
-  cursor: nesw-resize;
-}
-
-.resize-handle-nw {
-  top: 0;
-  left: 0;
-  width: 8px;
-  height: 8px;
-  cursor: nwse-resize;
-}
-/* Add these to your globals.css file */
-
-/* Terminal-specific window adaptations */
-.window-container .terminal-help-guide {
-  height: 100%;
-}
-
-/* Make the terminal fill its container */
-.window-container .neo-brutalist-card {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-.window-container .neo-brutalist-content {
-  height: 100%;
-  border-radius: 0;
-}
-
-/* Fix scrolling in the terminal */
-.window-container .terminal-output {
-  max-height: calc(100% - 40px);
-}
-
-/* Handle help guide toggle spacing in window */
-.window-container .toggle-button {
-  height: 40px;
-}
-
-/* Fix editor mode height */
-.window-container .terminal-editor {
-  height: 100%;
-}
-
-/* Terminal edit mode fixes */
-.window-container .terminal-editor textarea {
-  height: 100% !important;
-  min-height: 150px;
-/* Add these styles to your globals.css file */
-
-/* Improve event display */
-.calendar-event-card {
-  @apply rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] w-full flex flex-col;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  white-space: normal;
-}
-
-/* Ensure proper ScrollArea behavior */
-.calendar-day-card .scroll-area-viewport {
-  width: 100% !important;
-}
-
-/* Make sure calendar cells handle text properly */
-.calendar-container .calendar-day-card {
-  overflow: visible;
-}
-
-/* Make ScrollArea properly handle content */
-.calendar-day-card [data-radix-scroll-area-viewport] > div {
-  display: block !important;
-  width: 100% !important;
-}
-  
 }
