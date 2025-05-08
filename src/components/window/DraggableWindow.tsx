@@ -22,6 +22,7 @@ interface DraggableWindowProps {
   className?: string;
   headerClassName?: string;
   contentClassName?: string;
+  headerContent?: React.ReactNode;
 }
 
 const DraggableWindow: React.FC<DraggableWindowProps> = ({
@@ -41,6 +42,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
   className,
   headerClassName,
   contentClassName,
+  headerContent,
 }) => {
   const [position, setPosition] = useState({ x: defaultX, y: defaultY });
   const [dimensions, setDimensions] = useState({ width: defaultWidth, height: defaultHeight });
@@ -290,7 +292,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         onMouseDown={(e) => handleResizeStart(e, 'e')}
       />
 
-      {/* Window header */}
+      {/* Window header - UPDATED with headerContent support */}
       <div
         className={cn(
           'window-drag-handle flex items-center justify-between p-2 bg-[#ff6b6b] border-b-2 border-black h-10 text-white',
@@ -301,6 +303,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         <div className="flex items-center gap-2">
           <Move className="h-4 w-4 cursor-move" />
           <h3 className="font-monument text-sm truncate">{title}</h3>
+          
+          {/* Additional content slot - can be passed from parent components */}
+          {headerContent}
         </div>
         <div className="flex gap-2">
           <button

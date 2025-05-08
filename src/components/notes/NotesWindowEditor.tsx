@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, X, FileText, Edit2 } from 'lucide-react';
+import { Save, X, FileText, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
 import { notesService } from '@/services/notesService';
 
 interface NotesWindowEditorProps {
@@ -31,6 +31,9 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   
+  // Show/hide metadata section
+  const [showMetadata, setShowMetadata] = useState(false);
+  
   // Template creation state
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -55,6 +58,11 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
         setContent(noteContent.content || '');
         setTagsInput(noteContent.tags.join(', '));
         setDescription(noteContent.description || '');
+        
+        // Show metadata if it exists
+        if (noteContent.tags.length > 0 || noteContent.description) {
+          setShowMetadata(true);
+        }
         
       } catch (error) {
         // If the note doesn't exist, that's fine - we're creating a new one
@@ -160,49 +168,14 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b-2 border-black p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex-1 flex items-center">
-            {isEditingFilename ? (
-              <Input
-                value={filename}
-                onChange={(e) => setFilename(e.target.value)}
-                className="w-full border-2 border-black mr-2"
-                autoFocus
-                onBlur={toggleFilenameEdit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    toggleFilenameEdit();
-                  }
-                }}
-              />
-            ) : (
-              <h3 className="flex-1 text-lg font-medium truncate mr-2">{filename}</h3>
-            )}
-            <Button 
-              onClick={toggleFilenameEdit} 
-              variant="neutral" 
-              size="sm"
-              className="flex items-center h-8 px-2 border-2 border-black bg-white hover:bg-gray-50"
-            >
-              <Edit2 className="h-4 w-4 mr-1" />
-              <span>{isEditingFilename ? 'Done' : 'Rename'}</span>
-            </Button>
-          </div>
-          <div className="flex items-center ml-2">
-            {saveSuccess && (
-              <span className="text-green-500 text-sm mr-2">Saved!</span>
-            )}
-            {error && (
-              <span className="text-red-500 text-sm mr-2">Error: {error}</span>
-            )}
-          </div>
-        </div>
-        <div className="text-sm text-gray-500 mt-1">
-          Path: {currentPath === '/' ? '/' : currentPath + '/'}
-        </div>
+      {/* Path info - now much smaller and minimal */}
+      <div className="text-xs text-gray-500 p-1 border-b border-gray-200 bg-gray-50">
+        Path: {currentPath === '/' ? '/' : currentPath + '/'}
+        {error && <span className="text-red-500 ml-2">Error: {error}</span>}
+        {saveSuccess && <span className="text-green-500 ml-2">Saved!</span>}
       </div>
       
+      {/* Main editor area */}
       <div className="flex-1 p-4">
         <Textarea
           value={content}
@@ -213,27 +186,49 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
         />
       </div>
       
-      <div className="border-t-2 border-black p-4 space-y-4">
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">Tags (comma separated)</label>
-          <Input
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            className="w-full border-2 border-black"
-            placeholder="productivity, ideas, todo"
-          />
+      {/* Footer with collapsible metadata */}
+      <div className="border-t-2 border-black p-4">
+        {/* Metadata toggle */}
+        <div 
+          className="flex items-center justify-between mb-2 cursor-pointer"
+          onClick={() => setShowMetadata(!showMetadata)}
+        >
+          <span className="text-sm font-medium">
+            {showMetadata ? 'Hide Metadata' : 'Show Metadata (Tags & Description)'}
+          </span>
+          {showMetadata ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
         </div>
         
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">Description</label>
-          <Input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full border-2 border-black"
-            placeholder="Brief description of this note"
-          />
-        </div>
+        {/* Collapsible metadata section */}
+        {showMetadata && (
+          <div className="space-y-4 mb-4 animate-in fade-in duration-200">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Tags (comma separated)</label>
+              <Input
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                className="w-full border-2 border-black"
+                placeholder="productivity, ideas, todo"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Description</label>
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full border-2 border-black"
+                placeholder="Brief description of this note"
+              />
+            </div>
+          </div>
+        )}
         
+        {/* Action buttons - kept in the same place as requested */}
         <div className="flex justify-end space-x-2">
           {onClose && (
             <Button 
@@ -264,7 +259,7 @@ const NotesWindowEditor: React.FC<NotesWindowEditorProps> = ({
         </div>
       </div>
 
-      {/* Template creation form */}
+      {/* Template creation form - unchanged */}
       {showTemplateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full border-2 border-black">
