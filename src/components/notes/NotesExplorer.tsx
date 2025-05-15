@@ -879,9 +879,7 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
         {loading && !isSearching ? (
           <div className="flex justify-center items-center flex-col h-32 px-8">
             <p className="mb-2 text-sm text-gray-500">Loading files...</p>
-            <Progress value={undefined} className="w-full h-2">
-              <div className="animate-pulse-progress absolute inset-0 bg-main opacity-50"></div>
-            </Progress>
+            <Progress className="w-full h-2" /> 
           </div>
         ) : isSearching ? (
           searchResults.length > 0 ? (
