@@ -7,6 +7,14 @@ import { useWindowManager } from '@/contexts/WindowContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { 
   ChevronRight, 
   Folder, 
@@ -409,32 +417,62 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
   
   // Render functions
   const renderBreadcrumbs = () => (
-    <div className="flex items-center overflow-x-auto whitespace-nowrap pb-2 mb-2 border-b border-gray-200 gap-1">
-      {currentPath !== '/' && (
-        <button
-          className="p-1 rounded hover:bg-gray-100 mr-1"
-          onClick={handleNavigateUp}
-          title="Go up one level"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-      )}
-      
-      {breadcrumbs.map((crumb, index) => (
-        <React.Fragment key={crumb.path}>
-          {index > 0 && <ChevronRight className="h-4 w-4 mx-1 text-gray-400" />}
-          <button
-            className={`px-2 py-1 rounded hover:bg-gray-100 ${
-              index === breadcrumbs.length - 1 ? 'font-medium text-main bg-gray-100' : ''
-            }`}
-            onClick={() => navigateToDirectory(crumb.path)}
-            title={crumb.path}
+    <div className="pb-2 mb-2 border-b border-gray-200">
+      <div className="flex items-center mb-1">
+        {currentPath !== '/' && (
+          <Button
+            variant="neutral"
+            size="sm"
+            className="h-7 w-7 p-0 mr-2 border border-gray-200"
+            onClick={handleNavigateUp}
+            title="Go up one level"
           >
-            {index === 0 ? <Home className="h-4 w-4" /> : crumb.name}
-          </button>
-        </React.Fragment>
-      ))}
-      <div className="ml-1 text-xs text-gray-500">{currentPath}</div>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        )}
+        
+        <Breadcrumb className="flex-1">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink 
+                onClick={() => navigateToDirectory('/')}
+                className={`p-1 rounded-md flex items-center ${currentPath === '/' ? 'bg-main text-white' : 'hover:bg-gray-100'}`}
+              >
+                <Home className="h-4 w-4" />
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            
+            {currentPath !== '/' && currentPath.split('/').filter(Boolean).map((segment, index, array) => {
+              const path = '/' + array.slice(0, index + 1).join('/');
+              const isLast = index === array.length - 1;
+              
+              return (
+                <React.Fragment key={path}>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    {isLast ? (
+                      <BreadcrumbPage 
+                        className={`px-2 py-1 rounded-md bg-gray-100 text-main font-medium`}
+                      >
+                        {segment}
+                      </BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink
+                        onClick={() => navigateToDirectory(path)}
+                        className="px-2 py-1 rounded-md hover:bg-gray-100"
+                      >
+                        {segment}
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                </React.Fragment>
+              );
+            })}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      
+      <div className="pl-2 text-xs text-gray-500">{currentPath}</div>
     </div>
   );
   
@@ -456,7 +494,7 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
           return (
             <div 
               key={file.id}
-              className={`flex items-center p-2 rounded cursor-pointer ${
+              className={`flex items-center p-2 rounded-md cursor-pointer ${
                 selectedItem === file.id ? 'bg-main text-white' : 'hover:bg-gray-100'
               }`}
               onClick={() => handleItemClick(file)}
@@ -469,12 +507,24 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
                     <FolderOpen className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-blue-500'}`} />
                   )}
                   <span className="truncate flex-1">{file.name}</span>
-                  {folderInfo && !isEmpty && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${
-                      selectedItem === file.id ? 'bg-white/20' : 'bg-gray-200'
-                    }`}>
-                      {folderInfo.fileCount + folderInfo.folderCount}
-                    </span>
+                  {folderInfo && (
+                    <div className="flex items-center gap-1 ml-2">
+                      {folderInfo.fileCount > 0 && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                          selectedItem === file.id ? 'bg-white/20' : 'bg-blue-100'
+                        }`} title="Files">
+                          {folderInfo.fileCount} <FileText className="h-3 w-3 inline" />
+                        </span>
+                      )}
+                      
+                      {folderInfo.folderCount > 0 && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                          selectedItem === file.id ? 'bg-white/20' : 'bg-blue-100'
+                        }`} title="Folders">
+                          {folderInfo.folderCount} <Folder className="h-3 w-3 inline" />
+                        </span>
+                      )}
+                    </div>
                   )}
                 </>
               ) : (
@@ -616,24 +666,33 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
       
       {isSearching && searchTerm ? (
         <>
-          <div className="mb-2 text-gray-500">
-            {loading 
-              ? 'Searching...'
-              : `Search results for "${searchTerm}" (${searchResults.length} found)`
-            }
+          <div className="pb-2 mb-2 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="neutral"
+                size="sm"
+                className="h-7 text-xs border border-gray-300"
+                onClick={() => {
+                  setSearchTerm('');
+                  setIsSearching(false);
+                }}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear search
+              </Button>
+              
+              <span className="text-gray-600">
+                {loading 
+                  ? 'Searching...'
+                  : `Search results for "${searchTerm}" (${searchResults.length} found)`
+                }
+              </span>
+            </div>
+            
+            <div className="pl-2 mt-1 text-xs text-gray-500">
+              Search results from all directories
+            </div>
           </div>
-          <Button
-            variant="neutral"
-            size="sm"
-            className="mb-2 h-7 text-xs border border-gray-300"
-            onClick={() => {
-              setSearchTerm('');
-              setIsSearching(false);
-            }}
-          >
-            <X className="h-3 w-3 mr-1" />
-            Clear search
-          </Button>
         </>
       ) : (
         renderBreadcrumbs()
