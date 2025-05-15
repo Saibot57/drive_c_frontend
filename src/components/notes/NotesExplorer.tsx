@@ -15,6 +15,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import { 
   ChevronRight, 
   Folder, 
@@ -25,8 +32,14 @@ import {
   Search,
   RefreshCw,
   X,
-  FolderOpen
+  FolderOpen,
+  Pencil,
+  FolderInput,
+  Copy,
+  Trash2
 } from 'lucide-react';
+import { FolderSelectModal } from './FolderSelectModal';
+import { RenameModal } from './RenameModal';
 import NotesWindowWrapper from './NotesWindowWrapper';
 
 interface NotesExplorerProps {
@@ -67,6 +80,11 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
           return { name: segment, path };
         })
       ];
+  
+  // State for context menu actions
+  const [selectedContextItem, setSelectedContextItem] = useState<NoteFile | null>(null);
+  const [showFolderSelectModal, setShowFolderSelectModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
   
   // Load files in current path
   useEffect(() => {
@@ -113,6 +131,119 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     
     loadFiles();
   }, [currentPath, isSearching]);
+  
+  // Functions for context menu actions
+  const handleRenameClick = (file: NoteFile) => {
+    setSelectedContextItem(file);
+    setShowRenameModal(true);
+  };
+  
+  const handleMoveClick = (file: NoteFile) => {
+    setSelectedContextItem(file);
+    setShowFolderSelectModal(true);
+  };
+  
+  const handleRename = async (newName: string) => {
+    if (!selectedContextItem) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Construct the paths
+      const filePath = selectedContextItem.file_path;
+      const dirPath = filePath.substring(0, filePath.lastIndexOf('/')) || '/';
+      const newFilePath = dirPath === '/' ? `/${newName}` : `${dirPath}/${newName}`;
+      
+      // Move file (rename is a move operation with the same directory)
+      await notesService.moveFile(filePath, newFilePath);
+      
+      // Refresh the file list
+      const result = await notesService.listFiles(currentPath);
+      setFiles(result);
+      
+      // Update folder stats too
+      const stats: Record<string, {fileCount: number; folderCount: number}> = {};
+      
+      for (const file of result) {
+        if (file.is_folder) {
+          try {
+            const folderPath = file.file_path;
+            const folderContents = await notesService.listFiles(folderPath);
+            
+            const fileCount = folderContents.filter(f => !f.is_folder).length;
+            const folderCount = folderContents.filter(f => f.is_folder).length;
+            
+            stats[file.id] = { fileCount, folderCount };
+          } catch (error) {
+            console.error(`Error getting stats for folder ${file.file_path}:`, error);
+            stats[file.id] = { fileCount: 0, folderCount: 0 };
+          }
+        }
+      }
+      
+      setFolderStats(stats);
+    } catch (error) {
+      console.error('Error renaming file:', error);
+      setError(`Failed to rename ${selectedContextItem.is_folder ? 'folder' : 'file'}. ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleMove = async (destinationPath: string) => {
+    if (!selectedContextItem) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Construct the paths
+      const sourcePath = selectedContextItem.file_path;
+      const fileName = sourcePath.split('/').pop() || '';
+      const destinationFilePath = destinationPath === '/' ? `/${fileName}` : `${destinationPath}/${fileName}`;
+      
+      // Don't move if it's the same path
+      if (sourcePath === destinationFilePath) {
+        setLoading(false);
+        return;
+      }
+      
+      // Move the file
+      await notesService.moveFile(sourcePath, destinationFilePath);
+      
+      // Refresh the file list
+      const result = await notesService.listFiles(currentPath);
+      setFiles(result);
+      
+      // Update folder stats too
+      const stats: Record<string, {fileCount: number; folderCount: number}> = {};
+      
+      for (const file of result) {
+        if (file.is_folder) {
+          try {
+            const folderPath = file.file_path;
+            const folderContents = await notesService.listFiles(folderPath);
+            
+            const fileCount = folderContents.filter(f => !f.is_folder).length;
+            const folderCount = folderContents.filter(f => f.is_folder).length;
+            
+            stats[file.id] = { fileCount, folderCount };
+          } catch (error) {
+            console.error(`Error getting stats for folder ${file.file_path}:`, error);
+            stats[file.id] = { fileCount: 0, folderCount: 0 };
+          }
+        }
+      }
+      
+      setFolderStats(stats);
+    } catch (error) {
+      console.error('Error moving file:', error);
+      setError(`Failed to move ${selectedContextItem.is_folder ? 'folder' : 'file'}. ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Focus new input fields when they appear
   useEffect(() => {
@@ -492,48 +623,87 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
           const isEmpty = folderInfo && folderInfo.fileCount === 0 && folderInfo.folderCount === 0;
           
           return (
-            <div 
-              key={file.id}
-              className={`flex items-center p-2 rounded-md cursor-pointer ${
-                selectedItem === file.id ? 'bg-main text-white' : 'hover:bg-gray-100'
-              }`}
-              onClick={() => handleItemClick(file)}
-            >
-              {file.is_folder ? (
-                <>
-                  {isEmpty ? (
-                    <Folder className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-blue-500'}`} />
+            <ContextMenu key={file.id}>
+              <ContextMenuTrigger>
+                <div 
+                  className={`flex items-center p-2 rounded-md cursor-pointer ${
+                    selectedItem === file.id ? 'bg-main text-white' : 'hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleItemClick(file)}
+                >
+                  {file.is_folder ? (
+                    <>
+                      {isEmpty ? (
+                        <Folder className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-blue-500'}`} />
+                      ) : (
+                        <FolderOpen className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-blue-500'}`} />
+                      )}
+                      <span className="truncate flex-1">{file.name}</span>
+                      {folderInfo && (
+                        <div className="flex items-center gap-1 ml-2">
+                          {folderInfo.fileCount > 0 && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                              selectedItem === file.id ? 'bg-white/20' : 'bg-blue-100'
+                            }`} title="Files">
+                              {folderInfo.fileCount} <FileText className="h-3 w-3 inline" />
+                            </span>
+                          )}
+                          
+                          {folderInfo.folderCount > 0 && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                              selectedItem === file.id ? 'bg-white/20' : 'bg-blue-100'
+                            }`} title="Folders">
+                              {folderInfo.folderCount} <Folder className="h-3 w-3 inline" />
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <FolderOpen className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-blue-500'}`} />
+                    <>
+                      <FileText className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-gray-500'}`} />
+                      <span className="truncate">{file.name}</span>
+                    </>
                   )}
-                  <span className="truncate flex-1">{file.name}</span>
-                  {folderInfo && (
-                    <div className="flex items-center gap-1 ml-2">
-                      {folderInfo.fileCount > 0 && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                          selectedItem === file.id ? 'bg-white/20' : 'bg-blue-100'
-                        }`} title="Files">
-                          {folderInfo.fileCount} <FileText className="h-3 w-3 inline" />
-                        </span>
-                      )}
-                      
-                      {folderInfo.folderCount > 0 && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                          selectedItem === file.id ? 'bg-white/20' : 'bg-blue-100'
-                        }`} title="Folders">
-                          {folderInfo.folderCount} <Folder className="h-3 w-3 inline" />
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <FileText className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-gray-500'}`} />
-                  <span className="truncate">{file.name}</span>
-                </>
-              )}
-            </div>
+                </div>
+              </ContextMenuTrigger>
+              
+              <ContextMenuContent>
+                <ContextMenuItem 
+                  onClick={() => handleRenameClick(file)}
+                  className="hover:bg-gray-100"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Rename
+                </ContextMenuItem>
+                <ContextMenuItem 
+                  onClick={() => handleMoveClick(file)}
+                  className="hover:bg-gray-100"
+                >
+                  <FolderInput className="h-4 w-4" />
+                  Move to folder...
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem 
+                  className="hover:bg-red-100 text-red-600"
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete ${file.name}? This cannot be undone.`)) {
+                      notesService.deleteFile(file.file_path)
+                        .then(() => {
+                          // Refresh the file list
+                          handleRefresh();
+                        })
+                        .catch(error => {
+                          setError(`Failed to delete ${file.is_folder ? 'folder' : 'file'}. ${error instanceof Error ? error.message : String(error)}`);
+                        });
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           );
         })}
       </div>
@@ -725,6 +895,29 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
           </div>
         )}
       </ScrollArea>
+      
+      {/* Rename Modal */}
+      {selectedContextItem && (
+        <RenameModal
+          isOpen={showRenameModal}
+          onClose={() => setShowRenameModal(false)}
+          onRename={handleRename}
+          currentName={selectedContextItem.name}
+          isFolder={selectedContextItem.is_folder}
+        />
+      )}
+      
+      {/* Folder Select Modal */}
+      {selectedContextItem && (
+        <FolderSelectModal
+          isOpen={showFolderSelectModal}
+          onClose={() => setShowFolderSelectModal(false)}
+          onSelect={handleMove}
+          currentPath={currentPath}
+          title={`Move ${selectedContextItem.is_folder ? 'Folder' : 'File'}`}
+          description={`Select destination folder for "${selectedContextItem.name}"`}
+        />
+      )}
     </div>
   );
 };
