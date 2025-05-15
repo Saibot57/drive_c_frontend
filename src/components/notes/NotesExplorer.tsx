@@ -668,24 +668,24 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
                 </div>
               </ContextMenuTrigger>
               
-              <ContextMenuContent>
+              <ContextMenuContent className="bg-white border-black">
                 <ContextMenuItem 
                   onClick={() => handleRenameClick(file)}
-                  className="hover:bg-gray-100"
+                  className="hover:bg-gray-100 cursor-pointer"
                 >
                   <Pencil className="h-4 w-4" />
                   Rename
                 </ContextMenuItem>
                 <ContextMenuItem 
                   onClick={() => handleMoveClick(file)}
-                  className="hover:bg-gray-100"
+                  className="hover:bg-gray-100 cursor-pointer"
                 >
                   <FolderInput className="h-4 w-4" />
                   Move to folder...
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 <ContextMenuItem 
-                  className="hover:bg-red-100 text-red-600"
+                  className="hover:bg-red-100 text-red-600 cursor-pointer"
                   onClick={() => {
                     if (confirm(`Are you sure you want to delete ${file.name}? This cannot be undone.`)) {
                       notesService.deleteFile(file.file_path)
