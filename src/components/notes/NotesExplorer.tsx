@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   ChevronRight, 
-  ChevronDown, 
   Folder, 
   FileText, 
   Home, 
@@ -17,7 +16,8 @@ import {
   Plus,
   Search,
   RefreshCw,
-  X
+  X,
+  FolderOpen
 } from 'lucide-react';
 import NotesWindowWrapper from './NotesWindowWrapper';
 
@@ -29,7 +29,6 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
   // State
   const [currentPath, setCurrentPath] = useState('/');
   const [files, setFiles] = useState<NoteFile[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,6 +39,7 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [showNewFileInput, setShowNewFileInput] = useState(false);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [folderStats, setFolderStats] = useState<Record<string, {fileCount: number; folderCount: number}>>({});
   
   // Refs
   const newFolderInputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +71,30 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
       try {
         const result = await notesService.listFiles(currentPath);
         setFiles(result);
+        
+        // Collect stats for each folder in this directory
+        const stats: Record<string, {fileCount: number; folderCount: number}> = {};
+        
+        // Process each folder to get stats
+        for (const file of result) {
+          if (file.is_folder) {
+            try {
+              // Get the contents of this folder to count files and subfolders
+              const folderPath = file.file_path;
+              const folderContents = await notesService.listFiles(folderPath);
+              
+              const fileCount = folderContents.filter(f => !f.is_folder).length;
+              const folderCount = folderContents.filter(f => f.is_folder).length;
+              
+              stats[file.id] = { fileCount, folderCount };
+            } catch (error) {
+              console.error(`Error getting stats for folder ${file.file_path}:`, error);
+              stats[file.id] = { fileCount: 0, folderCount: 0 };
+            }
+          }
+        }
+        
+        setFolderStats(stats);
       } catch (error) {
         console.error('Error loading files:', error);
         setError('Failed to load files. Please try again.');
@@ -130,19 +154,14 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     setSelectedItem(file.id);
     
     if (file.is_folder) {
+      // Navigate to this folder - clean up search if active
       if (isSearching) {
-        // If searching, navigate to the folder and clear search
         setSearchTerm('');
         setIsSearching(false);
-        const folderPath = file.file_path.substring(0, file.file_path.lastIndexOf('/')) || '/';
-        navigateToDirectory(folderPath);
-      } else {
-        // Toggle folder expansion
-        setExpandedFolders(prev => ({
-          ...prev,
-          [file.id]: !prev[file.id]
-        }));
       }
+      
+      // Navigate to the folder path
+      navigateToDirectory(file.file_path);
     } else {
       // Open the file in a new window
       openNoteInWindow(file);
@@ -184,28 +203,17 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
             const selectedFile = visibleFiles.find(file => file.id === selectedItem);
             if (selectedFile && selectedFile.is_folder) {
               e.preventDefault();
-              setExpandedFolders(prev => ({
-                ...prev,
-                [selectedFile.id]: true
-              }));
+              // Navigate into the folder
+              navigateToDirectory(selectedFile.file_path);
             }
           }
           break;
           
         case 'ArrowLeft':
-          if (selectedItem) {
-            const selectedFile = visibleFiles.find(file => file.id === selectedItem);
-            if (selectedFile && selectedFile.is_folder && expandedFolders[selectedFile.id]) {
-              e.preventDefault();
-              setExpandedFolders(prev => ({
-                ...prev,
-                [selectedFile.id]: false
-              }));
-            } else if (currentPath !== '/') {
-              e.preventDefault();
-              const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
-              setCurrentPath(parentPath);
-            }
+          if (currentPath !== '/') {
+            e.preventDefault();
+            const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+            navigateToDirectory(parentPath);
           }
           break;
           
@@ -223,7 +231,7 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [files, searchResults, isSearching, selectedItem, expandedFolders, currentPath, handleItemClick]);
+  }, [files, searchResults, isSearching, selectedItem, currentPath, navigateToDirectory, handleItemClick]);
   
   // Handle search
   useEffect(() => {
@@ -361,6 +369,28 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     try {
       const result = await notesService.listFiles(currentPath);
       setFiles(result);
+      
+      // Refresh folder stats too
+      const stats: Record<string, {fileCount: number; folderCount: number}> = {};
+      
+      for (const file of result) {
+        if (file.is_folder) {
+          try {
+            const folderPath = file.file_path;
+            const folderContents = await notesService.listFiles(folderPath);
+            
+            const fileCount = folderContents.filter(f => !f.is_folder).length;
+            const folderCount = folderContents.filter(f => f.is_folder).length;
+            
+            stats[file.id] = { fileCount, folderCount };
+          } catch (error) {
+            console.error(`Error getting stats for folder ${file.file_path}:`, error);
+            stats[file.id] = { fileCount: 0, folderCount: 0 };
+          }
+        }
+      }
+      
+      setFolderStats(stats);
     } catch (error) {
       console.error('Error refreshing files:', error);
       setError('Failed to refresh files. Please try again.');
@@ -369,26 +399,46 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     }
   };
   
+  // Handler for going up one level
+  const handleNavigateUp = () => {
+    if (currentPath === '/') return;
+    
+    const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+    navigateToDirectory(parentPath);
+  };
+  
   // Render functions
   const renderBreadcrumbs = () => (
-    <div className="flex items-center overflow-x-auto whitespace-nowrap pb-2 mb-2 border-b border-gray-200">
+    <div className="flex items-center overflow-x-auto whitespace-nowrap pb-2 mb-2 border-b border-gray-200 gap-1">
+      {currentPath !== '/' && (
+        <button
+          className="p-1 rounded hover:bg-gray-100 mr-1"
+          onClick={handleNavigateUp}
+          title="Go up one level"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      
       {breadcrumbs.map((crumb, index) => (
         <React.Fragment key={crumb.path}>
           {index > 0 && <ChevronRight className="h-4 w-4 mx-1 text-gray-400" />}
           <button
-            className={`px-1 py-0.5 rounded hover:bg-gray-100 ${
-              index === breadcrumbs.length - 1 ? 'font-medium text-main' : ''
+            className={`px-2 py-1 rounded hover:bg-gray-100 ${
+              index === breadcrumbs.length - 1 ? 'font-medium text-main bg-gray-100' : ''
             }`}
             onClick={() => navigateToDirectory(crumb.path)}
+            title={crumb.path}
           >
             {index === 0 ? <Home className="h-4 w-4" /> : crumb.name}
           </button>
         </React.Fragment>
       ))}
+      <div className="ml-1 text-xs text-gray-500">{currentPath}</div>
     </div>
   );
   
-  const renderFileTree = (fileList: NoteFile[]) => {
+  const renderFileList = (fileList: NoteFile[]) => {
     // Sort files: folders first, then alphabetically
     const sortedFiles = [...fileList].sort((a, b) => {
       if (a.is_folder !== b.is_folder) {
@@ -399,34 +449,43 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
     
     return (
       <div className="space-y-1">
-        {sortedFiles.map(file => (
-          <div 
-            key={file.id}
-            className={`flex items-center p-1 rounded cursor-pointer ${
-              selectedItem === file.id ? 'bg-main text-white' : 'hover:bg-gray-100'
-            }`}
-            onClick={() => handleItemClick(file)}
-          >
-            {file.is_folder ? (
-              <>
-                <button className="mr-1 text-gray-500">
-                  {expandedFolders[file.id] ? (
-                    <ChevronDown className="h-4 w-4" />
+        {sortedFiles.map(file => {
+          const folderInfo = file.is_folder ? folderStats[file.id] : null;
+          const isEmpty = folderInfo && folderInfo.fileCount === 0 && folderInfo.folderCount === 0;
+          
+          return (
+            <div 
+              key={file.id}
+              className={`flex items-center p-2 rounded cursor-pointer ${
+                selectedItem === file.id ? 'bg-main text-white' : 'hover:bg-gray-100'
+              }`}
+              onClick={() => handleItemClick(file)}
+            >
+              {file.is_folder ? (
+                <>
+                  {isEmpty ? (
+                    <Folder className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-blue-500'}`} />
                   ) : (
-                    <ChevronRight className="h-4 w-4" />
+                    <FolderOpen className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-blue-500'}`} />
                   )}
-                </button>
-                <Folder className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-blue-500'}`} />
-              </>
-            ) : (
-              <>
-                <div className="w-5 mr-1" />
-                <FileText className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-gray-500'}`} />
-              </>
-            )}
-            <span className="truncate">{file.name}</span>
-          </div>
-        ))}
+                  <span className="truncate flex-1">{file.name}</span>
+                  {folderInfo && !isEmpty && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${
+                      selectedItem === file.id ? 'bg-white/20' : 'bg-gray-200'
+                    }`}>
+                      {folderInfo.fileCount + folderInfo.folderCount}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <FileText className={`h-5 w-5 mr-2 ${selectedItem === file.id ? 'text-white' : 'text-gray-500'}`} />
+                  <span className="truncate">{file.name}</span>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -581,7 +640,9 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
       )}
       
       {error && (
-        <div className="text-red-500 text-sm mb-2">{error}</div>
+        <div className="text-red-500 text-sm mb-2 p-2 bg-red-50 rounded border border-red-200">
+          {error}
+        </div>
       )}
       
       <ScrollArea className="flex-1">
@@ -591,14 +652,14 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
           </div>
         ) : isSearching ? (
           searchResults.length > 0 ? (
-            renderFileTree(searchResults)
+            renderFileList(searchResults)
           ) : (
             <div className="text-gray-500 italic text-center mt-8">
               No matching files found
             </div>
           )
         ) : files.length > 0 ? (
-          renderFileTree(files)
+          renderFileList(files)
         ) : (
           <div className="text-gray-500 italic text-center mt-8">
             This directory is empty
