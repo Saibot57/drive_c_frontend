@@ -7,6 +7,7 @@ import { useWindowManager } from '@/contexts/WindowContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -876,8 +877,11 @@ const NotesExplorer: React.FC<NotesExplorerProps> = ({ onClose }) => {
       
       <ScrollArea className="flex-1">
         {loading && !isSearching ? (
-          <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-main"></div>
+          <div className="flex justify-center items-center flex-col h-32 px-8">
+            <p className="mb-2 text-sm text-gray-500">Loading files...</p>
+            <Progress value={undefined} className="w-full h-2">
+              <div className="animate-pulse-progress absolute inset-0 bg-main opacity-50"></div>
+            </Progress>
           </div>
         ) : isSearching ? (
           searchResults.length > 0 ? (
