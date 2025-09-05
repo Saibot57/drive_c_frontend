@@ -1,7 +1,8 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Calendar, Layout, FileText, LogOut, User, Layers } from 'lucide-react';
+// NYTT: Importera Users-ikonen
+import { BookOpen, Calendar, Layout, FileText, LogOut, User, Layers, Users } from 'lucide-react'; 
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
@@ -9,7 +10,7 @@ export function NavigationHeader() {
   const pathname = usePathname();
   const { isAuthenticated, user, logout } = useAuth();
   
-  // Get the title based on the current pathname
+  // Funktion för att hämta sidans titel baserat på sökvägen
   const getTitle = (): string => {
     if (pathname === '/login') return 'Login';
     
@@ -20,15 +21,17 @@ export function NavigationHeader() {
         return 'Kalender';
       case '/features/schedule':
         return 'Schema';
+      // NYTT: Hantera den nya sökvägen för familjeschemat
+      case '/features/familjeschema':
+        return 'Familjeschema';
       case '/features/notes':
         return 'Anteckningar';
       case '/workspace':
         return 'Workspace';
       default:
-        // Extract the last part of the path if it's a new route
+        // Extrahera sista delen av sökvägen för nya rutter
         const pathParts = pathname.split('/').filter(Boolean);
         if (pathParts.length > 0) {
-          // Capitalize the first letter
           const lastPart = pathParts[pathParts.length - 1];
           return lastPart.charAt(0).toUpperCase() + lastPart.slice(1);
         }
@@ -36,16 +39,19 @@ export function NavigationHeader() {
     }
   };
   
-  // Navigation items with their paths and icons
+  // Lista med navigeringslänkar
   const navItems = [
     { name: 'Bibliotek', path: '/', icon: <BookOpen className="h-5 w-5" /> },
     { name: 'Kalender', path: '/features/calendar', icon: <Calendar className="h-5 w-5" /> },
     { name: 'Schema', path: '/features/schedule', icon: <Layout className="h-5 w-5" /> },
+    // --- NY LÄNK HÄR ---
+    { name: 'Familjeschema', path: '/features/familjeschema', icon: <Users className="h-5 w-5" /> },
+    // ------------------
     { name: 'Anteckningar', path: '/features/notes', icon: <FileText className="h-5 w-5" /> },
     { name: 'Workspace', path: '/workspace', icon: <Layers className="h-5 w-5" /> }
   ];
 
-  // Handle logout
+  // Funktion för utloggning
   const handleLogout = () => {
     logout();
     window.location.href = '/login';
@@ -57,7 +63,7 @@ export function NavigationHeader() {
       
       {isAuthenticated ? (
         <div className="flex items-center space-x-4">
-          {/* Navigation Links */}
+          {/* Navigeringslänkar */}
           <nav className="flex items-center space-x-6 mr-4">
             {navItems.map((item) => (
               <Link
@@ -75,7 +81,7 @@ export function NavigationHeader() {
             ))}
           </nav>
           
-          {/* User menu and logout button */}
+          {/* Användarmeny och utloggningsknapp */}
           <div className="flex items-center ml-4 space-x-2">
             <div className="flex items-center px-2 py-1 border-2 border-black rounded-lg bg-white">
               <User className="h-4 w-4 mr-2" />
