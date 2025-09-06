@@ -1,4 +1,3 @@
-// src/components/familjeschema/FamilySchedule.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -56,7 +55,6 @@ export function FamilySchedule() {
     fetchData();
   }, []);
   
-  // Samma logik som i din gamla App.tsx för att fylla formuläret
   useEffect(() => {
     if (!modalOpen) return;
     if (editingActivity) {
@@ -74,7 +72,6 @@ export function FamilySchedule() {
     }
   }, [modalOpen, editingActivity]);
 
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -87,6 +84,16 @@ export function FamilySchedule() {
       setActivities(activitiesData);
       setFamilyMembers(membersData);
       if (settingsData) setSettings(settingsData);
+
+      // --- Tillfällig debug för ikonproblem ---
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('Family members:', membersData);
+        membersData.forEach(m => {
+          // eslint-disable-next-line no-console
+          console.log(`${m.name}: icon="${m.icon}" (char codes: ${Array.from(m.icon || '').map((c: string) => c.charCodeAt(0)).join(', ')})`);
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte hämta schemadata.');
     } finally {
@@ -146,7 +153,8 @@ export function FamilySchedule() {
     try {
       const importedData = JSON.parse(jsonText);
       if (!Array.isArray(importedData)) throw new Error("JSON måste vara en array.");
-      await scheduleService.addActivitiesFromJson(importedData);
+      // Backend accepterar både rå array och { activities: [...] } – vi skickar tydlig variant:
+      await scheduleService.addActivitiesFromJson({ activities: importedData });
       await fetchData();
       setDataModalOpen(false);
       alert(`${importedData.length} aktiviteter importerades!`);
@@ -185,7 +193,6 @@ export function FamilySchedule() {
     setDataModalOpen(false);
   };
 
-  // UI-logik
   const currentWeek = getWeekNumber(new Date());
   const currentYear = new Date().getFullYear();
   const isCurrentWeek = selectedWeek === currentWeek && selectedYear === currentYear;
@@ -273,7 +280,6 @@ export function FamilySchedule() {
         />
       )}
 
-      {/* --- KORRIGERADE PROPS HÄR --- */}
       <ActivityModal
         ref={modalRef}
         isOpen={modalOpen}

@@ -26,7 +26,7 @@ export const WEEKEND_DAYS = ['Lördag', 'Söndag'];
 export const ALL_DAYS = [...WEEKDAYS_FULL, ...WEEKEND_DAYS];
 
 export const DEFAULT_SETTINGS = {
-  showWeekends: false,
+  showWeekends: true,
   dayStart: 7,
   dayEnd: 18
 };
