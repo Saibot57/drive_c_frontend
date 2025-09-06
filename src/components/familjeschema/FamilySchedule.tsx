@@ -153,16 +153,20 @@ export function FamilySchedule() {
     try {
       const importedData = JSON.parse(jsonText);
       if (!Array.isArray(importedData)) throw new Error("JSON måste vara en array.");
-      // Backend accepterar både rå array och { activities: [...] } – vi skickar tydlig variant:
-      await scheduleService.addActivitiesFromJson({ activities: importedData });
+      // ⬇️ ÄNDRA DENNA RAD
+      await scheduleService.addActivitiesFromJson(importedData as any[]);
+      // ⬆️ FRÅN: await scheduleService.addActivitiesFromJson({ activities: importedData });
       await fetchData();
       setDataModalOpen(false);
       alert(`${importedData.length} aktiviteter importerades!`);
     } catch (err: any) {
-      const errorMessage = err.details ? `${err.message}\n\nKonflikter:\n${JSON.stringify(err.details, null, 2)}` : err.message;
+      const errorMessage = err?.details
+        ? `${err.message}\n\nKonflikter:\n${JSON.stringify(err.details, null, 2)}`
+        : err?.message || 'Okänt fel';
       alert(`Import misslyckades: ${errorMessage}`);
     }
   };
+  
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
