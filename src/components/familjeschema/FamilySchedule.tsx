@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { scheduleService } from '@/services/scheduleService';
-import type { Activity, FamilyMember, FormData, Settings } from './types';
+import type { Activity, FamilyMember, ActivityFormData, Settings } from './types';
 import { WEEKDAYS_FULL, WEEKEND_DAYS, ALL_DAYS } from './constants';
 import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
 import { generateTimeSlots } from './utils/scheduleUtils';
@@ -20,7 +20,7 @@ import { ActivityModal } from './components/ActivityModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DataModal } from './components/DataModal';
 
-const BLANK_FORM: FormData = {
+const BLANK_FORM: ActivityFormData = {
   name: '', icon: '🎯', days: [], participants: [], startTime: '09:00',
   endTime: '10:00', location: '', notes: '', recurring: false,
   recurringEndDate: '', color: undefined
@@ -47,7 +47,7 @@ export function FamilySchedule() {
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dataModalOpen, setDataModalOpen] = useState(false);
-  const [formData, setFormData] = useState<FormData>(BLANK_FORM);
+  const [formData, setFormData] = useState<ActivityFormData>(BLANK_FORM);
   const [highlightedMemberId, setHighlightedMemberId] = useState<string | null>(null);
   const [showConflict, setShowConflict] = useState(false);
 
@@ -114,7 +114,12 @@ export function FamilySchedule() {
         const updates: Partial<Activity> = { ...formData, day: formData.days[0] };
         await scheduleService.updateActivity(editingActivity.id, updates);
       } else {
-        await scheduleService.createActivity(formData);
+        const dataToSend = new FormData();
+        Object.keys(formData).forEach((key) => {
+          const value = formData[key as keyof ActivityFormData];
+          dataToSend.append(key, String(value));
+        });
+        await scheduleService.createActivity(dataToSend);
       }
       await fetchData();
       setModalOpen(false);
