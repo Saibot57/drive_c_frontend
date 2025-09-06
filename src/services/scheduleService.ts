@@ -2,7 +2,7 @@
 import { fetchWithAuth } from './authService';
 
 // Vi importerar typerna från den plats de kommer att ha efter migreringen
-import type { Activity, FamilyMember, Settings, FormData } from '@/components/familjeschema/types';
+import type { Activity, FamilyMember, Settings } from '@/components/familjeschema/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 const SCHEDULE_API_URL = `${API_URL}/schedule`;
@@ -23,9 +23,13 @@ export const scheduleService = {
   async createActivity(activityData: FormData): Promise<Activity> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities`, {
       method: 'POST',
-      body: JSON.stringify(activityData),
+      body: activityData,
     });
-    if (!response.ok) throw new Error('Failed to create activity');
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Failed to create activity:', errorData);
+      throw new Error(errorData.message || 'Failed to create activity');
+    }
     const data = await response.json();
     return data.data;
   },

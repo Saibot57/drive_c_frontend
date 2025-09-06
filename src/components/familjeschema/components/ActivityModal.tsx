@@ -1,6 +1,6 @@
 import { forwardRef, useState } from 'react';
 import { X, Save, Trash2, Repeat } from 'lucide-react';
-import type { FormData, FamilyMember } from '../types';
+import type { ActivityFormData, FamilyMember } from '../types';
 import { SizableModal } from './SizableModal';
 import { ACTIVITY_COLORS } from '../constants';
 import { IconPicker } from './IconPicker';
@@ -8,13 +8,13 @@ import { IconPicker } from './IconPicker';
 interface ActivityModalProps {
   isOpen: boolean;
   isEditing: boolean;
-  formData: FormData;
+  formData: ActivityFormData;
   familyMembers: FamilyMember[];
   days: string[];
   onClose: () => void;
   onSave: () => void;
   onDelete: () => void;
-  onFormChange: (data: FormData) => void;
+  onFormChange: (data: ActivityFormData) => void;
 }
 
 export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(

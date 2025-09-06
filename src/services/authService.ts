@@ -19,23 +19,23 @@ export const authHeader = (): HeadersInit => {
 
 // Enhanced fetch with authentication
 export const fetchWithAuth = async (
-  url: string, 
+  url: string,
   options: RequestInit = {}
 ): Promise<Response> => {
-  // Get auth headers
-  const headers = authHeader();
-  
-  // Merge with existing headers
-  const mergedHeaders = {
-    ...headers,
-    'Content-Type': 'application/json',
-    ...options.headers
-  };
-  
-  // Create the fetch request with merged headers
+  const headers = new Headers(options.headers || {});
+  const token = getToken();
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (!(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: mergedHeaders
+    headers
   });
   
   // Handle 401 Unauthorized responses (token expired or invalid)
