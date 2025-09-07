@@ -107,11 +107,20 @@ export function FamilySchedule() {
   useFocusTrap(modalRef, modalOpen);
   useFocusTrap(settingsModalRef, settingsOpen);
 
-  const handleSaveActivity = async (activity: Omit<Activity, 'id' | 'week' | 'year'>) => {
+  const handleSaveActivity = async (data: any) => {
     if (auth.token) {
       try {
+        // Skapa ett nytt aktivitetsobjekt och inkludera aktuell vecka och år
         const activityToSave = {
-          ...activity,
+          name: data.name || 'Ny aktivitet',
+          day: data.day, // Se till att 'day' finns i formuläret
+          startTime: data.startTime,
+          endTime: data.endTime,
+          participants: data.participants || [],
+          color: data.color,
+          icon: data.icon,
+          location: data.location,
+          notes: data.notes,
           week: selectedWeek,
           year: selectedYear,
         };
@@ -313,7 +322,7 @@ export function FamilySchedule() {
         familyMembers={familyMembers}
         days={days}
         onClose={() => setModalOpen(false)}
-        onSave={() => handleSaveActivity(formData as Omit<Activity, 'id' | 'week' | 'year'>)}
+        onSave={() => handleSaveActivity(formData)}
         onDelete={handleDeleteActivity}
         onFormChange={setFormData}
       />
