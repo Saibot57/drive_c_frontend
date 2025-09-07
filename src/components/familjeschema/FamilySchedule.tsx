@@ -77,7 +77,7 @@ export function FamilySchedule() {
       setLoading(true);
       setError(null);
       const [activitiesData, membersData, settingsData] = await Promise.all([
-        scheduleService.getActivities(),
+        scheduleService.getActivities(selectedYear, selectedWeek),
         scheduleService.getFamilyMembers(),
         scheduleService.getSettings()
       ]);
@@ -197,6 +197,18 @@ export function FamilySchedule() {
     setDataModalOpen(false);
   };
 
+  const fetchActivities = async (year: number, week: number) => {
+    try {
+      setLoading(true);
+      const fetchedActivities = await scheduleService.getActivities(year, week);
+      setActivities(fetchedActivities);
+    } catch (error) {
+      console.error("Failed to fetch activities for new week", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const currentWeek = getWeekNumber(new Date());
   const currentYear = new Date().getFullYear();
   const isCurrentWeek = selectedWeek === currentWeek && selectedYear === currentYear;
@@ -207,13 +219,17 @@ export function FamilySchedule() {
   const navigateWeek = (direction: number) => {
     const monday = getWeekDateRange(selectedWeek, selectedYear, 1)[0];
     monday.setDate(monday.getDate() + direction * 7);
-    setSelectedWeek(getWeekNumber(monday));
-    setSelectedYear(monday.getFullYear());
+    const newWeek = getWeekNumber(monday);
+    const newYear = monday.getFullYear();
+    setSelectedWeek(newWeek);
+    setSelectedYear(newYear);
+    fetchActivities(newYear, newWeek);
   };
-  
+
   const goToCurrentWeek = () => {
     setSelectedWeek(currentWeek);
     setSelectedYear(currentYear);
+    fetchActivities(currentYear, currentWeek);
   };
 
   const handleActivityClick = (activity: Activity) => {

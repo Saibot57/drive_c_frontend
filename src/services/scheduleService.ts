@@ -13,8 +13,9 @@ type ActivityImportItem = Partial<Omit<Activity, 'id'>>;
 export const scheduleService = {
   
   // --- Aktiviteter ---
-  async getActivities(): Promise<Activity[]> {
-    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities`);
+  async getActivities(year: number, week: number): Promise<Activity[]> {
+    const url = `${SCHEDULE_API_URL}/activities?year=${year}&week=${week}`;
+    const response = await fetchWithAuth(url);
     if (!response.ok) throw new Error('Failed to fetch activities');
     const data = await response.json();
     return data.data || [];
