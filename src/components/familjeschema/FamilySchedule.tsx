@@ -104,22 +104,17 @@ export function FamilySchedule() {
   useFocusTrap(modalRef, modalOpen);
   useFocusTrap(settingsModalRef, settingsOpen);
 
-  const handleSaveActivity = async () => {
-    if (!formData.name || formData.days.length === 0 || formData.participants.length === 0) {
+  const handleSaveActivity = async (data: ActivityFormData) => {
+    if (!data.name || data.days.length === 0 || data.participants.length === 0) {
       alert('Fyll i alla obligatoriska fält!');
       return;
     }
     try {
       if (editingActivity) {
-        const updates: Partial<Activity> = { ...formData, day: formData.days[0] };
+        const updates: Partial<Activity> = { ...data, day: data.days[0] };
         await scheduleService.updateActivity(editingActivity.id, updates);
       } else {
-        const dataToSend = new FormData();
-        Object.keys(formData).forEach((key) => {
-          const value = formData[key as keyof ActivityFormData];
-          dataToSend.append(key, String(value));
-        });
-        await scheduleService.createActivity(dataToSend);
+        await scheduleService.createActivity({ ...data, day: data.days[0] });
       }
       await fetchData();
       setModalOpen(false);
