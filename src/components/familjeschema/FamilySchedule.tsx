@@ -47,6 +47,7 @@ export function FamilySchedule() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [modalOpen, setModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dataModalOpen, setDataModalOpen] = useState(false);
@@ -107,33 +108,26 @@ export function FamilySchedule() {
   useFocusTrap(modalRef, modalOpen);
   useFocusTrap(settingsModalRef, settingsOpen);
 
-  const handleSaveActivity = async (data: any) => {
-    if (auth.token) {
+  const handleSaveActivity = async (activityFromForm: any) => {
+    if (auth.token && selectedActivity) {
       try {
-        // Skapa ett nytt aktivitetsobjekt och inkludera aktuell vecka och år
-        const activityToSave = {
-          name: data.name || 'Ny aktivitet',
-          day: data.day, // Se till att 'day' finns i formuläret
-          startTime: data.startTime,
-          endTime: data.endTime,
-          participants: data.participants || [],
-          color: data.color,
-          icon: data.icon,
-          location: data.location,
-          notes: data.notes,
+        const payload = {
+          ...activityFromForm,
+          days: [selectedActivity.day],
           week: selectedWeek,
           year: selectedYear,
         };
 
-        await createActivity(activityToSave, auth.token);
+        delete payload.day;
+
+        await createActivity(payload, auth.token);
 
         setModalOpen(false);
-        setEditingActivity(null);
-
+        setSelectedActivity(null);
         const fetchedActivities = await scheduleService.getActivities(selectedYear, selectedWeek);
         setActivities(fetchedActivities);
       } catch (error) {
-        console.error("Failed to save activity:", error);
+        console.error("Error creating activity:", error);
       }
     }
   };
