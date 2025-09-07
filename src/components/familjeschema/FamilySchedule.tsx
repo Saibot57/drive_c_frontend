@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { scheduleService, createActivity } from '@/services/scheduleService';
-import { getToken } from '@/services/authService';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Activity, FamilyMember, FormData, Settings } from './types';
 import { WEEKDAYS_FULL, WEEKEND_DAYS, ALL_DAYS } from './constants';
 import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
@@ -32,6 +32,8 @@ type ViewMode = 'grid' | 'layer';
 export function FamilySchedule() {
   const modalRef = useRef<HTMLDivElement>(null);
   const settingsModalRef = useRef<HTMLDivElement>(null);
+
+  const auth = useAuth();
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -105,25 +107,34 @@ export function FamilySchedule() {
   useFocusTrap(modalRef, modalOpen);
   useFocusTrap(settingsModalRef, settingsOpen);
 
-  const handleSaveActivity = async () => {
-    if (!formData.name || formData.days.length === 0 || formData.participants.length === 0) {
-      alert('Fyll i alla obligatoriska fält!');
-      return;
-    }
-    try {
-      if (editingActivity) {
-        const updates: Partial<Activity> = { ...formData, day: formData.days[0] };
-        await scheduleService.updateActivity(editingActivity.id, updates);
-      } else {
-        const token = getToken();
-        if (!token) throw new Error('Authentication token is missing');
-        await createActivity(formData as any, token);
+  const handleSaveActivity = async (data: any) => {
+    if (auth.token) {
+      try {
+        // Skapa ett nytt aktivitetsobjekt och inkludera aktuell vecka och år
+        const activityToSave = {
+          name: data.name || 'Ny aktivitet',
+          day: data.day, // Se till att 'day' finns i formuläret
+          startTime: data.startTime,
+          endTime: data.endTime,
+          participants: data.participants || [],
+          color: data.color,
+          icon: data.icon,
+          location: data.location,
+          notes: data.notes,
+          week: selectedWeek,
+          year: selectedYear,
+        };
+
+        await createActivity(activityToSave, auth.token);
+
+        setModalOpen(false);
+        setEditingActivity(null);
+
+        const fetchedActivities = await scheduleService.getActivities(selectedYear, selectedWeek);
+        setActivities(fetchedActivities);
+      } catch (error) {
+        console.error("Failed to save activity:", error);
       }
-      await fetchData();
-      setModalOpen(false);
-      setEditingActivity(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kunde inte spara aktivitet.');
     }
   };
 
@@ -311,7 +322,7 @@ export function FamilySchedule() {
         familyMembers={familyMembers}
         days={days}
         onClose={() => setModalOpen(false)}
-        onSave={handleSaveActivity}
+        onSave={() => handleSaveActivity(formData)}
         onDelete={handleDeleteActivity}
         onFormChange={setFormData}
       />
