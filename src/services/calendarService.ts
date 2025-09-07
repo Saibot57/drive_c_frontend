@@ -53,16 +53,19 @@ export const calendarService = {
             
             console.log(`Fetching events from: ${url}`);
             const response = await fetchWithAuth(url);
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`Event fetch error (${response.status}): ${errorText}`);
-                throw new Error(`Error fetching events: ${response.statusText}`);
+
+            if (!response.success) {
+                console.error('Event fetch error:', response.error);
+                throw new Error(response.error || 'Error fetching events');
             }
-            
-            const data = await response.json();
-            console.log(`Retrieved ${data.data?.length || 0} events:`, data.data);
-            return data.data || [];
+
+            const events = response.data?.data || [];
+            console.log(`Retrieved ${events.length} events:`, events);
+            return events.map((e: any) => ({
+                ...e,
+                start: Number(e.start),
+                end: Number(e.end)
+            }));
         } catch (error) {
             console.error('Error fetching events:', error);
             throw error;
@@ -85,16 +88,14 @@ export const calendarService = {
                 method: 'POST',
                 body: JSON.stringify(eventData),
             });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`Event creation error (${response.status}): ${errorText}`);
-                throw new Error(`Error creating event: ${response.statusText}`);
+
+            if (!response.success) {
+                console.error('Event creation error:', response.error);
+                throw new Error(response.error || 'Error creating event');
             }
-            
-            const data = await response.json();
-            console.log(`Event created with ID: ${data.data?.id}`, data.data);
-            return data.data;
+
+            console.log(`Event created with ID: ${response.data?.data?.id}`, response.data?.data);
+            return response.data.data;
         } catch (error) {
             console.error('Error creating event:', error);
             throw error;
@@ -125,16 +126,14 @@ export const calendarService = {
                 method: 'PUT',
                 body: JSON.stringify(eventUpdates),
             });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`Event update error (${response.status}): ${errorText}`);
-                throw new Error(`Error updating event: ${response.statusText}`);
+
+            if (!response.success) {
+                console.error('Event update error:', response.error);
+                throw new Error(response.error || 'Error updating event');
             }
-            
-            const data = await response.json();
-            console.log(`Event updated successfully:`, data.data);
-            return data.data;
+
+            console.log(`Event updated successfully:`, response.data.data);
+            return response.data.data;
         } catch (error) {
             console.error('Error updating event:', error);
             throw error;
@@ -147,13 +146,12 @@ export const calendarService = {
             const response = await fetchWithAuth(`${API_URL}/events/${id}`, {
                 method: 'DELETE',
             });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`Event deletion error (${response.status}): ${errorText}`);
-                throw new Error(`Error deleting event: ${response.statusText}`);
+
+            if (!response.success) {
+                console.error('Event deletion error:', response.error);
+                throw new Error(response.error || 'Error deleting event');
             }
-            
+
             console.log(`Event deleted successfully`);
         } catch (error) {
             console.error('Error deleting event:', error);
@@ -166,22 +164,18 @@ export const calendarService = {
             const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
             console.log(`Getting note for date: ${dateStr}`);
             const response = await fetchWithAuth(`${API_URL}/notes/${dateStr}`);
-            
-            if (!response.ok) {
-                // A 404 is expected if no note exists yet
-                if (response.status === 404) {
+
+            if (!response.success) {
+                if (response.error?.includes('Not Found')) {
                     console.log(`No note found for ${dateStr}`);
                     return { date: dateStr, notes: '' };
                 }
-                
-                const errorText = await response.text();
-                console.error(`Note fetch error (${response.status}): ${errorText}`);
-                throw new Error(`Error fetching day note: ${response.statusText}`);
+                console.error('Note fetch error:', response.error);
+                throw new Error(response.error || 'Error fetching day note');
             }
-            
-            const data = await response.json();
-            console.log(`Retrieved note for ${dateStr}:`, data.data);
-            return data.data;
+
+            console.log(`Retrieved note for ${dateStr}:`, response.data.data);
+            return response.data.data;
         } catch (error) {
             console.error('Error fetching day note:', error);
             throw error;
@@ -196,16 +190,14 @@ export const calendarService = {
                 method: 'POST',
                 body: JSON.stringify({ notes }),
             });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`Note save error (${response.status}): ${errorText}`);
-                throw new Error(`Error saving day note: ${response.statusText}`);
+
+            if (!response.success) {
+                console.error('Note save error:', response.error);
+                throw new Error(response.error || 'Error saving day note');
             }
-            
-            const data = await response.json();
-            console.log(`Note saved successfully for ${dateStr}:`, data.data);
-            return data.data;
+
+            console.log(`Note saved successfully for ${dateStr}:`, response.data.data);
+            return response.data.data;
         } catch (error) {
             console.error('Error saving day note:', error);
             throw error;

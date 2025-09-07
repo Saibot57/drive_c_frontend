@@ -12,7 +12,7 @@ interface ActivityModalProps {
   familyMembers: FamilyMember[];
   days: string[];
   onClose: () => void;
-  onSave: () => void;
+  onSave: (data: ActivityFormData) => void;
   onDelete: () => void;
   onFormChange: (data: ActivityFormData) => void;
 }
@@ -288,7 +288,7 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
             <button className="btn" onClick={onClose}>Avbryt</button>
             <button
               className="btn btn-success"
-              onClick={onSave}
+              onClick={() => onSave(formData)}
               aria-label="Spara aktivitet"
             >
               <Save size={20}/> Spara

@@ -48,11 +48,10 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
       try {
         // Fetch the specific section
         const response = await fetchWithAuth(`${API_URL}/files/section/${sectionId}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to load section data');
         }
-        const json = await response.json();
-        setData(json.data);
+        setData(response.data.data);
       } catch (e: any) {
         console.error("Fetch error:", e);
         setError('Failed to load section data.');
