@@ -54,10 +54,11 @@ export default function Home() {
     setError(null);
     try {
       const response = await fetchWithAuth(`${API_URL}/files`);
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load data');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      setData(response);
+      const json = await response.json();
+      setData(json);
     } catch (e: any) {
       console.error("Fetch error:", e);
       setError('Failed to load data.');
@@ -79,8 +80,10 @@ export default function Home() {
         },
       });
 
-      if (!updateResponse.success) {
-        throw new Error(updateResponse.error || 'Failed to update data');
+      const updateData = await updateResponse.json();
+
+      if (!updateResponse.ok) {
+        throw new Error(updateData.message || 'Failed to update data');
       }
 
       // Add a small delay to ensure the database has completed its update

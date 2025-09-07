@@ -32,12 +32,13 @@ const FileSectionsDropdown: React.FC<FileSectionsDropdownProps> = ({ onSectionSe
       setError(null);
       try {
         const response = await fetchWithAuth(`${API_URL}/files`);
-        if (!response.success) {
-          throw new Error(response.error || 'Failed to load sections');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-
+        const json = await response.json();
+        
         // Transform the data for dropdown use
-        const sectionsData = response.data.data.map((section: any) => ({
+        const sectionsData = json.data.map((section: any) => ({
           name: section.name,
           id: section.name.toLowerCase().replace(/\s+/g, '-'),
           data: section

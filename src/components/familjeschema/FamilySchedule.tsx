@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { scheduleService } from '@/services/scheduleService';
-import type { Activity, FamilyMember, ActivityFormData, Settings } from './types';
+import type { Activity, FamilyMember, FormData, Settings } from './types';
 import { WEEKDAYS_FULL, WEEKEND_DAYS, ALL_DAYS } from './constants';
 import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
 import { generateTimeSlots } from './utils/scheduleUtils';
@@ -20,7 +20,7 @@ import { ActivityModal } from './components/ActivityModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DataModal } from './components/DataModal';
 
-const BLANK_FORM: ActivityFormData = {
+const BLANK_FORM: FormData = {
   name: '', icon: '🎯', days: [], participants: [], startTime: '09:00',
   endTime: '10:00', location: '', notes: '', recurring: false,
   recurringEndDate: '', color: undefined
@@ -47,7 +47,7 @@ export function FamilySchedule() {
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dataModalOpen, setDataModalOpen] = useState(false);
-  const [formData, setFormData] = useState<ActivityFormData>(BLANK_FORM);
+  const [formData, setFormData] = useState<FormData>(BLANK_FORM);
   const [highlightedMemberId, setHighlightedMemberId] = useState<string | null>(null);
   const [showConflict, setShowConflict] = useState(false);
 
@@ -104,17 +104,17 @@ export function FamilySchedule() {
   useFocusTrap(modalRef, modalOpen);
   useFocusTrap(settingsModalRef, settingsOpen);
 
-  const handleSaveActivity = async (data: ActivityFormData) => {
-    if (!data.name || data.days.length === 0 || data.participants.length === 0) {
+  const handleSaveActivity = async () => {
+    if (!formData.name || formData.days.length === 0 || formData.participants.length === 0) {
       alert('Fyll i alla obligatoriska fält!');
       return;
     }
     try {
       if (editingActivity) {
-        const updates: Partial<Activity> = { ...data, day: data.days[0] };
+        const updates: Partial<Activity> = { ...formData, day: formData.days[0] };
         await scheduleService.updateActivity(editingActivity.id, updates);
       } else {
-        await scheduleService.createActivity({ ...data, day: data.days[0] });
+        await scheduleService.createActivity(formData);
       }
       await fetchData();
       setModalOpen(false);

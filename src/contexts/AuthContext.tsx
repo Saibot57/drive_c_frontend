@@ -65,14 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
 
-      if (!data.success) {
-        throw new Error(data.error || 'Login failed');
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
       }
 
       // Save token and user in state and localStorage
@@ -100,14 +99,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({ username, password, email }),
       });
 
       const data = await response.json();
 
-      if (!data.success) {
-        throw new Error(data.error || 'Registration failed');
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
       }
 
       // Save token and user in state and localStorage

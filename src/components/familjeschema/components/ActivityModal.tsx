@@ -1,6 +1,6 @@
 import { forwardRef, useState } from 'react';
 import { X, Save, Trash2, Repeat } from 'lucide-react';
-import type { ActivityFormData, FamilyMember } from '../types';
+import type { FormData, FamilyMember } from '../types';
 import { SizableModal } from './SizableModal';
 import { ACTIVITY_COLORS } from '../constants';
 import { IconPicker } from './IconPicker';
@@ -8,13 +8,13 @@ import { IconPicker } from './IconPicker';
 interface ActivityModalProps {
   isOpen: boolean;
   isEditing: boolean;
-  formData: ActivityFormData;
+  formData: FormData;
   familyMembers: FamilyMember[];
   days: string[];
   onClose: () => void;
-  onSave: (data: ActivityFormData) => void;
+  onSave: () => void;
   onDelete: () => void;
-  onFormChange: (data: ActivityFormData) => void;
+  onFormChange: (data: FormData) => void;
 }
 
 export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
@@ -288,7 +288,7 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
             <button className="btn" onClick={onClose}>Avbryt</button>
             <button
               className="btn btn-success"
-              onClick={() => onSave(formData)}
+              onClick={onSave}
               aria-label="Spara aktivitet"
             >
               <Save size={20}/> Spara
