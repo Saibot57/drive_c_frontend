@@ -2,7 +2,7 @@
 import { fetchWithAuth } from './authService';
 
 // Vi importerar typerna från den plats de kommer att ha efter migreringen
-import type { Activity, FamilyMember, Settings } from '@/components/familjeschema/types';
+import type { Activity, FamilyMember, Settings, FormData } from '@/components/familjeschema/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 const SCHEDULE_API_URL = `${API_URL}/schedule`;
@@ -15,43 +15,43 @@ export const scheduleService = {
   // --- Aktiviteter ---
   async getActivities(): Promise<Activity[]> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities`);
-    if (!response.success) throw new Error(response.error || 'Failed to fetch activities');
-    return response.data?.data || [];
+    if (!response.ok) throw new Error('Failed to fetch activities');
+    const data = await response.json();
+    return data.data || [];
   },
 
-  async createActivity(activityData: Partial<Activity>): Promise<Activity> {
+  async createActivity(activityData: FormData): Promise<Activity> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities`, {
       method: 'POST',
       body: JSON.stringify(activityData),
     });
-    if (!response.success) {
-      console.error('Failed to create activity:', response);
-      throw new Error(response.error || 'Failed to create activity');
-    }
-    return response.data.data;
+    if (!response.ok) throw new Error('Failed to create activity');
+    const data = await response.json();
+    return data.data;
   },
-
+  
   async updateActivity(id: string, activityData: Partial<Activity>): Promise<Activity> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities/${id}`, {
       method: 'PUT',
       body: JSON.stringify(activityData),
     });
-    if (!response.success) throw new Error(response.error || 'Failed to update activity');
-    return response.data.data;
+    if (!response.ok) throw new Error('Failed to update activity');
+    const data = await response.json();
+    return data.data;
   },
 
   async deleteActivity(id: string): Promise<void> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities/${id}`, {
       method: 'DELETE',
     });
-    if (!response.success) throw new Error(response.error || 'Failed to delete activity');
+    if (!response.ok) throw new Error('Failed to delete activity');
   },
 
   async deleteActivitySeries(seriesId: string): Promise<void> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities/series/${seriesId}`, {
       method: 'DELETE',
     });
-    if (!response.success) throw new Error(response.error || 'Failed to delete activity series');
+    if (!response.ok) throw new Error('Failed to delete activity series');
   },
 
   // --- LLM/JSON Import ---
@@ -60,19 +60,22 @@ export const scheduleService = {
       method: 'POST',
       body: JSON.stringify({ activities }),
     });
-    if (!response.success) {
-        const error = new Error(response.error || 'Failed to import activities');
-        (error as any).details = response.data?.conflicts;
+    const data = await response.json();
+    if (!response.ok) {
+        // Kasta ett fel med detaljerad information från backend
+        const error = new Error(data.message || 'Failed to import activities');
+        (error as any).details = data.conflicts; // Lägg till konfliktdetaljer i felet
         throw error;
     }
-    return response.data;
+    return data;
   },
 
   // --- Familjemedlemmar ---
   async getFamilyMembers(): Promise<FamilyMember[]> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/family-members`);
-    if (!response.success) throw new Error(response.error || 'Failed to fetch family members');
-    return response.data?.data || [];
+    if (!response.ok) throw new Error('Failed to fetch family members');
+    const data = await response.json();
+    return data.data || [];
   },
 
   // ... (funktioner för att skapa/uppdatera/ta bort familjemedlemmar kan läggas till här)
@@ -80,8 +83,9 @@ export const scheduleService = {
   // --- Inställningar ---
   async getSettings(): Promise<Settings> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/settings`);
-    if (!response.success) throw new Error(response.error || 'Failed to fetch settings');
-    return response.data.data;
+    if (!response.ok) throw new Error('Failed to fetch settings');
+    const data = await response.json();
+    return data.data;
   },
 
   async updateSettings(settings: Settings): Promise<Settings> {
@@ -89,7 +93,8 @@ export const scheduleService = {
         method: 'PUT',
         body: JSON.stringify(settings)
     });
-    if (!response.success) throw new Error(response.error || 'Failed to update settings');
-    return response.data.data;
+    if (!response.ok) throw new Error('Failed to update settings');
+    const data = await response.json();
+    return data.data;
   }
 };

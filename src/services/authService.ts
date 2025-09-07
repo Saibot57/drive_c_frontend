@@ -11,51 +11,6 @@ export const getToken = (): string | null => {
   return null;
 };
 
-// Decode JWT token to check expiry
-const decodeToken = (token: string): { exp: number } | null => {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch {
-    return null;
-  }
-};
-
-// Refresh access token using refresh endpoint
-let refreshPromise: Promise<void> | null = null;
-const refreshToken = async (): Promise<void> => {
-  if (!refreshPromise) {
-    refreshPromise = fetch(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include'
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to refresh token');
-        }
-        if (data.data?.token) {
-          localStorage.setItem('authToken', data.data.token);
-        }
-      })
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-  return refreshPromise;
-};
-
-// Ensure token is valid before making request
-const ensureTokenValid = async () => {
-  const token = getToken();
-  if (!token) return;
-  const payload = decodeToken(token);
-  if (!payload) return;
-  const now = Math.floor(Date.now() / 1000);
-  if (payload.exp - now < 60) {
-    await refreshToken();
-  }
-};
-
 // Helper function to set authorization header
 export const authHeader = (): HeadersInit => {
   const token = getToken();
@@ -64,50 +19,38 @@ export const authHeader = (): HeadersInit => {
 
 // Enhanced fetch with authentication
 export const fetchWithAuth = async (
-  url: string,
-  options: RequestInit = {},
-): Promise<any> => {
-  await ensureTokenValid();
-
-  const headers = new Headers(options.headers || {});
-  const token = getToken();
-
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  if (options.body && !(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  const makeRequest = () =>
-    fetch(url, {
-      ...options,
-      headers,
-      credentials: 'include'
-    });
-
-  let response = await makeRequest();
-
+  url: string, 
+  options: RequestInit = {}
+): Promise<Response> => {
+  // Get auth headers
+  const headers = authHeader();
+  
+  // Merge with existing headers
+  const mergedHeaders = {
+    ...headers,
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+  
+  // Create the fetch request with merged headers
+  const response = await fetch(url, {
+    ...options,
+    headers: mergedHeaders
+  });
+  
+  // Handle 401 Unauthorized responses (token expired or invalid)
   if (response.status === 401) {
-    try {
-      await refreshToken();
-      const newToken = getToken();
-      if (newToken) {
-        headers.set('Authorization', `Bearer ${newToken}`);
-      }
-      response = await makeRequest();
-    } catch {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-      throw new Error('Unauthorized');
+    // Clear token and user from localStorage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    
+    // Redirect to login page if in browser context
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
     }
   }
-
-  return response.json();
+  
+  return response;
 };
 
 // Function to check if user is authenticated
@@ -123,54 +66,29 @@ const authService = {
       headers: {
         'Content-Type': 'application/json',
       },
-      credentials: 'include',
       body: JSON.stringify({ username, password }),
     });
-
-    const data = await response.json();
-    if (!data.success) {
-      throw new Error(data.error || 'Login failed');
-    }
-    if (data.data?.token) {
-      localStorage.setItem('authToken', data.data.token);
-    }
-    if (data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-    }
-    return data;
+    
+    return await response.json();
   },
-
+  
   register: async (username: string, password: string, email?: string) => {
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      credentials: 'include',
       body: JSON.stringify({ username, password, email }),
     });
-
-    const data = await response.json();
-    if (!data.success) {
-      throw new Error(data.error || 'Registration failed');
-    }
-    if (data.data?.token) {
-      localStorage.setItem('authToken', data.data.token);
-    }
-    if (data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-    }
-    return data;
+    
+    return await response.json();
   },
-
+  
   getUserProfile: async () => {
     const response = await fetchWithAuth(`${API_URL}/auth/me`);
-    if (!response.success) {
-      throw new Error(response.error || 'Failed to fetch profile');
-    }
-    return response.data;
+    return await response.json();
   },
-
+  
   logout: () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
@@ -178,4 +96,3 @@ const authService = {
 };
 
 export default authService;
-

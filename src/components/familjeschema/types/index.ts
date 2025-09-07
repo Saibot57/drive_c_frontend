@@ -21,7 +21,7 @@ export interface Activity {
   color?: string;
 }
 
-export interface ActivityFormData {
+export interface FormData {
   name: string;
   icon: string;
   days: string[];
