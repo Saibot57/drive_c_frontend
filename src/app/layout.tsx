@@ -28,7 +28,7 @@ const monument = localFont({
 })
 
 export const metadata: Metadata = {
-  title: 'Bibliotek',
+  title: 'Drive C',
 }
 
 export default function RootLayout({
@@ -38,6 +38,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <meta charSet="UTF-8" />
+        <title>Drive C</title>
+      </head>
       <body className={`${redHat.className} ${monument.variable} min-h-screen bg-[#fcd7d7]`}>
         <AuthProvider>
           {/* Top Navigation Bar */}
