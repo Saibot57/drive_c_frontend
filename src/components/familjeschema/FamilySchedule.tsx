@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { scheduleService } from '@/services/scheduleService';
+import { scheduleService, createActivity } from '@/services/scheduleService';
+import { getToken } from '@/services/authService';
 import type { Activity, FamilyMember, FormData, Settings } from './types';
 import { WEEKDAYS_FULL, WEEKEND_DAYS, ALL_DAYS } from './constants';
 import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
@@ -114,7 +115,9 @@ export function FamilySchedule() {
         const updates: Partial<Activity> = { ...formData, day: formData.days[0] };
         await scheduleService.updateActivity(editingActivity.id, updates);
       } else {
-        await scheduleService.createActivity(formData);
+        const token = getToken();
+        if (!token) throw new Error('Authentication token is missing');
+        await createActivity(formData as any, token);
       }
       await fetchData();
       setModalOpen(false);
