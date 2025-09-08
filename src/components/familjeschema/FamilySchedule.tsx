@@ -171,8 +171,17 @@ export function FamilySchedule() {
       const importedData = JSON.parse(jsonText);
       if (!Array.isArray(importedData)) throw new Error("JSON måste vara en array.");
 
+      // Create a mapping of participant names to IDs (case-insensitive)
+      const participantNameToId: Record<string, string> = {};
+      familyMembers.forEach(member => {
+        participantNameToId[member.name.toLowerCase()] = member.id;
+      });
+
       // Transform activities with date field to week/year/day format
-      const transformedData = importedData.map((activity) => {
+      // and map participant names to IDs
+      const transformedData = importedData.map(activity => {
+        let transformedActivity = { ...activity };
+
         // If activity has a date field, convert it
         if (activity.date) {
           const date = new Date(activity.date);
@@ -183,18 +192,37 @@ export function FamilySchedule() {
           const dayNames = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
           const day = dayNames[date.getDay()];
 
-          // Create new activity object without date field
-          const { date: _, ...activityWithoutDate } = activity;
-          return {
+          // Remove date field and add week/year/day
+          const { date: _, ...activityWithoutDate } = transformedActivity;
+          transformedActivity = {
             ...activityWithoutDate,
             week,
             year,
-            day,
+            day
           };
         }
 
-        // If activity already has week/year/day, return as-is
-        return activity;
+        // Map participant names to IDs
+        if (transformedActivity.participants && Array.isArray(transformedActivity.participants)) {
+          transformedActivity.participants = transformedActivity.participants.map((participant: any) => {
+            // If it's already an ID (looks like a UUID), keep it
+            if (typeof participant === 'string' && participant.includes('-')) {
+              return participant;
+            }
+
+            // Otherwise, try to map the name to an ID
+            const participantLower = String(participant).toLowerCase();
+            const id = participantNameToId[participantLower];
+
+            if (!id) {
+              console.warn(`Kunde inte hitta familjemedlem: ${participant}`);
+            }
+
+            return id || participant;
+          }).filter(Boolean); // Remove any undefined values
+        }
+
+        return transformedActivity;
       });
 
       await scheduleService.addActivitiesFromJson(transformedData);
