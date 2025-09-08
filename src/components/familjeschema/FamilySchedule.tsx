@@ -170,12 +170,37 @@ export function FamilySchedule() {
     try {
       const importedData = JSON.parse(jsonText);
       if (!Array.isArray(importedData)) throw new Error("JSON måste vara en array.");
-      // ⬇️ ÄNDRA DENNA RAD
-      await scheduleService.addActivitiesFromJson(importedData as any[]);
-      // ⬆️ FRÅN: await scheduleService.addActivitiesFromJson({ activities: importedData });
+
+      // Transform activities with date field to week/year/day format
+      const transformedData = importedData.map((activity) => {
+        // If activity has a date field, convert it
+        if (activity.date) {
+          const date = new Date(activity.date);
+          const week = getWeekNumber(date);
+          const year = date.getFullYear();
+
+          // Get Swedish day name
+          const dayNames = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+          const day = dayNames[date.getDay()];
+
+          // Create new activity object without date field
+          const { date: _, ...activityWithoutDate } = activity;
+          return {
+            ...activityWithoutDate,
+            week,
+            year,
+            day,
+          };
+        }
+
+        // If activity already has week/year/day, return as-is
+        return activity;
+      });
+
+      await scheduleService.addActivitiesFromJson(transformedData);
       await fetchData();
       setDataModalOpen(false);
-      alert(`${importedData.length} aktiviteter importerades!`);
+      alert(`${transformedData.length} aktiviteter importerades!`);
     } catch (err: any) {
       const errorMessage = err?.details
         ? `${err.message}\n\nKonflikter:\n${JSON.stringify(err.details, null, 2)}`
