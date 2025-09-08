@@ -2,10 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { scheduleService, createActivity } from '@/services/scheduleService';
-import { useAuth } from '@/contexts/AuthContext';
-import type { Activity, FamilyMember, FormData, Settings } from './types';
-import { WEEKDAYS_FULL, WEEKEND_DAYS, ALL_DAYS } from './constants';
+import { scheduleService } from '@/services/scheduleService';
+import type {
+  Activity,
+  FamilyMember,
+  FormData,
+  Settings,
+  CreateActivityPayload,
+} from './types';
+import { WEEKDAYS_FULL, ALL_DAYS } from './constants';
 import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
 import { generateTimeSlots } from './utils/scheduleUtils';
 import { downloadAllICS } from './utils/exportUtils';
@@ -33,8 +38,6 @@ export function FamilySchedule() {
   const modalRef = useRef<HTMLDivElement>(null);
   const settingsModalRef = useRef<HTMLDivElement>(null);
 
-  const auth = useAuth();
-
   const [activities, setActivities] = useState<Activity[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [settings, setSettings] = useState<Settings>({ showWeekends: false, dayStart: 7, dayEnd: 18 });
@@ -47,7 +50,6 @@ export function FamilySchedule() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [modalOpen, setModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dataModalOpen, setDataModalOpen] = useState(false);
@@ -108,27 +110,34 @@ export function FamilySchedule() {
   useFocusTrap(modalRef, modalOpen);
   useFocusTrap(settingsModalRef, settingsOpen);
 
-  const handleSaveActivity = async (activityFromForm: any) => {
-    if (auth.token && selectedActivity) {
-      try {
-        const payload = {
-          ...activityFromForm,
-          days: [selectedActivity.day],
-          week: selectedWeek,
-          year: selectedYear,
-        };
+  const handleSaveActivity = async (activityFromForm: FormData) => {
+    try {
+      const payload: CreateActivityPayload = {
+        name: activityFromForm.name,
+        icon: activityFromForm.icon,
+        days: activityFromForm.days,
+        participants: activityFromForm.participants,
+        startTime: activityFromForm.startTime,
+        endTime: activityFromForm.endTime,
+        location: activityFromForm.location || undefined,
+        notes: activityFromForm.notes || undefined,
+        color: activityFromForm.color,
+        week: selectedWeek,
+        year: selectedYear,
+      };
 
-        delete payload.day;
-
-        await createActivity(payload, auth.token);
-
-        setModalOpen(false);
-        setSelectedActivity(null);
-        const fetchedActivities = await scheduleService.getActivities(selectedYear, selectedWeek);
-        setActivities(fetchedActivities);
-      } catch (error) {
-        console.error("Error creating activity:", error);
+      if (editingActivity) {
+        await scheduleService.updateActivity(editingActivity.id, payload);
+      } else {
+        await scheduleService.createActivity(payload);
       }
+
+      setModalOpen(false);
+      setEditingActivity(null);
+      const fetchedActivities = await scheduleService.getActivities(selectedYear, selectedWeek);
+      setActivities(fetchedActivities);
+    } catch (error) {
+      console.error('Error saving activity:', error);
     }
   };
 

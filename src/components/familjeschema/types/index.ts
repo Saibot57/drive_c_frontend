@@ -21,6 +21,20 @@ export interface Activity {
   color?: string;
 }
 
+export interface CreateActivityPayload {
+  name: string;
+  icon: string;
+  days: string[];
+  participants: string[];
+  startTime: string;
+  endTime: string;
+  location?: string;
+  notes?: string;
+  color?: string;
+  week: number;
+  year: number;
+}
+
 export interface FormData {
   name: string;
   icon: string;

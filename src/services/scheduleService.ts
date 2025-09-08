@@ -2,39 +2,18 @@
 import { fetchWithAuth } from './authService';
 
 // Vi importerar typerna från den plats de kommer att ha efter migreringen
-import type { Activity, FamilyMember, Settings } from '@/components/familjeschema/types';
+import type {
+  Activity,
+  FamilyMember,
+  Settings,
+  CreateActivityPayload,
+} from '@/components/familjeschema/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 const SCHEDULE_API_URL = `${API_URL}/schedule`;
 
 // Typ för JSON-import från LLM
 type ActivityImportItem = Partial<Omit<Activity, 'id'>>;
-
-export const createActivity = async (
-  activity: Omit<Activity, 'id' | 'seriesId'>,
-  token: string
-): Promise<any> => {
-  try {
-    const response = await fetch(`${API_URL}/schedule/activities`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(activity),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      // Använd felmeddelandet från servern om det finns, annars ett standardmeddelande
-      throw new Error(data.error || 'Failed to create activity');
-    }
-    return data;
-  } catch (error) {
-    console.error('Error creating activity:', error);
-    throw error;
-  }
-};
 
 export const scheduleService = {
 
@@ -46,8 +25,18 @@ export const scheduleService = {
     const data = await response.json();
     return data.data || [];
   },
-  
-  async updateActivity(id: string, activityData: Partial<Activity>): Promise<Activity> {
+
+  async createActivity(activityData: CreateActivityPayload): Promise<Activity> {
+    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities`, {
+      method: 'POST',
+      body: JSON.stringify(activityData),
+    });
+    if (!response.ok) throw new Error('Failed to create activity');
+    const data = await response.json();
+    return data.data;
+  },
+
+  async updateActivity(id: string, activityData: CreateActivityPayload): Promise<Activity> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities/${id}`, {
       method: 'PUT',
       body: JSON.stringify(activityData),
