@@ -204,7 +204,7 @@ export function FamilySchedule() {
 
         // Map participant names to IDs
         if (transformedActivity.participants && Array.isArray(transformedActivity.participants)) {
-          transformedActivity.participants = transformedActivity.participants.map((participant: any) => {
+          transformedActivity.participants = transformedActivity.participants.map(participant => {
             // If it's already an ID (looks like a UUID), keep it
             if (typeof participant === 'string' && participant.includes('-')) {
               return participant;
