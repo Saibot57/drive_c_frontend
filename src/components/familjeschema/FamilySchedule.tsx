@@ -110,7 +110,7 @@ export function FamilySchedule() {
   useFocusTrap(modalRef, modalOpen);
   useFocusTrap(settingsModalRef, settingsOpen);
 
-  const handleSaveActivity = async (activityFromForm: FormData) => {
+  const handleSaveActivity = async (activityFromForm: FormData, applyToSeries = false) => {
     try {
       const payload: CreateActivityPayload = {
         name: activityFromForm.name,
@@ -127,29 +127,37 @@ export function FamilySchedule() {
       };
 
       if (editingActivity) {
-        await scheduleService.updateActivity(editingActivity.id, payload);
+        if (applyToSeries && editingActivity.seriesId) {
+          const updatedActivities = await scheduleService.updateActivitySeries(editingActivity.seriesId, payload);
+          setActivities(prev =>
+            prev.map(a => updatedActivities.find(u => u.id === a.id) || a)
+          );
+        } else {
+          const updatedActivity = await scheduleService.updateActivity(editingActivity.id, payload);
+          setActivities(prev => prev.map(a => (a.id === updatedActivity.id ? updatedActivity : a)));
+        }
       } else {
-        await scheduleService.createActivity(payload);
+        const newActivity = await scheduleService.createActivity(payload);
+        setActivities(prev => [...prev, newActivity]);
       }
 
       setModalOpen(false);
       setEditingActivity(null);
-      const fetchedActivities = await scheduleService.getActivities(selectedYear, selectedWeek);
-      setActivities(fetchedActivities);
     } catch (error) {
       console.error('Error saving activity:', error);
     }
   };
 
-  const handleDeleteActivity = async () => {
+  const handleDeleteActivity = async (applyToSeries = false) => {
     if (!editingActivity) return;
     try {
-      if (editingActivity.seriesId && window.confirm("Ta bort hela serien?")) {
+      if (applyToSeries && editingActivity.seriesId) {
         await scheduleService.deleteActivitySeries(editingActivity.seriesId);
+        setActivities(prev => prev.filter(a => a.seriesId !== editingActivity.seriesId));
       } else {
         await scheduleService.deleteActivity(editingActivity.id);
+        setActivities(prev => prev.filter(a => a.id !== editingActivity.id));
       }
-      await fetchData();
       setModalOpen(false);
       setEditingActivity(null);
     } catch (err) {
@@ -397,9 +405,10 @@ export function FamilySchedule() {
         formData={formData}
         familyMembers={familyMembers}
         days={days}
+        activity={editingActivity}
         onClose={() => setModalOpen(false)}
-        onSave={() => handleSaveActivity(formData)}
-        onDelete={handleDeleteActivity}
+        onSave={(applyToSeries) => handleSaveActivity(formData, applyToSeries)}
+        onDelete={(applyToSeries) => handleDeleteActivity(applyToSeries)}
         onFormChange={setFormData}
       />
       <SettingsModal

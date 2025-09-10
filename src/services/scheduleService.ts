@@ -46,6 +46,16 @@ export const scheduleService = {
     return data.data;
   },
 
+  async updateActivitySeries(seriesId: string, activityData: Partial<Activity>): Promise<Activity[]> {
+    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities/series/${seriesId}`, {
+      method: 'PUT',
+      body: JSON.stringify(activityData),
+    });
+    if (!response.ok) throw new Error('Failed to update activity series');
+    const data = await response.json();
+    return data.data || [];
+  },
+
   async deleteActivity(id: string): Promise<void> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities/${id}`, {
       method: 'DELETE',
