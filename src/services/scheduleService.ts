@@ -26,14 +26,14 @@ export const scheduleService = {
     return data.data || [];
   },
 
-  async createActivity(activityData: CreateActivityPayload): Promise<Activity> {
+  async createActivity(activityData: CreateActivityPayload): Promise<Activity[]> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities`, {
       method: 'POST',
       body: JSON.stringify(activityData),
     });
     if (!response.ok) throw new Error('Failed to create activity');
     const data = await response.json();
-    return data.data;
+    return data.data || [];
   },
 
   async updateActivity(id: string, activityData: CreateActivityPayload): Promise<Activity> {
