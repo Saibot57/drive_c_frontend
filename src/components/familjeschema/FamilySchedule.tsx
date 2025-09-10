@@ -170,28 +170,39 @@ export function FamilySchedule() {
     try {
       const importedData = JSON.parse(jsonText);
       if (!Array.isArray(importedData)) throw new Error("JSON måste vara en array.");
-
+      
+      // Debug: Check if family members are loaded
+      console.log("Family members loaded:", familyMembers);
+      
+      // If familyMembers is empty, fetch them first
+      if (!familyMembers || familyMembers.length === 0) {
+        alert("Familjemedlemmar har inte laddats än. Vänta en sekund och försök igen.");
+        await fetchData();
+        return;
+      }
+      
       // Create a mapping of participant names to IDs (case-insensitive)
       const participantNameToId: Record<string, string> = {};
       familyMembers.forEach(member => {
         participantNameToId[member.name.toLowerCase()] = member.id;
+        console.log(`Mapped: "${member.name}" (${member.name.toLowerCase()}) -> ${member.id}`);
       });
-
+      
       // Transform activities with date field to week/year/day format
       // and map participant names to IDs
-      const transformedData = importedData.map(activity => {
-        let transformedActivity = { ...activity };
-
+      const transformedData = importedData.map((activity: any) => {
+        let transformedActivity: any = { ...activity };
+        
         // If activity has a date field, convert it
         if (activity.date) {
           const date = new Date(activity.date);
           const week = getWeekNumber(date);
           const year = date.getFullYear();
-
+          
           // Get Swedish day name
           const dayNames = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
           const day = dayNames[date.getDay()];
-
+          
           // Remove date field and add week/year/day
           const { date: _, ...activityWithoutDate } = transformedActivity;
           transformedActivity = {
@@ -201,30 +212,38 @@ export function FamilySchedule() {
             day
           };
         }
-
+        
         // Map participant names to IDs
         if (transformedActivity.participants && Array.isArray(transformedActivity.participants)) {
+          console.log(`Activity "${transformedActivity.name}" has participants:`, transformedActivity.participants);
+          
           transformedActivity.participants = transformedActivity.participants.map((participant: any) => {
             // If it's already an ID (looks like a UUID), keep it
             if (typeof participant === 'string' && participant.includes('-')) {
+              console.log(`  - "${participant}" looks like UUID, keeping as-is`);
               return participant;
             }
-
+            
             // Otherwise, try to map the name to an ID
             const participantLower = String(participant).toLowerCase();
             const id = participantNameToId[participantLower];
-
+            
             if (!id) {
-              console.warn(`Kunde inte hitta familjemedlem: ${participant}`);
+              console.warn(`  - Kunde inte hitta familjemedlem: "${participant}" (sökte efter "${participantLower}")`);
+              console.log(`  - Tillgängliga namn:`, Object.keys(participantNameToId));
+            } else {
+              console.log(`  - Mapped "${participant}" -> ${id}`);
             }
-
+            
             return id || participant;
           }).filter(Boolean); // Remove any undefined values
+          
+          console.log(`  Final participants for activity:`, transformedActivity.participants);
         }
-
+        
         return transformedActivity;
       });
-
+      
       await scheduleService.addActivitiesFromJson(transformedData);
       await fetchData();
       setDataModalOpen(false);
