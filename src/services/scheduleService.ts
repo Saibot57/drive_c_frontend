@@ -33,7 +33,8 @@ export const scheduleService = {
     });
     if (!response.ok) throw new Error('Failed to create activity');
     const data = await response.json();
-    return data.data || [];
+    if (!data?.data) return [];
+    return Array.isArray(data.data) ? data.data : [data.data];
   },
 
   async updateActivity(id: string, activityData: CreateActivityPayload): Promise<Activity> {
