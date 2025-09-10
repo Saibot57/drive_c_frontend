@@ -349,6 +349,7 @@ export function FamilySchedule() {
         selectedYear={selectedYear}
         weekDates={weekDates}
         onNewActivity={() => { setEditingActivity(null); setModalOpen(true); }}
+        onOpenDataModal={() => setDataModalOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
       />
       <FamilyBar
@@ -358,11 +359,11 @@ export function FamilySchedule() {
         onMemberClick={(id) => { setViewMode('layer'); setHighlightedMemberId(id); }}
       />
       <WeekNavigation
+        selectedWeek={selectedWeek}
         isCurrentWeek={isCurrentWeek}
         onNavigateWeek={navigateWeek}
         onGoToCurrentWeek={goToCurrentWeek}
         onToggleWeekPicker={() => setShowWeekPicker(!showWeekPicker)}
-        onOpenDataModal={() => setDataModalOpen(true)}
       />
       {showWeekPicker && (
         <WeekPicker

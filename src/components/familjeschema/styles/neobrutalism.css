@@ -39,45 +39,31 @@ body {
 }
 
 .content-wrapper {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
+  padding: 0 16px;
 }
 
 /* Header */
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   background: var(--neo-white);
   border: 3px solid var(--neo-black);
-  padding: 30px;
-  margin-bottom: 30px;
   box-shadow: var(--shadow-lg);
-}
-
-.header-top {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 25px;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.logo-icon {
-  width: 60px;
   height: 60px;
-  background: var(--neo-yellow);
-  border: 3px solid var(--neo-black);
+  padding: 0 16px;
+  margin: 0 0 8px;
+}
+
+.header-title {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  transform: rotate(-5deg);
-  box-shadow: var(--shadow-md);
+  align-items: baseline;
+  gap: 8px;
 }
 
 h1 {
@@ -85,13 +71,13 @@ h1 {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: -1px;
+  margin: 0;
 }
 
 .week-info {
   font-size: 1rem;
   font-weight: 500;
   opacity: .8;
-  margin-top: 5px;
 }
 
 /* Buttons */
@@ -138,8 +124,8 @@ h1 {
 .btn-info { background: var(--neo-cyan); }
 
 .btn-icon {
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   display: flex;
   align-items: center;
@@ -148,7 +134,7 @@ h1 {
 
 .btn-group {
   display: flex;
-  gap: 15px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -156,29 +142,33 @@ h1 {
 .family-bar {
   background: var(--neo-white);
   border: 3px solid var(--neo-black);
-  padding: 20px;
-  margin-bottom: 25px;
+  padding: 0 16px;
+  margin-bottom: 8px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 40px;
   box-shadow: var(--shadow-md);
-  flex-wrap: wrap;
-  gap: 20px;
 }
 
 .family-members {
   display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
 }
 
 .member-badge {
   background: var(--neo-white);
   border: 2px solid var(--neo-black);
-  padding: 8px 16px;
-  display: flex;
+  padding: 4px 8px;
+  height: 32px;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 700;
   box-shadow: 3px 3px 0 var(--neo-black);
   transition: .1s;
@@ -200,17 +190,53 @@ h1 {
 .week-nav {
   background: var(--neo-white);
   border: 3px solid var(--neo-black);
-  padding: 20px;
-  margin-bottom: 30px;
   box-shadow: var(--shadow-md);
+  padding: 0 16px;
+  margin-bottom: 8px;
+  height: 40px;
+  display: flex;
+  align-items: center;
 }
 
 .week-nav-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
+  width: 100%;
+}
+
+.week-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-display {
+  background: none;
+  border: none;
+  box-shadow: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0 8px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
 /* Week Picker */
@@ -306,7 +332,9 @@ h1 {
 
 .schedule-grid {
   display: grid;
-  min-width: 1200px;
+  grid-template-columns: 72px repeat(7, minmax(140px, 1fr));
+  column-gap: 1px;
+  row-gap: 1px;
 }
 
 .time-column {
@@ -318,7 +346,7 @@ h1 {
 }
 
 .time-header {
-  height: 80px;
+  height: 44px;
   border-bottom: 3px solid var(--neo-black);
   display: flex;
   align-items: center;
@@ -327,10 +355,13 @@ h1 {
   font-size: 1.2rem;
   background: var(--neo-purple);
   color: var(--neo-white);
+  position: sticky;
+  top: 0;
+  z-index: 6;
 }
 
 .time-slot {
-  height: 60px;
+  height: 32px;
   border-bottom: 2px solid var(--neo-black);
   display: flex;
   align-items: center;
@@ -350,7 +381,7 @@ h1 {
 }
 
 .day-header {
-  height: 80px;
+  height: 44px;
   border-bottom: 3px solid var(--neo-black);
   display: flex;
   flex-direction: column;
@@ -358,7 +389,9 @@ h1 {
   justify-content: center;
   font-weight: 700;
   background: var(--neo-cyan);
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 5;
   overflow: hidden;
 }
 
@@ -920,15 +953,10 @@ h1 {
 
 /* View Mode Toggle */
 .view-mode-toggle {
-  background: var(--neo-white);
-  border: 3px solid var(--neo-black);
-  padding: 15px;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow-md);
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  margin-left: 8px;
   align-items: center;
-  justify-content: center;
 }
 
 .view-mode-btn {
@@ -1236,12 +1264,10 @@ h1 {
 
 @media (max-width: 768px) {
   .view-mode-toggle {
-    flex-direction: column;
     gap: 5px;
   }
-  
+
   .view-mode-btn {
-    width: 100%;
     justify-content: center;
   }
   
@@ -1357,16 +1383,17 @@ h1 {
 button.member-badge {
   background: var(--neo-white);
   border: 2px solid var(--neo-black);
-  padding: 8px 16px;
-  display: flex;
+  padding: 4px 8px;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-family: 'Space Grotesk', monospace;
   font-weight: 700;
   font-size: 1rem;
   box-shadow: 3px 3px 0 var(--neo-black);
   transition: .1s;
   cursor: pointer;
+  height: 32px;
 }
 
 button.member-badge:hover {
@@ -1381,6 +1408,9 @@ button.member-badge:hover {
   border: none;
   box-shadow: none;
   padding: 0;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* --- Highlight effect for LayerView --- */

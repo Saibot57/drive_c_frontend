@@ -35,7 +35,6 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   };
 
-  // Add overlap intensity levels
   const getOverlapIntensity = (overlapGroups: Activity[][]) => {
     if (overlapGroups.length <= 1) return 'none';
     if (overlapGroups.length === 2) return 'low';
@@ -46,23 +45,10 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   const monthAbbr = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun',
                      'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
-  // Dynamically adjust column width based on overlap intensity
-  const columnWidths = days.map(day => {
-    const dayActivities = getActivitiesForDay(day);
-    const overlapGroups = calculateOverlapGroups(dayActivities);
-    const intensity = getOverlapIntensity(overlapGroups);
-    
-    switch(intensity) {
-      case 'high': return '2fr';
-      case 'medium': return '1.75fr';
-      case 'low': return '1.5fr';
-      default: return '1fr';
-    }
-  });
+  const hourHeight = 32; // height per hour slot
 
-  const gridTemplateColumns = `80px ${columnWidths.join(' ')}`;
+  const gridTemplateColumns = `72px repeat(${days.length}, minmax(140px, 1fr))`;
 
-  // Helper function to get visual indicator for busy days
   const getDayIntensityClass = (day: string) => {
     const dayActivities = getActivitiesForDay(day);
     const overlapGroups = calculateOverlapGroups(dayActivities);
@@ -71,10 +57,15 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   };
 
   return (
-    <main className="schedule-container" role="main" aria-label="Veckans schema">
+    <main
+      className="schedule-container"
+      role="main"
+      aria-label="Veckans schema"
+      style={{ height: 'calc(100vh - 120px)' }}
+    >
       <div
         className="schedule-grid"
-        style={{ gridTemplateColumns: gridTemplateColumns }}
+        style={{ gridTemplateColumns }}
       >
         {/* Time column */}
         <div className="time-column">
@@ -107,13 +98,13 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                   </span>
                 )}
               </div>
-              <div className="day-content" style={{ height: `${timeSlots.length * 60}px` }}>
+              <div className="day-content" style={{ height: `${timeSlots.length * hourHeight}px` }}>
                 {overlapGroups.map((group, groupIndex) =>
                   group.map(activity => {
                     const { top, height } = calculatePosition(
                       activity.startTime,
                       activity.endTime,
-                      60,
+                      hourHeight,
                       settings.dayStart
                     );
                     
