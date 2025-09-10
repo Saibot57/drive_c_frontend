@@ -141,8 +141,8 @@ export function FamilySchedule() {
           setActivities(prev => prev.map(a => (a.id === updatedActivity.id ? updatedActivity : a)));
         }
       } else {
-        const newActivities = await scheduleService.createActivity(payload);
-        setActivities(prev => [...prev, ...newActivities]);
+        const created = await scheduleService.createActivity(payload);
+        setActivities(prev => [...prev, ...created]);
       }
 
       setModalOpen(false);

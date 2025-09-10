@@ -28,7 +28,7 @@ export const scheduleService = {
 
   async createActivity(activityData: CreateActivityPayload): Promise<Activity[]> {
     const body: Record<string, unknown> = { ...activityData };
-    if ('recurringEndDate' in activityData && activityData.recurringEndDate) {
+    if (activityData.recurringEndDate) {
       body.recurringEndDate = activityData.recurringEndDate;
     }
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities`, {
@@ -37,7 +37,7 @@ export const scheduleService = {
     });
     if (!response.ok) throw new Error('Failed to create activity');
     const data = await response.json();
-    return data.data || [];
+    return Array.isArray(data.data) ? data.data : data.data ? [data.data] : [];
   },
 
   async updateActivity(id: string, activityData: CreateActivityPayload): Promise<Activity> {
