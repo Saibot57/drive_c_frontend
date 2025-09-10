@@ -30,8 +30,14 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
     const [showIconPicker, setShowIconPicker] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [actionType, setActionType] = useState<'save' | 'delete' | null>(null);
+    const [error, setError] = useState('');
 
     const handleSaveClick = () => {
+      if (formData.recurring && !formData.recurringEndDate) {
+        setError('Du måste ange ett slutdatum för återkommande aktiviteter.');
+        return;
+      }
+      setError('');
       if (activity?.seriesId) {
         setActionType('save');
         setShowConfirmation(true);
@@ -287,13 +293,16 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
           {!isEditing && (
             <div className="form-group">
               <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  className="checkbox-input"
-                  checked={formData.recurring}
-                  onChange={e => onFormChange({ ...formData, recurring: e.target.checked })}
-                  aria-label="Återkommande aktivitet"
-                />
+                  <input
+                    type="checkbox"
+                    className="checkbox-input"
+                    checked={formData.recurring}
+                    onChange={e => {
+                      setError('');
+                      onFormChange({ ...formData, recurring: e.target.checked });
+                    }}
+                    aria-label="Återkommande aktivitet"
+                  />
                 <Repeat size={20}/> Återkommande aktivitet
               </label>
               {formData.recurring && (
@@ -304,9 +313,14 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
                     type="date"
                     className="form-input"
                     value={formData.recurringEndDate}
-                    onChange={e => onFormChange({ ...formData, recurringEndDate: e.target.value })}
+                    onChange={e => {
+                      setError('');
+                      onFormChange({ ...formData, recurringEndDate: e.target.value });
+                    }}
                     min={new Date().toISOString().split('T')[0]}
+                    required
                   />
+                  {error && <p style={{ color: 'red' }}>{error}</p>}
                 </div>
               )}
             </div>
