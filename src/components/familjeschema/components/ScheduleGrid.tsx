@@ -46,21 +46,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   const monthAbbr = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun',
                      'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
-  // Dynamically adjust column width based on overlap intensity
-  const columnWidths = days.map(day => {
-    const dayActivities = getActivitiesForDay(day);
-    const overlapGroups = calculateOverlapGroups(dayActivities);
-    const intensity = getOverlapIntensity(overlapGroups);
-    
-    switch(intensity) {
-      case 'high': return '2fr';
-      case 'medium': return '1.75fr';
-      case 'low': return '1.5fr';
-      default: return '1fr';
-    }
-  });
-
-  const gridTemplateColumns = `80px ${columnWidths.join(' ')}`;
+  const gridTemplateColumns = `72px repeat(${days.length}, minmax(140px, 1fr))`;
 
   // Helper function to get visual indicator for busy days
   const getDayIntensityClass = (day: string) => {
@@ -107,13 +93,13 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                   </span>
                 )}
               </div>
-              <div className="day-content" style={{ height: `${timeSlots.length * 60}px` }}>
+              <div className="day-content" style={{ height: `${timeSlots.length * 36}px` }}>
                 {overlapGroups.map((group, groupIndex) =>
                   group.map(activity => {
                     const { top, height } = calculatePosition(
                       activity.startTime,
                       activity.endTime,
-                      60,
+                      36,
                       settings.dayStart
                     );
                     
