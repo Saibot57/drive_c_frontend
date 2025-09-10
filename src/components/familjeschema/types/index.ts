@@ -30,6 +30,8 @@ export interface CreateActivityPayload {
   endTime: string;
   location?: string;
   notes?: string;
+  recurring?: boolean;
+  recurringEndDate?: string;
   color?: string;
   week: number;
   year: number;
