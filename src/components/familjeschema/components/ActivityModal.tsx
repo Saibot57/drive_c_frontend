@@ -1,9 +1,16 @@
 import { forwardRef, useState } from 'react';
 import { X, Save, Trash2, Repeat } from 'lucide-react';
-import type { FormData, FamilyMember } from '../types';
+import type { FormData, FamilyMember, Activity } from '../types';
 import { SizableModal } from './SizableModal';
 import { ACTIVITY_COLORS } from '../constants';
 import { IconPicker } from './IconPicker';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -11,15 +18,46 @@ interface ActivityModalProps {
   formData: FormData;
   familyMembers: FamilyMember[];
   days: string[];
+  activity?: Activity | null;
   onClose: () => void;
-  onSave: () => void;
-  onDelete: () => void;
+  onSave: (applyToSeries: boolean) => void;
+  onDelete: (applyToSeries: boolean) => void;
   onFormChange: (data: FormData) => void;
 }
 
 export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
-  ({ isOpen, isEditing, formData, familyMembers, days, onClose, onSave, onDelete, onFormChange }, ref) => {
+  ({ isOpen, isEditing, formData, familyMembers, days, activity, onClose, onSave, onDelete, onFormChange }, ref) => {
     const [showIconPicker, setShowIconPicker] = useState(false);
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [actionType, setActionType] = useState<'save' | 'delete' | null>(null);
+
+    const handleSaveClick = () => {
+      if (activity?.seriesId) {
+        setActionType('save');
+        setShowConfirmation(true);
+      } else {
+        onSave(false);
+      }
+    };
+
+    const handleDeleteClick = () => {
+      if (activity?.seriesId) {
+        setActionType('delete');
+        setShowConfirmation(true);
+      } else {
+        onDelete(false);
+      }
+    };
+
+    const handleConfirmation = (applyToSeries: boolean) => {
+      if (actionType === 'save') {
+        onSave(applyToSeries);
+      } else if (actionType === 'delete') {
+        onDelete(applyToSeries);
+      }
+      setShowConfirmation(false);
+      setActionType(null);
+    };
 
     const handleDayToggle = (day: string) => {
       if (isEditing) return;
@@ -37,6 +75,7 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
     };
 
     return (
+      <>
       <SizableModal
         isOpen={isOpen}
         onClose={onClose}
@@ -278,7 +317,7 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
           {isEditing && (
             <button
               className="btn btn-danger"
-              onClick={onDelete}
+              onClick={handleDeleteClick}
               aria-label="Ta bort aktivitet"
             >
               <Trash2 size={20}/> Ta bort
@@ -288,7 +327,7 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
             <button className="btn" onClick={onClose}>Avbryt</button>
             <button
               className="btn btn-success"
-              onClick={onSave}
+              onClick={handleSaveClick}
               aria-label="Spara aktivitet"
             >
               <Save size={20}/> Spara
@@ -296,6 +335,18 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
           </div>
         </div>
       </SizableModal>
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vill du utföra åtgärden för hela serien?</DialogTitle>
+          </DialogHeader>
+          <DialogFooter>
+            <button className="btn" onClick={() => handleConfirmation(false)}>Endast denna</button>
+            <button className="btn btn-success" onClick={() => handleConfirmation(true)}>Hela serien</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
     );
   }
 );
