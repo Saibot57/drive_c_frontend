@@ -126,6 +126,10 @@ export function FamilySchedule() {
         year: selectedYear,
       };
 
+      if (activityFromForm.recurring && activityFromForm.recurringEndDate) {
+        payload.recurringEndDate = activityFromForm.recurringEndDate;
+      }
+
       if (editingActivity) {
         if (applyToSeries && editingActivity.seriesId) {
           const updatedActivities = await scheduleService.updateActivitySeries(editingActivity.seriesId, payload);
@@ -137,8 +141,8 @@ export function FamilySchedule() {
           setActivities(prev => prev.map(a => (a.id === updatedActivity.id ? updatedActivity : a)));
         }
       } else {
-        const newActivity = await scheduleService.createActivity(payload);
-        setActivities(prev => [...prev, newActivity]);
+        const newActivities = await scheduleService.createActivity(payload);
+        setActivities(prev => [...prev, ...newActivities]);
       }
 
       setModalOpen(false);
