@@ -167,6 +167,7 @@ export function FamilySchedule() {
   };
 
   const handleTextImport = async (jsonText: string) => {
+    console.log("=== IMPORT STARTED ==="); // <-- Lägg till denna rad
     try {
       const importedData = JSON.parse(jsonText);
       if (!Array.isArray(importedData)) throw new Error("JSON måste vara en array.");
