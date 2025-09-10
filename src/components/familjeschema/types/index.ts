@@ -33,6 +33,7 @@ export interface CreateActivityPayload {
   color?: string;
   week: number;
   year: number;
+  recurringEndDate?: string;
 }
 
 export interface FormData {
