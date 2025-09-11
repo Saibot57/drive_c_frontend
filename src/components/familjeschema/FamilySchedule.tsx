@@ -11,14 +11,12 @@ import type {
   CreateActivityPayload,
 } from './types';
 import { WEEKDAYS_FULL, ALL_DAYS } from './constants';
-import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
+import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture, formatWeekRange } from './utils/dateUtils';
 import { generateTimeSlots } from './utils/scheduleUtils';
 import { downloadAllICS } from './utils/exportUtils';
 import { useFocusTrap } from './hooks/useFocusTrap';
 
-import { Header } from './components/Header';
-import { FamilyBar } from './components/FamilyBar';
-import { WeekNavigation } from './components/WeekNavigation';
+import { Sidebar } from './components/Sidebar';
 import { WeekPicker } from './components/WeekPicker';
 import { ScheduleGrid } from './components/ScheduleGrid';
 import { LayerView } from './components/LayerView';
@@ -90,16 +88,6 @@ export function FamilySchedule() {
       setActivities(activitiesData);
       setFamilyMembers(membersData);
       if (settingsData) setSettings(settingsData);
-
-      // --- Tillfällig debug för ikonproblem ---
-      if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.log('Family members:', membersData);
-        membersData.forEach(m => {
-          // eslint-disable-next-line no-console
-          console.log(`${m.name}: icon="${m.icon}" (char codes: ${Array.from(m.icon || '').map((c: string) => c.charCodeAt(0)).join(', ')})`);
-        });
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte hämta schemadata.');
     } finally {
@@ -179,44 +167,34 @@ export function FamilySchedule() {
   };
 
   const handleTextImport = async (jsonText: string) => {
-    console.log("=== IMPORT STARTED ==="); // <-- Lägg till denna rad
+    console.log("=== IMPORT STARTED ===");
     try {
       const importedData = JSON.parse(jsonText);
       if (!Array.isArray(importedData)) throw new Error("JSON måste vara en array.");
       
-      // Debug: Check if family members are loaded
-      console.log("Family members loaded:", familyMembers);
-      
-      // If familyMembers is empty, fetch them first
       if (!familyMembers || familyMembers.length === 0) {
         alert("Familjemedlemmar har inte laddats än. Vänta en sekund och försök igen.");
         await fetchData();
         return;
       }
       
-      // Create a mapping of participant names to IDs (case-insensitive)
       const participantNameToId: Record<string, string> = {};
       familyMembers.forEach(member => {
         participantNameToId[member.name.toLowerCase()] = member.id;
         console.log(`Mapped: "${member.name}" (${member.name.toLowerCase()}) -> ${member.id}`);
       });
       
-      // Transform activities with date field to week/year/day format
-      // and map participant names to IDs
       const transformedData = importedData.map((activity: any) => {
         let transformedActivity: any = { ...activity };
         
-        // If activity has a date field, convert it
         if (activity.date) {
           const date = new Date(activity.date);
           const week = getWeekNumber(date);
           const year = date.getFullYear();
           
-          // Get Swedish day name
           const dayNames = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
           const day = dayNames[date.getDay()];
           
-          // Remove date field and add week/year/day
           const { date: _, ...activityWithoutDate } = transformedActivity;
           transformedActivity = {
             ...activityWithoutDate,
@@ -226,18 +204,15 @@ export function FamilySchedule() {
           };
         }
         
-        // Map participant names to IDs
         if (transformedActivity.participants && Array.isArray(transformedActivity.participants)) {
           console.log(`Activity "${transformedActivity.name}" has participants:`, transformedActivity.participants);
           
           transformedActivity.participants = transformedActivity.participants.map((participant: any) => {
-            // If it's already an ID (looks like a UUID), keep it
             if (typeof participant === 'string' && participant.includes('-')) {
               console.log(`  - "${participant}" looks like UUID, keeping as-is`);
               return participant;
             }
             
-            // Otherwise, try to map the name to an ID
             const participantLower = String(participant).toLowerCase();
             const id = participantNameToId[participantLower];
             
@@ -249,7 +224,7 @@ export function FamilySchedule() {
             }
             
             return id || participant;
-          }).filter(Boolean); // Remove any undefined values
+          }).filter(Boolean);
           
           console.log(`  Final participants for activity:`, transformedActivity.participants);
         }
@@ -268,7 +243,6 @@ export function FamilySchedule() {
       alert(`Import misslyckades: ${errorMessage}`);
     }
   };
-  
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -338,32 +312,77 @@ export function FamilySchedule() {
     setEditingActivity(activity);
     setModalOpen(true);
   };
+
+  const handleMemberClick = (memberId: string) => {
+    setViewMode('layer');
+    setHighlightedMemberId(memberId);
+  };
   
   if (loading) return <div className="text-center p-10 font-monument">Laddar schema...</div>;
   if (error) return <div className="text-center p-10 font-monument text-red-600">Fel: {error}</div>;
 
   return (
-    <div className="content-wrapper">
-      <Header
+    <div className="schedule-app-container">
+      <Sidebar
+        familyMembers={familyMembers}
         selectedWeek={selectedWeek}
         selectedYear={selectedYear}
-        weekDates={weekDates}
+        isCurrentWeek={isCurrentWeek}
+        viewMode={viewMode}
         onNewActivity={() => { setEditingActivity(null); setModalOpen(true); }}
         onOpenSettings={() => setSettingsOpen(true)}
-      />
-      <FamilyBar
-        members={familyMembers}
-        viewMode={viewMode}
-        onSetViewMode={setViewMode}
-        onMemberClick={(id) => { setViewMode('layer'); setHighlightedMemberId(id); }}
-      />
-      <WeekNavigation
-        isCurrentWeek={isCurrentWeek}
         onNavigateWeek={navigateWeek}
         onGoToCurrentWeek={goToCurrentWeek}
         onToggleWeekPicker={() => setShowWeekPicker(!showWeekPicker)}
         onOpenDataModal={() => setDataModalOpen(true)}
+        onSetViewMode={setViewMode}
+        onMemberClick={handleMemberClick}
       />
+
+      <div className="schedule-main-content">
+        {/* Compact Header */}
+        <div className="compact-header">
+          <h1 className="compact-title">
+            Vecka {selectedWeek} • {formatWeekRange(weekDates)} {selectedYear}
+          </h1>
+        </div>
+
+        {/* Notifications */}
+        {!isCurrentWeek && (
+          <div className="compact-notice" role="alert">
+            <AlertCircle size={18}/>
+            <span>Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka</span>
+          </div>
+        )}
+        {showConflict && (
+          <div className="compact-notice conflict" role="alert">
+            <AlertCircle size={18}/> 
+            <span>Tidskonflikt! En deltagare är redan upptagen.</span>
+          </div>
+        )}
+
+        {/* Main Schedule View */}
+        <div className="schedule-view-container">
+          {viewMode === 'grid' ? (
+            <ScheduleGrid
+              days={days} weekDates={weekDates} timeSlots={timeSlots}
+              activities={activities} familyMembers={familyMembers}
+              settings={settings} selectedWeek={selectedWeek}
+              selectedYear={selectedYear} onActivityClick={handleActivityClick}
+            />
+          ) : (
+            <LayerView
+              days={days} weekDates={weekDates} timeSlots={timeSlots}
+              activities={activities} familyMembers={familyMembers}
+              settings={settings} selectedWeek={selectedWeek}
+              selectedYear={selectedYear} onActivityClick={handleActivityClick}
+              highlightedMemberId={highlightedMemberId}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
       {showWeekPicker && (
         <WeekPicker
           selectedWeek={selectedWeek}
@@ -371,34 +390,6 @@ export function FamilySchedule() {
           onSelectWeek={setSelectedWeek}
           onChangeYear={setSelectedYear}
           onClose={() => setShowWeekPicker(false)}
-        />
-      )}
-      {!isCurrentWeek && (
-        <div className="notice-banner" role="alert">
-          <AlertCircle size={24}/>
-          Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka
-        </div>
-      )}
-      {showConflict && (
-        <div className="notice-banner conflict-banner" role="alert">
-          <AlertCircle size={24}/> Tidskonflikt! En deltagare är redan upptagen.
-        </div>
-      )}
-      
-      {viewMode === 'grid' ? (
-        <ScheduleGrid
-          days={days} weekDates={weekDates} timeSlots={timeSlots}
-          activities={activities} familyMembers={familyMembers}
-          settings={settings} selectedWeek={selectedWeek}
-          selectedYear={selectedYear} onActivityClick={handleActivityClick}
-        />
-      ) : (
-        <LayerView
-          days={days} weekDates={weekDates} timeSlots={timeSlots}
-          activities={activities} familyMembers={familyMembers}
-          settings={settings} selectedWeek={selectedWeek}
-          selectedYear={selectedYear} onActivityClick={handleActivityClick}
-          highlightedMemberId={highlightedMemberId}
         />
       )}
 
@@ -415,6 +406,7 @@ export function FamilySchedule() {
         onDelete={(applyToSeries) => handleDeleteActivity(applyToSeries)}
         onFormChange={setFormData}
       />
+
       <SettingsModal
         ref={settingsModalRef}
         isOpen={settingsOpen}
@@ -422,6 +414,7 @@ export function FamilySchedule() {
         onClose={() => setSettingsOpen(false)}
         onSettingsChange={handleSettingsChange}
       />
+
       <DataModal
         isOpen={dataModalOpen}
         onClose={() => setDataModalOpen(false)}
