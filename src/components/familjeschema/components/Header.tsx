@@ -1,6 +1,5 @@
 import React from 'react';
 import { Plus, Settings } from 'lucide-react';
-import { formatWeekRange } from '../utils/dateUtils';
 
 interface HeaderProps {
   selectedWeek: number;
@@ -24,9 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="logo-icon">📅</div>
           <div>
             <h1>Familjens Schema</h1>
-            <div className="week-info">
-              {formatWeekRange(weekDates)} {selectedYear}
-            </div>
+            {/* Date range removed */}
           </div>
         </div>
 
