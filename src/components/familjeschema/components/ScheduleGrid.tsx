@@ -4,7 +4,6 @@ import React from 'react';
 import type { Activity, FamilyMember, Settings } from '../types';
 import { ActivityBlock } from './ActivityBlock';
 import { calculatePosition, calculateOverlapGroups } from '../utils/scheduleUtils';
-import { isToday } from '../utils/dateUtils';
 
 interface ScheduleGridProps {
   days: string[];
@@ -20,7 +19,7 @@ interface ScheduleGridProps {
 
 export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   days,
-  weekDates,
+  weekDates: _weekDates,
   timeSlots,
   activities,
   familyMembers,
@@ -43,8 +42,6 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     return 'high';
   };
 
-  const monthAbbr = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun',
-                     'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
   // Dynamically adjust column width based on overlap intensity
   const columnWidths = days.map(day => {
@@ -86,27 +83,12 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
         {/* Day columns */}
         {days.map((day, index) => {
-          const date = weekDates[index];
           const dayActivities = getActivitiesForDay(day);
           const overlapGroups = calculateOverlapGroups(dayActivities);
           const numColumns = overlapGroups.length;
-          const intensity = getOverlapIntensity(overlapGroups);
 
           return (
             <div key={day} className={`day-column ${getDayIntensityClass(day)}`}>
-              <div className={`day-header ${isToday(date) ? 'today' : ''}`}>
-                <span className="day-name">{day}</span>
-                <span className="day-date">
-                  {date.getDate()} {monthAbbr[date.getMonth()]}
-                </span>
-                {/* Add visual indicator for busy days */}
-                {intensity !== 'none' && (
-                  <span className={`intensity-indicator intensity-${intensity}`} 
-                        title={`${overlapGroups.length} overlapping activities`}>
-                    {intensity === 'high' ? '🔥' : intensity === 'medium' ? '⚡' : '📌'}
-                  </span>
-                )}
-              </div>
               <div className="day-content" style={{ height: `${timeSlots.length * 60}px` }}>
                 {overlapGroups.map((group, groupIndex) =>
                   group.map(activity => {

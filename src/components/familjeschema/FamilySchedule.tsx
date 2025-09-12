@@ -343,7 +343,7 @@ export function FamilySchedule() {
         {/* Compact Header */}
         <div className="compact-header">
           <h1 className="compact-title">
-            Vecka {selectedWeek} • {formatWeekRange(weekDates)} {selectedYear}
+            {formatWeekRange(weekDates)} {selectedYear}
           </h1>
         </div>
 

@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <h1>Familjens Schema</h1>
             <div className="week-info">
-              Vecka {selectedWeek} • {formatWeekRange(weekDates)} {selectedYear}
+              {formatWeekRange(weekDates)} {selectedYear}
             </div>
           </div>
         </div>
