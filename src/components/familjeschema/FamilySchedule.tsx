@@ -340,11 +340,6 @@ export function FamilySchedule() {
       />
 
       <div className="schedule-main-content">
-        {/* Compact Header */}
-        <div className="compact-header">
-          <h1 className="compact-title">Familjens Schema</h1>
-        </div>
-
         {/* Notifications */}
         {!isCurrentWeek && (
           <div className="compact-notice" role="alert">

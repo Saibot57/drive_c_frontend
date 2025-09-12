@@ -1660,29 +1660,13 @@ button.member-badge:hover {
 }
 
 /* Main Content Area */
+
 .schedule-main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 20px;
-}
-
-/* Compact Header */
-.compact-header {
-  background: var(--neo-white);
-  border: 3px solid var(--neo-black);
-  padding: 15px 20px;
-  margin-bottom: 15px;
-  box-shadow: var(--shadow-md);
-}
-
-.compact-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin: 0;
-  letter-spacing: -0.5px;
+  padding: 0 20px 20px;
 }
 
 /* Compact Notices */
@@ -1737,9 +1721,6 @@ button.member-badge:hover {
     width: 240px;
   }
   
-  .compact-title {
-    font-size: 1.3rem;
-  }
 }
 
 @media (max-width: 992px) {
@@ -1765,7 +1746,7 @@ button.member-badge:hover {
   }
   
   .schedule-main-content {
-    padding: 80px 15px 15px;
+    padding: 0 15px 15px;
   }
   
   /* Overlay when sidebar is open on mobile */
@@ -1782,16 +1763,8 @@ button.member-badge:hover {
 }
 
 @media (max-width: 768px) {
-  .compact-header {
-    padding: 12px 15px;
-  }
-  
-  .compact-title {
-    font-size: 1.1rem;
-  }
-  
   .schedule-main-content {
-    padding: 70px 10px 10px;
+    padding: 0 10px 10px;
   }
   
   .sidebar {
