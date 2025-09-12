@@ -54,6 +54,8 @@ export function FamilySchedule() {
   const [formData, setFormData] = useState<FormData>(BLANK_FORM);
   const [highlightedMemberId, setHighlightedMemberId] = useState<string | null>(null);
   const [showConflict, setShowConflict] = useState(false);
+  const [memberFormOpen, setMemberFormOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -163,6 +165,46 @@ export function FamilySchedule() {
       setSettings(updatedSettings);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte spara inställningar.');
+    }
+  };
+
+  const handleSaveMember = async (memberData: { name: string; color: string; icon: string }) => {
+    if (editingMember) {
+      const previous = [...familyMembers];
+      setFamilyMembers(prev => prev.map(m => m.id === editingMember.id ? { ...m, ...memberData } : m));
+      try {
+        const updated = await scheduleService.updateFamilyMember(editingMember.id, memberData);
+        setFamilyMembers(prev => prev.map(m => m.id === editingMember.id ? updated : m));
+        await fetchActivities(selectedYear, selectedWeek);
+      } catch (err) {
+        setFamilyMembers(previous);
+        setError(err instanceof Error ? err.message : 'Kunde inte uppdatera medlem.');
+      }
+    } else {
+      const tempId = `temp-${Date.now()}`;
+      const newMember = { id: tempId, ...memberData };
+      setFamilyMembers(prev => [...prev, newMember]);
+      try {
+        const created = await scheduleService.createFamilyMember(memberData);
+        setFamilyMembers(prev => prev.map(m => m.id === tempId ? created : m));
+      } catch (err) {
+        setFamilyMembers(prev => prev.filter(m => m.id !== tempId));
+        setError(err instanceof Error ? err.message : 'Kunde inte skapa medlem.');
+      }
+    }
+    setEditingMember(null);
+    setMemberFormOpen(false);
+  };
+
+  const handleDeleteMember = async (member: FamilyMember) => {
+    const previous = [...familyMembers];
+    setFamilyMembers(prev => prev.filter(m => m.id !== member.id));
+    try {
+      await scheduleService.deleteFamilyMember(member.id);
+      await fetchActivities(selectedYear, selectedWeek);
+    } catch (err) {
+      setFamilyMembers(previous);
+      setError(err instanceof Error ? err.message : 'Kunde inte ta bort medlem.');
     }
   };
 
@@ -404,8 +446,26 @@ export function FamilySchedule() {
         ref={settingsModalRef}
         isOpen={settingsOpen}
         settings={settings}
-        onClose={() => setSettingsOpen(false)}
+        familyMembers={familyMembers}
+        activities={activities}
+        memberFormOpen={memberFormOpen}
+        editingMember={editingMember}
+        onClose={() => {
+          setSettingsOpen(false);
+          setMemberFormOpen(false);
+          setEditingMember(null);
+        }}
         onSettingsChange={handleSettingsChange}
+        onEditMember={(member) => {
+          setEditingMember(member);
+          setMemberFormOpen(true);
+        }}
+        onSaveMember={handleSaveMember}
+        onDeleteMember={handleDeleteMember}
+        onCloseMemberForm={() => {
+          setMemberFormOpen(false);
+          setEditingMember(null);
+        }}
       />
 
       <DataModal

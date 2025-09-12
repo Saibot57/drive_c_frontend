@@ -1816,3 +1816,40 @@ button.member-badge:hover {
   max-height: calc(100vh - 200px);
   overflow: auto;
 }
+
+/* Family member editor */
+.member-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.member-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 2px solid var(--neo-black);
+  margin-bottom: 8px;
+  background: var(--neo-white);
+}
+
+.member-color-preview {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--neo-black);
+}
+
+.member-delete-btn {
+  background: var(--neo-red);
+  color: var(--neo-black);
+  border: 2px solid var(--neo-black);
+  padding: 4px 8px;
+}
+
+.member-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
