@@ -1,11 +1,11 @@
-// src/app/features/familjeschema/page.tsx
+// src/app/(full-width)/features/familjeschema/page.tsx
 'use client';
 
-import { FamilySchedule } from '@/components/familjeschema/FamilySchedule'; 
+import { FamilySchedule } from '@/components/familjeschema/FamilySchedule';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 // Importera CSS-filen för schemat
-import '@/components/familjeschema/styles/neobrutalism.css'; 
+import '@/components/familjeschema/styles/neobrutalism.css';
 
 export default function FamilySchedulePage() {
   return (
