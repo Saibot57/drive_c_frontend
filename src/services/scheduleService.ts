@@ -125,7 +125,16 @@ export const scheduleService = {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/family-members/${id}`, {
       method: 'DELETE',
     });
-    if (!response.ok) throw new Error('Failed to delete family member');
+    if (!response.ok) {
+      let msg = 'Kunde inte ta bort medlem.';
+      try {
+        const data = await response.json();
+        if (data?.error) msg = data.error;
+      } catch {
+        // keep default msg
+      }
+      throw new Error(msg);
+    }
   },
 
   async reorderFamilyMembers(memberIds: string[]): Promise<FamilyMember[]> {

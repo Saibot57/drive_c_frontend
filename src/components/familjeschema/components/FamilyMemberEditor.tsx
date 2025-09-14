@@ -25,22 +25,39 @@ export const FamilyMemberEditor: React.FC<FamilyMemberEditorProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
+
+    const trimmed = name.trim();
+    if (!trimmed) {
       setError('Namn krävs');
       return;
     }
-    if (existingNames.includes(name) && name !== member?.name) {
+
+    // Case-insensitive duplicate check; allow unchanged when editing
+    const existsCI = existingNames.some(
+      (n) => n.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    const unchanged =
+      member && member.name.trim().toLowerCase() === trimmed.toLowerCase();
+
+    if (existsCI && !unchanged) {
       setError('Namnet finns redan');
       return;
     }
+
     if (!color) {
       setError('Välj en färg');
       return;
     }
+
     setError(null);
     setSaving(true);
-    await onSave({ name: name.trim(), color, icon });
-    setSaving(false);
+    try {
+      await onSave({ name: trimmed, color, icon });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Kunde inte spara medlem.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
