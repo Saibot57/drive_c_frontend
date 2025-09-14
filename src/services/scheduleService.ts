@@ -98,7 +98,54 @@ export const scheduleService = {
     return data.data || [];
   },
 
-  // ... (funktioner för att skapa/uppdatera/ta bort familjemedlemmar kan läggas till här)
+  async createFamilyMember(member: { name: string; color: string; icon: string }): Promise<FamilyMember> {
+    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/family-members`, {
+      method: 'POST',
+      body: JSON.stringify(member),
+    });
+    if (!response.ok) throw new Error('Failed to create family member');
+    const data = await response.json();
+    return data.data;
+  },
+
+  async updateFamilyMember(
+    id: string,
+    updates: Partial<{ name: string; color: string; icon: string }>
+  ): Promise<FamilyMember> {
+    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/family-members/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) throw new Error('Failed to update family member');
+    const data = await response.json();
+    return data.data;
+  },
+
+  async deleteFamilyMember(id: string): Promise<void> {
+    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/family-members/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      let msg = 'Kunde inte ta bort medlem.';
+      try {
+        const data = await response.json();
+        if (data?.error) msg = data.error;
+      } catch {
+        // keep default msg
+      }
+      throw new Error(msg);
+    }
+  },
+
+  async reorderFamilyMembers(memberIds: string[]): Promise<FamilyMember[]> {
+    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/family-members/reorder`, {
+      method: 'POST',
+      body: JSON.stringify({ order: memberIds }),
+    });
+    if (!response.ok) throw new Error('Failed to reorder family members');
+    const data = await response.json();
+    return data.data || [];
+  },
 
   // --- Inställningar ---
   async getSettings(): Promise<Settings> {
