@@ -3,6 +3,7 @@ import type { Activity, FamilyMember, Settings } from '../types';
 import { ActivityBlock } from './ActivityBlock';
 import { calculatePosition } from '../utils/scheduleUtils';
 import { isToday } from '../utils/dateUtils';
+import { Emoji } from '@/utils/Emoji';
 
 interface LayerViewProps {
   days: string[];
@@ -101,7 +102,7 @@ export const LayerView: React.FC<LayerViewProps> = ({
               {/* Member info column */}
               <div className="member-info" style={{ background: member.color + '20' }}>
                 <div className="member-avatar">
-                  <span className="member-icon">{member.icon}</span>
+                  <span className="member-icon"><Emoji emoji={member.icon} /></span>
                   <div className="member-details">
                     <span className="member-name">{member.name}</span>
                     <span className="activity-count">

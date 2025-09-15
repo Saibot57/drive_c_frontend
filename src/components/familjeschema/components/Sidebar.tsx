@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight, 
-  Home, 
-  Plus, 
-  Settings, 
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Plus,
+  Settings,
   ArrowRightLeft,
   Menu,
   X,
@@ -13,6 +13,7 @@ import {
   Layers
 } from 'lucide-react';
 import type { FamilyMember } from '../types';
+import { Emoji } from '@/utils/Emoji';
 
 interface SidebarProps {
   familyMembers: FamilyMember[];
@@ -118,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 title={member.name}
                 style={{ borderLeftColor: member.color }}
               >
-                <span className="member-icon">{member.icon}</span>
+                <span className="member-icon"><Emoji emoji={member.icon} /></span>
                 {!isCollapsed && (
                   <>
                     <span className="member-name">{member.name}</span>

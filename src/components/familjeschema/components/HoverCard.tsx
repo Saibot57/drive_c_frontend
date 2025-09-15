@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Activity, FamilyMember } from '../types';
+import { Emoji } from '@/utils/Emoji';
 
 interface HoverCardProps {
   activity: Activity;
@@ -18,7 +19,7 @@ export const HoverCard: React.FC<HoverCardProps> = ({ activity, familyMembers, p
   return (
     <div className={`hover-card ${positionClasses} ${visibilityClass}`}>
       <div className="hover-card-header">
-        <span className="hover-card-icon">{activity.icon}</span>
+        <span className="hover-card-icon"><Emoji emoji={activity.icon} /></span>
         <h3 className="hover-card-title">{activity.name}</h3>
       </div>
       <div className="hover-card-body">
@@ -30,7 +31,7 @@ export const HoverCard: React.FC<HoverCardProps> = ({ activity, familyMembers, p
             <div className="participants-list">
               {participants.map(p => (
                 <span key={p.id} className="participant-badge">
-                  {p.icon} {p.name}
+                  <Emoji emoji={p.icon} /> {p.name}
                 </span>
               ))}
             </div>

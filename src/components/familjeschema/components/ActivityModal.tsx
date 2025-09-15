@@ -4,6 +4,7 @@ import type { FormData, FamilyMember, Activity } from '../types';
 import { SizableModal } from './SizableModal';
 import { ACTIVITY_COLORS } from '../constants';
 import { IconPicker } from './IconPicker';
+import { Emoji } from '@/utils/Emoji';
 import {
   Dialog,
   DialogContent,
@@ -113,7 +114,7 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
                 aria-label="Välj ikon"
                 style={{ fontSize: '1.5rem', width: '60px', height: 'auto' }}
               >
-                {formData.icon}
+                <Emoji emoji={formData.icon} />
               </button>
               <input
                 id="activity-name"
@@ -184,7 +185,7 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
                     }
                   }}
                 >
-                  <span>{member.icon}</span>
+                  <Emoji emoji={member.icon} />
                   <span>{member.name}</span>
                 </div>
               ))}

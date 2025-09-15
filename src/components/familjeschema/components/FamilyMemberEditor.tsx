@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ACTIVITY_COLORS } from '../constants';
 import type { FamilyMember } from '../types';
 import { IconPicker } from './IconPicker';
+import { Emoji } from '@/utils/Emoji';
 
 interface FamilyMemberEditorProps {
   member?: FamilyMember;
@@ -100,12 +101,8 @@ export const FamilyMemberEditor: React.FC<FamilyMemberEditorProps> = ({
       <div className="form-group">
         <label className="form-label">Ikon</label>
         <div style={{ position: 'relative', display: 'inline-block' }}>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setShowPicker(true)}
-          >
-            {icon}
+          <button type="button" className="btn" onClick={() => setShowPicker(true)}>
+            <Emoji emoji={icon} />
           </button>
           {showPicker && (
             <IconPicker

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { FamilyMember, Activity } from '../types';
+import { Emoji } from '@/utils/Emoji';
 
 interface FamilyMembersListProps {
   members: FamilyMember[];
@@ -37,7 +38,9 @@ export const FamilyMembersList: React.FC<FamilyMembersListProps> = ({
               className="member-color-preview"
               style={{ background: m.color }}
             />
-            <span>{m.icon} {m.name}</span>
+            <span>
+              <Emoji emoji={m.icon} /> {m.name}
+            </span>
           </div>
           <div className="member-actions">
             <span style={{ marginRight: '10px' }}>{getUsage(m.id)}</span>
