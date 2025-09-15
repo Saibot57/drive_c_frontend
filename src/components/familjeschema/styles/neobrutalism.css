@@ -1865,5 +1865,5 @@ button.member-badge:hover {
   display: inline-block;
   width: 1em;
   height: 1em;
-  vertical-align: -0.15em; /* lite neddrag så den ligger snyggt på baslinjen */
+  vertical-align: -0.15em;
 }
