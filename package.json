@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "node scripts/ensure-twemoji-assets.cjs && node scripts/copy-twemoji.cjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",
@@ -20,6 +21,7 @@
     "@radix-ui/react-slider": "^1.2.3",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-switch": "^1.1.3",
+    "@twemoji/svg": "^15.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "emoji-picker-react": "^4.13.3",
@@ -33,7 +35,8 @@
     "react-fast-marquee": "^1.6.4",
     "react-resizable-panels": "^2.1.7",
     "tailwind-merge": "^2.3.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "twemoji": "^14.0.2"
   },
   "devDependencies": {
     "@faker-js/faker": "^8.4.1",
