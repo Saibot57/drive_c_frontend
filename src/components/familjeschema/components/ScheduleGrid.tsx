@@ -4,6 +4,7 @@ import React from 'react';
 import type { Activity, FamilyMember, Settings } from '../types';
 import { ActivityBlock } from './ActivityBlock';
 import { calculatePosition, calculateOverlapGroups } from '../utils/scheduleUtils';
+import { isToday } from '../utils/dateUtils';
 
 interface ScheduleGridProps {
   days: string[];
@@ -19,7 +20,7 @@ interface ScheduleGridProps {
 
 export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   days,
-  weekDates: _weekDates,
+  weekDates,
   timeSlots,
   activities,
   familyMembers,
@@ -28,6 +29,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   selectedYear,
   onActivityClick
 }) => {
+  const monthAbbr = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
   const getActivitiesForDay = (day: string) => {
     return activities
       .filter(a => a.day === day && a.week === selectedWeek && a.year === selectedYear)
@@ -83,12 +85,17 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
         {/* Day columns */}
         {days.map((day, index) => {
+          const date = weekDates[index];
           const dayActivities = getActivitiesForDay(day);
           const overlapGroups = calculateOverlapGroups(dayActivities);
           const numColumns = overlapGroups.length;
 
           return (
             <div key={day} className={`day-column ${getDayIntensityClass(day)}`}>
+              <div className={`day-header ${isToday(date) ? 'today' : ''}`}>
+                <span className="day-name">{day}</span>
+                <span className="day-date">{date.getDate()} {monthAbbr[date.getMonth()]}</span>
+              </div>
               <div className="day-content" style={{ height: `${timeSlots.length * 60}px` }}>
                 {overlapGroups.map((group, groupIndex) =>
                   group.map(activity => {
