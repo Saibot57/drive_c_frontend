@@ -5,16 +5,17 @@ import type { EmojiClickData } from 'emoji-picker-react';
 interface IconPickerProps {
   onSelect: (icon: string) => void;
   onClose: () => void;
+  placement?: 'bottom' | 'right';
 }
 
-export const IconPicker: React.FC<IconPickerProps> = ({ onSelect, onClose }) => {
+export const IconPicker: React.FC<IconPickerProps> = ({ onSelect, onClose, placement = 'bottom' }) => {
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onSelect(emojiData.emoji);
     onClose();
   };
 
   return (
-    <div className="icon-picker-popover">
+    <div className={`icon-picker-popover${placement === 'right' ? ' icon-picker-right' : ''}`}>
       <div className="icon-picker-header">
         <h4>Välj en ikon</h4>
         <button onClick={onClose} className="modal-close" style={{ width: '30px', height: '30px' }}>×</button>

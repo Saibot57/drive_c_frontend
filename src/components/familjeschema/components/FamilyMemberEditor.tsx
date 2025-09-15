@@ -99,19 +99,22 @@ export const FamilyMemberEditor: React.FC<FamilyMemberEditorProps> = ({
 
       <div className="form-group">
         <label className="form-label">Ikon</label>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setShowPicker(true)}
-        >
-          {icon}
-        </button>
-        {showPicker && (
-          <IconPicker
-            onSelect={(i) => setIcon(i)}
-            onClose={() => setShowPicker(false)}
-          />
-        )}
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setShowPicker(true)}
+          >
+            {icon}
+          </button>
+          {showPicker && (
+            <IconPicker
+              placement="right"
+              onSelect={(i) => setIcon(i)}
+              onClose={() => setShowPicker(false)}
+            />
+          )}
+        </div>
       </div>
 
       <div className="member-actions" style={{ justifyContent: 'flex-end' }}>

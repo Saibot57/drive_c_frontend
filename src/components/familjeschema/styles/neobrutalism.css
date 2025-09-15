@@ -711,6 +711,13 @@ h1 {
   padding: 15px;
 }
 
+.icon-picker-popover.icon-picker-right {
+  top: 0;
+  left: 100%;
+  margin-top: 0;
+  margin-left: 10px;
+}
+
 .icon-picker-header {
   display: flex;
   justify-content: space-between;
