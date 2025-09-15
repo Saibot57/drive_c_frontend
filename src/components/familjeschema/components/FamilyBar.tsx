@@ -1,6 +1,7 @@
 import React from 'react';
 import type { FamilyMember } from '../types';
 import { Grid3x3, Layers } from 'lucide-react';
+import { Emoji } from '@/utils/Emoji';
 
 interface FamilyBarProps {
   members: FamilyMember[];
@@ -21,7 +22,7 @@ export const FamilyBar: React.FC<FamilyBarProps> = ({ members, viewMode, onSetVi
             aria-label={`Visa ${member.name}s schema i lagervy`}
             title={`Visa ${member.name}s schema i lagervy`}
           >
-            <span role="img" aria-hidden="true">{member.icon}</span>
+            <Emoji emoji={member.icon} />
             <span className="member-dot" style={{ background: member.color }}></span>
             <span>{member.name}</span>
           </button>

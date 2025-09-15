@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import type { Activity, FamilyMember } from '../types';
 import { HoverCard } from './HoverCard';
+import { Emoji } from '@/utils/Emoji';
 
 interface ActivityBlockProps {
   activity: Activity;
@@ -113,7 +114,7 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
         onKeyDown={handleKeyDown}
       >
         <div className="activity-name">
-          <span>{activity.icon}</span>
+          <Emoji emoji={activity.icon} />
           {activity.name}
         </div>
         <div className="activity-time">
@@ -121,7 +122,9 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
         </div>
         <div className="activity-participants">
           {participants.map(p => (
-            <span key={p.id} aria-label={p.name}>{p.icon}</span>
+            <span key={p.id} aria-label={p.name}>
+              <Emoji emoji={p.icon} />
+            </span>
           ))}
         </div>
       </div>
