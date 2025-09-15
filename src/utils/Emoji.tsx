@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo, useState } from "react";
-import twemoji from "twemoji";
 
 type EmojiProps = {
   emoji: string;
@@ -23,7 +22,10 @@ function shouldUseTwemoji(s: string): boolean {
 export const Emoji: React.FC<EmojiProps> = ({ emoji, className, title, forceTwemoji }) => {
   const clean = (emoji || "").trim();
   const useTw = forceTwemoji || shouldUseTwemoji(clean);
-  const code = useMemo(() => (useTw ? twemoji.convert.toCodePoint(clean) : ""), [useTw, clean]);
+  const code = useMemo(
+    () => (useTw ? Array.from(clean).map((c) => c.codePointAt(0)!.toString(16)).join("-") : ""),
+    [useTw, clean]
+  );
   const [failed, setFailed] = useState(false);
 
   if (!clean) return null;
