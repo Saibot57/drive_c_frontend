@@ -33,8 +33,7 @@
     "react-fast-marquee": "^1.6.4",
     "react-resizable-panels": "^2.1.7",
     "tailwind-merge": "^2.3.0",
-    "tailwindcss-animate": "^1.0.7",
-    "twemoji": "14.0.2"
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@faker-js/faker": "^8.4.1",
