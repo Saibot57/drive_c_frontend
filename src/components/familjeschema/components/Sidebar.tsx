@@ -63,7 +63,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Logo Section */}
         <div className="sidebar-logo">
-          <div className="logo-icon-small">📅</div>
+          <div className="logo-icon-small">
+            <Emoji emoji="📅" forceTwemoji />
+          </div>
           {!isCollapsed && <span className="logo-text">Familjens Schema</span>}
         </div>
 

@@ -162,7 +162,7 @@ export const LayerView: React.FC<LayerViewProps> = ({
                               <ActivityBlock {...activityBlockProps} />
                               {isShared && (
                                 <div className="shared-indicator" title="Delad aktivitet">
-                                  👥
+                                  <Emoji emoji="👥" forceTwemoji />
                                 </div>
                               )}
                             </div>
