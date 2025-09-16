@@ -1609,7 +1609,8 @@ button.member-badge:hover {
   border-left: 4px solid;
   cursor: pointer;
   transition: all 0.1s;
-  font-family: 'Space Grotesk', monospace;
+  font-family: 'Space Grotesk', 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Noto Color Emoji', sans-serif;
   font-weight: 600;
   font-size: 0.9rem;
   width: 100%;
