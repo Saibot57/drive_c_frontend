@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import type { RefObject } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 
@@ -23,19 +23,24 @@ export const useSizable = (
   const { storageKey, initialSize = 'medium' } = options;
   const [size, setSize] = useLocalStorage<ModalSize>(`sizable-${storageKey}`, initialSize);
 
-  const applySize = useCallback(() => {
-    if (ref.current) {
-      const { width, height } = MODAL_SIZES[size];
-      ref.current.style.width = width;
-      ref.current.style.height = height;
-    }
-  }, [ref, size]);
+  const element = ref.current;
 
   useEffect(() => {
+    if (!element) return;
+
+    const applySize = () => {
+      const { width, height } = MODAL_SIZES[size];
+      element.style.width = width;
+      element.style.height = height;
+    };
+
     applySize();
     window.addEventListener('resize', applySize);
-    return () => window.removeEventListener('resize', applySize);
-  }, [size, applySize]);
+
+    return () => {
+      window.removeEventListener('resize', applySize);
+    };
+  }, [element, size]);
 
   return {
     currentSize: size,
