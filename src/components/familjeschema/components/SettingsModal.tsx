@@ -49,7 +49,9 @@ export const SettingsModal = forwardRef<HTMLDivElement, SettingsModalProps>(
         isOpen={isOpen}
         onClose={onClose}
         storageKey="settings-modal"
-        initialSize="small"
+        initialSize="full"
+        forcedSize="full"
+        enableSizeControls={false}
         ref={ref}
       >
         <div className="modal-header">
