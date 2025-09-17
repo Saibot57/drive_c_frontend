@@ -51,7 +51,6 @@ export const SettingsModal = forwardRef<HTMLDivElement, SettingsModalProps>(
         storageKey="settings-modal"
         initialSize="full"
         forcedSize="full"
-        enableSizeControls={false}
         ref={ref}
       >
         <div className="modal-header">

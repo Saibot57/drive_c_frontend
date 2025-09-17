@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import type { RefObject } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 
@@ -14,28 +14,37 @@ export const MODAL_SIZES: Record<ModalSize, { width: string; height: string }> =
 interface UseSizableOptions {
   storageKey: string;
   initialSize?: ModalSize;
+  isEnabled?: boolean;
 }
 
 export const useSizable = (
   ref: RefObject<HTMLElement>,
   options: UseSizableOptions
 ) => {
-  const { storageKey, initialSize = 'medium' } = options;
+  const { storageKey, initialSize = 'medium', isEnabled = true } = options;
   const [size, setSize] = useLocalStorage<ModalSize>(`sizable-${storageKey}`, initialSize);
 
-  const applySize = useCallback(() => {
-    if (ref.current) {
-      const { width, height } = MODAL_SIZES[size];
-      ref.current.style.width = width;
-      ref.current.style.height = height;
-    }
-  }, [ref, size]);
-
   useEffect(() => {
+    if (!isEnabled) {
+      return;
+    }
+
+    const element = ref.current;
+    if (!element) return;
+
+    const applySize = () => {
+      const { width, height } = MODAL_SIZES[size];
+      element.style.width = width;
+      element.style.height = height;
+    };
+
     applySize();
     window.addEventListener('resize', applySize);
-    return () => window.removeEventListener('resize', applySize);
-  }, [size, applySize]);
+
+    return () => {
+      window.removeEventListener('resize', applySize);
+    };
+  }, [ref, size, isEnabled]);
 
   return {
     currentSize: size,
