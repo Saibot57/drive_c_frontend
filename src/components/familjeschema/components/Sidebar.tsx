@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Calendar,
   ChevronLeft,
   ChevronRight,
   Home,
@@ -8,9 +7,11 @@ import {
   Settings,
   ArrowRightLeft,
   Menu,
-  X,
   Grid3x3,
-  Layers
+  Layers,
+  GripVertical,
+  Check,
+  Loader2
 } from 'lucide-react';
 import type { FamilyMember } from '../types';
 import { Emoji } from '@/utils/Emoji';
@@ -21,6 +22,8 @@ interface SidebarProps {
   selectedYear: number;
   isCurrentWeek: boolean;
   viewMode: 'grid' | 'layer';
+  isReorderingMembers: boolean;
+  isSavingMemberOrder: boolean;
   onNewActivity: () => void;
   onOpenSettings: () => void;
   onNavigateWeek: (direction: number) => void;
@@ -29,6 +32,9 @@ interface SidebarProps {
   onOpenDataModal: () => void;
   onSetViewMode: (mode: 'grid' | 'layer') => void;
   onMemberClick: (memberId: string) => void;
+  onStartReorder: () => void;
+  onSubmitReorder: () => void;
+  onReorderMembers: (sourceId: string, targetId: string | null) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -37,6 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   selectedYear,
   isCurrentWeek,
   viewMode,
+  isReorderingMembers,
+  isSavingMemberOrder,
   onNewActivity,
   onOpenSettings,
   onNavigateWeek,
@@ -44,9 +52,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleWeekPicker,
   onOpenDataModal,
   onSetViewMode,
-  onMemberClick
+  onMemberClick,
+  onStartReorder,
+  onSubmitReorder,
+  onReorderMembers
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
+  const [dragOverMemberId, setDragOverMemberId] = useState<string | null>(null);
+  const showLabels = !isCollapsed;
+  const canReorder = familyMembers.length > 1;
+  const END_TARGET_ID = '__END__';
+
+  useEffect(() => {
+    if (!isReorderingMembers) {
+      setDraggedMemberId(null);
+      setDragOverMemberId(null);
+    }
+  }, [isReorderingMembers]);
+
+  const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, memberId: string) => {
+    if (!isReorderingMembers) return;
+    setDraggedMemberId(memberId);
+    setDragOverMemberId(memberId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', memberId);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLButtonElement>, memberId: string) => {
+    if (!isReorderingMembers || !draggedMemberId) return;
+    event.preventDefault();
+    if (draggedMemberId === memberId || dragOverMemberId === memberId) return;
+    setDragOverMemberId(memberId);
+    onReorderMembers(draggedMemberId, memberId);
+  };
+
+  const handleContainerDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!isReorderingMembers || !draggedMemberId) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('.sidebar-member')) return;
+    event.preventDefault();
+    if (dragOverMemberId === END_TARGET_ID) return;
+    setDragOverMemberId(END_TARGET_ID);
+    onReorderMembers(draggedMemberId, null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedMemberId(null);
+    setDragOverMemberId(null);
+  };
+
+  const membersClassName = [
+    'sidebar-members',
+    isReorderingMembers ? 'is-reordering' : '',
+    isReorderingMembers && dragOverMemberId === END_TARGET_ID ? 'drag-over-end' : ''
+  ].filter(Boolean).join(' ');
 
   return (
     <>
@@ -109,25 +169,82 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Family Members */}
         <div className="sidebar-section">
-          {!isCollapsed && <h3 className="sidebar-heading">FAMILJ</h3>}
-          <div className="sidebar-members">
-            {familyMembers.map(member => (
-              <button
-                key={member.id}
-                className="sidebar-member"
-                onClick={() => onMemberClick(member.id)}
-                title={member.name}
-                style={{ borderLeftColor: member.color }}
-              >
-                <span className="member-icon"><Emoji emoji={member.icon} /></span>
-                {!isCollapsed && (
-                  <>
-                    <span className="member-name">{member.name}</span>
-                    <span className="member-color-dot" style={{ background: member.color }}></span>
-                  </>
-                )}
-              </button>
-            ))}
+          <div className="sidebar-heading-row">
+            {showLabels && <h3 className="sidebar-heading">FAMILJ</h3>}
+            <button
+              type="button"
+              className={`btn-subtle ${isReorderingMembers ? 'active' : ''}`}
+              onClick={isReorderingMembers ? onSubmitReorder : onStartReorder}
+              disabled={isReorderingMembers ? isSavingMemberOrder : !canReorder}
+              title={isReorderingMembers ? 'Spara ny ordning' : 'Ändra ordning'}
+              aria-label={isReorderingMembers ? 'Spara ny ordning' : 'Aktivera omordning'}
+            >
+              {isReorderingMembers ? (
+                <>
+                  {isSavingMemberOrder ? (
+                    <Loader2 size={16} className="icon-spin" />
+                  ) : (
+                    <Check size={16} />
+                  )}
+                  {showLabels && <span>{isSavingMemberOrder ? 'Sparar...' : 'Spara ordning'}</span>}
+                </>
+              ) : (
+                <>
+                  <GripVertical size={16} />
+                  {showLabels && <span>Ändra ordning</span>}
+                </>
+              )}
+            </button>
+          </div>
+          <div
+            className={membersClassName}
+            onDragOver={handleContainerDragOver}
+            onDrop={handleDragEnd}
+          >
+            {familyMembers.map(member => {
+              const isDragging = draggedMemberId === member.id;
+              const isDragOver =
+                dragOverMemberId === member.id && draggedMemberId !== member.id;
+              const memberClassName = [
+                'sidebar-member',
+                isReorderingMembers ? 'reordering' : '',
+                isDragging ? 'dragging' : '',
+                isDragOver ? 'drag-over' : '',
+              ].filter(Boolean).join(' ');
+
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  className={memberClassName}
+                  onClick={() => {
+                    if (isReorderingMembers) return;
+                    onMemberClick(member.id);
+                  }}
+                  title={member.name}
+                  style={{ borderLeftColor: member.color }}
+                  draggable={isReorderingMembers}
+                  onDragStart={event => handleDragStart(event, member.id)}
+                  onDragOver={event => handleDragOver(event, member.id)}
+                  onDragEnd={handleDragEnd}
+                  onDrop={handleDragEnd}
+                  aria-grabbed={isReorderingMembers && isDragging}
+                >
+                  {isReorderingMembers && (
+                    <span className="reorder-handle" aria-hidden="true">
+                      <GripVertical size={14} />
+                    </span>
+                  )}
+                  <span className="member-icon"><Emoji emoji={member.icon} /></span>
+                  {showLabels && (
+                    <>
+                      <span className="member-name">{member.name}</span>
+                      <span className="member-color-dot" style={{ background: member.color }}></span>
+                    </>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 

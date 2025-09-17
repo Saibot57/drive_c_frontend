@@ -35,9 +35,12 @@ type ViewMode = 'grid' | 'layer';
 export function FamilySchedule() {
   const modalRef = useRef<HTMLDivElement>(null);
   const settingsModalRef = useRef<HTMLDivElement>(null);
+  const originalMemberOrderRef = useRef<FamilyMember[]>([]);
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [isReorderingMembers, setIsReorderingMembers] = useState(false);
+  const [isSavingMemberOrder, setIsSavingMemberOrder] = useState(false);
   const [settings, setSettings] = useState<Settings>({ showWeekends: false, dayStart: 7, dayEnd: 18 });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
@@ -208,6 +211,71 @@ export function FamilySchedule() {
     }
   };
 
+  const handleStartMemberReorder = () => {
+    if (familyMembers.length < 2) return;
+    originalMemberOrderRef.current = [...familyMembers];
+    setIsReorderingMembers(true);
+  };
+
+  const handleReorderMembers = (sourceId: string, targetId: string | null) => {
+    if (!isReorderingMembers || sourceId === targetId) return;
+
+    setFamilyMembers(prev => {
+      const movingMember = prev.find(member => member.id === sourceId);
+      if (!movingMember) return prev;
+
+      const membersWithoutSource = prev.filter(member => member.id !== sourceId);
+
+      if (targetId === null) {
+        return [...membersWithoutSource, movingMember];
+      }
+
+      const targetIndex = membersWithoutSource.findIndex(member => member.id === targetId);
+      if (targetIndex === -1) {
+        return prev;
+      }
+
+      const updated = [...membersWithoutSource];
+      updated.splice(targetIndex, 0, movingMember);
+      return updated;
+    });
+  };
+
+  const handleSubmitMemberReorder = async () => {
+    if (!isReorderingMembers) return;
+
+    setIsSavingMemberOrder(true);
+    const previousOrder = [...originalMemberOrderRef.current];
+
+    try {
+      const newOrderIds = familyMembers.map(member => member.id);
+      const originalIds = previousOrder.map(member => member.id);
+      const hasChanges =
+        newOrderIds.length !== originalIds.length ||
+        newOrderIds.some((id, index) => id !== originalIds[index]);
+
+      if (!hasChanges) {
+        setIsReorderingMembers(false);
+        return;
+      }
+
+      const updatedMembers = await scheduleService.reorderFamilyMembers(newOrderIds);
+      if (Array.isArray(updatedMembers) && updatedMembers.length > 0) {
+        setFamilyMembers(updatedMembers);
+      }
+
+      setIsReorderingMembers(false);
+    } catch (err) {
+      console.error('Failed to reorder family members', err);
+      setFamilyMembers(previousOrder);
+      alert(err instanceof Error ? err.message : 'Kunde inte spara ordningen. Försök igen.');
+      setIsReorderingMembers(false);
+    } finally {
+      originalMemberOrderRef.current = [];
+      setIsSavingMemberOrder(false);
+    }
+  };
+
   const handleTextImport = async (jsonText: string) => {
     console.log("=== IMPORT STARTED ===");
     try {
@@ -371,6 +439,8 @@ export function FamilySchedule() {
         selectedYear={selectedYear}
         isCurrentWeek={isCurrentWeek}
         viewMode={viewMode}
+        isReorderingMembers={isReorderingMembers}
+        isSavingMemberOrder={isSavingMemberOrder}
         onNewActivity={() => { setEditingActivity(null); setModalOpen(true); }}
         onOpenSettings={() => setSettingsOpen(true)}
         onNavigateWeek={navigateWeek}
@@ -379,6 +449,9 @@ export function FamilySchedule() {
         onOpenDataModal={() => setDataModalOpen(true)}
         onSetViewMode={setViewMode}
         onMemberClick={handleMemberClick}
+        onStartReorder={handleStartMemberReorder}
+        onSubmitReorder={handleSubmitMemberReorder}
+        onReorderMembers={handleReorderMembers}
       />
 
       <div className="schedule-main-content">
