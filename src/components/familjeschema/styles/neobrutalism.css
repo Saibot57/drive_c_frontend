@@ -1592,11 +1592,93 @@ button.member-badge:hover {
   padding: 8px;
 }
 
+.btn-subtle {
+  padding: 6px 10px;
+  border: 1px dashed var(--neo-black);
+  background: rgba(255, 255, 255, 0.85);
+  font-family: 'Space Grotesk', monospace;
+  font-weight: 600;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+  color: var(--neo-black);
+}
+
+.btn-subtle:hover {
+  background: rgba(255, 223, 61, 0.4);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-subtle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-subtle.active {
+  background: rgba(171, 255, 135, 0.45);
+}
+
+.sidebar-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sidebar-heading-row .btn-subtle {
+  flex-shrink: 0;
+}
+
+.sidebar.collapsed .sidebar-heading-row {
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-heading-row .btn-subtle {
+  width: 100%;
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-heading-row .btn-subtle span {
+  display: none;
+}
+
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.icon-spin {
+  animation: icon-spin 1s linear infinite;
+}
+
 /* Family Members in Sidebar */
 .sidebar-members {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  position: relative;
+}
+
+.sidebar-members.is-reordering {
+  gap: 6px;
+}
+
+.sidebar-members.drag-over-end::after {
+  content: '';
+  display: block;
+  height: 42px;
+  border: 2px dashed var(--neo-black);
+  border-radius: 10px;
+  background: rgba(255, 223, 61, 0.25);
+  margin-top: 4px;
 }
 
 .sidebar-member {
@@ -1619,6 +1701,31 @@ button.member-badge:hover {
 .sidebar-member:hover {
   background: rgba(255, 223, 61, 0.3);
   transform: translateX(2px);
+}
+
+.sidebar-member.reordering {
+  cursor: grab;
+}
+
+.sidebar-member.reordering:active {
+  cursor: grabbing;
+}
+
+.sidebar-member.dragging {
+  opacity: 0.6;
+  transform: scale(0.98);
+}
+
+.sidebar-member.drag-over {
+  background: rgba(255, 223, 61, 0.35);
+  outline: 2px dashed var(--neo-black);
+}
+
+.reorder-handle {
+  display: flex;
+  align-items: center;
+  color: var(--neo-black);
+  opacity: 0.65;
 }
 
 .member-icon {
