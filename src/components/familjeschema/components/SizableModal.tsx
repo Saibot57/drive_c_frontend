@@ -27,13 +27,19 @@ export const SizableModal = forwardRef<HTMLDivElement, SizableModalProps>(
     const modalRef = useRef<HTMLDivElement>(null);
     React.useImperativeHandle(ref, () => modalRef.current as HTMLDivElement);
 
-    const { currentSize, setSize } = useSizable(modalRef as React.RefObject<HTMLElement>, { storageKey, initialSize });
+    const { currentSize, setSize } = useSizable(modalRef as React.RefObject<HTMLElement>, {
+      storageKey,
+      initialSize,
+      isEnabled: isOpen,
+    });
 
     useEffect(() => {
-      if (forcedSize && currentSize !== forcedSize) {
-        setSize(forcedSize);
+      if (!forcedSize || !isOpen) {
+        return;
       }
-    }, [forcedSize, currentSize, setSize]);
+
+      setSize((prevSize) => (prevSize === forcedSize ? prevSize : forcedSize));
+    }, [forcedSize, isOpen, setSize]);
 
     if (!isOpen) return null;
 

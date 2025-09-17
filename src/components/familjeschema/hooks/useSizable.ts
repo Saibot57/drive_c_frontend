@@ -14,18 +14,22 @@ export const MODAL_SIZES: Record<ModalSize, { width: string; height: string }> =
 interface UseSizableOptions {
   storageKey: string;
   initialSize?: ModalSize;
+  isEnabled?: boolean;
 }
 
 export const useSizable = (
   ref: RefObject<HTMLElement>,
   options: UseSizableOptions
 ) => {
-  const { storageKey, initialSize = 'medium' } = options;
+  const { storageKey, initialSize = 'medium', isEnabled = true } = options;
   const [size, setSize] = useLocalStorage<ModalSize>(`sizable-${storageKey}`, initialSize);
 
-  const element = ref.current;
-
   useEffect(() => {
+    if (!isEnabled) {
+      return;
+    }
+
+    const element = ref.current;
     if (!element) return;
 
     const applySize = () => {
@@ -40,7 +44,7 @@ export const useSizable = (
     return () => {
       window.removeEventListener('resize', applySize);
     };
-  }, [element, size]);
+  }, [ref, size, isEnabled]);
 
   return {
     currentSize: size,
