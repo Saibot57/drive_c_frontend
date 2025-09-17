@@ -2,12 +2,13 @@ import { useEffect, useCallback } from 'react';
 import type { RefObject } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 
-export type ModalSize = 'small' | 'medium' | 'large';
+export type ModalSize = 'small' | 'medium' | 'large' | 'full';
 
 export const MODAL_SIZES: Record<ModalSize, { width: string; height: string }> = {
   small: { width: '450px', height: '550px' },
   medium: { width: '650px', height: '650px' },
   large: { width: '850px', height: '750px' },
+  full: { width: 'min(75vw, 1200px)', height: 'min(75vh, 900px)' },
 };
 
 interface UseSizableOptions {

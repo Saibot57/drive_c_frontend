@@ -1,7 +1,7 @@
-import React, { forwardRef, useRef } from 'react';
+import React, { forwardRef, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useSizable, type ModalSize } from '../hooks/useSizable';
-import { Square, StretchHorizontal, StretchVertical } from 'lucide-react';
+import { Square, StretchHorizontal, StretchVertical, Maximize2 } from 'lucide-react';
 
 interface SizableModalProps {
   children: ReactNode;
@@ -9,6 +9,8 @@ interface SizableModalProps {
   onClose: () => void;
   storageKey: string;
   initialSize?: ModalSize;
+  forcedSize?: ModalSize;
+  enableSizeControls?: boolean;
 }
 
 export const SizableModal = forwardRef<HTMLDivElement, SizableModalProps>(
@@ -17,13 +19,21 @@ export const SizableModal = forwardRef<HTMLDivElement, SizableModalProps>(
     isOpen,
     onClose,
     storageKey,
-    initialSize = 'medium'
+    initialSize = 'medium',
+    forcedSize,
+    enableSizeControls = true
   }, ref) => {
 
     const modalRef = useRef<HTMLDivElement>(null);
     React.useImperativeHandle(ref, () => modalRef.current as HTMLDivElement);
 
     const { currentSize, setSize } = useSizable(modalRef as React.RefObject<HTMLElement>, { storageKey, initialSize });
+
+    useEffect(() => {
+      if (forcedSize && currentSize !== forcedSize) {
+        setSize(forcedSize);
+      }
+    }, [forcedSize, currentSize, setSize]);
 
     if (!isOpen) return null;
 
@@ -35,6 +45,7 @@ export const SizableModal = forwardRef<HTMLDivElement, SizableModalProps>(
         { size: 'small', icon: <Square size={18}/>, label: 'Liten' },
         { size: 'medium', icon: <StretchHorizontal size={18}/>, label: 'Medium' },
         { size: 'large', icon: <StretchVertical size={18}/>, label: 'Stor' },
+        { size: 'full', icon: <Maximize2 size={18}/>, label: 'Jättestor' },
     ];
 
     return (
@@ -47,19 +58,21 @@ export const SizableModal = forwardRef<HTMLDivElement, SizableModalProps>(
           ref={modalRef}
         >
           {/* Size Controls */}
-          <div className="modal-size-controls">
-            {sizeButtons.map(({ size, icon, label }) => (
-              <button
-                key={size}
-                className={`btn-size ${currentSize === size ? 'active' : ''}`}
-                onClick={() => setSize(size)}
-                aria-label={`Byt till ${label} storlek`}
-                title={label}
-              >
-                {icon}
-              </button>
-            ))}
-          </div>
+          {enableSizeControls && (
+            <div className="modal-size-controls">
+              {sizeButtons.map(({ size, icon, label }) => (
+                <button
+                  key={size}
+                  className={`btn-size ${currentSize === size ? 'active' : ''}`}
+                  onClick={() => setSize(size)}
+                  aria-label={`Byt till ${label} storlek`}
+                  title={label}
+                >
+                  {icon}
+                </button>
+              ))}
+            </div>
+          )}
 
           {children}
         </div>
