@@ -121,12 +121,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
 
-        {/* Logo Section */}
-        <div className="sidebar-logo">
-          <div className="logo-icon-small">📅</div>
-          {!isCollapsed && <span className="logo-text">Familjens Schema</span>}
-        </div>
-
         {/* Week Navigation */}
         <div className="sidebar-section">
           {!isCollapsed && <h3 className="sidebar-heading">VECKA</h3>}
