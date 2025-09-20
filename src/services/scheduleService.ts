@@ -1,21 +1,36 @@
 // src/services/scheduleService.ts
 import { fetchWithAuth } from './authService';
 
-// Vi importerar typerna från den plats de kommer att ha efter migreringen
-import type {
-  Activity,
-  FamilyMember,
-  Settings,
-  CreateActivityPayload,
-} from '@/components/familjeschema/types';
+import type { Activity, FamilyMember, Settings, CreateActivityPayload } from '@/components/familjeschema/types';
+import type { ActivityImportItem } from '@/types/schedule';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
-const SCHEDULE_API_URL = `${API_URL}/schedule`;
-
-// Typ för JSON-import från LLM
-type ActivityImportItem = Partial<Omit<Activity, 'id'>>;
+const SCHEDULE_API_URL =
+  process.env.NEXT_PUBLIC_SCHEDULE_API_URL || `${API_URL}/schedule`;
 
 export const scheduleService = {
+  async parseScheduleWithAI(
+    text: string,
+    week: number,
+    year: number,
+  ): Promise<ActivityImportItem[]> {
+    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/ai-parse-schedule`, {
+      method: 'POST',
+      body: JSON.stringify({ text, week, year }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'AI parse failed');
+    }
+
+    const activities = payload?.data?.activities;
+    if (!Array.isArray(activities)) {
+      throw new Error('Invalid AI response');
+    }
+
+    return activities as ActivityImportItem[];
+  },
 
   // --- Aktiviteter ---
   async getActivities(year: number, week: number): Promise<Activity[]> {
@@ -81,11 +96,10 @@ export const scheduleService = {
       body: JSON.stringify({ activities }),
     });
     const data = await response.json();
-    if (!response.ok) {
-        // Kasta ett fel med detaljerad information från backend
-        const error = new Error(data.message || 'Failed to import activities');
-        (error as any).details = data.conflicts; // Lägg till konfliktdetaljer i felet
-        throw error;
+    if (!response.ok || data?.success === false) {
+      const error = new Error(data?.error || data?.message || 'Failed to import activities');
+      (error as any).details = data?.conflicts;
+      throw error;
     }
     return data;
   },

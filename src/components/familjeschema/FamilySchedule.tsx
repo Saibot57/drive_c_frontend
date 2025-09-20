@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { scheduleService } from '@/services/scheduleService';
 import type {
@@ -10,11 +10,13 @@ import type {
   Settings,
   CreateActivityPayload,
 } from './types';
+import type { ActivityImportItem } from '@/types/schedule';
 import { WEEKDAYS_FULL, ALL_DAYS } from './constants';
 import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
 import { generateTimeSlots } from './utils/scheduleUtils';
 import { downloadAllICS } from './utils/exportUtils';
 import { useFocusTrap } from './hooks/useFocusTrap';
+import { normalizeActivitiesForBackend } from '@/utils/normalizeActivities';
 
 import { Sidebar } from './components/Sidebar';
 import { WeekPicker } from './components/WeekPicker';
@@ -59,11 +61,16 @@ export function FamilySchedule() {
   const [showConflict, setShowConflict] = useState(false);
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
+  const [aiPreviewActivities, setAiPreviewActivities] = useState<ActivityImportItem[]>([]);
+  const [aiPreviewErrors, setAiPreviewErrors] = useState<{ index: number; message: string }[]>([]);
+  const [aiParticipantWarnings, setAiParticipantWarnings] = useState<string[]>([]);
+  const [aiImporting, setAiImporting] = useState(false);
+  const [aiImportError, setAiImportError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
   }, []);
-  
+
   useEffect(() => {
     if (!modalOpen) return;
     if (editingActivity) {
@@ -80,6 +87,64 @@ export function FamilySchedule() {
       setFormData(BLANK_FORM);
     }
   }, [modalOpen, editingActivity]);
+
+  const participantLookup = useMemo(() => {
+    const lookup: Record<string, string> = {};
+    familyMembers.forEach(member => {
+      lookup[member.name.toLowerCase()] = member.id;
+    });
+    return lookup;
+  }, [familyMembers]);
+
+  const participantIdSet = useMemo(() => new Set(familyMembers.map(member => member.id)), [familyMembers]);
+
+  const mapParticipantsForImport = (items: ActivityImportItem[]): ActivityImportItem[] =>
+    items.map(item => {
+      const mappedParticipants = (item.participants || []).map(participant => {
+        const trimmed = participant.trim();
+        if (!trimmed) return trimmed;
+        if (participantIdSet.has(trimmed)) return trimmed;
+        const lookupKey = trimmed.toLowerCase();
+        return participantLookup[lookupKey] ?? trimmed;
+      });
+
+      return { ...item, participants: mappedParticipants };
+    });
+
+  const computeParticipantWarnings = (items: ActivityImportItem[]): string[] => {
+    const unknown = new Set<string>();
+    items.forEach(item => {
+      (item.participants || []).forEach(participant => {
+        const trimmed = participant.trim();
+        if (!trimmed) return;
+        if (participantIdSet.has(trimmed)) return;
+        const lookupKey = trimmed.toLowerCase();
+        if (!participantLookup[lookupKey]) {
+          unknown.add(participant);
+        }
+      });
+    });
+    return Array.from(unknown);
+  };
+
+  const handleAIPreview = (
+    ok: ActivityImportItem[],
+    errors: { index: number; message: string }[],
+  ) => {
+    setAiPreviewActivities(ok);
+    setAiPreviewErrors(errors);
+    setAiImportError(null);
+    setAiParticipantWarnings(computeParticipantWarnings(ok));
+  };
+
+  const handleCloseDataModal = () => {
+    setDataModalOpen(false);
+    setAiPreviewActivities([]);
+    setAiPreviewErrors([]);
+    setAiParticipantWarnings([]);
+    setAiImportError(null);
+    setAiImporting(false);
+  };
 
   const fetchData = async () => {
     try {
@@ -277,80 +342,52 @@ export function FamilySchedule() {
   };
 
   const handleTextImport = async (jsonText: string) => {
-    console.log("=== IMPORT STARTED ===");
     try {
       const importedData = JSON.parse(jsonText);
-      if (!Array.isArray(importedData)) throw new Error("JSON måste vara en array.");
-      
-      if (!familyMembers || familyMembers.length === 0) {
-        alert("Familjemedlemmar har inte laddats än. Vänta en sekund och försök igen.");
-        await fetchData();
-        return;
+      if (!Array.isArray(importedData)) throw new Error('JSON måste vara en array.');
+
+      const { ok, errors } = normalizeActivitiesForBackend(importedData, selectedWeek, selectedYear);
+      if (!ok.length) {
+        const firstError = errors[0]?.message || 'JSON innehöll inga giltiga aktiviteter.';
+        throw new Error(firstError);
       }
-      
-      const participantNameToId: Record<string, string> = {};
-      familyMembers.forEach(member => {
-        participantNameToId[member.name.toLowerCase()] = member.id;
-        console.log(`Mapped: "${member.name}" (${member.name.toLowerCase()}) -> ${member.id}`);
-      });
-      
-      const transformedData = importedData.map((activity: any) => {
-        let transformedActivity: any = { ...activity };
-        
-        if (activity.date) {
-          const date = new Date(activity.date);
-          const week = getWeekNumber(date);
-          const year = date.getFullYear();
-          
-          const dayNames = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
-          const day = dayNames[date.getDay()];
-          
-          const { date: _, ...activityWithoutDate } = transformedActivity;
-          transformedActivity = {
-            ...activityWithoutDate,
-            week,
-            year,
-            day
-          };
-        }
-        
-        if (transformedActivity.participants && Array.isArray(transformedActivity.participants)) {
-          console.log(`Activity "${transformedActivity.name}" has participants:`, transformedActivity.participants);
-          
-          transformedActivity.participants = transformedActivity.participants.map((participant: any) => {
-            if (typeof participant === 'string' && participant.includes('-')) {
-              console.log(`  - "${participant}" looks like UUID, keeping as-is`);
-              return participant;
-            }
-            
-            const participantLower = String(participant).toLowerCase();
-            const id = participantNameToId[participantLower];
-            
-            if (!id) {
-              console.warn(`  - Kunde inte hitta familjemedlem: "${participant}" (sökte efter "${participantLower}")`);
-              console.log(`  - Tillgängliga namn:`, Object.keys(participantNameToId));
-            } else {
-              console.log(`  - Mapped "${participant}" -> ${id}`);
-            }
-            
-            return id || participant;
-          }).filter(Boolean);
-          
-          console.log(`  Final participants for activity:`, transformedActivity.participants);
-        }
-        
-        return transformedActivity;
-      });
-      
-      await scheduleService.addActivitiesFromJson(transformedData);
-      await fetchData();
-      setDataModalOpen(false);
-      alert(`${transformedData.length} aktiviteter importerades!`);
+
+      const prepared = mapParticipantsForImport(ok);
+      await scheduleService.addActivitiesFromJson(prepared);
+      await fetchActivities(selectedYear, selectedWeek);
+      handleCloseDataModal();
+
+      const errorSummary = errors.length
+        ? `\n\nHoppar över ${errors.length} rader:\n${errors
+            .map(error => `Rad ${error.index + 1}: ${error.message}`)
+            .join('\n')}`
+        : '';
+      alert(`${prepared.length} aktiviteter importerades!${errorSummary}`);
     } catch (err: any) {
       const errorMessage = err?.details
         ? `${err.message}\n\nKonflikter:\n${JSON.stringify(err.details, null, 2)}`
         : err?.message || 'Okänt fel';
       alert(`Import misslyckades: ${errorMessage}`);
+    }
+  };
+
+  const handleAIImport = async () => {
+    if (!aiPreviewActivities.length) return;
+    try {
+      setAiImporting(true);
+      setAiImportError(null);
+      const prepared = mapParticipantsForImport(aiPreviewActivities);
+      await scheduleService.addActivitiesFromJson(prepared);
+      await fetchActivities(selectedYear, selectedWeek);
+      handleCloseDataModal();
+      alert(`${prepared.length} aktiviteter importerades!`);
+    } catch (err: any) {
+      const errorMessage = err?.details
+        ? `${err.message}\n\nKonflikter:\n${JSON.stringify(err.details, null, 2)}`
+        : err?.message || 'Import misslyckades.';
+      setAiImportError(errorMessage);
+    } finally {
+      setAiImporting(false);
     }
   };
 
@@ -375,12 +412,12 @@ export function FamilySchedule() {
     a.download = 'familjens-schema-export.json';
     a.click();
     URL.revokeObjectURL(url);
-    setDataModalOpen(false);
+    handleCloseDataModal();
   };
-  
+
   const handleExportICS = () => {
     downloadAllICS(activities);
-    setDataModalOpen(false);
+    handleCloseDataModal();
   };
 
   const fetchActivities = async (year: number, week: number) => {
@@ -543,11 +580,20 @@ export function FamilySchedule() {
 
       <DataModal
         isOpen={dataModalOpen}
-        onClose={() => setDataModalOpen(false)}
+        onClose={handleCloseDataModal}
         onFileImport={handleFileImport}
         onTextImport={handleTextImport}
         onExportJSON={handleExportJSON}
         onExportICS={handleExportICS}
+        selectedWeek={selectedWeek}
+        selectedYear={selectedYear}
+        onAIPreview={handleAIPreview}
+        aiPreviewActivities={aiPreviewActivities}
+        aiPreviewErrors={aiPreviewErrors}
+        aiParticipantWarnings={aiParticipantWarnings}
+        onAIImport={handleAIImport}
+        aiImporting={aiImporting}
+        aiImportError={aiImportError}
       />
     </div>
   );
