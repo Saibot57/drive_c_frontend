@@ -59,7 +59,9 @@ export function normalizeActivitiesForBackend(
       const color = (raw as { color?: unknown })?.color;
       const baseSeriesId = String((raw as { seriesId?: unknown })?.seriesId ?? uuid());
 
-      const rawDates = ensureArray<string>((raw as { dates?: unknown })?.dates);
+      const rawDates = ensureArray((raw as { dates?: unknown })?.dates).map((value) =>
+        String(value),
+      );
       const singleDate = (raw as { date?: unknown })?.date;
 
       const pushWeekObject = (week: number, year: number, days: SwedishDay[]) => {
