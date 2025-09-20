@@ -16,13 +16,8 @@ interface DataModalProps {
   onExportICS: () => void;
   selectedWeek: number;
   selectedYear: number;
-  onAIPreview: (
-    ok: ActivityImportItem[],
-    errors: { index: number; message: string }[],
-  ) => void;
+  onAIPreview: (activities: ActivityImportItem[]) => void;
   aiPreviewActivities: ActivityImportItem[];
-  aiPreviewErrors: { index: number; message: string }[];
-  aiParticipantWarnings: string[];
   onAIImport: () => void;
   aiImporting: boolean;
   aiImportError: string | null;
@@ -39,8 +34,6 @@ export const DataModal: React.FC<DataModalProps> = ({
   selectedYear,
   onAIPreview,
   aiPreviewActivities,
-  aiPreviewErrors,
-  aiParticipantWarnings,
   onAIImport,
   aiImporting,
   aiImportError,
@@ -68,44 +61,6 @@ export const DataModal: React.FC<DataModalProps> = ({
           selectedYear={selectedYear}
           onPreview={onAIPreview}
         />
-
-        {aiPreviewErrors.length > 0 && (
-          <div
-            style={{
-              backgroundColor: '#fff7ed',
-              border: '1px solid #fb923c',
-              borderRadius: '8px',
-              padding: '12px',
-            }}
-          >
-            <p className="form-label" style={{ marginBottom: '0.5rem' }}>
-              Några rader kunde inte importeras:
-            </p>
-            <ul className="text-sm" style={{ marginLeft: '1rem' }}>
-              {aiPreviewErrors.map((error, idx) => (
-                <li key={`${error.index}-${idx}`}>
-                  Rad {error.index + 1}: {error.message}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {aiParticipantWarnings.length > 0 && (
-          <div
-            style={{
-              backgroundColor: '#f0f9ff',
-              border: '1px solid #38bdf8',
-              borderRadius: '8px',
-              padding: '12px',
-            }}
-          >
-            <p className="form-label" style={{ marginBottom: '0.5rem' }}>
-              Okända deltagare hittades. De importeras som fritext:
-            </p>
-            <p className="text-sm">{aiParticipantWarnings.join(', ')}</p>
-          </div>
-        )}
 
         {aiImportError && (
           <pre
@@ -137,13 +92,13 @@ export const DataModal: React.FC<DataModalProps> = ({
               </thead>
               <tbody>
                 {aiPreviewActivities.map((activity, idx) => (
-                  <tr key={`${activity.name}-${idx}`}>
+                  <tr key={idx}>
                     <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{activity.name}</td>
                     <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>
                       {activity.startTime} – {activity.endTime}
                     </td>
                     <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>
-                      {(activity.days || []).join(', ')}
+                      {activity.days.join(', ')}
                     </td>
                     <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{activity.week}</td>
                     <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{activity.year}</td>
@@ -155,6 +110,12 @@ export const DataModal: React.FC<DataModalProps> = ({
               </tbody>
             </table>
           </div>
+        )}
+
+        {!hasPreview && !aiImportError && (
+          <p className="text-sm text-gray-600">
+            Tolka en beskrivning för att förhandsgranska aktiviteter innan import.
+          </p>
         )}
       </div>
     );

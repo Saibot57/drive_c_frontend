@@ -62,8 +62,6 @@ export function FamilySchedule() {
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const [aiPreviewActivities, setAiPreviewActivities] = useState<ActivityImportItem[]>([]);
-  const [aiPreviewErrors, setAiPreviewErrors] = useState<{ index: number; message: string }[]>([]);
-  const [aiParticipantWarnings, setAiParticipantWarnings] = useState<string[]>([]);
   const [aiImporting, setAiImporting] = useState(false);
   const [aiImportError, setAiImportError] = useState<string | null>(null);
 
@@ -100,7 +98,7 @@ export function FamilySchedule() {
 
   const mapParticipantsForImport = (items: ActivityImportItem[]): ActivityImportItem[] =>
     items.map(item => {
-      const mappedParticipants = (item.participants || []).map(participant => {
+      const mappedParticipants = item.participants.map(participant => {
         const trimmed = participant.trim();
         if (!trimmed) return trimmed;
         if (participantIdSet.has(trimmed)) return trimmed;
@@ -111,37 +109,14 @@ export function FamilySchedule() {
       return { ...item, participants: mappedParticipants };
     });
 
-  const computeParticipantWarnings = (items: ActivityImportItem[]): string[] => {
-    const unknown = new Set<string>();
-    items.forEach(item => {
-      (item.participants || []).forEach(participant => {
-        const trimmed = participant.trim();
-        if (!trimmed) return;
-        if (participantIdSet.has(trimmed)) return;
-        const lookupKey = trimmed.toLowerCase();
-        if (!participantLookup[lookupKey]) {
-          unknown.add(participant);
-        }
-      });
-    });
-    return Array.from(unknown);
-  };
-
-  const handleAIPreview = (
-    ok: ActivityImportItem[],
-    errors: { index: number; message: string }[],
-  ) => {
-    setAiPreviewActivities(ok);
-    setAiPreviewErrors(errors);
+  const handleAIPreview = (activities: ActivityImportItem[]) => {
+    setAiPreviewActivities(activities);
     setAiImportError(null);
-    setAiParticipantWarnings(computeParticipantWarnings(ok));
   };
 
   const handleCloseDataModal = () => {
     setDataModalOpen(false);
     setAiPreviewActivities([]);
-    setAiPreviewErrors([]);
-    setAiParticipantWarnings([]);
     setAiImportError(null);
     setAiImporting(false);
   };
@@ -376,7 +351,11 @@ export function FamilySchedule() {
     try {
       setAiImporting(true);
       setAiImportError(null);
-      const prepared = mapParticipantsForImport(aiPreviewActivities);
+      const prepared = aiPreviewActivities.map(activity => ({
+        ...activity,
+        participants: [...activity.participants],
+        days: [...activity.days],
+      }));
       await scheduleService.addActivitiesFromJson(prepared);
       await fetchActivities(selectedYear, selectedWeek);
       handleCloseDataModal();
@@ -589,8 +568,6 @@ export function FamilySchedule() {
         selectedYear={selectedYear}
         onAIPreview={handleAIPreview}
         aiPreviewActivities={aiPreviewActivities}
-        aiPreviewErrors={aiPreviewErrors}
-        aiParticipantWarnings={aiParticipantWarnings}
         onAIImport={handleAIImport}
         aiImporting={aiImporting}
         aiImportError={aiImportError}

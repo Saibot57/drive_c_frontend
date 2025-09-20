@@ -14,22 +14,38 @@ export const scheduleService = {
     week: number,
     year: number,
   ): Promise<ActivityImportItem[]> {
-    const response = await fetchWithAuth(`${SCHEDULE_API_URL}/ai-parse-schedule`, {
-      method: 'POST',
-      body: JSON.stringify({ text, week, year }),
-    });
+    try {
+      const response = await fetchWithAuth(`${SCHEDULE_API_URL}/ai-parse-schedule`, {
+        method: 'POST',
+        body: JSON.stringify({ text, week, year }),
+        signal: AbortSignal.timeout(30000),
+      });
 
-    const payload = await response.json();
-    if (!response.ok || payload?.success === false) {
-      throw new Error(payload?.error || payload?.message || 'AI parse failed');
+      const payload = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 502) {
+          throw new Error(
+            payload?.error || 'AI-tjänsten är inte tillgänglig just nu. Försök igen senare.',
+          );
+        }
+        if (response.status === 422) {
+          throw new Error(payload?.error || 'AI returnerade ogiltiga aktiviteter.');
+        }
+        throw new Error(payload?.error || 'AI-tolkning misslyckades.');
+      }
+
+      if (!payload?.success || !Array.isArray(payload?.data?.activities)) {
+        throw new Error('AI gav inga giltiga aktiviteter.');
+      }
+
+      return payload.data.activities as ActivityImportItem[];
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw new Error('AI-tolkningen tog för lång tid. Försök med kortare text.');
+      }
+      throw error;
     }
-
-    const activities = payload?.data?.activities;
-    if (!Array.isArray(activities)) {
-      throw new Error('Invalid AI response');
-    }
-
-    return activities as ActivityImportItem[];
   },
 
   // --- Aktiviteter ---
@@ -95,13 +111,15 @@ export const scheduleService = {
       method: 'POST',
       body: JSON.stringify({ activities }),
     });
-    const data = await response.json();
-    if (!response.ok || data?.success === false) {
-      const error = new Error(data?.error || data?.message || 'Failed to import activities');
-      (error as any).details = data?.conflicts;
+    const payload = await response.json();
+    if (!response.ok || !payload?.success) {
+      const error = new Error(payload?.error || 'Import misslyckades.');
+      if (payload?.conflicts) {
+        (error as any).details = payload.conflicts;
+      }
       throw error;
     }
-    return data;
+    return payload.data;
   },
 
   // --- Familjemedlemmar ---

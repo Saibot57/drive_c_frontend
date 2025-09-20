@@ -10,17 +10,11 @@ export type SwedishDay =
 export type ActivityImportItem = {
   name: string;
   icon?: string;
+  participants: string[];
   startTime: string;
   endTime: string;
-  participants: string[];
-  days?: SwedishDay[];
-  week?: number;
-  year?: number;
-  date?: string;
-  dates?: string[];
-  location?: string;
-  notes?: string;
-  color?: string;
+  days: SwedishDay[];
+  week: number;
+  year: number;
   seriesId?: string;
-  recurringEndDate?: string;
 };
