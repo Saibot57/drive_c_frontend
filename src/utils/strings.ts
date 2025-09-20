@@ -1,4 +1,6 @@
-import { SV_DAYS, type SwedishDay } from './dateSv';
+import type { SwedishDay } from '@/types/schedule';
+
+import { SV_DAYS } from './dateSv';
 
 const CANON: Record<string, SwedishDay> = Object.fromEntries(
   SV_DAYS.flatMap((day) => {
