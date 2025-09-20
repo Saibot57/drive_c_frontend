@@ -2,15 +2,11 @@ import { useState } from 'react';
 
 import { scheduleService } from '@/services/scheduleService';
 import type { ActivityImportItem } from '@/types/schedule';
-import { normalizeActivitiesForBackend } from '@/utils/normalizeActivities';
 
 interface AIAssistantTabProps {
   selectedWeek: number;
   selectedYear: number;
-  onPreview: (
-    ok: ActivityImportItem[],
-    errors: { index: number; message: string }[],
-  ) => void;
+  onPreview: (activities: ActivityImportItem[]) => void;
 }
 
 export function AIAssistantTab({ selectedWeek, selectedYear, onPreview }: AIAssistantTabProps) {
@@ -26,20 +22,16 @@ export function AIAssistantTab({ selectedWeek, selectedYear, onPreview }: AIAssi
     setError(null);
     try {
       const aiItems = await scheduleService.parseScheduleWithAI(text, selectedWeek, selectedYear);
-      const { ok, errors } = normalizeActivitiesForBackend(aiItems, selectedWeek, selectedYear);
-      onPreview(ok, errors);
-
-      if (!ok.length) {
-        setError(errors[0]?.message || 'AI gav inga giltiga aktiviteter.');
+      if (!aiItems.length) {
+        setError('AI gav inga giltiga aktiviteter.');
+        onPreview([]);
         return;
       }
 
-      if (errors.length) {
-        setError('Vissa rader kunde inte tolkas. Se detaljerna nedan.');
-      }
+      onPreview(aiItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte tolka texten.');
-      onPreview([], []);
+      onPreview([]);
     } finally {
       setIsProcessing(false);
     }

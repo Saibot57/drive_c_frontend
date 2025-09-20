@@ -1,27 +1,11 @@
 import type { ActivityImportItem, SwedishDay } from '@/types/schedule';
 import { normalizeHHMM, isStartBeforeEnd } from './time';
-import { isoWeekYear, swedishDayFromDate, dateFromISOWeek } from './dateSv';
+import { isoWeekYear, swedishDayFromDate } from './dateSv';
 import { normalizeSwedishDay } from './strings';
 
 function ensureArray<T>(value: T | T[] | undefined, fallback: T[] = []): T[] {
   if (value == null) return fallback;
   return Array.isArray(value) ? value : [value];
-}
-
-function uuid(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-function isoWeekdayFromSwedish(day: SwedishDay): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
-  const index = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'].indexOf(day);
-  return (index + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
 }
 
 export function normalizeActivitiesForBackend(
@@ -54,10 +38,8 @@ export function normalizeActivitiesForBackend(
       }
 
       const icon = (raw as { icon?: unknown })?.icon;
-      const location = (raw as { location?: unknown })?.location;
-      const notes = (raw as { notes?: unknown })?.notes;
-      const color = (raw as { color?: unknown })?.color;
-      const baseSeriesId = String((raw as { seriesId?: unknown })?.seriesId ?? uuid());
+      const seriesIdValue = (raw as { seriesId?: unknown })?.seriesId;
+      const seriesId = seriesIdValue == null ? undefined : String(seriesIdValue);
 
       const rawDates = ensureArray((raw as { dates?: unknown })?.dates).map((value) =>
         String(value),
@@ -70,38 +52,19 @@ export function normalizeActivitiesForBackend(
         }
         if (!days.length) throw new Error('days is required');
 
-        const recurringEndDate = (raw as { recurringEndDate?: unknown })?.recurringEndDate;
-        if (recurringEndDate != null) {
-          const recurringEnd = new Date(`${recurringEndDate}T00:00:00Z`);
-          if (Number.isNaN(recurringEnd.getTime())) {
-            throw new Error("recurringEndDate must be 'YYYY-MM-DD'");
-          }
-          const firstIsoDay = isoWeekdayFromSwedish(days[0]);
-          const firstDate = dateFromISOWeek(year, week, firstIsoDay);
-          if (recurringEnd < firstDate) {
-            throw new Error('recurringEndDate cannot be earlier than start date');
-          }
-        }
-
         const normalized: ActivityImportItem = {
           name,
           icon: icon == null ? undefined : String(icon),
           startTime,
           endTime,
           participants,
-          location: location == null ? undefined : String(location),
-          notes: notes == null ? undefined : String(notes),
-          color: color == null ? undefined : String(color),
-          seriesId: baseSeriesId,
           days,
           week,
           year,
         };
 
-        if ((raw as { recurringEndDate?: unknown })?.recurringEndDate != null) {
-          normalized.recurringEndDate = String(
-            (raw as { recurringEndDate?: unknown })?.recurringEndDate,
-          );
+        if (seriesId) {
+          normalized.seriesId = seriesId;
         }
 
         ok.push(normalized);
