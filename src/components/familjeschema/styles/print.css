@@ -1,0 +1,55 @@
+/* Print-specific styles for the familjeschema feature */
+
+/* System print (window.print) */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .family-schedule-container,
+  .family-schedule-container * {
+    visibility: visible !important;
+  }
+
+  .printable-schedule-scope,
+  .printable-schedule-scope * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sidebar,
+  .header,
+  .week-nav,
+  .btn,
+  .modal-overlay,
+  .sidebar-actions,
+  .toast,
+  .tooltip {
+    display: none !important;
+  }
+
+  .printable-schedule-scope {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* Canvas export helper */
+.print-mode * {
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.print-mode .sticky,
+.print-mode [style*="position: sticky"] {
+  position: static !important;
+  top: auto !important;
+}
+
+.printable-schedule-scope {
+  background: #ffffff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}

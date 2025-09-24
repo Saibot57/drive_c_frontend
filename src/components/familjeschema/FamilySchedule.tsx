@@ -14,7 +14,7 @@ import type { ActivityImportItem } from '@/types/schedule';
 import { WEEKDAYS_FULL, ALL_DAYS } from './constants';
 import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
 import { generateTimeSlots } from './utils/scheduleUtils';
-import { downloadAllICS } from './utils/exportUtils';
+import { downloadAllICS, exportScheduleToPDF } from './utils/exportUtils';
 import { useFocusTrap } from './hooks/useFocusTrap';
 import { normalizeActivitiesForBackend } from '@/utils/normalizeActivities';
 
@@ -34,10 +34,20 @@ const BLANK_FORM: FormData = {
 
 type ViewMode = 'grid' | 'layer';
 
+const getISOWeekInfo = (date: Date) => {
+  const isoDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNumber = isoDate.getUTCDay() || 7;
+  isoDate.setUTCDate(isoDate.getUTCDate() + 4 - dayNumber);
+  const yearStart = new Date(Date.UTC(isoDate.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((isoDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { week, year: isoDate.getUTCFullYear() };
+};
+
 export function FamilySchedule() {
   const modalRef = useRef<HTMLDivElement>(null);
   const settingsModalRef = useRef<HTMLDivElement>(null);
   const originalMemberOrderRef = useRef<FamilyMember[]>([]);
+  const scheduleRef = useRef<HTMLDivElement>(null);
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -64,6 +74,7 @@ export function FamilySchedule() {
   const [aiPreviewActivities, setAiPreviewActivities] = useState<ActivityImportItem[]>([]);
   const [aiImporting, setAiImporting] = useState(false);
   const [aiImportError, setAiImportError] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -417,6 +428,11 @@ export function FamilySchedule() {
   const days = settings.showWeekends ? ALL_DAYS : WEEKDAYS_FULL;
   const timeSlots = generateTimeSlots(settings.dayStart, settings.dayEnd);
   const weekDates = getWeekDateRange(selectedWeek, selectedYear, days.length);
+  const pdfFilename = useMemo(() => {
+    const firstDay = weekDates[0] ?? new Date();
+    const { week, year } = getISOWeekInfo(firstDay);
+    return `familjeschema-vecka-${week}-${year}.pdf`;
+  }, [weekDates]);
 
   const navigateWeek = (direction: number) => {
     const monday = getWeekDateRange(selectedWeek, selectedYear, 1)[0];
@@ -443,7 +459,29 @@ export function FamilySchedule() {
     setViewMode('layer');
     setHighlightedMemberId(memberId);
   };
-  
+
+  const handleExportPdf = async () => {
+    if (printing || !scheduleRef.current) return;
+    setPrinting(true);
+    try {
+      await exportScheduleToPDF(scheduleRef.current, {
+        filename: pdfFilename,
+        marginMM: 8,
+        scale: 3
+      });
+    } catch (error) {
+      console.error('Failed to export schedule as PDF', error);
+      alert('Kunde inte skapa PDF. Försök igen.');
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handleSystemPrint = () => {
+    if (printing) return;
+    window.print();
+  };
+
   if (loading) return <div className="text-center p-10 font-monument">Laddar schema...</div>;
   if (error) return <div className="text-center p-10 font-monument text-red-600">Fel: {error}</div>;
 
@@ -468,6 +506,9 @@ export function FamilySchedule() {
         onStartReorder={handleStartMemberReorder}
         onSubmitReorder={handleSubmitMemberReorder}
         onReorderMembers={handleReorderMembers}
+        onExportPdf={handleExportPdf}
+        onSystemPrint={handleSystemPrint}
+        isPrinting={printing}
       />
 
       <div className="schedule-main-content">
@@ -486,7 +527,7 @@ export function FamilySchedule() {
         )}
 
         {/* Main Schedule View */}
-        <div className="schedule-view-container">
+        <div className="schedule-view-container printable-schedule-scope" ref={scheduleRef}>
           {viewMode === 'grid' ? (
             <ScheduleGrid
               days={days} weekDates={weekDates} timeSlots={timeSlots}
