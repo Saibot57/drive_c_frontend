@@ -194,9 +194,14 @@ export const exportScheduleToPDF = async (
   const html2canvas = html2canvasModule.default;
 
   // Wait for fonts before rendering to canvas to avoid layout shifts
-  // @ts-expect-error FontFaceSet is not present in every DOM lib definition
-  if (document.fonts?.ready) {
-    await document.fonts.ready;
+  type DocumentWithFonts = Document & {
+    fonts?: {
+      ready?: Promise<unknown>;
+    };
+  };
+  const fonts = (document as DocumentWithFonts).fonts;
+  if (fonts?.ready) {
+    await fonts.ready;
   }
 
   const scale = clamp(options.scale ?? window.devicePixelRatio ?? 1, 2, 3);
