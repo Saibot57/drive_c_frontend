@@ -50,6 +50,8 @@
 
 .printable-schedule-scope {
   background: #ffffff;
+
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+
 }
