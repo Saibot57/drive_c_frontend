@@ -11,7 +11,8 @@ import {
   Layers,
   GripVertical,
   Check,
-  Loader2
+  Loader2,
+  Printer
 } from 'lucide-react';
 import type { FamilyMember } from '../types';
 import { Emoji } from '@/utils/Emoji';
@@ -35,6 +36,9 @@ interface SidebarProps {
   onStartReorder: () => void;
   onSubmitReorder: () => void;
   onReorderMembers: (sourceId: string, targetId: string | null) => void;
+  onExportPdf?: () => void;
+  onSystemPrint?: () => void;
+  isPrinting?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -55,7 +59,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onMemberClick,
   onStartReorder,
   onSubmitReorder,
-  onReorderMembers
+  onReorderMembers,
+  onExportPdf,
+  onSystemPrint,
+  isPrinting = false
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
@@ -282,6 +289,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <ArrowRightLeft size={18} />
             {!isCollapsed && <span>Import/Export</span>}
+          </button>
+          <button
+            type="button"
+            className="btn-compact"
+            onClick={() => onExportPdf?.()}
+            title="Spara som PDF"
+            aria-label="Spara som PDF"
+            disabled={isPrinting}
+            aria-busy={isPrinting}
+          >
+            <Printer size={18} />
+            {!isCollapsed && <span>Spara som PDF</span>}
+          </button>
+          <button
+            type="button"
+            className="btn-compact"
+            onClick={() => onSystemPrint?.()}
+            title="Skriv ut"
+            aria-label="Skriv ut"
+            disabled={isPrinting}
+          >
+            <Printer size={18} />
+            {!isCollapsed && <span>Skriv ut</span>}
           </button>
           <button
             className="btn-compact"

@@ -4,8 +4,9 @@
 import { FamilySchedule } from '@/components/familjeschema/FamilySchedule';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
-// Importera CSS-filen för schemat
+// Importera CSS-filer för schemat och utskrift
 import '@/components/familjeschema/styles/neobrutalism.css';
+import '@/components/familjeschema/styles/print.css';
 
 export default function FamilySchedulePage() {
   return (

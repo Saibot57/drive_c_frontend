@@ -110,4 +110,116 @@ export const downloadAllICS = (activities: Activity[]): void => {
   a.download = `familjens-schema-alla-veckor.ics`;
   a.click();
   URL.revokeObjectURL(url);
-}
+};
+
+export type ExportOptions = {
+  filename?: string;
+  marginMM?: number;
+  scale?: number;
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const createCanvasSlice = (
+  source: HTMLCanvasElement,
+  startY: number,
+  height: number
+) => {
+  const slice = document.createElement('canvas');
+  slice.width = source.width;
+  slice.height = Math.ceil(height);
+
+  const ctx = slice.getContext('2d');
+  if (!ctx) throw new Error('2D context not available');
+
+  ctx.drawImage(
+    source,
+    0,
+    Math.floor(startY),
+    source.width,
+    Math.floor(height),
+    0,
+    0,
+    source.width,
+    Math.floor(height)
+  );
+
+  return slice;
+};
+
+const canvasToPagedPdf = async (canvas: HTMLCanvasElement, marginMM = 10) => {
+  const jsPDFModule = await import('jspdf');
+  const { jsPDF } = jsPDFModule;
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const margin = clamp(marginMM, 0, 20);
+  const usableWidth = pageWidth - margin * 2;
+  const usableHeight = pageHeight - margin * 2;
+
+  const mmPerPx = usableWidth / canvas.width;
+  const pageHeightPx = usableHeight / mmPerPx;
+
+  let offsetY = 0;
+  let firstPage = true;
+
+  while (offsetY < canvas.height) {
+    const sliceHeight = Math.min(pageHeightPx, canvas.height - offsetY);
+    const sliceCanvas = createCanvasSlice(canvas, offsetY, sliceHeight);
+    const imageData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+
+    if (!firstPage) {
+      pdf.addPage();
+    }
+    firstPage = false;
+
+    const renderedHeightMM = sliceCanvas.height * mmPerPx;
+    pdf.addImage(imageData, 'JPEG', margin, margin, usableWidth, renderedHeightMM, undefined, 'FAST');
+
+    offsetY += sliceHeight;
+  }
+
+  return pdf;
+};
+
+export const exportScheduleToPDF = async (
+  element: HTMLElement,
+  options: ExportOptions = {}
+) => {
+  if (!element) throw new Error('exportScheduleToPDF: element is null');
+
+  const html2canvasModule = await import('html2canvas');
+  const html2canvas = html2canvasModule.default;
+
+  // Wait for fonts before rendering to canvas to avoid layout shifts
+  // @ts-expect-error FontFaceSet is not present in every DOM lib definition
+  if (document.fonts?.ready) {
+    await document.fonts.ready;
+  }
+
+  const scale = clamp(options.scale ?? window.devicePixelRatio ?? 1, 2, 3);
+  const margin = options.marginMM ?? 10;
+  const filename = options.filename ?? 'familjeschema.pdf';
+
+  element.classList.add('print-mode');
+
+  try {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+
+    const canvas = await html2canvas(element, {
+      scale,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false
+    });
+
+    const pdf = await canvasToPagedPdf(canvas, margin);
+    pdf.save(filename);
+  } finally {
+    element.classList.remove('print-mode');
+  }
+};
