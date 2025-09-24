@@ -184,6 +184,95 @@ const canvasToPagedPdf = async (canvas: HTMLCanvasElement, marginMM = 10) => {
   return pdf;
 };
 
+const overflowValues = new Set(['auto', 'scroll', 'hidden', 'clip']);
+
+const shouldForceVisibleOverflow = (value: string) => overflowValues.has(value);
+
+const prepareElementForCapture = (element: HTMLElement) => {
+  const originalScrollTop = element.scrollTop;
+  const originalScrollLeft = element.scrollLeft;
+  const originalStyles = {
+    height: element.style.height,
+    maxHeight: element.style.maxHeight,
+    width: element.style.width,
+    maxWidth: element.style.maxWidth,
+    overflow: element.style.overflow,
+    overflowX: element.style.overflowX,
+    overflowY: element.style.overflowY,
+  };
+
+  const expandedHeight = element.scrollHeight;
+  const expandedWidth = element.scrollWidth;
+
+  element.style.height = `${expandedHeight}px`;
+  element.style.maxHeight = `${expandedHeight}px`;
+  if (expandedWidth > element.clientWidth) {
+    element.style.width = `${expandedWidth}px`;
+    element.style.maxWidth = `${expandedWidth}px`;
+  }
+  element.style.overflow = 'visible';
+  element.style.overflowX = 'visible';
+  element.style.overflowY = 'visible';
+  element.scrollTop = 0;
+  element.scrollLeft = 0;
+
+  const ancestorAdjustments: Array<{
+    element: HTMLElement;
+    styles: {
+      overflow: string;
+      overflowX: string;
+      overflowY: string;
+    };
+  }> = [];
+
+  let ancestor = element.parentElement;
+  while (ancestor && ancestor instanceof HTMLElement) {
+    const computed = window.getComputedStyle(ancestor);
+    if (
+      shouldForceVisibleOverflow(computed.overflow) ||
+      shouldForceVisibleOverflow(computed.overflowX) ||
+      shouldForceVisibleOverflow(computed.overflowY)
+    ) {
+      ancestorAdjustments.push({
+        element: ancestor,
+        styles: {
+          overflow: ancestor.style.overflow,
+          overflowX: ancestor.style.overflowX,
+          overflowY: ancestor.style.overflowY,
+        },
+      });
+      ancestor.style.overflow = 'visible';
+      ancestor.style.overflowX = 'visible';
+      ancestor.style.overflowY = 'visible';
+    }
+
+    if (ancestor.classList.contains('family-schedule-container')) {
+      break;
+    }
+
+    ancestor = ancestor.parentElement;
+  }
+
+  return () => {
+    element.style.height = originalStyles.height;
+    element.style.maxHeight = originalStyles.maxHeight;
+    element.style.width = originalStyles.width;
+    element.style.maxWidth = originalStyles.maxWidth;
+    element.style.overflow = originalStyles.overflow;
+    element.style.overflowX = originalStyles.overflowX;
+    element.style.overflowY = originalStyles.overflowY;
+    element.scrollTop = originalScrollTop;
+    element.scrollLeft = originalScrollLeft;
+
+    for (let i = ancestorAdjustments.length - 1; i >= 0; i -= 1) {
+      const { element: ancestorElement, styles } = ancestorAdjustments[i];
+      ancestorElement.style.overflow = styles.overflow;
+      ancestorElement.style.overflowX = styles.overflowX;
+      ancestorElement.style.overflowY = styles.overflowY;
+    }
+  };
+};
+
 export const exportScheduleToPDF = async (
   element: HTMLElement,
   options: ExportOptions = {}
@@ -210,7 +299,10 @@ export const exportScheduleToPDF = async (
 
   element.classList.add('print-mode');
 
+  let restoreElementLayout: (() => void) | undefined;
   try {
+    restoreElementLayout = prepareElementForCapture(element);
+
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => resolve());
     });
@@ -225,6 +317,7 @@ export const exportScheduleToPDF = async (
     const pdf = await canvasToPagedPdf(canvas, margin);
     pdf.save(filename);
   } finally {
+    restoreElementLayout?.();
     element.classList.remove('print-mode');
   }
 };
