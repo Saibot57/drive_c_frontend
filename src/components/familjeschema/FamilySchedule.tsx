@@ -165,6 +165,7 @@ export function FamilySchedule() {
         endTime: activityFromForm.endTime,
         location: activityFromForm.location || undefined,
         notes: activityFromForm.notes || undefined,
+        recurring: activityFromForm.recurring,
         color: activityFromForm.color,
         week: selectedWeek,
         year: selectedYear,
