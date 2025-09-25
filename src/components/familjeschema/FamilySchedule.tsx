@@ -170,8 +170,11 @@ export function FamilySchedule() {
         year: selectedYear,
       };
 
-      if (activityFromForm.recurring && activityFromForm.recurringEndDate) {
-        payload.recurringEndDate = activityFromForm.recurringEndDate;
+      if (activityFromForm.recurring) {
+        payload.recurring = true;
+        if (activityFromForm.recurringEndDate) {
+          payload.recurringEndDate = activityFromForm.recurringEndDate;
+        }
       }
 
       if (editingActivity) {
