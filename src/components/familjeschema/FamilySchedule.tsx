@@ -27,9 +27,17 @@ import { SettingsModal } from './components/SettingsModal';
 import { DataModal } from './components/DataModal';
 
 const BLANK_FORM: FormData = {
-  name: '', icon: '🎯', days: [], participants: [], startTime: '09:00',
-  endTime: '10:00', location: '', notes: '', recurring: false,
-  recurringEndDate: '', color: undefined
+  name: '',
+  icon: '🎯',
+  days: [],
+  participants: [],
+  startTime: '09:00',
+  endTime: '10:00',
+  location: '',
+  notes: '',
+  recurring: false,
+  recurringEndDate: '',
+  color: undefined,
 };
 
 type ViewMode = 'grid' | 'layer';
@@ -78,6 +86,7 @@ export function FamilySchedule() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -86,11 +95,11 @@ export function FamilySchedule() {
       setFormData({
         ...editingActivity,
         days: [editingActivity.day],
-        recurring: false,
+        recurring: false,          // Deliberately reset & hidden in edit mode
         recurringEndDate: '',
         location: editingActivity.location || '',
         notes: editingActivity.notes || '',
-        color: editingActivity.color
+        color: editingActivity.color,
       });
     } else {
       setFormData(BLANK_FORM);
@@ -99,17 +108,17 @@ export function FamilySchedule() {
 
   const participantLookup = useMemo(() => {
     const lookup: Record<string, string> = {};
-    familyMembers.forEach(member => {
+    familyMembers.forEach((member) => {
       lookup[member.name.toLowerCase()] = member.id;
     });
     return lookup;
   }, [familyMembers]);
 
-  const participantIdSet = useMemo(() => new Set(familyMembers.map(member => member.id)), [familyMembers]);
+  const participantIdSet = useMemo(() => new Set(familyMembers.map((member) => member.id)), [familyMembers]);
 
   const mapParticipantsForImport = (items: ActivityImportItem[]): ActivityImportItem[] =>
-    items.map(item => {
-      const mappedParticipants = item.participants.map(participant => {
+    items.map((item) => {
+      const mappedParticipants = item.participants.map((participant) => {
         const trimmed = participant.trim();
         if (!trimmed) return trimmed;
         if (participantIdSet.has(trimmed)) return trimmed;
@@ -139,7 +148,7 @@ export function FamilySchedule() {
       const [activitiesData, membersData, settingsData] = await Promise.all([
         scheduleService.getActivities(selectedYear, selectedWeek),
         scheduleService.getFamilyMembers(),
-        scheduleService.getSettings()
+        scheduleService.getSettings(),
       ]);
       setActivities(activitiesData);
       setFamilyMembers(membersData);
@@ -156,6 +165,7 @@ export function FamilySchedule() {
 
   const handleSaveActivity = async (activityFromForm: FormData, applyToSeries = false) => {
     try {
+      // Base payload deliberately omits `recurring` to avoid stripping series on edits.
       const payload: CreateActivityPayload = {
         name: activityFromForm.name,
         icon: activityFromForm.icon,
@@ -165,32 +175,39 @@ export function FamilySchedule() {
         endTime: activityFromForm.endTime,
         location: activityFromForm.location || undefined,
         notes: activityFromForm.notes || undefined,
-        recurring: activityFromForm.recurring,
         color: activityFromForm.color,
         week: selectedWeek,
         year: selectedYear,
       };
 
+      // Codex recommendation:
+      // - If form says recurring, set it (and end date).
+      // - Else, ONLY for brand-new activities, explicitly set recurring=false to satisfy backend validation.
       if (activityFromForm.recurring) {
         payload.recurring = true;
         if (activityFromForm.recurringEndDate) {
           payload.recurringEndDate = activityFromForm.recurringEndDate;
+        }
+      } else if (!editingActivity) {
+        payload.recurring = false;
+        // Ensure we never send an end date when non-recurring
+        if ('recurringEndDate' in payload) {
+          // @ts-expect-error safe cleanup for transport
+          delete payload.recurringEndDate;
         }
       }
 
       if (editingActivity) {
         if (applyToSeries && editingActivity.seriesId) {
           const updatedActivities = await scheduleService.updateActivitySeries(editingActivity.seriesId, payload);
-          setActivities(prev =>
-            prev.map(a => updatedActivities.find(u => u.id === a.id) || a)
-          );
+          setActivities((prev) => prev.map((a) => updatedActivities.find((u) => u.id === a.id) || a));
         } else {
           const updatedActivity = await scheduleService.updateActivity(editingActivity.id, payload);
-          setActivities(prev => prev.map(a => (a.id === updatedActivity.id ? updatedActivity : a)));
+          setActivities((prev) => prev.map((a) => (a.id === updatedActivity.id ? updatedActivity : a)));
         }
       } else {
         const created = await scheduleService.createActivity(payload);
-        setActivities(prev => [...prev, ...created]);
+        setActivities((prev) => [...prev, ...created]);
       }
 
       setModalOpen(false);
@@ -205,10 +222,10 @@ export function FamilySchedule() {
     try {
       if (applyToSeries && editingActivity.seriesId) {
         await scheduleService.deleteActivitySeries(editingActivity.seriesId);
-        setActivities(prev => prev.filter(a => a.seriesId !== editingActivity.seriesId));
+        setActivities((prev) => prev.filter((a) => a.seriesId !== editingActivity.seriesId));
       } else {
         await scheduleService.deleteActivity(editingActivity.id);
-        setActivities(prev => prev.filter(a => a.id !== editingActivity.id));
+        setActivities((prev) => prev.filter((a) => a.id !== editingActivity.id));
       }
       setModalOpen(false);
       setEditingActivity(null);
@@ -229,10 +246,10 @@ export function FamilySchedule() {
   const handleSaveMember = async (memberData: { name: string; color: string; icon: string }) => {
     if (editingMember) {
       const previous = [...familyMembers];
-      setFamilyMembers(prev => prev.map(m => m.id === editingMember.id ? { ...m, ...memberData } : m));
+      setFamilyMembers((prev) => prev.map((m) => (m.id === editingMember.id ? { ...m, ...memberData } : m)));
       try {
         const updated = await scheduleService.updateFamilyMember(editingMember.id, memberData);
-        setFamilyMembers(prev => prev.map(m => m.id === editingMember.id ? updated : m));
+        setFamilyMembers((prev) => prev.map((m) => (m.id === editingMember.id ? updated : m)));
         await fetchActivities(selectedYear, selectedWeek);
       } catch (err) {
         setFamilyMembers(previous);
@@ -241,12 +258,12 @@ export function FamilySchedule() {
     } else {
       const tempId = `temp-${Date.now()}`;
       const newMember = { id: tempId, ...memberData };
-      setFamilyMembers(prev => [...prev, newMember]);
+      setFamilyMembers((prev) => [...prev, newMember]);
       try {
         const created = await scheduleService.createFamilyMember(memberData);
-        setFamilyMembers(prev => prev.map(m => m.id === tempId ? created : m));
+        setFamilyMembers((prev) => prev.map((m) => (m.id === tempId ? created : m)));
       } catch (err) {
-        setFamilyMembers(prev => prev.filter(m => m.id !== tempId));
+        setFamilyMembers((prev) => prev.filter((m) => m.id !== tempId));
         setError(err instanceof Error ? err.message : 'Kunde inte skapa medlem.');
       }
     }
@@ -256,7 +273,7 @@ export function FamilySchedule() {
 
   const handleDeleteMember = async (member: FamilyMember) => {
     const previous = [...familyMembers];
-    setFamilyMembers(prev => prev.filter(m => m.id !== member.id));
+    setFamilyMembers((prev) => prev.filter((m) => m.id !== member.id));
     try {
       await scheduleService.deleteFamilyMember(member.id);
       await fetchActivities(selectedYear, selectedWeek);
@@ -275,17 +292,17 @@ export function FamilySchedule() {
   const handleReorderMembers = (sourceId: string, targetId: string | null) => {
     if (!isReorderingMembers || sourceId === targetId) return;
 
-    setFamilyMembers(prev => {
-      const movingMember = prev.find(member => member.id === sourceId);
+    setFamilyMembers((prev) => {
+      const movingMember = prev.find((member) => member.id === sourceId);
       if (!movingMember) return prev;
 
-      const membersWithoutSource = prev.filter(member => member.id !== sourceId);
+      const membersWithoutSource = prev.filter((member) => member.id !== sourceId);
 
       if (targetId === null) {
         return [...membersWithoutSource, movingMember];
       }
 
-      const targetIndex = membersWithoutSource.findIndex(member => member.id === targetId);
+      const targetIndex = membersWithoutSource.findIndex((member) => member.id === targetId);
       if (targetIndex === -1) {
         return prev;
       }
@@ -303,8 +320,8 @@ export function FamilySchedule() {
     const previousOrder = [...originalMemberOrderRef.current];
 
     try {
-      const newOrderIds = familyMembers.map(member => member.id);
-      const originalIds = previousOrder.map(member => member.id);
+      const newOrderIds = familyMembers.map((member) => member.id);
+      const originalIds = previousOrder.map((member) => member.id);
       const hasChanges =
         newOrderIds.length !== originalIds.length ||
         newOrderIds.some((id, index) => id !== originalIds[index]);
@@ -349,7 +366,7 @@ export function FamilySchedule() {
 
       const errorSummary = errors.length
         ? `\n\nHoppar över ${errors.length} rader:\n${errors
-            .map(error => `Rad ${error.index + 1}: ${error.message}`)
+            .map((error) => `Rad ${error.index + 1}: ${error.message}`)
             .join('\n')}`
         : '';
       alert(`${prepared.length} aktiviteter importerades!${errorSummary}`);
@@ -366,7 +383,7 @@ export function FamilySchedule() {
     try {
       setAiImporting(true);
       setAiImportError(null);
-      const prepared = aiPreviewActivities.map(activity => ({
+      const prepared = aiPreviewActivities.map((activity) => ({
         ...activity,
         participants: [...activity.participants],
         days: [...activity.days],
@@ -396,7 +413,7 @@ export function FamilySchedule() {
     reader.readAsText(file);
     event.target.value = '';
   };
-  
+
   const handleExportJSON = () => {
     const jsonString = JSON.stringify(activities, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -420,7 +437,7 @@ export function FamilySchedule() {
       const fetchedActivities = await scheduleService.getActivities(year, week);
       setActivities(fetchedActivities);
     } catch (error) {
-      console.error("Failed to fetch activities for new week", error);
+      console.error('Failed to fetch activities for new week', error);
     } finally {
       setLoading(false);
     }
@@ -471,7 +488,7 @@ export function FamilySchedule() {
       await exportScheduleToPDF(scheduleRef.current, {
         filename: pdfFilename,
         marginMM: 8,
-        scale: 3
+        scale: 3,
       });
     } catch (error) {
       console.error('Failed to export schedule as PDF', error);
@@ -499,7 +516,10 @@ export function FamilySchedule() {
         viewMode={viewMode}
         isReorderingMembers={isReorderingMembers}
         isSavingMemberOrder={isSavingMemberOrder}
-        onNewActivity={() => { setEditingActivity(null); setModalOpen(true); }}
+        onNewActivity={() => {
+          setEditingActivity(null);
+          setModalOpen(true);
+        }}
         onOpenSettings={() => setSettingsOpen(true)}
         onNavigateWeek={navigateWeek}
         onGoToCurrentWeek={goToCurrentWeek}
@@ -519,13 +539,21 @@ export function FamilySchedule() {
         {/* Notifications */}
         {!isCurrentWeek && (
           <div className="compact-notice" role="alert">
-            <AlertCircle size={18}/>
-            <span>Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka</span>
+            <AlertCircle size={18} />
+            <span>
+              Du tittar på{' '}
+              {isWeekInPast(weekDates)
+                ? 'en tidigare'
+                : isWeekInFuture(weekDates)
+                ? 'en kommande'
+                : 'en annan'}{' '}
+              vecka
+            </span>
           </div>
         )}
         {showConflict && (
           <div className="compact-notice conflict" role="alert">
-            <AlertCircle size={18}/> 
+            <AlertCircle size={18} />
             <span>Tidskonflikt! En deltagare är redan upptagen.</span>
           </div>
         )}
@@ -534,17 +562,27 @@ export function FamilySchedule() {
         <div className="schedule-view-container printable-schedule-scope" ref={scheduleRef}>
           {viewMode === 'grid' ? (
             <ScheduleGrid
-              days={days} weekDates={weekDates} timeSlots={timeSlots}
-              activities={activities} familyMembers={familyMembers}
-              settings={settings} selectedWeek={selectedWeek}
-              selectedYear={selectedYear} onActivityClick={handleActivityClick}
+              days={days}
+              weekDates={weekDates}
+              timeSlots={timeSlots}
+              activities={activities}
+              familyMembers={familyMembers}
+              settings={settings}
+              selectedWeek={selectedWeek}
+              selectedYear={selectedYear}
+              onActivityClick={handleActivityClick}
             />
           ) : (
             <LayerView
-              days={days} weekDates={weekDates} timeSlots={timeSlots}
-              activities={activities} familyMembers={familyMembers}
-              settings={settings} selectedWeek={selectedWeek}
-              selectedYear={selectedYear} onActivityClick={handleActivityClick}
+              days={days}
+              weekDates={weekDates}
+              timeSlots={timeSlots}
+              activities={activities}
+              familyMembers={familyMembers}
+              settings={settings}
+              selectedWeek={selectedWeek}
+              selectedYear={selectedYear}
+              onActivityClick={handleActivityClick}
               highlightedMemberId={highlightedMemberId}
             />
           )}
