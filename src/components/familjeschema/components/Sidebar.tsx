@@ -12,7 +12,8 @@ import {
   GripVertical,
   Check,
   Loader2,
-  Printer
+  Printer,
+  Sparkles
 } from 'lucide-react';
 import type { FamilyMember } from '../types';
 import { Emoji } from '@/utils/Emoji';
@@ -39,6 +40,7 @@ interface SidebarProps {
   onExportPdf?: () => void;
   onSystemPrint?: () => void;
   isPrinting?: boolean;
+  onQuickTextImport: (jsonText: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -62,11 +64,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onReorderMembers,
   onExportPdf,
   onSystemPrint,
-  isPrinting = false
+  isPrinting = false,
+  onQuickTextImport
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
   const [dragOverMemberId, setDragOverMemberId] = useState<string | null>(null);
+  const [quickImportText, setQuickImportText] = useState('');
   const showLabels = !isCollapsed;
   const canReorder = familyMembers.length > 1;
   const END_TARGET_ID = '__END__';
@@ -107,6 +111,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleDragEnd = () => {
     setDraggedMemberId(null);
     setDragOverMemberId(null);
+  };
+
+  const handleQuickImport = () => {
+    const trimmed = quickImportText.trim();
+    if (!trimmed) return;
+    onQuickTextImport(trimmed);
+    setQuickImportText('');
+  };
+
+  const handleQuickImportKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      handleQuickImport();
+    }
+  };
+
+  const handleGeminiLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    const url = 'https://gemini.google.com/u/1/gem/52527d352450';
+    const newWindow = window.open(url, 'familyscheduleGemini', 'width=720,height=640,noopener');
+    if (newWindow) {
+      newWindow.focus();
+      event.preventDefault();
+    }
   };
 
   const membersClassName = [
@@ -321,6 +348,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Settings size={18} />
             {!isCollapsed && <span>Inställningar</span>}
           </button>
+          {!isCollapsed && (
+            <div className="sidebar-quick-import" role="region" aria-label="Snabbimport av JSON">
+              <label htmlFor="sidebar-quick-import" className="sr-only">
+                Snabbimport av JSON-data
+              </label>
+              <textarea
+                id="sidebar-quick-import"
+                className="sidebar-quick-import-input"
+                rows={3}
+                placeholder="Klistra in JSON och tryck på import"
+                value={quickImportText}
+                onChange={(event) => setQuickImportText(event.target.value)}
+                onKeyDown={handleQuickImportKeyDown}
+              />
+              <div className="sidebar-quick-import-actions">
+                <button
+                  type="button"
+                  className="btn-compact btn-primary"
+                  onClick={handleQuickImport}
+                  disabled={!quickImportText.trim()}
+                >
+                  Importera JSON
+                </button>
+              </div>
+              <a
+                href="https://gemini.google.com/u/1/gem/52527d352450"
+                className="sidebar-quick-import-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleGeminiLinkClick}
+                aria-label="Öppna Gemini-guiden i ett nytt fönster"
+              >
+                <Sparkles size={16} aria-hidden="true" />
+              </a>
+            </div>
+          )}
         </div>
       </aside>
 
