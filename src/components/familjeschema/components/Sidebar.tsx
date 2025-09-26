@@ -37,9 +37,7 @@ interface SidebarProps {
   onStartReorder: () => void;
   onSubmitReorder: () => void;
   onReorderMembers: (sourceId: string, targetId: string | null) => void;
-  onExportPdf?: () => void;
   onSystemPrint?: () => void;
-  isPrinting?: boolean;
   onQuickTextImport: (jsonText: string) => void;
 }
 
@@ -62,9 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onStartReorder,
   onSubmitReorder,
   onReorderMembers,
-  onExportPdf,
   onSystemPrint,
-  isPrinting = false,
   onQuickTextImport
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -320,22 +316,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             className="btn-compact"
-            onClick={() => onExportPdf?.()}
-            title="Spara som PDF"
-            aria-label="Spara som PDF"
-            disabled={isPrinting}
-            aria-busy={isPrinting}
-          >
-            <Printer size={18} />
-            {!isCollapsed && <span>Spara som PDF</span>}
-          </button>
-          <button
-            type="button"
-            className="btn-compact"
             onClick={() => onSystemPrint?.()}
             title="Skriv ut"
             aria-label="Skriv ut"
-            disabled={isPrinting}
           >
             <Printer size={18} />
             {!isCollapsed && <span>Skriv ut</span>}
