@@ -172,9 +172,14 @@ export function FamilySchedule() {
       };
 
       if (activityFromForm.recurring) {
-        payload.recurring = true;
         if (activityFromForm.recurringEndDate) {
           payload.recurringEndDate = activityFromForm.recurringEndDate;
+        }
+      } else {
+        delete payload.recurringEndDate;
+
+        if (editingActivity?.seriesId && !applyToSeries) {
+          delete payload.recurring;
         }
       }
 
