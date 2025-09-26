@@ -518,6 +518,7 @@ export function FamilySchedule() {
         onExportPdf={handleExportPdf}
         onSystemPrint={handleSystemPrint}
         isPrinting={printing}
+        onQuickTextImport={handleTextImport}
       />
 
       <div className="schedule-main-content">
