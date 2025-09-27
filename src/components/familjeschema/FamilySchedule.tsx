@@ -454,7 +454,92 @@ export function FamilySchedule() {
   };
 
   const handleSystemPrint = () => {
+    const scheduleElement = scheduleRef.current;
+
+    if (!scheduleElement) {
+      window.print();
+      return;
+    }
+
+    const originalTransform = scheduleElement.style.transform;
+    const originalTransformOrigin = scheduleElement.style.transformOrigin;
+    const originalWidth = scheduleElement.style.width;
+    const originalHeight = scheduleElement.style.height;
+
+    const marginBuffer = 16; // extra space to avoid spilling onto a new page
+
+    const applyScale = () => {
+      const contentWidth = scheduleElement.scrollWidth;
+      const contentHeight = scheduleElement.scrollHeight;
+
+      if (!contentWidth || !contentHeight) return;
+
+      const availableWidth = Math.max(window.innerWidth - marginBuffer, 0);
+      const availableHeight = Math.max(window.innerHeight - marginBuffer, 0);
+
+      if (!availableWidth || !availableHeight) return;
+
+      const scale = Math.min(availableWidth / contentWidth, availableHeight / contentHeight, 1);
+
+      scheduleElement.style.transform = `scale(${scale})`;
+      scheduleElement.style.transformOrigin = 'top left';
+      scheduleElement.style.width = `${contentWidth}px`;
+      scheduleElement.style.height = `${contentHeight}px`;
+    };
+
+    const removeMediaListener = () => {
+      if (mediaQueryList?.removeEventListener) {
+        mediaQueryList.removeEventListener('change', handleMediaChange);
+      } else if (mediaQueryList?.removeListener) {
+        mediaQueryList.removeListener(handleMediaChange);
+      }
+    };
+
+    const cleanup = () => {
+      scheduleElement.classList.remove('print-scaling');
+      scheduleElement.style.transform = originalTransform;
+      scheduleElement.style.transformOrigin = originalTransformOrigin;
+      scheduleElement.style.width = originalWidth;
+      scheduleElement.style.height = originalHeight;
+      window.removeEventListener('resize', applyScale);
+      removeMediaListener();
+    };
+
+    const handlePrintEnd = () => {
+      cleanup();
+      window.removeEventListener('afterprint', handlePrintEnd);
+    };
+
+    const mediaQueryList = window.matchMedia?.('print');
+
+    const handleMediaChange = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        scheduleElement.classList.add('print-scaling');
+        applyScale();
+      } else {
+        cleanup();
+      }
+    };
+
+    if (mediaQueryList?.addEventListener) {
+      mediaQueryList.addEventListener('change', handleMediaChange);
+    } else if (mediaQueryList?.addListener) {
+      mediaQueryList?.addListener(handleMediaChange);
+    }
+
+    scheduleElement.classList.add('print-scaling');
+    applyScale();
+
+    window.addEventListener('resize', applyScale);
+    window.addEventListener('afterprint', handlePrintEnd);
+
     window.print();
+
+    // Fallback cleanup in case afterprint is not fired
+    window.setTimeout(() => {
+      cleanup();
+      window.removeEventListener('afterprint', handlePrintEnd);
+    }, 1000);
   };
 
   if (loading) return <div className="text-center p-10 font-monument">Laddar schema...</div>;

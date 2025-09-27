@@ -1,5 +1,10 @@
 /* Print-specific styles for the familjeschema feature */
 
+@page {
+  size: landscape;
+  margin: 10mm;
+}
+
 /* System print (window.print) */
 @media print {
   body * {
@@ -33,6 +38,8 @@
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
+    max-height: 100% !important;
+    overflow: visible !important;
   }
 }
 
@@ -54,4 +61,10 @@
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 
+}
+
+.printable-schedule-scope.print-scaling {
+  transform-origin: top left;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
