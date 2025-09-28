@@ -55,6 +55,7 @@ export interface Settings {
   showWeekends: boolean;
   dayStart: number;
   dayEnd: number;
+  printPageSize: 'a4' | 'a3';
 }
 
 export interface Position {

@@ -5,6 +5,16 @@
   margin: 10mm;
 }
 
+@page schedule-sheet-a4 {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+@page schedule-sheet-a3 {
+  size: A3 landscape;
+  margin: 12mm;
+}
+
 /* System print (window.print) */
 @media print {
   body * {
@@ -61,6 +71,28 @@
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 
+  --print-page-width-mm: 297;
+  --print-page-height-mm: 210;
+  --print-margin-x-mm: 10;
+  --print-margin-y-mm: 10;
+  --print-usable-width-mm: calc(var(--print-page-width-mm) - (var(--print-margin-x-mm) * 2));
+  --print-usable-height-mm: calc(var(--print-page-height-mm) - (var(--print-margin-y-mm) * 2));
+}
+
+.printable-schedule-scope.print-sheet-a4 {
+  page: schedule-sheet-a4;
+  --print-page-width-mm: 297;
+  --print-page-height-mm: 210;
+  --print-margin-x-mm: 10;
+  --print-margin-y-mm: 10;
+}
+
+.printable-schedule-scope.print-sheet-a3 {
+  page: schedule-sheet-a3;
+  --print-page-width-mm: 420;
+  --print-page-height-mm: 297;
+  --print-margin-x-mm: 12;
+  --print-margin-y-mm: 12;
 }
 
 .printable-schedule-scope.print-scaling {

@@ -104,6 +104,45 @@ export const SettingsModal = forwardRef<HTMLDivElement, SettingsModalProps>(
                 </label>
               </div>
 
+              {/* Print page size */}
+              <div className="form-group">
+                <label className="form-label">Utskriftsstorlek</label>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <label className="checkbox-label">
+                    <input
+                      type="radio"
+                      className="checkbox-input"
+                      name="print-page-size"
+                      value="a4"
+                      checked={settings.printPageSize === 'a4'}
+                      onChange={() =>
+                        onSettingsChange({
+                          ...settings,
+                          printPageSize: 'a4',
+                        })
+                      }
+                    />
+                    A4 (landskap)
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="radio"
+                      className="checkbox-input"
+                      name="print-page-size"
+                      value="a3"
+                      checked={settings.printPageSize === 'a3'}
+                      onChange={() =>
+                        onSettingsChange({
+                          ...settings,
+                          printPageSize: 'a3',
+                        })
+                      }
+                    />
+                    A3 (landskap)
+                  </label>
+                </div>
+              </div>
+
               {/* Hour range */}
               <div className="form-group">
                 <label className="form-label">Tidsintervall (start–slut)</label>

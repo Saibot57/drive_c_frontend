@@ -1,4 +1,4 @@
-import type { FamilyMember } from '../types';
+import type { FamilyMember, Settings } from '../types';
 
 export const STORAGE_KEY = 'familjens-schema-activities';
 export const SETTINGS_KEY = 'familjens-schema-settings';
@@ -25,8 +25,9 @@ export const WEEKDAYS_FULL = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'
 export const WEEKEND_DAYS = ['Lördag', 'Söndag'];
 export const ALL_DAYS = [...WEEKDAYS_FULL, ...WEEKEND_DAYS];
 
-export const DEFAULT_SETTINGS = {
-  showWeekends: true,
+export const DEFAULT_SETTINGS: Settings = {
+  showWeekends: false,
   dayStart: 7,
-  dayEnd: 18
+  dayEnd: 18,
+  printPageSize: 'a4',
 };
