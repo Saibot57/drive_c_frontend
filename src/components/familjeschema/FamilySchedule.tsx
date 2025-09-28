@@ -11,7 +11,7 @@ import type {
   CreateActivityPayload,
 } from './types';
 import type { ActivityImportItem } from '@/types/schedule';
-import { WEEKDAYS_FULL, ALL_DAYS } from './constants';
+import { WEEKDAYS_FULL, ALL_DAYS, DEFAULT_SETTINGS } from './constants';
 import { getWeekNumber, getWeekDateRange, isWeekInPast, isWeekInFuture } from './utils/dateUtils';
 import { generateTimeSlots } from './utils/scheduleUtils';
 import { downloadAllICS } from './utils/exportUtils';
@@ -44,7 +44,7 @@ export function FamilySchedule() {
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [isReorderingMembers, setIsReorderingMembers] = useState(false);
   const [isSavingMemberOrder, setIsSavingMemberOrder] = useState(false);
-  const [settings, setSettings] = useState<Settings>({ showWeekends: false, dayStart: 7, dayEnd: 18 });
+  const [settings, setSettings] = useState<Settings>({ ...DEFAULT_SETTINGS });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   const [loading, setLoading] = useState(true);
@@ -65,6 +65,16 @@ export function FamilySchedule() {
   const [aiPreviewActivities, setAiPreviewActivities] = useState<ActivityImportItem[]>([]);
   const [aiImporting, setAiImporting] = useState(false);
   const [aiImportError, setAiImportError] = useState<string | null>(null);
+
+  const normalizeSettings = (incoming?: Partial<Settings> | null): Settings => {
+    const candidate: Partial<Settings> = incoming ?? {};
+    const printPageSize = candidate.printPageSize === 'a3' ? 'a3' : DEFAULT_SETTINGS.printPageSize;
+    return {
+      ...DEFAULT_SETTINGS,
+      ...candidate,
+      printPageSize,
+    };
+  };
 
   useEffect(() => {
     fetchData();
@@ -133,7 +143,7 @@ export function FamilySchedule() {
       ]);
       setActivities(activitiesData);
       setFamilyMembers(membersData);
-      if (settingsData) setSettings(settingsData);
+      if (settingsData) setSettings(normalizeSettings(settingsData));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte hämta schemadata.');
     } finally {
@@ -214,8 +224,9 @@ export function FamilySchedule() {
 
   const handleSettingsChange = async (newSettings: Settings) => {
     try {
-      const updatedSettings = await scheduleService.updateSettings(newSettings);
-      setSettings(updatedSettings);
+      const payload = normalizeSettings(newSettings);
+      const updatedSettings = await scheduleService.updateSettings(payload);
+      setSettings(normalizeSettings(updatedSettings));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte spara inställningar.');
     }
@@ -427,6 +438,7 @@ export function FamilySchedule() {
   const days = settings.showWeekends ? ALL_DAYS : WEEKDAYS_FULL;
   const timeSlots = generateTimeSlots(settings.dayStart, settings.dayEnd);
   const weekDates = getWeekDateRange(selectedWeek, selectedYear, days.length);
+  const printSheetClass = settings.printPageSize === 'a3' ? 'print-sheet-a3' : 'print-sheet-a4';
   const navigateWeek = (direction: number) => {
     const monday = getWeekDateRange(selectedWeek, selectedYear, 1)[0];
     monday.setDate(monday.getDate() + direction * 7);
@@ -466,7 +478,46 @@ export function FamilySchedule() {
     const originalWidth = scheduleElement.style.width;
     const originalHeight = scheduleElement.style.height;
 
-    const marginBuffer = 16; // extra space to avoid spilling onto a new page
+    const marginBuffer = 8; // small buffer to avoid rounding overflow
+
+    let cachedPxPerMM: number | null = null;
+
+    const measurePxPerMM = () => {
+      if (cachedPxPerMM !== null) return cachedPxPerMM;
+      const testElement = document.createElement('div');
+      testElement.style.width = '1mm';
+      testElement.style.height = '1mm';
+      testElement.style.position = 'absolute';
+      testElement.style.visibility = 'hidden';
+      testElement.style.pointerEvents = 'none';
+      document.body.appendChild(testElement);
+      const rect = testElement.getBoundingClientRect();
+      document.body.removeChild(testElement);
+      if (rect.width) {
+        cachedPxPerMM = rect.width;
+        return cachedPxPerMM;
+      }
+      return null;
+    };
+
+    const parseMillimeters = (value: string) => {
+      if (!value) return null;
+      const numeric = Number.parseFloat(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    };
+
+    const getPrintableDimensions = () => {
+      const styles = window.getComputedStyle(scheduleElement);
+      const widthMM = parseMillimeters(styles.getPropertyValue('--print-usable-width-mm'));
+      const heightMM = parseMillimeters(styles.getPropertyValue('--print-usable-height-mm'));
+      if (widthMM == null || heightMM == null) return null;
+      const pxPerMM = measurePxPerMM();
+      if (!pxPerMM) return null;
+      return {
+        width: widthMM * pxPerMM,
+        height: heightMM * pxPerMM,
+      };
+    };
 
     const applyScale = () => {
       const contentWidth = scheduleElement.scrollWidth;
@@ -474,8 +525,14 @@ export function FamilySchedule() {
 
       if (!contentWidth || !contentHeight) return;
 
-      const availableWidth = Math.max(window.innerWidth - marginBuffer, 0);
-      const availableHeight = Math.max(window.innerHeight - marginBuffer, 0);
+      let availableWidth = Math.max(window.innerWidth - marginBuffer, 0);
+      let availableHeight = Math.max(window.innerHeight - marginBuffer, 0);
+
+      const printableDimensions = getPrintableDimensions();
+      if (printableDimensions) {
+        availableWidth = printableDimensions.width;
+        availableHeight = printableDimensions.height;
+      }
 
       if (!availableWidth || !availableHeight) return;
 
@@ -586,7 +643,10 @@ export function FamilySchedule() {
         )}
 
         {/* Main Schedule View */}
-        <div className="schedule-view-container printable-schedule-scope" ref={scheduleRef}>
+        <div
+          className={`schedule-view-container printable-schedule-scope ${printSheetClass}`}
+          ref={scheduleRef}
+        >
           {viewMode === 'grid' ? (
             <ScheduleGrid
               days={days} weekDates={weekDates} timeSlots={timeSlots}

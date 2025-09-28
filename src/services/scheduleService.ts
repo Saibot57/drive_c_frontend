@@ -2,6 +2,7 @@
 import { fetchWithAuth } from './authService';
 
 import type { Activity, FamilyMember, Settings, CreateActivityPayload } from '@/components/familjeschema/types';
+import { DEFAULT_SETTINGS } from '@/components/familjeschema/constants';
 import type { ActivityImportItem } from '@/types/schedule';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
@@ -184,16 +185,26 @@ export const scheduleService = {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/settings`);
     if (!response.ok) throw new Error('Failed to fetch settings');
     const data = await response.json();
-    return data.data;
+    return normalizeSettings(data.data);
   },
 
   async updateSettings(settings: Settings): Promise<Settings> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/settings`, {
         method: 'PUT',
-        body: JSON.stringify(settings)
+        body: JSON.stringify(normalizeSettings(settings))
     });
     if (!response.ok) throw new Error('Failed to update settings');
     const data = await response.json();
-    return data.data;
+    return normalizeSettings(data.data);
   }
 };
+
+function normalizeSettings(raw: Partial<Settings> | null | undefined): Settings {
+  const candidate: Partial<Settings> = raw ?? {};
+  const printPageSize = candidate.printPageSize === 'a3' ? 'a3' : DEFAULT_SETTINGS.printPageSize;
+  return {
+    ...DEFAULT_SETTINGS,
+    ...candidate,
+    printPageSize,
+  };
+}
