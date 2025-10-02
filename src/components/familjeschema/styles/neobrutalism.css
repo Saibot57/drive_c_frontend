@@ -32,6 +32,11 @@ body {
   line-height: 1.5;
 }
 
+body.family-schedule-body {
+  background: var(--neo-white);
+  --neo-bg: var(--neo-white);
+}
+
 .app-container {
   min-height: 100vh;
   padding: 20px;
