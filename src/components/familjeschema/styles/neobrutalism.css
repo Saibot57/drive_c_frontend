@@ -888,23 +888,11 @@ h1 {
   font-size: 0.85rem;
 }
 
-/* Subtle background tint for busy columns */
-.day-column.day-intensity-low .day-content {
-  background: linear-gradient(180deg, 
-    transparent 0%, 
-    rgba(255, 223, 61, 0.05) 100%);
-}
-
-.day-column.day-intensity-medium .day-content {
-  background: linear-gradient(180deg, 
-    transparent 0%, 
-    rgba(255, 159, 69, 0.08) 100%);
-}
-
+/* Remove tinted backgrounds to avoid print artifacts */
+.day-column.day-intensity-low .day-content,
+.day-column.day-intensity-medium .day-content,
 .day-column.day-intensity-high .day-content {
-  background: linear-gradient(180deg, 
-    transparent 0%, 
-    rgba(255, 107, 107, 0.1) 100%);
+  background: var(--neo-white);
 }
 
 /* Improved activity separation in high-density scenarios */
