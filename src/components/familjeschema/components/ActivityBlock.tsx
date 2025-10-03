@@ -156,6 +156,10 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
             {activity.startTime} – {activity.endTime}
           </div>
         )}
+        </div>
+        <div className="activity-time">
+          {activity.startTime} – {activity.endTime}
+        </div>
         <div className={`activity-participants${isLongDuration ? ' activity-participants-long' : ''}`}>
           {participants.map(p => (
             <span key={p.id} aria-label={p.name}>
