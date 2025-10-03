@@ -403,6 +403,11 @@ h1 {
   gap: 4px;
 }
 
+.activity-block.activity-block-long {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
 .activity-block:hover {
   transform: translate(-2px, -2px);
   box-shadow: 4px 4px 0 var(--neo-black);
@@ -418,15 +423,45 @@ h1 {
   /* text-overflow: ellipsis; <-- REMOVED */
 }
 
+.activity-name.activity-name-long {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.activity-name.activity-name-long .activity-name-icon {
+  display: flex;
+  justify-content: center;
+  font-size: 1.6rem;
+}
+
+.activity-name.activity-name-long .activity-name-text {
+  text-align: center;
+}
+
 .activity-time {
   font-size: .75rem;
   opacity: .9;
+}
+
+.activity-block.activity-block-long .activity-time {
+  text-align: center;
 }
 
 .activity-participants {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+}
+
+.activity-participants.activity-participants-long {
+  justify-content: center;
+  margin-top: auto;
+}
+
+.activity-participants.activity-participants-long span {
+  display: flex;
 }
 
 /* Styles for smaller activity blocks */
