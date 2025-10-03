@@ -47,6 +47,8 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
   }, [activity.startTime, activity.endTime]);
 
   const isLongDuration = durationInMinutes >= 120;
+  const isMediumDuration = durationInMinutes >= 120 && durationInMinutes < 150;
+  const shouldHideTime = isMediumDuration;
 
   const handleMouseEnter = () => {
     if (!wrapperRef.current) return;
@@ -146,6 +148,12 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
               {activity.name}
             </>
           )}
+        </div>
+        {!shouldHideTime && (
+          <div className="activity-time">
+            {activity.startTime} – {activity.endTime}
+          </div>
+        )}
         </div>
         <div className="activity-time">
           {activity.startTime} – {activity.endTime}
