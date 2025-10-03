@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import type { Activity, FamilyMember } from '../types';
 import { HoverCard } from './HoverCard';
 import { Emoji } from '@/utils/Emoji';
@@ -29,6 +29,24 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
   const [isCardVisible, setCardVisible] = useState(false);
   const [positionClasses, setPositionClasses] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const durationInMinutes = useMemo(() => {
+    const parseTime = (time: string) => {
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const start = parseTime(activity.startTime);
+    const end = parseTime(activity.endTime);
+
+    if (Number.isNaN(start) || Number.isNaN(end)) {
+      return 0;
+    }
+
+    return Math.max(end - start, 0);
+  }, [activity.startTime, activity.endTime]);
+
+  const isLongDuration = durationInMinutes >= 120;
 
   const handleMouseEnter = () => {
     if (!wrapperRef.current) return;
@@ -90,6 +108,9 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
   if (height < 45) {
     activityBlockClasses.push('activity-block-extra-compact');
   }
+  if (isLongDuration) {
+    activityBlockClasses.push('activity-block-long');
+  }
 
   return (
     <div
@@ -113,14 +134,23 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
         aria-label={`${activity.name} från ${activity.startTime} till ${activity.endTime}`}
         onKeyDown={handleKeyDown}
       >
-        <div className="activity-name">
-          <Emoji emoji={activity.icon} />
-          {activity.name}
+        <div className={`activity-name${isLongDuration ? ' activity-name-long' : ''}`}>
+          {isLongDuration ? (
+            <>
+              <Emoji emoji={activity.icon} className="activity-name-icon" />
+              <span className="activity-name-text">{activity.name}</span>
+            </>
+          ) : (
+            <>
+              <Emoji emoji={activity.icon} />
+              {activity.name}
+            </>
+          )}
         </div>
         <div className="activity-time">
           {activity.startTime} – {activity.endTime}
         </div>
-        <div className="activity-participants">
+        <div className={`activity-participants${isLongDuration ? ' activity-participants-long' : ''}`}>
           {participants.map(p => (
             <span key={p.id} aria-label={p.name}>
               <Emoji emoji={p.icon} />
