@@ -39,6 +39,7 @@ export function FamilySchedule() {
   const settingsModalRef = useRef<HTMLDivElement>(null);
   const originalMemberOrderRef = useRef<FamilyMember[]>([]);
   const scheduleRef = useRef<HTMLDivElement>(null);
+  const hasLoadedInitialData = useRef(false);
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
@@ -77,8 +78,30 @@ export function FamilySchedule() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (hasLoadedInitialData.current) return;
+    hasLoadedInitialData.current = true;
+
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [activitiesData, membersData, settingsData] = await Promise.all([
+          scheduleService.getActivities(selectedYear, selectedWeek),
+          scheduleService.getFamilyMembers(),
+          scheduleService.getSettings()
+        ]);
+        setActivities(activitiesData);
+        setFamilyMembers(membersData);
+        if (settingsData) setSettings(normalizeSettings(settingsData));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Kunde inte hämta schemadata.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadInitialData();
+  }, [selectedWeek, selectedYear]);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -107,6 +130,24 @@ export function FamilySchedule() {
 
   const participantIdSet = useMemo(() => new Set(familyMembers.map(member => member.id)), [familyMembers]);
 
+  const uniqueParticipantCount = useMemo(() => {
+    const unique = new Set<string>();
+    activities.forEach(activity => {
+      activity.participants.forEach(participant => {
+        if (participant) unique.add(participant);
+      });
+    });
+    return unique.size;
+  }, [activities]);
+
+  const busyDayCount = useMemo(() => {
+    const unique = new Set<string>();
+    activities.forEach(activity => {
+      if (activity.day) unique.add(activity.day);
+    });
+    return unique.size;
+  }, [activities]);
+
   const mapParticipantsForImport = (items: ActivityImportItem[]): ActivityImportItem[] =>
     items.map(item => {
       const mappedParticipants = item.participants.map(participant => {
@@ -130,25 +171,6 @@ export function FamilySchedule() {
     setAiPreviewActivities([]);
     setAiImportError(null);
     setAiImporting(false);
-  };
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [activitiesData, membersData, settingsData] = await Promise.all([
-        scheduleService.getActivities(selectedYear, selectedWeek),
-        scheduleService.getFamilyMembers(),
-        scheduleService.getSettings()
-      ]);
-      setActivities(activitiesData);
-      setFamilyMembers(membersData);
-      if (settingsData) setSettings(normalizeSettings(settingsData));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kunde inte hämta schemadata.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   useFocusTrap(modalRef, modalOpen);
@@ -438,6 +460,13 @@ export function FamilySchedule() {
   const days = settings.showWeekends ? ALL_DAYS : WEEKDAYS_FULL;
   const timeSlots = generateTimeSlots(settings.dayStart, settings.dayEnd);
   const weekDates = getWeekDateRange(selectedWeek, selectedYear, days.length);
+  const formatDate = (date: Date) => date.toLocaleDateString('sv-SE', {
+    month: 'short',
+    day: 'numeric'
+  });
+  const weekRangeLabel = weekDates.length
+    ? `${formatDate(weekDates[0])} – ${formatDate(weekDates[weekDates.length - 1])}`
+    : '';
   const printSheetClass = settings.printPageSize === 'a3' ? 'print-sheet-a3' : 'print-sheet-a4';
   const navigateWeek = (direction: number) => {
     const monday = getWeekDateRange(selectedWeek, selectedYear, 1)[0];
@@ -599,14 +628,34 @@ export function FamilySchedule() {
     }, 1000);
   };
 
-  if (loading) return <div className="text-center p-10 font-monument">Laddar schema...</div>;
-  if (error) return <div className="text-center p-10 font-monument text-red-600">Fel: {error}</div>;
-
   return (
-    <div className="schedule-app-container">
-      <Sidebar
-        familyMembers={familyMembers}
-        selectedWeek={selectedWeek}
+    <div className="schedule-app-wrapper">
+      <div className="schedule-hero-panel">
+        <div className="schedule-hero-copy">
+          <span className="schedule-hero-kicker">Familjeschema</span>
+          <h1>Planera veckan med stil</h1>
+          <p>Snabb överblick över er vecka och alla aktiviteter.</p>
+        </div>
+        <div className="schedule-hero-meta">
+          <div className="schedule-hero-card">
+            <span className="label">Aktiviteter</span>
+            <strong>{activities.length}</strong>
+          </div>
+          <div className="schedule-hero-card">
+            <span className="label">Deltagare</span>
+            <strong>{uniqueParticipantCount}</strong>
+          </div>
+          <div className="schedule-hero-card">
+            <span className="label">Aktiva dagar</span>
+            <strong>{busyDayCount}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="schedule-app-container schedule-app-surface">
+        <Sidebar
+          familyMembers={familyMembers}
+          selectedWeek={selectedWeek}
         selectedYear={selectedYear}
         isCurrentWeek={isCurrentWeek}
         viewMode={viewMode}
@@ -623,46 +672,95 @@ export function FamilySchedule() {
         onStartReorder={handleStartMemberReorder}
         onSubmitReorder={handleSubmitMemberReorder}
         onReorderMembers={handleReorderMembers}
-        onSystemPrint={handleSystemPrint}
-        onQuickTextImport={handleTextImport}
-      />
+          onSystemPrint={handleSystemPrint}
+          onQuickTextImport={handleTextImport}
+        />
+        <div className="schedule-main-card">
+          <header className="schedule-main-header">
+            <div className="schedule-header-titles">
+              <span className="schedule-header-kicker">Vecka {selectedWeek}</span>
+              <h2>{weekRangeLabel}</h2>
+              <p>År {selectedYear}</p>
+            </div>
+            <div className="schedule-header-meta">
+              <span className="schedule-meta-chip">{activities.length} aktiviteter</span>
+              <span className="schedule-meta-chip">{uniqueParticipantCount || 0} deltagare</span>
+              <span className="schedule-meta-chip">{busyDayCount || 0} dagar med aktiviteter</span>
+            </div>
+            <div className="schedule-header-actions" role="group" aria-label="Byt vy">
+              <button
+                type="button"
+                className={`schedule-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => setViewMode('grid')}
+              >
+                Rutnät
+              </button>
+              <button
+                type="button"
+                className={`schedule-view-btn ${viewMode === 'layer' ? 'active' : ''}`}
+                onClick={() => setViewMode('layer')}
+              >
+                Lager
+              </button>
+            </div>
+          </header>
 
-      <div className="schedule-main-content">
-        {/* Notifications */}
-        {!isCurrentWeek && (
-          <div className="compact-notice" role="alert">
-            <AlertCircle size={18}/>
-            <span>Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka</span>
-          </div>
-        )}
-        {showConflict && (
-          <div className="compact-notice conflict" role="alert">
-            <AlertCircle size={18}/> 
-            <span>Tidskonflikt! En deltagare är redan upptagen.</span>
-          </div>
-        )}
+          <div className="schedule-main-content">
+            {/* Notifications */}
+            {!isCurrentWeek && !error && (
+              <div className="compact-notice" role="alert">
+                <AlertCircle size={18}/>
+                <span>Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka</span>
+              </div>
+            )}
+            {showConflict && !error && (
+              <div className="compact-notice conflict" role="alert">
+                <AlertCircle size={18}/>
+                <span>Tidskonflikt! En deltagare är redan upptagen.</span>
+              </div>
+            )}
 
-        {/* Main Schedule View */}
-        <div
-          className={`schedule-view-container printable-schedule-scope ${printSheetClass}`}
-          ref={scheduleRef}
-        >
-          {viewMode === 'grid' ? (
-            <ScheduleGrid
-              days={days} weekDates={weekDates} timeSlots={timeSlots}
-              activities={activities} familyMembers={familyMembers}
-              settings={settings} selectedWeek={selectedWeek}
-              selectedYear={selectedYear} onActivityClick={handleActivityClick}
-            />
-          ) : (
-            <LayerView
-              days={days} weekDates={weekDates} timeSlots={timeSlots}
-              activities={activities} familyMembers={familyMembers}
-              settings={settings} selectedWeek={selectedWeek}
-              selectedYear={selectedYear} onActivityClick={handleActivityClick}
-              highlightedMemberId={highlightedMemberId}
-            />
-          )}
+            {/* Main Schedule View */}
+            {error ? (
+              <div className="schedule-empty-state error" role="alert">
+                <AlertCircle size={28} />
+                <div>
+                  <h3>Kunde inte hämta schemat just nu</h3>
+                  <p>{error}</p>
+                </div>
+              </div>
+            ) : loading && !activities.length ? (
+              <div className="schedule-empty-state" role="status">
+                <div className="loader" aria-hidden="true" />
+                <div>
+                  <h3>Laddar veckans aktiviteter</h3>
+                  <p>Häng kvar, vi hämtar informationen.</p>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={`schedule-view-container printable-schedule-scope ${printSheetClass}`}
+                ref={scheduleRef}
+              >
+                {viewMode === 'grid' ? (
+                  <ScheduleGrid
+                    days={days} weekDates={weekDates} timeSlots={timeSlots}
+                    activities={activities} familyMembers={familyMembers}
+                    settings={settings} selectedWeek={selectedWeek}
+                    selectedYear={selectedYear} onActivityClick={handleActivityClick}
+                  />
+                ) : (
+                  <LayerView
+                    days={days} weekDates={weekDates} timeSlots={timeSlots}
+                    activities={activities} familyMembers={familyMembers}
+                    settings={settings} selectedWeek={selectedWeek}
+                    selectedYear={selectedYear} onActivityClick={handleActivityClick}
+                    highlightedMemberId={highlightedMemberId}
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
