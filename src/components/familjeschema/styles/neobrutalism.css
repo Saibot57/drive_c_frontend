@@ -1648,6 +1648,114 @@ button.member-badge:hover {
   box-shadow: none;
 }
 
+.sidebar-top-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.view-mode-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar-heading-inline {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(0, 0, 0, 0.6);
+  text-transform: uppercase;
+}
+
+.view-mode-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-square {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--neo-black);
+  background: var(--neo-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+  box-shadow: var(--shadow-sm);
+  color: var(--neo-black);
+}
+
+.btn-square:hover {
+  background: var(--neo-yellow);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-square:active {
+  transform: translate(0, 0);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-square.active {
+  background: var(--neo-green);
+}
+
+.btn-square.btn-primary {
+  background: var(--neo-purple);
+  color: var(--neo-white);
+}
+
+.btn-square.btn-primary:hover {
+  background: var(--neo-pink);
+}
+
+.btn-square-large {
+  width: 64px;
+  height: 64px;
+  box-shadow: var(--shadow-md);
+}
+
+.sidebar.collapsed .btn-square {
+  width: 40px;
+  height: 40px;
+}
+
+.sidebar.collapsed .btn-square-large {
+  width: 56px;
+  height: 56px;
+}
+
+.sidebar-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: flex-start;
+  padding-top: 4px;
+}
+
+.sidebar-action-buttons .btn-square {
+  flex: 0 0 auto;
+}
+
+.sidebar.collapsed .view-mode-inline {
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar.collapsed .view-mode-buttons {
+  flex-direction: column;
+}
+
+.sidebar.collapsed .sidebar-action-buttons {
+  flex-direction: column;
+  align-items: center;
+}
+
 .btn-subtle.active {
   background: rgba(171, 255, 135, 0.45);
 }
@@ -1778,16 +1886,6 @@ button.member-badge:hover {
 .sidebar.collapsed .member-name,
 .sidebar.collapsed .member-color-dot {
   display: none;
-}
-
-/* View Mode Buttons */
-.view-mode-buttons {
-  display: flex;
-  gap: 5px;
-}
-
-.sidebar.collapsed .view-mode-buttons {
-  flex-direction: column;
 }
 
 /* Actions Section */
