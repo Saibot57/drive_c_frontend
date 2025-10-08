@@ -291,12 +291,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </span>
                     )}
                     <span className="member-icon"><Emoji emoji={member.icon} /></span>
-                    {showLabels && (
-                      <>
-                        <span className="member-name">{member.name}</span>
-                        <span className="member-color-dot" style={{ background: member.color }}></span>
-                      </>
-                    )}
+                    {showLabels && <span className="member-name">{member.name}</span>}
                   </button>
                 );
               })}

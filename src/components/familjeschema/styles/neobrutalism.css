@@ -1890,7 +1890,7 @@ button.member-badge:hover {
 .sidebar-members {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 6px;
   position: relative;
 }
 
@@ -1912,8 +1912,8 @@ button.member-badge:hover {
 .sidebar-member {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px;
   background: var(--neo-white);
   border: 2px solid var(--neo-black);
   border-left: 4px solid;
@@ -1922,7 +1922,7 @@ button.member-badge:hover {
   font-family: 'Space Grotesk', 'Apple Color Emoji', 'Segoe UI Emoji',
     'Noto Color Emoji', sans-serif;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   width: 100%;
   border-radius: 0;
 }
@@ -1960,26 +1960,23 @@ button.member-badge:hover {
 }
 
 .member-icon {
-  font-size: 1.4rem;
-  width: 30px;
+  font-size: 1.2rem;
+  width: 24px;
   display: flex;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .member-name {
   flex: 1;
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
-.member-color-dot {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--neo-black);
-  border-radius: 50%;
-}
-
-.sidebar.collapsed .member-name,
-.sidebar.collapsed .member-color-dot {
+.sidebar.collapsed .member-name {
   display: none;
 }
 
