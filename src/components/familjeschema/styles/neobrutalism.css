@@ -1439,17 +1439,24 @@ button.member-badge:hover {
 /* Sidebar Styles */
 .sidebar {
   width: 280px;
-  background: #ffffff;
-  border-right: 2px solid var(--neo-black);
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   transition: width 0.3s ease;
   z-index: 30;
+}
+
+.sidebar-scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar.collapsed {
@@ -1522,10 +1529,16 @@ button.member-badge:hover {
   padding: 16px;
 }
 
+.sidebar-section.family-members-section {
+  max-height: 40vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .sidebar-top-controls {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   padding-top: 4px;
 }
 
@@ -1691,29 +1704,36 @@ button.member-badge:hover {
 /* View Mode Buttons - Moved to top */
 .view-mode-buttons {
   display: flex;
-  gap: 5px;
+  gap: 8px;
+  justify-content: center;
 }
 
 .sidebar.collapsed .view-mode-buttons {
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
 .view-mode-inline {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
 }
 
 .sidebar-heading-inline {
-  display: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(0, 0, 0, 0.6);
+  text-transform: uppercase;
+  text-align: center;
+  width: 100%;
 }
 
 
 .btn-square {
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border: 2px solid var(--neo-black);
   background: var(--neo-white);
   display: inline-flex;
@@ -1728,8 +1748,8 @@ button.member-badge:hover {
 }
 
 .btn-square svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .btn-square:hover {
@@ -1771,8 +1791,8 @@ button.member-badge:hover {
 }
 
 .sidebar.collapsed .btn-square {
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 30px;
 }
 
 .sidebar.collapsed .btn-square-large {
@@ -1811,12 +1831,12 @@ button.member-badge:hover {
 .sidebar.collapsed .view-mode-inline {
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .sidebar.collapsed .view-mode-buttons {
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
 .sidebar.collapsed .sidebar-action-buttons {
@@ -1835,7 +1855,8 @@ button.member-badge:hover {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .sidebar-heading-row .btn-subtle {
@@ -1968,12 +1989,13 @@ button.member-badge:hover {
 
 /* Actions Section */
 .sidebar-actions {
-  padding: 24px 16px;
+  padding-top: 12px;
+  padding-bottom: 12px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  border-top: 2px solid #f0f0f0;
-  background: #ffffff;
+  gap: 12px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
   margin-top: auto;
 }
 

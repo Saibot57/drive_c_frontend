@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Sidebar */}
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         {/* Toggle Button */}
-        <button 
+        <button
           className="sidebar-toggle"
           onClick={() => setIsCollapsed(!isCollapsed)}
           aria-label={isCollapsed ? 'Expandera sidopanel' : 'Minimera sidopanel'}
@@ -151,34 +151,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
 
-        {/* View Mode at Top */}
-        <div className="view-mode-buttons">
-          <button
-            className={`btn-square ${viewMode === 'grid' ? 'active' : ''}`}
-            onClick={() => onSetViewMode('grid')}
-            title="Rutnätsvy"
-            aria-label="Rutnätsvy"
-            aria-pressed={viewMode === 'grid'}
-            type="button"
-          >
-            <Grid3x3 size={20} />
-            <span className="sr-only">Rutnätsvy</span>
-          </button>
-          <button
-            className={`btn-square ${viewMode === 'layer' ? 'active' : ''}`}
-            onClick={() => onSetViewMode('layer')}
-            title="Lagervy"
-            aria-label="Lagervy"
-            aria-pressed={viewMode === 'layer'}
-            type="button"
-          >
-            <Layers size={20} />
-            <span className="sr-only">Lagervy</span>
-          </button>
-        </div>
-
-        {/* Week Navigation */}
+        {/* Week Navigation & View Mode */}
         <div className="sidebar-section sidebar-top-controls">
+          <div className="view-mode-inline">
+            {showLabels && (
+              <span className="sidebar-heading-inline" aria-hidden="true">VY</span>
+            )}
+            <div className="view-mode-buttons">
+              <button
+                className={`btn-square ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => onSetViewMode('grid')}
+                title="Rutnätsvy"
+                aria-label="Rutnätsvy"
+                aria-pressed={viewMode === 'grid'}
+                type="button"
+              >
+                <Grid3x3 size={20} />
+                <span className="sr-only">Rutnätsvy</span>
+              </button>
+              <button
+                className={`btn-square ${viewMode === 'layer' ? 'active' : ''}`}
+                onClick={() => onSetViewMode('layer')}
+                title="Lagervy"
+                aria-label="Lagervy"
+                aria-pressed={viewMode === 'layer'}
+                type="button"
+              >
+                <Layers size={20} />
+                <span className="sr-only">Lagervy</span>
+              </button>
+            </div>
+          </div>
+
           <div className="sidebar-week-nav">
             <button
               className="btn-compact btn-icon-small"
@@ -216,84 +220,87 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Family Members */}
-        <div className="sidebar-section">
-          <div className="sidebar-heading-row">
-            {showLabels && <h3 className="sidebar-heading">FAMILJ</h3>}
-            <button
-              type="button"
-              className={`btn-subtle ${isReorderingMembers ? 'active' : ''}`}
-              onClick={isReorderingMembers ? onSubmitReorder : onStartReorder}
-              disabled={isReorderingMembers ? isSavingMemberOrder : !canReorder}
-              title={isReorderingMembers ? 'Spara ny ordning' : 'Ändra ordning'}
-              aria-label={isReorderingMembers ? 'Spara ny ordning' : 'Aktivera omordning'}
+        {/* Scrollable content wrapper */}
+        <div className="sidebar-scrollable-content">
+          {/* Family Members */}
+          <div className="sidebar-section family-members-section">
+            <div className="sidebar-heading-row">
+              {showLabels && <h3 className="sidebar-heading">FAMILJ</h3>}
+              <button
+                type="button"
+                className={`btn-subtle ${isReorderingMembers ? 'active' : ''}`}
+                onClick={isReorderingMembers ? onSubmitReorder : onStartReorder}
+                disabled={isReorderingMembers ? isSavingMemberOrder : !canReorder}
+                title={isReorderingMembers ? 'Spara ny ordning' : 'Ändra ordning'}
+                aria-label={isReorderingMembers ? 'Spara ny ordning' : 'Aktivera omordning'}
+              >
+                {isReorderingMembers ? (
+                  <>
+                    {isSavingMemberOrder ? (
+                      <Loader2 size={16} className="icon-spin" />
+                    ) : (
+                      <Check size={16} />
+                    )}
+                    {showLabels && <span>{isSavingMemberOrder ? 'Sparar...' : 'Spara ordning'}</span>}
+                  </>
+                ) : (
+                  <>
+                    <GripVertical size={16} />
+                    {showLabels && <span>Ändra ordning</span>}
+                  </>
+                )}
+              </button>
+            </div>
+            <div
+              className={membersClassName}
+              onDragOver={handleContainerDragOver}
+              onDrop={handleDragEnd}
             >
-              {isReorderingMembers ? (
-                <>
-                  {isSavingMemberOrder ? (
-                    <Loader2 size={16} className="icon-spin" />
-                  ) : (
-                    <Check size={16} />
-                  )}
-                  {showLabels && <span>{isSavingMemberOrder ? 'Sparar...' : 'Spara ordning'}</span>}
-                </>
-              ) : (
-                <>
-                  <GripVertical size={16} />
-                  {showLabels && <span>Ändra ordning</span>}
-                </>
-              )}
-            </button>
-          </div>
-          <div
-            className={membersClassName}
-            onDragOver={handleContainerDragOver}
-            onDrop={handleDragEnd}
-          >
-            {familyMembers.map(member => {
-              const isDragging = draggedMemberId === member.id;
-              const isDragOver =
-                dragOverMemberId === member.id && draggedMemberId !== member.id;
-              const memberClassName = [
-                'sidebar-member',
-                isReorderingMembers ? 'reordering' : '',
-                isDragging ? 'dragging' : '',
-                isDragOver ? 'drag-over' : '',
-              ].filter(Boolean).join(' ');
+              {familyMembers.map(member => {
+                const isDragging = draggedMemberId === member.id;
+                const isDragOver =
+                  dragOverMemberId === member.id && draggedMemberId !== member.id;
+                const memberClassName = [
+                  'sidebar-member',
+                  isReorderingMembers ? 'reordering' : '',
+                  isDragging ? 'dragging' : '',
+                  isDragOver ? 'drag-over' : '',
+                ].filter(Boolean).join(' ');
 
-              return (
-                <button
-                  key={member.id}
-                  type="button"
-                  className={memberClassName}
-                  onClick={() => {
-                    if (isReorderingMembers) return;
-                    onMemberClick(member.id);
-                  }}
-                  title={member.name}
-                  style={{ borderLeftColor: member.color }}
-                  draggable={isReorderingMembers}
-                  onDragStart={event => handleDragStart(event, member.id)}
-                  onDragOver={event => handleDragOver(event, member.id)}
-                  onDragEnd={handleDragEnd}
-                  onDrop={handleDragEnd}
-                  aria-grabbed={isReorderingMembers && isDragging}
-                >
-                  {isReorderingMembers && (
-                    <span className="reorder-handle" aria-hidden="true">
-                      <GripVertical size={14} />
-                    </span>
-                  )}
-                  <span className="member-icon"><Emoji emoji={member.icon} /></span>
-                  {showLabels && (
-                    <>
-                      <span className="member-name">{member.name}</span>
-                      <span className="member-color-dot" style={{ background: member.color }}></span>
-                    </>
-                  )}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    className={memberClassName}
+                    onClick={() => {
+                      if (isReorderingMembers) return;
+                      onMemberClick(member.id);
+                    }}
+                    title={member.name}
+                    style={{ borderLeftColor: member.color }}
+                    draggable={isReorderingMembers}
+                    onDragStart={event => handleDragStart(event, member.id)}
+                    onDragOver={event => handleDragOver(event, member.id)}
+                    onDragEnd={handleDragEnd}
+                    onDrop={handleDragEnd}
+                    aria-grabbed={isReorderingMembers && isDragging}
+                  >
+                    {isReorderingMembers && (
+                      <span className="reorder-handle" aria-hidden="true">
+                        <GripVertical size={14} />
+                      </span>
+                    )}
+                    <span className="member-icon"><Emoji emoji={member.icon} /></span>
+                    {showLabels && (
+                      <>
+                        <span className="member-name">{member.name}</span>
+                        <span className="member-color-dot" style={{ background: member.color }}></span>
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
