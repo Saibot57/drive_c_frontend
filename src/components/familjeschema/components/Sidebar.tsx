@@ -155,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="sidebar-section sidebar-top-controls">
           <div className="view-mode-inline">
             {showLabels && (
-              <span className="sidebar-heading sidebar-heading-inline">VY</span>
+              <span className="sidebar-heading-inline" aria-hidden="true">VY</span>
             )}
             <div className="view-mode-buttons">
               <button
@@ -304,7 +304,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="sidebar-section sidebar-actions">
           <div className="sidebar-action-buttons">
             <button
-              className="btn-square btn-primary"
+              className="btn-square btn-square-large btn-primary"
               onClick={onNewActivity}
               title="Ny aktivitet"
               aria-label="Ny aktivitet"
@@ -314,7 +314,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="sr-only">Ny aktivitet</span>
             </button>
             <button
-              className="btn-square"
+              className="btn-square btn-square-large"
               onClick={onOpenDataModal}
               title="Import/Export"
               aria-label="Import/Export"
@@ -325,7 +325,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
             <button
               type="button"
-              className="btn-square"
+              className="btn-square btn-square-large"
               onClick={() => onSystemPrint?.()}
               title="Skriv ut"
               aria-label="Skriv ut"
@@ -334,7 +334,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="sr-only">Skriv ut</span>
             </button>
             <button
-              className="btn-square"
+              className="btn-square btn-square-large"
               onClick={onOpenSettings}
               title="Inställningar"
               aria-label="Inställningar"
