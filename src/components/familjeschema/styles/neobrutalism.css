@@ -19,10 +19,10 @@
   --neo-cyan: #00D9FF;
   --neo-red: #FF4757;
   --neo-bg: #F7F3F0;
-  --shadow-sm: 2px 2px 0px var(--neo-black);
-  --shadow-md: 4px 4px 0px var(--neo-black);
-  --shadow-lg: 6px 6px 0px var(--neo-black);
-  --shadow-xl: 8px 8px 0px var(--neo-black);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 12px 30px rgba(0, 0, 0, 0.15);
 }
 
 body {
@@ -51,10 +51,11 @@ body.family-schedule-body {
 /* Header */
 .header {
   background: var(--neo-white);
-  border: 3px solid var(--neo-black);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 30px;
   margin-bottom: 30px;
   box-shadow: var(--shadow-lg);
+  border-radius: 16px;
 }
 
 .header-top {
@@ -76,13 +77,13 @@ body.family-schedule-body {
   width: 60px;
   height: 60px;
   background: var(--neo-yellow);
-  border: 3px solid var(--neo-black);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 28px;
-  transform: rotate(-5deg);
   box-shadow: var(--shadow-md);
+  border-radius: 14px;
 }
 
 h1 {
@@ -102,7 +103,7 @@ h1 {
 /* Buttons */
 .btn {
   background: var(--neo-white);
-  border: 3px solid var(--neo-black);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 12px 24px;
   font-family: 'Space Grotesk', monospace;
   font-weight: 700;
@@ -114,11 +115,11 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  border-radius: 999px;
 }
 
 .btn:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 var(--neo-black);
+  box-shadow: var(--shadow-lg);
 }
 
 .btn:active {
@@ -1894,8 +1895,9 @@ button.member-badge:hover {
   flex: 1;
   overflow: auto;
   background: var(--neo-white);
-  border: 3px solid var(--neo-black);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: var(--shadow-xl);
+  border-radius: 20px;
 }
 
 /* Mobile Menu Button (Hidden on Desktop) */
