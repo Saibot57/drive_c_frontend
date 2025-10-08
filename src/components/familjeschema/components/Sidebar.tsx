@@ -151,9 +151,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
 
-        {/* Week Navigation */}
-        <div className="sidebar-section">
-          {!isCollapsed && <h3 className="sidebar-heading">VECKA</h3>}
+        {/* Week Navigation & View Mode */}
+        <div className="sidebar-section sidebar-top-controls">
+          <div className="view-mode-inline">
+            {showLabels && (
+              <span className="sidebar-heading sidebar-heading-inline">VY</span>
+            )}
+            <div className="view-mode-buttons">
+              <button
+                className={`btn-square ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => onSetViewMode('grid')}
+                title="Rutnätsvy"
+                aria-label="Rutnätsvy"
+                aria-pressed={viewMode === 'grid'}
+                type="button"
+              >
+                <Grid3x3 size={18} />
+                <span className="sr-only">Rutnätsvy</span>
+              </button>
+              <button
+                className={`btn-square ${viewMode === 'layer' ? 'active' : ''}`}
+                onClick={() => onSetViewMode('layer')}
+                title="Lagervy"
+                aria-label="Lagervy"
+                aria-pressed={viewMode === 'layer'}
+                type="button"
+              >
+                <Layers size={18} />
+                <span className="sr-only">Lagervy</span>
+              </button>
+            </div>
+          </div>
           <div className="sidebar-week-nav">
             <button
               className="btn-compact btn-icon-small"
@@ -272,65 +300,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* View Mode */}
-        <div className="sidebar-section">
-          {!isCollapsed && <h3 className="sidebar-heading">VY</h3>}
-          <div className="view-mode-buttons">
-            <button
-              className={`btn-compact ${viewMode === 'grid' ? 'active' : ''}`}
-              onClick={() => onSetViewMode('grid')}
-              title="Rutnätsvy"
-            >
-              <Grid3x3 size={18} />
-              {!isCollapsed && <span>Rutnät</span>}
-            </button>
-            <button
-              className={`btn-compact ${viewMode === 'layer' ? 'active' : ''}`}
-              onClick={() => onSetViewMode('layer')}
-              title="Lagervy"
-            >
-              <Layers size={18} />
-              {!isCollapsed && <span>Lager</span>}
-            </button>
-          </div>
-        </div>
-
         {/* Actions */}
         <div className="sidebar-section sidebar-actions">
-          <button
-            className="btn-compact btn-primary"
-            onClick={onNewActivity}
-            title="Ny aktivitet"
-          >
-            <Plus size={18} />
-            {!isCollapsed && <span>Ny aktivitet</span>}
-          </button>
-          <button
-            className="btn-compact"
-            onClick={onOpenDataModal}
-            title="Import/Export"
-          >
-            <ArrowRightLeft size={18} />
-            {!isCollapsed && <span>Import/Export</span>}
-          </button>
-          <button
-            type="button"
-            className="btn-compact"
-            onClick={() => onSystemPrint?.()}
-            title="Skriv ut"
-            aria-label="Skriv ut"
-          >
-            <Printer size={18} />
-            {!isCollapsed && <span>Skriv ut</span>}
-          </button>
-          <button
-            className="btn-compact"
-            onClick={onOpenSettings}
-            title="Inställningar"
-          >
-            <Settings size={18} />
-            {!isCollapsed && <span>Inställningar</span>}
-          </button>
+          <div className="sidebar-action-buttons">
+            <button
+              className="btn-square btn-primary"
+              onClick={onNewActivity}
+              title="Ny aktivitet"
+              aria-label="Ny aktivitet"
+              type="button"
+            >
+              <Plus size={18} />
+              <span className="sr-only">Ny aktivitet</span>
+            </button>
+            <button
+              className="btn-square"
+              onClick={onOpenDataModal}
+              title="Import/Export"
+              aria-label="Import/Export"
+              type="button"
+            >
+              <ArrowRightLeft size={18} />
+              <span className="sr-only">Importera eller exportera</span>
+            </button>
+            <button
+              type="button"
+              className="btn-square"
+              onClick={() => onSystemPrint?.()}
+              title="Skriv ut"
+              aria-label="Skriv ut"
+            >
+              <Printer size={18} />
+              <span className="sr-only">Skriv ut</span>
+            </button>
+            <button
+              className="btn-square"
+              onClick={onOpenSettings}
+              title="Inställningar"
+              aria-label="Inställningar"
+              type="button"
+            >
+              <Settings size={18} />
+              <span className="sr-only">Inställningar</span>
+            </button>
+          </div>
           {!isCollapsed && (
             <div className="sidebar-quick-import" role="region" aria-label="Snabbimport av JSON">
               <label htmlFor="sidebar-quick-import" className="sr-only">
