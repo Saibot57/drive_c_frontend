@@ -1519,15 +1519,14 @@ button.member-badge:hover {
 
 /* Sidebar Sections */
 .sidebar-section {
-  padding: 20px 16px;
-  border-bottom: 2px solid #f0f0f0;
+  padding: 16px;
 }
 
 .sidebar-top-controls {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-top: 24px;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 .sidebar-heading {
@@ -1692,20 +1691,19 @@ button.member-badge:hover {
 /* View Mode Buttons - Moved to top */
 .view-mode-buttons {
   display: flex;
-  gap: 8px;
-  padding: 16px;
-  border-bottom: 2px solid #f0f0f0;
+  gap: 5px;
 }
 
 .sidebar.collapsed .view-mode-buttons {
   flex-direction: column;
-  align-items: center;
-  padding: 12px 8px;
+  gap: 5px;
 }
 
 .view-mode-inline {
-  display: none;
-  /* Hide old inline version */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 
 .sidebar-heading-inline {
@@ -1714,18 +1712,24 @@ button.member-badge:hover {
 
 
 .btn-square {
-  width: 48px;
-  height: 48px;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--neo-black);
+  background: var(--neo-white);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--neo-black);
-  background: var(--neo-white);
-  border-radius: 0;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+  box-shadow: var(--shadow-sm);
   color: var(--neo-black);
+  border-radius: 0;
   flex-shrink: 0;
+}
+
+.btn-square svg {
+  width: 14px;
+  height: 14px;
 }
 
 .btn-square:hover {
@@ -1758,16 +1762,27 @@ button.member-badge:hover {
 .btn-square-large {
   width: 64px;
   height: 64px;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-square-large svg {
+  width: 18px;
+  height: 18px;
 }
 
 .sidebar.collapsed .btn-square {
-  width: 44px;
-  height: 44px;
+  width: 20px;
+  height: 20px;
 }
 
 .sidebar.collapsed .btn-square-large {
   width: 56px;
   height: 56px;
+}
+
+.sidebar.collapsed .btn-square-large svg {
+  width: 16px;
+  height: 16px;
 }
 
 .sidebar-action-buttons {
@@ -1793,8 +1808,15 @@ button.member-badge:hover {
   border-width: 0;
 }
 
+.sidebar.collapsed .view-mode-inline {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
 .sidebar.collapsed .view-mode-buttons {
   flex-direction: column;
+  gap: 5px;
 }
 
 .sidebar.collapsed .sidebar-action-buttons {
@@ -1845,24 +1867,25 @@ button.member-badge:hover {
 
 /* Family Members in Sidebar */
 .sidebar-members {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   position: relative;
 }
 
 .sidebar-members.is-reordering {
-  gap: 10px;
+  gap: 8px;
 }
 
 .sidebar-members.drag-over-end::after {
   content: '';
   display: block;
-  height: 48px;
-  border: 3px dashed var(--neo-black);
-  border-radius: 0;
-  background: rgba(255, 223, 61, 0.2);
-  margin-top: 6px;
+  height: 42px;
+  border: 2px dashed var(--neo-black);
+  border-radius: 10px;
+  background: rgba(255, 223, 61, 0.25);
+  margin-top: 4px;
+  grid-column: 1 / -1;
 }
 
 .sidebar-member {
@@ -1939,6 +1962,10 @@ button.member-badge:hover {
   display: none;
 }
 
+.sidebar.collapsed .sidebar-members {
+  grid-template-columns: 1fr;
+}
+
 /* Actions Section */
 .sidebar-actions {
   padding: 24px 16px;
@@ -1952,13 +1979,13 @@ button.member-badge:hover {
 
 .sidebar-quick-import {
   margin-top: 4px;
-  padding: 16px;
-  border: 2px solid var(--neo-black);
-  border-radius: 0;
-  background: #fafafa;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fffbea;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .sidebar-quick-import-input {
