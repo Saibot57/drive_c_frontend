@@ -1439,8 +1439,8 @@ button.member-badge:hover {
 /* Sidebar Styles */
 .sidebar {
   width: 280px;
-  background: #f8fafc;
-  border-right: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-right: 2px solid var(--neo-black);
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -1459,23 +1459,27 @@ button.member-badge:hover {
 /* Sidebar Toggle Button */
 .sidebar-toggle {
   position: absolute;
-  right: -20px;
+  right: -24px;
   top: 20px;
-  width: 20px;
-  height: 40px;
+  width: 24px;
+  height: 48px;
   background: var(--neo-purple);
   border: 2px solid var(--neo-black);
   border-left: none;
+  border-radius: 0 8px 8px 0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 31;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  color: var(--neo-white);
 }
 
 .sidebar-toggle:hover {
   background: var(--neo-yellow);
+  color: var(--neo-black);
+  width: 28px;
 }
 
 /* Logo Section */
@@ -1515,24 +1519,25 @@ button.member-badge:hover {
 
 /* Sidebar Sections */
 .sidebar-section {
-  padding: 16px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 20px 16px;
+  border-bottom: 2px solid #f0f0f0;
 }
 
 .sidebar-top-controls {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 20px;
+  gap: 16px;
+  padding-top: 24px;
 }
 
 .sidebar-heading {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  margin-bottom: 10px;
-  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+  color: var(--neo-black);
   text-transform: uppercase;
+  opacity: 0.6;
 }
 
 .sidebar.collapsed .sidebar-heading {
@@ -1543,29 +1548,36 @@ button.member-badge:hover {
 .sidebar-week-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 0;
 }
 
 .sidebar.collapsed .sidebar-week-nav {
   flex-direction: column;
+  gap: 8px;
 }
 
 .week-display {
   flex: 1;
-  padding: 8px;
-  background: #ffffff;
-  border: 1px solid #cbd5f5;
-  border-radius: 8px;
+  padding: 12px;
+  background: var(--neo-white);
+  border: 2px solid var(--neo-black);
+  border-radius: 0;
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .week-display:hover {
-  background: #eef2ff;
-  border-color: #a5b4fc;
+  background: var(--neo-cyan);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 0 var(--neo-black);
+}
+
+.week-display:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .week-number {
@@ -1578,37 +1590,47 @@ button.member-badge:hover {
 
 /* Compact Buttons */
 .btn-compact {
-  padding: 8px 12px;
-  border: 1px solid #d0d5dd;
-  background: #ffffff;
+  padding: 10px 14px;
+  border: 2px solid var(--neo-black);
+  background: var(--neo-white);
   font-family: 'Space Grotesk', monospace;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   justify-content: flex-start;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .btn-compact:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: var(--neo-yellow);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 0 var(--neo-black);
+}
+
+.btn-compact:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .btn-compact.active {
-  background: #d1fae5;
-  border-color: #34d399;
-  color: #047857;
+  background: var(--neo-green);
+  border-color: var(--neo-black);
+  color: var(--neo-black);
 }
 
 .btn-compact.btn-primary {
-  background: #0ea5e9;
-  border-color: #0284c7;
+  background: var(--neo-purple);
+  border-color: var(--neo-black);
   color: var(--neo-white);
+}
+
+.btn-compact.btn-primary:hover {
+  background: var(--neo-pink);
 }
 
 .btn-compact.btn-full {
@@ -1616,8 +1638,8 @@ button.member-badge:hover {
 }
 
 .btn-icon-small {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   justify-content: center;
   flex-shrink: 0;
@@ -1629,95 +1651,103 @@ button.member-badge:hover {
 
 .sidebar.collapsed .btn-compact {
   justify-content: center;
-  padding: 8px;
+  padding: 10px;
 }
 
 .btn-subtle {
-  padding: 6px 10px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  padding: 8px 12px;
+  border: 2px solid var(--neo-black);
+  background: var(--neo-white);
   font-family: 'Space Grotesk', monospace;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.75rem;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-  color: #334155;
-  border-radius: 999px;
+  transition: all 0.15s ease;
+  color: var(--neo-black);
+  border-radius: 0;
+  text-transform: uppercase;
 }
 
 .btn-subtle:hover {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
+  background: var(--neo-yellow);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 0 var(--neo-black);
+}
+
+.btn-subtle:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .btn-subtle:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
   transform: none;
   box-shadow: none;
 }
 
-.sidebar-top-controls {
+/* View Mode Buttons - Moved to top */
+.view-mode-buttons {
   display: flex;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.sidebar.collapsed .view-mode-buttons {
   flex-direction: column;
-  gap: 14px;
-  padding-top: 4px;
+  align-items: center;
+  padding: 12px 8px;
 }
 
 .view-mode-inline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: none;
+  /* Hide old inline version */
 }
 
 .sidebar-heading-inline {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: rgba(0, 0, 0, 0.6);
-  text-transform: uppercase;
+  display: none;
 }
 
-.view-mode-buttons {
-  display: flex;
-  gap: 10px;
-}
 
 .btn-square {
-  width: 44px;
-  height: 44px;
-  border: 2px solid var(--neo-black);
-  background: var(--neo-white);
+  width: 48px;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 2px solid var(--neo-black);
+  background: var(--neo-white);
+  border-radius: 0;
   cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
-  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
   color: var(--neo-black);
+  flex-shrink: 0;
 }
 
 .btn-square:hover {
   background: var(--neo-yellow);
-  transform: translate(-1px, -1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 0 var(--neo-black);
 }
 
 .btn-square:active {
-  transform: translate(0, 0);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .btn-square.active {
   background: var(--neo-green);
+  border-color: var(--neo-black);
+  color: var(--neo-black);
 }
 
 .btn-square.btn-primary {
   background: var(--neo-purple);
+  border-color: var(--neo-black);
   color: var(--neo-white);
 }
 
@@ -1728,12 +1758,11 @@ button.member-badge:hover {
 .btn-square-large {
   width: 64px;
   height: 64px;
-  box-shadow: var(--shadow-md);
 }
 
 .sidebar.collapsed .btn-square {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
 }
 
 .sidebar.collapsed .btn-square-large {
@@ -1742,21 +1771,26 @@ button.member-badge:hover {
 }
 
 .sidebar-action-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-  justify-content: flex-start;
-  padding-top: 4px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .sidebar-action-buttons .btn-square {
   flex: 0 0 auto;
 }
 
-.sidebar.collapsed .view-mode-inline {
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+/* Hide text in action buttons, show only icons */
+.sidebar-action-buttons .btn-square .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 .sidebar.collapsed .view-mode-buttons {
@@ -1764,12 +1798,14 @@ button.member-badge:hover {
 }
 
 .sidebar.collapsed .sidebar-action-buttons {
-  flex-direction: column;
+  grid-template-columns: 1fr;
+  gap: 10px;
   align-items: center;
+  justify-items: center;
 }
 
 .btn-subtle.active {
-  background: rgba(171, 255, 135, 0.45);
+  background: var(--neo-green);
 }
 
 .sidebar-heading-row {
@@ -1811,44 +1847,46 @@ button.member-badge:hover {
 .sidebar-members {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
   position: relative;
 }
 
 .sidebar-members.is-reordering {
-  gap: 6px;
+  gap: 10px;
 }
 
 .sidebar-members.drag-over-end::after {
   content: '';
   display: block;
-  height: 42px;
-  border: 2px dashed var(--neo-black);
-  border-radius: 10px;
-  background: rgba(255, 223, 61, 0.25);
-  margin-top: 4px;
+  height: 48px;
+  border: 3px dashed var(--neo-black);
+  border-radius: 0;
+  background: rgba(255, 223, 61, 0.2);
+  margin-top: 6px;
 }
 
 .sidebar-member {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
+  gap: 12px;
+  padding: 12px;
   background: var(--neo-white);
   border: 2px solid var(--neo-black);
   border-left: 4px solid;
   cursor: pointer;
-  transition: all 0.1s;
+  transition: all 0.15s ease;
   font-family: 'Space Grotesk', 'Apple Color Emoji', 'Segoe UI Emoji',
     'Noto Color Emoji', sans-serif;
   font-weight: 600;
   font-size: 0.9rem;
   width: 100%;
+  border-radius: 0;
 }
 
 .sidebar-member:hover {
-  background: rgba(255, 223, 61, 0.3);
-  transform: translateX(2px);
+  background: var(--neo-yellow);
+  transform: translateX(4px);
+  box-shadow: -4px 0 0 var(--neo-black);
 }
 
 .sidebar-member.reordering {
@@ -1860,13 +1898,14 @@ button.member-badge:hover {
 }
 
 .sidebar-member.dragging {
-  opacity: 0.6;
+  opacity: 0.5;
   transform: scale(0.98);
 }
 
 .sidebar-member.drag-over {
-  background: rgba(255, 223, 61, 0.35);
+  background: var(--neo-cyan);
   outline: 2px dashed var(--neo-black);
+  outline-offset: 2px;
 }
 
 .reorder-handle {
@@ -1902,44 +1941,45 @@ button.member-badge:hover {
 
 /* Actions Section */
 .sidebar-actions {
-  padding-top: 16px;
-  padding-bottom: 20px;
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+  gap: 20px;
+  border-top: 2px solid #f0f0f0;
+  background: #ffffff;
+  margin-top: auto;
 }
 
 .sidebar-quick-import {
   margin-top: 4px;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
+  padding: 16px;
+  border: 2px solid var(--neo-black);
+  border-radius: 0;
+  background: #fafafa;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .sidebar-quick-import-input {
   width: 100%;
-  min-height: 70px;
+  min-height: 80px;
   resize: vertical;
-  padding: 8px 10px;
-  border: 1px solid #d0d5dd;
-  border-radius: 10px;
+  padding: 10px 12px;
+  border: 2px solid var(--neo-black);
+  border-radius: 0;
   font-size: 0.85rem;
-  line-height: 1.4;
+  line-height: 1.5;
   font-family: 'Space Grotesk', monospace;
-  background: #f8fafc;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: var(--neo-white);
+  transition: all 0.15s ease;
 }
 
 .sidebar-quick-import-input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--neo-purple);
+  box-shadow: 0 0 0 3px rgba(160, 32, 240, 0.1);
+  background: var(--neo-yellow);
 }
 
 .sidebar-quick-import-actions {
