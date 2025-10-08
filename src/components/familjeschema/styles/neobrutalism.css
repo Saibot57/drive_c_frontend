@@ -1439,8 +1439,8 @@ button.member-badge:hover {
 /* Sidebar Styles */
 .sidebar {
   width: 280px;
-  background: var(--neo-white);
-  border-right: 3px solid var(--neo-black);
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -1515,16 +1515,23 @@ button.member-badge:hover {
 
 /* Sidebar Sections */
 .sidebar-section {
-  padding: 15px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sidebar-top-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 20px;
 }
 
 .sidebar-heading {
   font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   margin-bottom: 10px;
-  opacity: 0.7;
+  color: #64748b;
   text-transform: uppercase;
 }
 
@@ -1536,8 +1543,8 @@ button.member-badge:hover {
 .sidebar-week-nav {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .sidebar.collapsed .sidebar-week-nav {
@@ -1547,16 +1554,18 @@ button.member-badge:hover {
 .week-display {
   flex: 1;
   padding: 8px;
-  background: var(--neo-white);
-  border: 2px solid var(--neo-black);
+  background: #ffffff;
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
   text-align: center;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .week-display:hover {
-  background: var(--neo-cyan);
+  background: #eef2ff;
+  border-color: #a5b4fc;
 }
 
 .week-number {
@@ -1570,32 +1579,35 @@ button.member-badge:hover {
 /* Compact Buttons */
 .btn-compact {
   padding: 8px 12px;
-  border: 2px solid var(--neo-black);
-  background: var(--neo-white);
+  border: 1px solid #d0d5dd;
+  background: #ffffff;
   font-family: 'Space Grotesk', monospace;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.1s;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   justify-content: flex-start;
+  border-radius: 8px;
 }
 
 .btn-compact:hover {
-  background: var(--neo-yellow);
-  transform: translate(-1px, -1px);
-  box-shadow: var(--shadow-sm);
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .btn-compact.active {
-  background: var(--neo-green);
+  background: #d1fae5;
+  border-color: #34d399;
+  color: #047857;
 }
 
 .btn-compact.btn-primary {
-  background: var(--neo-purple);
+  background: #0ea5e9;
+  border-color: #0284c7;
   color: var(--neo-white);
 }
 
@@ -1622,8 +1634,8 @@ button.member-badge:hover {
 
 .btn-subtle {
   padding: 6px 10px;
-  border: 1px dashed var(--neo-black);
-  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
   font-family: 'Space Grotesk', monospace;
   font-weight: 600;
   font-size: 0.75rem;
@@ -1631,14 +1643,14 @@ button.member-badge:hover {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  transition: all 0.1s ease-in-out;
-  color: var(--neo-black);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  color: #334155;
+  border-radius: 999px;
 }
 
 .btn-subtle:hover {
-  background: rgba(255, 223, 61, 0.4);
-  transform: translate(-1px, -1px);
-  box-shadow: var(--shadow-sm);
+  background: #e2e8f0;
+  border-color: #cbd5e1;
 }
 
 .btn-subtle:disabled {
@@ -1890,22 +1902,21 @@ button.member-badge:hover {
 
 /* Actions Section */
 .sidebar-actions {
-  padding-top: 15px;
+  padding-top: 16px;
   padding-bottom: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  border-top: 2px solid var(--neo-black);
-  background: var(--neo-bg);
+  gap: 16px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
 .sidebar-quick-import {
   margin-top: 4px;
-  padding: 10px;
-  border: 2px solid var(--neo-black);
+  padding: 12px;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  background: var(--neo-white);
-  box-shadow: var(--shadow-sm);
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1916,19 +1927,19 @@ button.member-badge:hover {
   min-height: 70px;
   resize: vertical;
   padding: 8px 10px;
-  border: 2px dashed var(--neo-black);
+  border: 1px solid #d0d5dd;
   border-radius: 10px;
   font-size: 0.85rem;
   line-height: 1.4;
   font-family: 'Space Grotesk', monospace;
-  background: var(--neo-bg);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .sidebar-quick-import-input:focus {
   outline: none;
-  border-style: solid;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .sidebar-quick-import-actions {
