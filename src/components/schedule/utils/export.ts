@@ -62,6 +62,7 @@ export async function exportToPDF(
     clonedSchedule.classList.remove('overflow-x-auto');
     clonedSchedule.classList.remove('mb-8');
     clonedSchedule.style.maxHeight = 'none';
+    clonedSchedule.style.minHeight = 'auto';
     clonedSchedule.style.overflow = 'visible';
     clonedSchedule.style.height = 'auto';
     clonedSchedule.style.width = `${scheduleRef.scrollWidth}px`;

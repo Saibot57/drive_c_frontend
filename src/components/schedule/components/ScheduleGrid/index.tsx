@@ -115,9 +115,9 @@ export function ScheduleGrid({
   };
 
   return (
-    <div 
-      ref={scheduleRef} 
-      className="schedule-grid mb-8 overflow-x-auto"
+    <div
+      ref={scheduleRef}
+      className="schedule-grid mb-8 overflow-x-auto overflow-y-auto"
       data-html2canvas-ignore-absolute="true"
     >
       <table className="w-full border-collapse table-fixed">

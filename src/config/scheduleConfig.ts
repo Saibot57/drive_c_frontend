@@ -16,7 +16,7 @@ export interface ScheduleConfig {
 }
 
 // Default configuration
-export const DEFAULT_SLOT_HEIGHT_MULTIPLIER = 1.3;
+export const DEFAULT_SLOT_HEIGHT_MULTIPLIER = 1;
 
 export const defaultScheduleConfig: ScheduleConfig = {
   days: ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'],

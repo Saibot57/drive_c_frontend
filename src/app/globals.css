@@ -66,7 +66,11 @@
     @apply shadow-[2px_2px_0px_0px_rgba(0,0,0,1)];
   }
   .schedule-grid {
-    @apply border-2 border-black bg-white rounded-lg overflow-auto;
+    @apply border-2 border-black bg-white rounded-lg;
+    min-height: min(72vh, calc(100vh - 12rem));
+    max-height: min(84vh, calc(100vh - 6rem));
+    overflow-x: auto;
+    overflow-y: auto;
   }
   .schedule-grid.print-version {
     @apply overflow-visible;
