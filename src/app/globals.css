@@ -68,6 +68,9 @@
   .schedule-grid {
     @apply border-2 border-black bg-white rounded-lg overflow-auto;
   }
+  .schedule-grid.print-version {
+    @apply overflow-visible;
+  }
   .schedule-grid-header {
     @apply bg-[#ff6b6b] text-white font-medium border-b-2 border-black p-2 font-monument;
   }

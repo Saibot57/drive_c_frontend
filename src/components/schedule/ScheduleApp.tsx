@@ -12,7 +12,7 @@ import { ConfigPanel } from './components/ConfigPanel';
 import { HeaderActions } from './components/HeaderActions';
 import type { Box, Schedule, Filter, Restriction, SearchCriterion, ScheduleState } from './types';
 import { filterScheduleBySearch } from './utils/schedule';
-import { getScheduleConfig, updateScheduleConfig } from '@/config/scheduleConfig';
+import { getScheduleConfig, updateScheduleConfig, defaultScheduleConfig, DEFAULT_SLOT_HEIGHT_MULTIPLIER } from '@/config/scheduleConfig';
 import { exportToPDF, showPrintDialog, ExportOptions } from './utils/export';
 
 export default function ScheduleApp() {
@@ -53,7 +53,22 @@ export default function ScheduleApp() {
         
         // Apply saved config if available
         if (configOverrides) {
-          updateScheduleConfig(configOverrides);
+          const normalizedConfig = {
+            ...defaultScheduleConfig,
+            ...configOverrides,
+          };
+
+          if (
+            !configOverrides.slotHeightMultiplier ||
+            configOverrides.slotHeightMultiplier === 1 ||
+            configOverrides.slotHeightMultiplier < DEFAULT_SLOT_HEIGHT_MULTIPLIER
+          ) {
+            normalizedConfig.slotHeightMultiplier = DEFAULT_SLOT_HEIGHT_MULTIPLIER;
+          }
+
+          updateScheduleConfig(normalizedConfig);
+        } else {
+          updateScheduleConfig(defaultScheduleConfig);
         }
       } catch (error) {
         console.error('Failed to load state from local storage:', error);

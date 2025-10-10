@@ -56,9 +56,15 @@ export async function exportToPDF(
     
     // Clone the schedule element
     const clonedSchedule = scheduleRef.cloneNode(true) as HTMLElement;
-    
+
     // Add print-specific styles
     clonedSchedule.classList.add('print-version');
+    clonedSchedule.classList.remove('overflow-x-auto');
+    clonedSchedule.classList.remove('mb-8');
+    clonedSchedule.style.maxHeight = 'none';
+    clonedSchedule.style.overflow = 'visible';
+    clonedSchedule.style.height = 'auto';
+    clonedSchedule.style.width = `${scheduleRef.scrollWidth}px`;
     
     // Add a legend if requested
     if (showLegend) {
