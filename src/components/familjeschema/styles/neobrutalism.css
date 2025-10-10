@@ -1440,7 +1440,6 @@ button.member-badge:hover {
 .sidebar {
   width: 280px;
   background: var(--neo-white);
-  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -1457,6 +1456,7 @@ button.member-badge:hover {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  padding-bottom: 8px;
 }
 
 .sidebar.collapsed {
@@ -1526,7 +1526,7 @@ button.member-badge:hover {
 
 /* Sidebar Sections */
 .sidebar-section {
-  padding: 16px;
+  padding: 12px 16px;
 }
 
 .sidebar-section.family-members-section {
@@ -1991,15 +1991,13 @@ button.member-badge:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-top: 1px solid #e2e8f0;
   background: var(--neo-white);
-  margin-top: 16px;
+  margin-top: 0;
 }
 
 .sidebar-quick-import {
   margin-top: 4px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #fffbea;
   display: flex;
