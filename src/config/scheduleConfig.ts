@@ -16,6 +16,8 @@ export interface ScheduleConfig {
 }
 
 // Default configuration
+export const DEFAULT_SLOT_HEIGHT_MULTIPLIER = 1.3;
+
 export const defaultScheduleConfig: ScheduleConfig = {
   days: ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'],
   timeSlots: [
@@ -27,7 +29,7 @@ export const defaultScheduleConfig: ScheduleConfig = {
   ],
   allowCustomTimeSlots: true,
   allowVariableDuration: true,
-  slotHeightMultiplier: 1,
+  slotHeightMultiplier: DEFAULT_SLOT_HEIGHT_MULTIPLIER,
   maxSlotColumns: 5
 };
 
