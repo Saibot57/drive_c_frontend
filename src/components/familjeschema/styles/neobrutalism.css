@@ -1451,12 +1451,12 @@ button.member-badge:hover {
 }
 
 .sidebar-scrollable-content {
-  flex: 1;
+  /* flex: 1; removed to prevent excessive vertical whitespace */
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  padding-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .sidebar.collapsed {
@@ -1993,6 +1993,7 @@ button.member-badge:hover {
   gap: 12px;
   background: var(--neo-white);
   margin-top: 0;
+  flex-shrink: 0;
 }
 
 .sidebar-quick-import {
