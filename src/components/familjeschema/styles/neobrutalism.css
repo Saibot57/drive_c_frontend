@@ -1447,7 +1447,9 @@ button.member-badge:hover {
   height: 100vh;
   overflow: hidden;
   transition: width 0.3s ease;
-  z-index: 30;
+  /* Keep the sidebar beneath the global navigation header while staying above
+     the schedule content */
+  z-index: 10;
 }
 
 .sidebar-scrollable-content {
@@ -1478,7 +1480,8 @@ button.member-badge:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 31;
+  /* Ensure the toggle stays clickable above the sidebar */
+  z-index: 11;
   transition: all 0.2s;
   color: var(--neo-white);
 }
