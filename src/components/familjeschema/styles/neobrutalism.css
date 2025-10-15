@@ -1810,8 +1810,10 @@ button.member-badge:hover {
 
 .sidebar-action-buttons {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, auto);
   gap: 12px;
+  justify-content: center;
+  justify-items: center;
 }
 
 .sidebar-action-buttons .btn-square {
@@ -1846,6 +1848,7 @@ button.member-badge:hover {
   grid-template-columns: 1fr;
   gap: 10px;
   align-items: center;
+  justify-content: center;
   justify-items: center;
 }
 
