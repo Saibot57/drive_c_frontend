@@ -47,8 +47,7 @@ export const ActivityBlock: React.FC<ActivityBlockProps> = ({
   }, [activity.startTime, activity.endTime]);
 
   const isLongDuration = durationInMinutes >= 120;
-  const isMediumDuration = durationInMinutes >= 120 && durationInMinutes < 150;
-  const shouldHideTime = isMediumDuration;
+  const shouldHideTime = durationInMinutes <= 60;
 
   const handleMouseEnter = () => {
     if (!wrapperRef.current) return;
