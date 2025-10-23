@@ -307,11 +307,13 @@ h1 {
   border: 3px solid var(--neo-black);
   box-shadow: var(--shadow-xl);
   overflow: auto;
+  border-radius: 0 !important; /* Ensure square corners, override global styles */
 }
 
 .schedule-grid {
   display: grid;
   min-width: 1200px;
+  border-radius: 0 !important; /* Ensure square corners, override global styles */
 }
 
 .time-column {
@@ -1001,6 +1003,7 @@ h1 {
   box-shadow: var(--shadow-xl);
   position: relative;
   overflow: hidden;
+  border-radius: 0 !important; /* Ensure square corners, override global styles */
 }
 
 /* Layer View Header */
@@ -2096,6 +2099,7 @@ button.member-badge:hover {
   background: var(--neo-white);
   border: 3px solid var(--neo-black);
   box-shadow: var(--shadow-xl);
+  border-radius: 0 !important; /* Ensure square corners, override global styles */
 }
 
 /* Mobile Menu Button (Hidden on Desktop) */
