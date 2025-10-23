@@ -2092,14 +2092,14 @@ button.member-badge:hover {
   color: var(--neo-white);
 }
 
-/* Schedule View Container */
+/* Schedule View Container - Wrapper for print functionality only, no visible styling in normal view */
 .schedule-view-container {
   flex: 1;
   overflow: auto;
-  background: var(--neo-white);
-  border: 3px solid var(--neo-black);
-  box-shadow: var(--shadow-xl);
-  border-radius: 0 !important; /* Ensure square corners, override global styles */
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 /* Mobile Menu Button (Hidden on Desktop) */
