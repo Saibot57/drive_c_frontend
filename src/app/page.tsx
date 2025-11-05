@@ -192,7 +192,7 @@ export default function Home() {
 
   return (
     <ProtectedRoute>
-      <div className="bg-white">
+      <div className="bg-white w-screen relative left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] px-8 min-h-screen">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3 flex-1">
             <Search onSearch={setSearchTerm} />
