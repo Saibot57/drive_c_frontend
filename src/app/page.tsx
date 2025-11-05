@@ -192,14 +192,14 @@ export default function Home() {
 
   return (
     <ProtectedRoute>
-      <div className="bg-[#fcd7d7]">
+      <div className="bg-white">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3 flex-1">
             <Search onSearch={setSearchTerm} />
-            <Button 
+            <Button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="h-10 px-3 flex items-center gap-2 border-2 border-black bg-white hover:bg-white"
+              className="h-10 px-3 flex items-center gap-2 border-2 border-black bg-[#aee8fe] hover:bg-[#59cffd] transition-colors"
             >
               <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
               {isRefreshing ? '...' : 'Uppdatera'}
@@ -210,6 +210,7 @@ export default function Home() {
               id="showTags"
               checked={showTags}
               onCheckedChange={(checked) => setShowTags(checked === true)}
+              className="border-2 border-black data-[state=checked]:bg-[#8ecc93] data-[state=checked]:border-black"
             />
             <Label htmlFor="showTags" className="ml-2">Visa Taggar</Label>
           </div>
@@ -224,7 +225,7 @@ export default function Home() {
         ) : (
           <>
             {/* Drive folders */}
-            <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
+            <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
               {driveFolders.map((section) => (
                 <Section key={section.name} section={section} showTags={showTags} />
               ))}
