@@ -51,6 +51,18 @@
     max-height: 100% !important;
     overflow: visible !important;
   }
+
+  /* Remove online current-day highlight when printing */
+  .day-header.today {
+    background: var(--neo-cyan) !important;
+    color: var(--neo-black) !important;
+  }
+
+  .layer-day-header.today,
+  .member-day-column.today {
+    background: var(--neo-white) !important;
+    color: var(--neo-black) !important;
+  }
 }
 
 /* Canvas export helper */
@@ -63,6 +75,18 @@
 .print-mode [style*="position: sticky"] {
   position: static !important;
   top: auto !important;
+}
+
+/* Ensure export helpers also drop the current-day highlight */
+.print-mode .day-header.today {
+  background: var(--neo-cyan) !important;
+  color: var(--neo-black) !important;
+}
+
+.print-mode .layer-day-header.today,
+.print-mode .member-day-column.today {
+  background: var(--neo-white) !important;
+  color: var(--neo-black) !important;
 }
 
 .printable-schedule-scope {
