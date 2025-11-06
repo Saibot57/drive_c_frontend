@@ -11,33 +11,12 @@ import { RefreshCw } from "lucide-react";
 import { Red_Hat_Text } from 'next/font/google';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
+import type { FileData, SubSection, SectionData } from '@/types/fileSections';
 
 const redHat = Red_Hat_Text({ 
   subsets: ['latin'],
   weight: ['400', '500', '700']
 });
-
-interface FileData {
-  id: string;
-  name: string;
-  url: string;
-  file_path: string;
-  tags: string[];
-  notebooklm?: string;
-  created_time?: string;
-}
-
-interface SubSection {
-  name: string;
-  path: string;
-  files: FileData[];
-}
-
-export interface SectionData {
-  name: string;
-  files: FileData[];
-  subsections: Record<string, SubSection>;
-}
 
 export default function Home() {
   const [data, setData] = useState<{ data: SectionData[] } | null>(null);

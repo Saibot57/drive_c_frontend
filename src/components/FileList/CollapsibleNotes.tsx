@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileCard } from "@/components/FileList/FileCard";
-import { SectionData } from "@/app/page";
+import type { SectionData } from "@/types/fileSections";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface CollapsibleNotesProps {
