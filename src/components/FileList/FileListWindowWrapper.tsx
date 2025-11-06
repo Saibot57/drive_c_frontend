@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { fetchWithAuth } from '@/services/authService';
-import { SectionData } from "@/app/page";
+import type { SectionData } from "@/types/fileSections";
 import { FileCard } from "@/components/FileList/FileCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search as SearchIcon, Tags } from "lucide-react";
