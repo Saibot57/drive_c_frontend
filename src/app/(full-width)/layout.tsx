@@ -1,8 +1,7 @@
-import RootLayoutBase from '../components/RootLayoutBase';
-
+// Full-width pages - no container
 export default function Layout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <RootLayoutBase>{children}</RootLayoutBase>;
+  return <>{children}</>;
 }
 
