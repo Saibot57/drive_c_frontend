@@ -1,8 +1,7 @@
 // src/app/layout.tsx
-import React, { isValidElement, ReactElement } from 'react';
+import React from 'react';
 import type { Metadata } from 'next';
 import './globals.css';
-import DefaultContainer from './components/DefaultContainer';
 import RootLayoutBase from './components/RootLayoutBase';
 
 export const metadata: Metadata = {
@@ -12,16 +11,6 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  if (isValidElement(children) && children.type === RootLayoutBase) {
-    return (
-      <RootLayoutBase>{(children as ReactElement).props.children}</RootLayoutBase>
-    );
-  }
-
-  return (
-    <RootLayoutBase>
-      <DefaultContainer>{children}</DefaultContainer>
-    </RootLayoutBase>
-  );
+  return <RootLayoutBase>{children}</RootLayoutBase>;
 }
 
