@@ -34,7 +34,7 @@ export default function RootLayoutBase({
         <meta charSet="UTF-8" />
         <title>Drive C</title>
       </head>
-      <body className={`${redHat.className} ${monument.variable} min-h-screen bg-[#fcd7d7]`}>
+      <body className={`${redHat.className} ${monument.variable} min-h-screen bg-white`}>
         <AuthProvider>
           {/* Top Navigation Bar */}
           <div className="fixed top-0 left-0 right-0 h-16 bg-[#fcd7d7] z-20">
