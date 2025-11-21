@@ -43,7 +43,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { generateBoxColor, importColors } from '@/config/colorManagement';
 
-const STORAGE_KEY = 'drive-c-schedule-planner-v4'; // Uppdaterad version
+const STORAGE_KEY = 'drive-c-schedule-planner-v4';
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 
@@ -77,8 +77,8 @@ interface ScheduledEntry extends PlannerCourse {
 
 interface RestrictionRule {
   id: string;
-  subjectA: string; // Kan innehålla wildcard, t.ex. "Matte*"
-  subjectB: string; // Kan innehålla wildcard, t.ex. "Svenska*"
+  subjectA: string; 
+  subjectB: string; 
 }
 
 interface PersistedPlannerState {
@@ -96,75 +96,57 @@ const baseCourses: PlannerCourse[] = [
 
 // --- Helper Logic: Advanced Filtering & Restrictions ---
 
-/**
- * Parsar filtersträngen: "hanna; matte + engelska; -so"
- */
 const advancedFilterMatch = (item: PlannerCourse | ScheduledEntry, filterQuery: string): boolean => {
-  if (!filterQuery.trim()) return true; // Inget filter = visa allt
+  if (!filterQuery.trim()) return true;
 
   const searchString = `${item.title} ${item.teacher} ${item.room} ${item.category || ''}`.toLowerCase();
   
-  // Splitta på semikolon (OR-logik)
   const blocks = filterQuery.toLowerCase().split(';');
 
-  // Om något block matchar, returnera true
   return blocks.some(block => {
-    const parts = block.trim().split('+'); // Splitta på plus (AND-logik)
+    const parts = block.trim().split('+'); 
     
-    // Alla delar i ett block måste matcha
     return parts.every(part => {
       const p = part.trim();
       if (!p) return true;
       
       if (p.startsWith('-')) {
-        // Exkludering
         const term = p.substring(1);
         return !searchString.includes(term);
       } else {
-        // Inkludering
         return searchString.includes(p);
       }
     });
   });
 };
 
-/**
- * Kollar om två strängar matchar baserat på wildcard (*)
- * Ex: "Matte*" matchar "Matte 1a"
- */
 const wildcardMatch = (pattern: string, text: string): boolean => {
-  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&'); // Escape regex chars except *
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&'); 
   const regexString = '^' + escaped.replace(/\*/g, '.*') + '$';
   const regex = new RegExp(regexString, 'i');
   return regex.test(text);
 };
 
-/**
- * Validerar drop mot restriktioner
- */
 const validateRestrictions = (
   entryTitle: string,
   targetDay: string,
   targetSlotId: string,
   currentSchedule: ScheduledEntry[],
   rules: RestrictionRule[],
-  ignoreInstanceId?: string // Ignorera kortet vi flyttar (om det redan ligger i schemat)
+  ignoreInstanceId?: string 
 ): string | null => {
   
-  // Hitta vad som redan ligger i denna slot
   const existingInSlot = currentSchedule.filter(
     e => e.day === targetDay && e.slotId === targetSlotId && e.instanceId !== ignoreInstanceId
   );
 
-  if (existingInSlot.length === 0) return null; // Tomt = okej
+  if (existingInSlot.length === 0) return null; 
 
   for (const existing of existingInSlot) {
     for (const rule of rules) {
-      // Kolla regel A mot Nytt & B mot Befintligt
       const matchA_New = wildcardMatch(rule.subjectA, entryTitle);
       const matchB_Exist = wildcardMatch(rule.subjectB, existing.title);
       
-      // Kolla regel B mot Nytt & A mot Befintligt (Bidirektionell)
       const matchB_New = wildcardMatch(rule.subjectB, entryTitle);
       const matchA_Exist = wildcardMatch(rule.subjectA, existing.title);
 
@@ -399,7 +381,6 @@ export default function NewSchedulePlanner() {
   const scheduleStats = useMemo(() => {
     const stats: Record<string, number> = {};
     
-    // Filtrera först schemat baserat på sökningen
     const visibleSchedule = schedule.filter(entry => advancedFilterMatch(entry, filterQuery));
 
     visibleSchedule.forEach(entry => {
@@ -448,16 +429,13 @@ export default function NewSchedulePlanner() {
       ignoreId = entry.instanceId;
     }
 
-    // Utför "Hard Check"
     const conflictError = validateRestrictions(titleToCheck, dropDay, dropSlotId, schedule, restrictions, ignoreId);
     
     if (conflictError) {
-      // Här skulle man kunna visa en Toast
       alert(conflictError); 
-      return; // Avbryt flytten
+      return; 
     }
 
-    // Om ingen konflikt, utför flytten
     if (type === 'course') {
       const course = active.data.current?.course as PlannerCourse;
       const newEntry: ScheduledEntry = {
@@ -598,7 +576,7 @@ export default function NewSchedulePlanner() {
               </div>
             </div>
             <p className="text-[10px] text-gray-500 mt-1">
-              Ex: "matte + 1a; svenska; -prov" (Semikolon=ELLER, Plus=OCH, Minus=INTE)
+              Ex: &quot;matte + 1a; svenska; -prov&quot; (Semikolon=ELLER, Plus=OCH, Minus=INTE)
             </p>
           </div>
 
@@ -762,17 +740,19 @@ export default function NewSchedulePlanner() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Lärare</Label>
+                  <Label>Lärare (valfritt)</Label>
                   <Input 
                     value={editingCourse.teacher} 
                     onChange={e => setEditingCourse({...editingCourse, teacher: e.target.value})} 
+                    placeholder="t.ex. A. Svensson"
                   />
                 </div>
                 <div className="space-y-2">
-                   <Label>Sal</Label>
+                   <Label>Sal (valfritt)</Label>
                    <Input 
                      value={editingCourse.room} 
                      onChange={e => setEditingCourse({...editingCourse, room: e.target.value})} 
+                     placeholder="t.ex. B123"
                    />
                 </div>
               </div>
@@ -908,7 +888,7 @@ export default function NewSchedulePlanner() {
           <div className="space-y-4">
              <p className="text-sm text-gray-500">
                Skapa regler för ämnen som inte får ligga samtidigt. Använd * som wildcard.
-               Ex: "Matte*" krockar med "Svenska*".
+               Ex: &quot;Matte*&quot; krockar med &quot;Svenska*&quot;.
              </p>
              
              <div className="flex gap-2 items-end bg-amber-50 p-3 rounded-lg border border-amber-200">
