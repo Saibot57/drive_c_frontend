@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,6 +12,8 @@
     "postinstall": "node scripts/copy-twemoji.cjs"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/modifiers": "^6.0.1",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-checkbox": "^1.1.4",
     "@radix-ui/react-context-menu": "^2.2.14",
@@ -26,8 +29,8 @@
     "clsx": "^2.1.1",
     "emoji-picker-react": "^4.13.3",
     "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.0",
-    "lucide-react": "^0.378.0",
+    "jspdf": "^2.5.2",
+    "lucide-react": "^0.424.0",
     "next": "14.2.3",
     "next-themes": "^0.3.0",
     "react": "^18",
@@ -36,7 +39,8 @@
     "react-resizable-panels": "^2.1.7",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
-    "twemoji": "14.0.2"
+    "twemoji": "14.0.2",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@faker-js/faker": "^8.4.1",
