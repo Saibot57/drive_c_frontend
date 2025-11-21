@@ -175,15 +175,15 @@ function ScheduledCard({
       style={style}
       {...listeners}
       {...attributes}
-      className={`planner-card relative group min-h-[60px] ${entry.color} ${isDragging ? 'opacity-30' : ''}`}
+      className={`planner-card relative group min-h-[60px] flex-1 min-w-0 w-full ${entry.color} ${isDragging ? 'opacity-30' : ''}`}
     >
-      <div className="space-y-0.5">
-        <h4 className="text-xs font-bold text-gray-900 leading-tight">{entry.title}</h4>
-        <p className="text-[10px] text-gray-700">
+      <div className="space-y-0.5 overflow-hidden">
+        <h4 className="text-xs font-bold text-gray-900 leading-tight truncate">{entry.title}</h4>
+        <p className="text-[10px] text-gray-700 truncate">
            {entry.teacher} {entry.room ? `• ${entry.room}` : ''}
         </p>
       </div>
-      
+
       <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           type="button"
@@ -215,7 +215,7 @@ function ScheduleCell({ day, slotId, children }: { day: string; slotId: string; 
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[80px] flex-col gap-1 rounded-lg border border-gray-300 bg-white p-1 transition-colors ${
+      className={`flex min-h-[80px] flex-row items-stretch gap-1 rounded-lg border border-gray-300 bg-white p-1 transition-colors ${
         isOver ? 'bg-blue-50 ring-2 ring-inset ring-blue-400' : ''
       }`}
     >
