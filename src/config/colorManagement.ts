@@ -29,20 +29,15 @@ interface HSLColor {
   
   // Helper function to find similar class names
   function findSimilarClasses(className: string, existingClasses: string[]): string[] {
-    // Remove whitespace and convert to lowercase for comparison
-    const normalizedName = className.toLowerCase().replace(/\s+/g, '');
+    // Ta fram "basnamnet" genom att ta allt innan första mellanslaget och göra det till små bokstäver
+    const getBaseName = (name: string) => name.trim().split(' ')[0].toLowerCase();
+    
+    const targetBase = getBaseName(className);
     
     return existingClasses.filter(existing => {
-      const normalizedExisting = existing.toLowerCase().replace(/\s+/g, '');
-      
-      // Check if they share the same base name (e.g., "Matte 1" in "Matte 1 A")
-      const baseNameMatch = normalizedName.slice(0, -1) === normalizedExisting.slice(0, -1);
-      
-      // Check if they only differ by last character (e.g., A vs B)
-      const diffByLastChar = normalizedName.slice(0, -1) === normalizedExisting.slice(0, -1) &&
-                            normalizedName !== normalizedExisting;
-      
-      return baseNameMatch || diffByLastChar;
+      const existingBase = getBaseName(existing);
+      // Returnera true om de delar samma första ord (t.ex. "Matte" i "Matte 1" och "Matte 2")
+      return targetBase === existingBase;
     });
   }
   
