@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -11,145 +11,99 @@ import {
   useDraggable,
   useSensor,
   useSensors,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  DragStartEvent,
 } from '@dnd-kit/core';
-import { restrictToParentElement } from '@dnd-kit/modifiers';
+import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
-  AlertTriangle,
   CalendarRange,
   Download,
-  Filter,
   Printer,
   RefreshCcw,
   Trash2,
+  Plus,
+  Clock,
+  Edit2,
+  Settings,
+  X,
+  Save
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
-const STORAGE_KEY = 'drive-c-schedule-planner';
+const STORAGE_KEY = 'drive-c-schedule-planner-v2';
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 
-const timeSlots = [
-  { id: '08:00', label: '08:00 - 09:00' },
-  { id: '09:00', label: '09:00 - 10:00' },
-  { id: '10:15', label: '10:15 - 11:15' },
-  { id: '11:30', label: '11:30 - 12:30' },
-  { id: '13:00', label: '13:00 - 14:00' },
-  { id: '14:15', label: '14:15 - 15:15' },
+const palette = [
+  'bg-white', 
+  'bg-amber-200', 
+  'bg-sky-200', 
+  'bg-lime-200', 
+  'bg-rose-200', 
+  'bg-indigo-200', 
+  'bg-emerald-200',
+  'bg-purple-200',
+  'bg-orange-200'
 ];
 
-const palette = ['bg-amber-200', 'bg-sky-200', 'bg-lime-200', 'bg-rose-200', 'bg-indigo-200', 'bg-emerald-200'];
+// --- Types ---
+
+interface TimeSlot {
+  id: string;
+  label: string; // T.ex "08:00 - 09:00"
+}
 
 interface PlannerCourse {
   id: string;
   title: string;
   teacher: string;
-  duration: number;
-  color: string;
-  category: string;
   room: string;
-  preferredDays?: string[];
+  color: string;
+  duration: number; // Enbart visuellt i detta fall
 }
 
-interface ScheduledEntry {
-  id: string;
-  courseId: string;
+interface ScheduledEntry extends PlannerCourse {
+  instanceId: string; // Unikt ID för instansen i rutnätet
   day: string;
   slotId: string;
-  title: string;
-  teacher: string;
-  color: string;
-  room: string;
-  duration: number;
-}
-
-interface RestrictionSettings {
-  lockPreferredDays: boolean;
-  avoidTeacherOverlap: boolean;
-  maxPerDay: number;
 }
 
 interface PersistedPlannerState {
   courses: PlannerCourse[];
   schedule: ScheduledEntry[];
-  restrictions: RestrictionSettings;
+  timeSlots: TimeSlot[];
 }
 
-const baseCourses: PlannerCourse[] = [
-  {
-    id: 'course-1',
-    title: 'Matematik A',
-    teacher: 'L. Holm',
-    duration: 60,
-    color: palette[0],
-    category: 'Natur',
-    room: 'A1',
-    preferredDays: ['Måndag', 'Onsdag'],
-  },
-  {
-    id: 'course-2',
-    title: 'Svenska',
-    teacher: 'E. Ström',
-    duration: 60,
-    color: palette[1],
-    category: 'Språk',
-    room: 'B2',
-    preferredDays: ['Tisdag', 'Torsdag'],
-  },
-  {
-    id: 'course-3',
-    title: 'Engelska',
-    teacher: 'M. Khan',
-    duration: 60,
-    color: palette[2],
-    category: 'Språk',
-    room: 'C3',
-    preferredDays: ['Måndag', 'Fredag'],
-  },
-  {
-    id: 'course-4',
-    title: 'Historia',
-    teacher: 'S. Öberg',
-    duration: 60,
-    color: palette[3],
-    category: 'Samhälle',
-    room: 'D4',
-    preferredDays: ['Onsdag'],
-  },
-  {
-    id: 'course-5',
-    title: 'Programmering',
-    teacher: 'J. Rivera',
-    duration: 90,
-    color: palette[4],
-    category: 'Teknik',
-    room: 'Lab 1',
-    preferredDays: ['Torsdag'],
-  },
-  {
-    id: 'course-6',
-    title: 'Fysik',
-    teacher: 'T. Nilsson',
-    duration: 60,
-    color: palette[5],
-    category: 'Natur',
-    room: 'A2',
-    preferredDays: ['Tisdag', 'Fredag'],
-  },
-];
+// --- Components ---
 
-function CourseCard({ course }: { course: PlannerCourse }) {
+function CourseCard({ course, onEdit, onDelete, isOverlay }: { 
+  course: PlannerCourse; 
+  onEdit?: (c: PlannerCourse) => void; 
+  onDelete?: (id: string) => void;
+  isOverlay?: boolean;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: course.id,
     data: { type: 'course', course },
+    disabled: isOverlay // Disable dragging logic inside the overlay itself
   });
 
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-      }
-    : undefined;
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined;
 
   return (
     <div
@@ -157,52 +111,42 @@ function CourseCard({ course }: { course: PlannerCourse }) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`planner-card ${course.color} ${
-        isDragging ? 'opacity-75 ring-2 ring-offset-2 ring-black' : ''
-      }`}
+      className={`planner-card relative group ${course.color} ${
+        isDragging ? 'opacity-50' : 'opacity-100'
+      } ${isOverlay ? 'cursor-grabbing shadow-xl scale-105 rotate-1' : 'cursor-grab'}`}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-gray-900">{course.title}</p>
-          <p className="text-xs text-gray-700">{course.teacher}</p>
-          <p className="text-[11px] text-gray-600">Rum {course.room}</p>
-          <p className="text-[11px] text-gray-600">{course.duration} min</p>
+      <div className="flex items-start justify-between pr-6">
+        <div className="space-y-0.5">
+          <p className="text-sm font-bold text-gray-900">{course.title || 'Nytt ämne'}</p>
+          {(course.teacher || course.room) && (
+            <p className="text-[10px] text-gray-700">
+              {course.teacher} {course.room ? `(${course.room})` : ''}
+            </p>
+          )}
         </div>
-        <span className="rounded-full bg-black/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-800">
-          {course.category}
-        </span>
       </div>
-      {course.preferredDays?.length ? (
-        <p className="mt-2 text-[11px] font-medium text-gray-800">
-          Prioriterade dagar: {course.preferredDays.join(', ')}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function ScheduleCell({
-  day,
-  slotId,
-  children,
-}: {
-  day: string;
-  slotId: string;
-  children: React.ReactNode;
-}) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: `${day}-${slotId}`,
-    data: { day, slotId },
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`flex min-h-[120px] flex-col gap-2 rounded-xl border-2 border-black bg-white p-2 transition-all ${
-        isOver ? 'shadow-[4px_4px_0px_rgba(0,0,0,1)]' : ''
-      }`}
-    >
-      {children}
+      
+      {/* Edit/Delete actions (only visible when not dragging/overlay) */}
+      {!isOverlay && onEdit && onDelete && (
+        <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()} // Prevent drag start
+            onClick={() => onEdit(course)}
+            className="p-1 bg-white/50 hover:bg-white rounded-full"
+          >
+            <Edit2 size={12} />
+          </button>
+          <button
+             type="button"
+             onPointerDown={(e) => e.stopPropagation()}
+             onClick={() => onDelete(course.id)}
+             className="p-1 bg-white/50 hover:bg-rose-200 rounded-full text-rose-700"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -210,19 +154,19 @@ function ScheduleCell({
 function ScheduledCard({
   entry,
   onRemove,
+  onEdit
 }: {
   entry: ScheduledEntry;
   onRemove: (id: string) => void;
+  onEdit: (entry: ScheduledEntry) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: entry.id,
+    id: entry.instanceId,
     data: { type: 'scheduled', entry },
   });
 
   const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-      }
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
 
   return (
@@ -231,433 +175,538 @@ function ScheduledCard({
       style={style}
       {...listeners}
       {...attributes}
-      className={`planner-card ${entry.color} ${isDragging ? 'opacity-80 ring-2 ring-offset-2 ring-black' : ''}`}
+      className={`planner-card relative group min-h-[60px] ${entry.color} ${isDragging ? 'opacity-30' : ''}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-1">
-          <h4 className="text-sm font-semibold text-gray-900">{entry.title}</h4>
-          <p className="text-xs text-gray-700">{entry.teacher}</p>
-          <p className="text-[11px] text-gray-700">Rum {entry.room}</p>
-          <p className="text-[11px] text-gray-700">{entry.duration} min</p>
-        </div>
+      <div className="space-y-0.5">
+        <h4 className="text-xs font-bold text-gray-900 leading-tight">{entry.title}</h4>
+        <p className="text-[10px] text-gray-700">
+           {entry.teacher} {entry.room ? `• ${entry.room}` : ''}
+        </p>
+      </div>
+      
+      <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           type="button"
-          onClick={() => onRemove(entry.id)}
-          className="rounded-full border-2 border-black bg-white p-1 text-gray-800 transition hover:-translate-y-0.5 hover:translate-x-0.5 hover:shadow-[2px_2px_0px_rgba(0,0,0,1)]"
-          aria-label="Ta bort lektion"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => onEdit(entry)}
+          className="p-1 bg-white/80 hover:bg-white rounded border border-black/10"
         >
-          <Trash2 className="h-4 w-4" />
+          <Edit2 size={10} />
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => onRemove(entry.instanceId)}
+          className="p-1 bg-white/80 hover:bg-rose-100 rounded border border-black/10 text-rose-600"
+        >
+          <Trash2 size={10} />
         </button>
       </div>
     </article>
   );
 }
 
-function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ className?: string }>; title: string }) {
+function ScheduleCell({ day, slotId, children }: { day: string; slotId: string; children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `${day}::${slotId}`,
+    data: { day, slotId },
+  });
+
   return (
-    <div className="mb-3 flex items-center gap-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-amber-100 text-black">
-        <Icon className="h-4 w-4" />
-      </div>
-      <h2 className="font-monument text-xl">{title}</h2>
+    <div
+      ref={setNodeRef}
+      className={`flex min-h-[80px] flex-col gap-1 rounded-lg border border-gray-300 bg-white p-1 transition-colors ${
+        isOver ? 'bg-blue-50 ring-2 ring-inset ring-blue-400' : ''
+      }`}
+    >
+      {children}
     </div>
   );
 }
 
-export default function NewSchedulePlanner() {
-  const [courses, setCourses] = useState<PlannerCourse[]>(baseCourses);
-  const [schedule, setSchedule] = useState<ScheduledEntry[]>([]);
-  const [restrictions, setRestrictions] = useState<RestrictionSettings>({
-    lockPreferredDays: true,
-    avoidTeacherOverlap: true,
-    maxPerDay: 4,
-  });
-  const [filter, setFilter] = useState('');
-  const [category, setCategory] = useState('Alla');
-  const [activeDay, setActiveDay] = useState<string | null>(null);
-  const [lastConflict, setLastConflict] = useState<string | null>(null);
+// --- Main Component ---
 
+export default function NewSchedulePlanner() {
+  // --- State ---
+  const [courses, setCourses] = useState<PlannerCourse[]>([]);
+  const [schedule, setSchedule] = useState<ScheduledEntry[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
+    { id: 'slot-1', label: '08:15 - 09:00' },
+    { id: 'slot-2', label: '09:15 - 10:00' },
+    { id: 'slot-3', label: '10:15 - 11:00' },
+    { id: 'slot-4', label: '12:00 - 13:00' },
+  ]);
+
+  // Dragging state
+  const [activeDragItem, setActiveDragItem] = useState<PlannerCourse | ScheduledEntry | null>(null);
+
+  // Modals
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<PlannerCourse | null>(null);
+  
+  const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
+  
+  const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<ScheduledEntry | null>(null);
+
+  // --- Sensors ---
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      // VIKTIGT: Detta gör att klick fungerar normalt, drag startar efter 8px rörelse
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor)
   );
 
+  // --- Load/Save ---
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as PersistedPlannerState;
-      setCourses(parsed.courses || baseCourses);
-      setSchedule(parsed.schedule || []);
-      setRestrictions(parsed.restrictions || restrictions);
-    } catch (error) {
-      console.error('Kunde inte läsa sparat schema', error);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as PersistedPlannerState;
+        setCourses(parsed.courses || []);
+        setSchedule(parsed.schedule || []);
+        setTimeSlots(parsed.timeSlots || []);
+      } catch (e) {
+        console.error("Failed to load schedule", e);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const payload: PersistedPlannerState = { courses, schedule, restrictions };
+    const payload: PersistedPlannerState = { courses, schedule, timeSlots };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [courses, schedule, restrictions]);
+  }, [courses, schedule, timeSlots]);
 
-  const filteredCourses = useMemo(() => {
-    return courses.filter((course) => {
-      const matchesQuery = course.title.toLowerCase().includes(filter.toLowerCase()) ||
-        course.teacher.toLowerCase().includes(filter.toLowerCase());
-      const matchesCategory = category === 'Alla' || course.category === category;
-      const matchesDay = !activeDay || course.preferredDays?.includes(activeDay);
-      return matchesQuery && matchesCategory && matchesDay;
-    });
-  }, [courses, filter, category, activeDay]);
+  // --- Handlers: Drag & Drop ---
 
-  const dayCounts = useMemo(() => {
-    return days.reduce<Record<string, number>>((acc, day) => {
-      acc[day] = schedule.filter((entry) => entry.day === day).length;
-      return acc;
-    }, {});
-  }, [schedule]);
-
-  const checkConflicts = (targetDay: string, slotId: string, course: PlannerCourse, movingId?: string) => {
-    const sameSlot = schedule.find(
-      (entry) => entry.day === targetDay && entry.slotId === slotId && entry.id !== movingId
-    );
-    if (sameSlot) return 'Tidsluckan är redan upptagen.';
-
-    if (restrictions.avoidTeacherOverlap) {
-      const teacherBusy = schedule.find(
-        (entry) =>
-          entry.day === targetDay &&
-          entry.slotId === slotId &&
-          entry.teacher === course.teacher &&
-          entry.id !== movingId
-      );
-      if (teacherBusy) return 'Läraren är redan bokad den tiden.';
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const type = active.data.current?.type;
+    
+    if (type === 'course') {
+      setActiveDragItem(active.data.current?.course);
+    } else if (type === 'scheduled') {
+      setActiveDragItem(active.data.current?.entry);
     }
-
-    if (restrictions.lockPreferredDays && course.preferredDays?.length) {
-      if (!course.preferredDays.includes(targetDay)) {
-        return 'Denna kursen har andra prioriterade dagar.';
-      }
-    }
-
-    const max = restrictions.maxPerDay;
-    if (max > 0) {
-      const total = schedule.filter((entry) => entry.day === targetDay && entry.id !== movingId).length;
-      if (total >= max) return 'Dagens gräns är nådd. Justera regler eller välj annan dag.';
-    }
-
-    return null;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveDragItem(null);
+
     if (!over) return;
 
-    const dropData = over.data.current as { day?: string; slotId?: string } | undefined;
-    if (!dropData?.day || !dropData?.slotId) return;
+    // Parse drop target ID (format: "Dag::SlotID")
+    const [dropDay, dropSlotId] = (over.id as string).split('::');
+    if (!dropDay || !dropSlotId) return;
 
-    const type = active.data.current?.type as 'course' | 'scheduled' | undefined;
-    if (!type) return;
+    const type = active.data.current?.type;
 
+    // Case 1: Dragging a source course onto the grid
     if (type === 'course') {
       const course = active.data.current?.course as PlannerCourse;
-      const conflict = checkConflicts(dropData.day, dropData.slotId, course);
-      if (conflict) {
-        setLastConflict(conflict);
-        return;
-      }
-
-      const entry: ScheduledEntry = {
-        id: uuidv4(),
-        courseId: course.id,
-        day: dropData.day,
-        slotId: dropData.slotId,
-        title: course.title,
-        teacher: course.teacher,
-        color: course.color,
-        room: course.room,
-        duration: course.duration,
+      const newEntry: ScheduledEntry = {
+        ...course,
+        instanceId: uuidv4(),
+        day: dropDay,
+        slotId: dropSlotId,
       };
-      setSchedule((prev) => [...prev, entry]);
-      setLastConflict(null);
-      return;
+      setSchedule(prev => [...prev, newEntry]);
+    } 
+    // Case 2: Moving an existing scheduled item
+    else if (type === 'scheduled') {
+      const entry = active.data.current?.entry as ScheduledEntry;
+      setSchedule(prev => prev.map(e => 
+        e.instanceId === entry.instanceId 
+          ? { ...e, day: dropDay, slotId: dropSlotId }
+          : e
+      ));
     }
+  };
 
-    const existing = active.data.current?.entry as ScheduledEntry | undefined;
-    if (!existing) return;
-    const course = courses.find((c) => c.id === existing.courseId) || {
-      ...existing,
-      preferredDays: [],
-      category: 'Annat',
-      room: existing.room,
-    };
+  // --- Handlers: Course Management ---
 
-    const conflict = checkConflicts(dropData.day, dropData.slotId, course as PlannerCourse, existing.id);
-    if (conflict) {
-      setLastConflict(conflict);
-      return;
+  const handleSaveCourse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCourse) return;
+
+    if (courses.find(c => c.id === editingCourse.id)) {
+      // Update existing
+      setCourses(prev => prev.map(c => c.id === editingCourse.id ? editingCourse : c));
+    } else {
+      // Create new
+      setCourses(prev => [...prev, editingCourse]);
     }
-
-    setSchedule((prev) =>
-      prev.map((entry) =>
-        entry.id === existing.id
-          ? { ...entry, day: dropData.day!, slotId: dropData.slotId! }
-          : entry
-      )
-    );
-    setLastConflict(null);
+    setIsCourseModalOpen(false);
+    setEditingCourse(null);
   };
 
-  const removeEntry = (id: string) => {
-    setSchedule((prev) => prev.filter((entry) => entry.id !== id));
+  const handleDeleteCourse = (id: string) => {
+    if(confirm("Ta bort denna byggsten?")) {
+      setCourses(prev => prev.filter(c => c.id !== id));
+    }
   };
 
-  const clearSchedule = () => {
-    setSchedule([]);
-    setLastConflict(null);
+  const openNewCourseModal = () => {
+    setEditingCourse({
+      id: uuidv4(),
+      title: '',
+      teacher: '',
+      room: '',
+      color: palette[1],
+      duration: 60
+    });
+    setIsCourseModalOpen(true);
   };
 
-  const resetPlanner = () => {
-    setCourses(baseCourses);
-    setSchedule([]);
-    setRestrictions({ lockPreferredDays: true, avoidTeacherOverlap: true, maxPerDay: 4 });
-    setLastConflict(null);
+  // --- Handlers: Schedule Entry Management ---
+  
+  const handleSaveEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+    
+    setSchedule(prev => prev.map(entry => 
+      entry.instanceId === editingEntry.instanceId ? editingEntry : entry
+    ));
+    setIsEntryModalOpen(false);
+    setEditingEntry(null);
   };
 
+  const handleRemoveEntry = (instanceId: string) => {
+    setSchedule(prev => prev.filter(e => e.instanceId !== instanceId));
+  };
+
+  // --- Handlers: Time Slots ---
+
+  const addTimeSlot = () => {
+    const newSlot: TimeSlot = { id: uuidv4(), label: 'Ny tid' };
+    setTimeSlots(prev => [...prev, newSlot]);
+  };
+
+  const updateTimeSlot = (id: string, label: string) => {
+    setTimeSlots(prev => prev.map(slot => slot.id === id ? { ...slot, label } : slot));
+  };
+
+  const removeTimeSlot = (id: string) => {
+    setTimeSlots(prev => prev.filter(slot => slot.id !== id));
+    // Clean up scheduled items in that slot
+    setSchedule(prev => prev.filter(entry => entry.slotId !== id));
+  };
+
+  // --- Export ---
+  
   const exportPDF = async () => {
-    const node = document.getElementById('planner-canvas');
-    if (!node) return;
+    const element = document.getElementById('planner-grid');
+    if (!element) return;
+    
+    try {
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('landscape', 'pt', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgProps = pdf.getImageProperties(imgData);
+      const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+      
+      const width = imgProps.width * ratio;
+      const height = imgProps.height * ratio;
+      const x = (pdfWidth - width) / 2;
+      const y = 20;
 
-    const canvas = await html2canvas(node, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('landscape', 'pt', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-    const imgWidth = canvas.width * ratio;
-    const imgHeight = canvas.height * ratio;
-
-    pdf.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, 20, imgWidth, imgHeight);
-    pdf.save('schema.pdf');
+      pdf.text("Schema", 40, 30);
+      pdf.addImage(imgData, 'PNG', x, 50, width, height);
+      pdf.save('schema.pdf');
+    } catch (err) {
+      console.error("Export failed", err);
+    }
   };
-
-  const printPlanner = async () => {
-    const node = document.getElementById('planner-canvas');
-    if (!node) return;
-    const canvas = await html2canvas(node, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const printWindow = window.open('', 'PRINT', 'width=1024,height=768');
-    if (!printWindow) return;
-    printWindow.document.write(`<img src="${imgData}" style="width:100%" />`);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-  };
-
-  const categories = useMemo(() => ['Alla', ...Array.from(new Set(courses.map((c) => c.category)))], [courses]);
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border-2 border-black bg-white p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <DndContext 
+      sensors={sensors} 
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      modifiers={[restrictToWindowEdges]}
+    >
+      <div className="space-y-6 pb-20">
+        
+        {/* Toolbar */}
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-wrap gap-4 items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wide text-gray-600">Planeringsvy</p>
-            <h1 className="font-monument text-3xl">Schemaplanerare</h1>
-            <p className="text-sm text-gray-700">Dra kurser till rutnätet och säkra att regler och konflikter hanteras automatiskt.</p>
+            <h1 className="font-monument text-2xl">Schemaplanerare</h1>
+            <p className="text-sm text-gray-600">Skapa byggstenar, definiera tider och dra in i schemat.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={exportPDF}
-              className="planner-btn"
-            >
-              <Download className="h-4 w-4" />
-              Exportera PDF
-            </button>
-            <button
-              type="button"
-              onClick={printPlanner}
-              className="planner-btn"
-            >
-              <Printer className="h-4 w-4" />
-              Skriv ut
-            </button>
-            <button
-              type="button"
-              onClick={clearSchedule}
-              className="planner-btn bg-rose-200 hover:bg-rose-300"
-            >
-              <Trash2 className="h-4 w-4" />
-              Rensa schema
-            </button>
-            <button
-              type="button"
-              onClick={resetPlanner}
-              className="planner-btn bg-sky-200 hover:bg-sky-300"
-            >
-              <RefreshCcw className="h-4 w-4" />
-              Återställ
-            </button>
+          <div className="flex gap-2">
+             <Button variant="neutral" onClick={() => setIsTimeModalOpen(true)} className="border-2 border-black">
+                <Clock size={16} className="mr-2"/> Tider
+             </Button>
+             <Button variant="neutral" onClick={exportPDF} className="border-2 border-black">
+                <Download size={16} className="mr-2"/> PDF
+             </Button>
+             <Button 
+               variant="neutral" 
+               onClick={() => {
+                 if(confirm("Är du säker på att du vill rensa hela schemat?")) {
+                   setSchedule([]);
+                 }
+               }} 
+               className="border-2 border-black bg-rose-100 hover:bg-rose-200 text-rose-800"
+             >
+                <RefreshCcw size={16} className="mr-2"/> Rensa
+             </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          
+          {/* Sidebar: Courses / Building Blocks */}
+          <div className="lg:col-span-1 space-y-4">
+            <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] h-full">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-lg flex items-center gap-2">
+                  <Settings size={18}/> Byggstenar
+                </h2>
+                <Button size="sm" onClick={openNewCourseModal} className="h-8 w-8 p-0 rounded-full border-2 border-black bg-[#aee8fe]">
+                  <Plus size={18} />
+                </Button>
+              </div>
+              
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                {courses.length === 0 && (
+                  <p className="text-sm text-gray-500 italic text-center py-4">
+                    Inga ämnen skapade än. Tryck på + för att börja.
+                  </p>
+                )}
+                {courses.map(course => (
+                  <CourseCard 
+                    key={course.id} 
+                    course={course} 
+                    onEdit={(c) => { setEditingCourse(c); setIsCourseModalOpen(true); }}
+                    onDelete={handleDeleteCourse}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Main: Schedule Grid */}
+          <div className="lg:col-span-3">
+            <div id="planner-grid" className="rounded-xl border-2 border-black bg-gray-50 p-4 overflow-x-auto shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+              <div className="min-w-[700px]">
+                {/* Header Row */}
+                <div className="grid grid-cols-[100px_repeat(5,1fr)] gap-2 mb-2">
+                   <div className="flex items-center justify-center font-bold text-gray-400 text-xs uppercase">Tid</div>
+                   {days.map(day => (
+                     <div key={day} className="bg-white border-2 border-black p-2 text-center font-bold text-sm rounded-lg shadow-sm">
+                       {day}
+                     </div>
+                   ))}
+                </div>
+
+                {/* Time Slots Rows */}
+                <div className="space-y-2">
+                  {timeSlots.map(slot => (
+                    <div key={slot.id} className="grid grid-cols-[100px_repeat(5,1fr)] gap-2 min-h-[80px]">
+                      {/* Time Label */}
+                      <div className="flex items-center justify-center text-center text-xs font-semibold bg-white border border-gray-300 rounded p-2">
+                        {slot.label}
+                      </div>
+                      
+                      {/* Drop Zones */}
+                      {days.map(day => (
+                        <ScheduleCell key={`${day}::${slot.id}`} day={day} slotId={slot.id}>
+                          {schedule
+                            .filter(e => e.day === day && e.slotId === slot.id)
+                            .map(entry => (
+                              <ScheduledCard 
+                                key={entry.instanceId} 
+                                entry={entry} 
+                                onRemove={handleRemoveEntry}
+                                onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
+                              />
+                            ))}
+                        </ScheduleCell>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-2xl border-2 border-black bg-white p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)]">
-            <SectionHeader icon={CalendarRange} title="Schema" />
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              modifiers={[restrictToParentElement]}
-              onDragEnd={handleDragEnd}
-            >
-              <div id="planner-canvas" className="overflow-x-auto">
-                <div className="min-w-[760px] rounded-xl border-2 border-black bg-gray-50 p-3">
-                  <div className="grid grid-cols-6 gap-3">
-                    <div />
-                    {days.map((day) => (
-                      <div key={day} className="rounded-lg border-2 border-black bg-amber-100 py-2 text-center font-semibold text-gray-900">
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 space-y-3">
-                    {timeSlots.map((slot) => (
-                      <div key={slot.id} className="grid grid-cols-6 gap-3">
-                        <div className="flex items-center justify-between rounded-lg border-2 border-black bg-white px-3 py-2 font-semibold text-gray-800">
-                          <span>{slot.label}</span>
-                        </div>
-                        {days.map((day) => (
-                          <ScheduleCell key={`${day}-${slot.id}`} day={day} slotId={slot.id}>
-                            {schedule
-                              .filter((entry) => entry.day === day && entry.slotId === slot.id)
-                              .map((entry) => (
-                                <ScheduledCard key={entry.id} entry={entry} onRemove={removeEntry} />
-                              ))}
-                          </ScheduleCell>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
+      {/* Drag Overlay */}
+      <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }) }}>
+        {activeDragItem ? (
+          'title' in activeDragItem && 'instanceId' in activeDragItem ? (
+            // Dragging a scheduled entry
+            <div className={`planner-card ${activeDragItem.color} w-[140px] opacity-90 shadow-xl`}>
+               <p className="text-sm font-bold">{activeDragItem.title}</p>
+            </div>
+          ) : (
+            // Dragging a source course
+            <CourseCard course={activeDragItem as PlannerCourse} isOverlay />
+          )
+        ) : null}
+      </DragOverlay>
+
+      {/* --- MODALS --- */}
+
+      {/* 1. Course Edit/Create Modal */}
+      <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{courses.some(c => c.id === editingCourse?.id) ? 'Redigera Byggsten' : 'Ny Byggsten'}</DialogTitle>
+          </DialogHeader>
+          {editingCourse && (
+            <form onSubmit={handleSaveCourse} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Ämne / Titel</Label>
+                <Input 
+                  value={editingCourse.title} 
+                  onChange={e => setEditingCourse({...editingCourse, title: e.target.value})} 
+                  placeholder="t.ex. Matematik"
+                  autoFocus
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Lärare (valfritt)</Label>
+                  <Input 
+                    value={editingCourse.teacher} 
+                    onChange={e => setEditingCourse({...editingCourse, teacher: e.target.value})} 
+                    placeholder="t.ex. A. Svensson"
+                  />
+                </div>
+                <div className="space-y-2">
+                   <Label>Sal (valfritt)</Label>
+                   <Input 
+                     value={editingCourse.room} 
+                     onChange={e => setEditingCourse({...editingCourse, room: e.target.value})} 
+                     placeholder="t.ex. B123"
+                   />
                 </div>
               </div>
-            </DndContext>
-          </div>
-        </div>
+              <div className="space-y-2">
+                <Label>Färg</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {palette.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`w-8 h-8 rounded-full border-2 ${c} ${editingCourse.color === c ? 'border-black scale-110' : 'border-transparent hover:scale-105'}`}
+                      onClick={() => setEditingCourse({...editingCourse, color: c})}
+                    />
+                  ))}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="neutral" onClick={() => setIsCourseModalOpen(false)}>Avbryt</Button>
+                <Button type="submit" className="bg-green-200 hover:bg-green-300 text-black border-2 border-black">Spara</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border-2 border-black bg-white p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)]">
-            <SectionHeader icon={Filter} title="Filtrera" />
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Sök kurs eller lärare"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="w-full rounded-xl border-2 border-black px-3 py-2 text-sm shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:outline-none"
-              />
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-xl border-2 border-black px-3 py-2 text-sm shadow-[2px_2px_0px_rgba(0,0,0,1)] focus:outline-none"
-              >
-                {categories.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveDay(null)}
-                  className={`planner-chip ${activeDay === null ? 'bg-black text-white' : ''}`}
+      {/* 2. Schedule Entry Edit Modal (Individual instances) */}
+      <Dialog open={isEntryModalOpen} onOpenChange={setIsEntryModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Redigera Lektion</DialogTitle>
+          </DialogHeader>
+          {editingEntry && (
+            <form onSubmit={handleSaveEntry} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Titel</Label>
+                <Input 
+                  value={editingEntry.title} 
+                  onChange={e => setEditingEntry({...editingEntry, title: e.target.value})} 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Lärare</Label>
+                  <Input 
+                    value={editingEntry.teacher} 
+                    onChange={e => setEditingEntry({...editingEntry, teacher: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-2">
+                   <Label>Sal</Label>
+                   <Input 
+                     value={editingEntry.room} 
+                     onChange={e => setEditingEntry({...editingEntry, room: e.target.value})} 
+                   />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Färg</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {palette.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`w-8 h-8 rounded-full border-2 ${c} ${editingEntry.color === c ? 'border-black scale-110' : 'border-transparent hover:scale-105'}`}
+                      onClick={() => setEditingEntry({...editingEntry, color: c})}
+                    />
+                  ))}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="neutral" onClick={() => setIsEntryModalOpen(false)}>Avbryt</Button>
+                <Button type="submit" className="bg-green-200 border-2 border-black text-black">Uppdatera</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 3. Time Slots Management Modal */}
+      <Dialog open={isTimeModalOpen} onOpenChange={setIsTimeModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Hantera Tider</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {timeSlots.map((slot, index) => (
+              <div key={slot.id} className="flex gap-2 items-center">
+                <span className="text-xs font-bold text-gray-400 w-6">#{index + 1}</span>
+                <Input 
+                  value={slot.label} 
+                  onChange={(e) => updateTimeSlot(slot.id, e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  variant="neutral" 
+                  size="icon"
+                  onClick={() => removeTimeSlot(slot.id)}
+                  className="h-10 w-10 text-rose-500 hover:bg-rose-50"
                 >
-                  Alla dagar
-                </button>
-                {days.map((day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => setActiveDay(day)}
-                    className={`planner-chip ${activeDay === day ? 'bg-black text-white' : ''}`}
-                  >
-                    {day}
-                  </button>
-                ))}
+                  <Trash2 size={16}/>
+                </Button>
               </div>
-            </div>
+            ))}
+            <Button 
+              onClick={addTimeSlot} 
+              className="w-full border-dashed border-2 border-gray-300 bg-transparent text-gray-500 hover:bg-gray-50"
+            >
+              <Plus size={16} className="mr-2"/> Lägg till ny tid
+            </Button>
           </div>
+          <DialogFooter>
+            <Button onClick={() => setIsTimeModalOpen(false)}>Klar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <div className="rounded-2xl border-2 border-black bg-white p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)]">
-            <SectionHeader icon={AlertTriangle} title="Regler & Konflikter" />
-            <div className="space-y-3 text-sm text-gray-800">
-              <label className="flex items-center justify-between gap-3 rounded-xl border-2 border-black bg-amber-50 px-3 py-2">
-                <span>Respektera prioriterade dagar</span>
-                <input
-                  type="checkbox"
-                  checked={restrictions.lockPreferredDays}
-                  onChange={(e) => setRestrictions((prev) => ({ ...prev, lockPreferredDays: e.target.checked }))}
-                  className="h-4 w-4 rounded border-black"
-                />
-              </label>
-              <label className="flex items-center justify-between gap-3 rounded-xl border-2 border-black bg-amber-50 px-3 py-2">
-                <span>Blockera lärarkrockar</span>
-                <input
-                  type="checkbox"
-                  checked={restrictions.avoidTeacherOverlap}
-                  onChange={(e) => setRestrictions((prev) => ({ ...prev, avoidTeacherOverlap: e.target.checked }))}
-                  className="h-4 w-4 rounded border-black"
-                />
-              </label>
-              <label className="flex items-center justify-between gap-3 rounded-xl border-2 border-black bg-amber-50 px-3 py-2">
-                <span>Max per dag</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={restrictions.maxPerDay}
-                  onChange={(e) =>
-                    setRestrictions((prev) => ({ ...prev, maxPerDay: Number(e.target.value) }))
-                  }
-                  className="w-16 rounded-lg border-2 border-black px-2 py-1 text-sm"
-                />
-              </label>
-              {lastConflict ? (
-                <div className="rounded-xl border-2 border-black bg-rose-100 px-3 py-2 text-sm font-semibold text-rose-900">
-                  {lastConflict}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-600">Dra kort för att schemalägga. Konfilkter visas här.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border-2 border-black bg-white p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)]">
-            <SectionHeader icon={Download} title="Tillgängliga kurser" />
-            <div className="space-y-3">
-              {filteredCourses.length === 0 ? (
-                <p className="text-sm text-gray-700">Inga kurser matchar filtret.</p>
-              ) : (
-                filteredCourses.map((course) => <CourseCard key={course.id} course={course} />)
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border-2 border-black bg-white p-4 shadow-[6px_6px_0px_rgba(0,0,0,1)]">
-            <SectionHeader icon={CalendarRange} title="Översikt" />
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {days.map((day) => (
-                <div key={day} className="rounded-xl border-2 border-black bg-amber-50 px-3 py-2">
-                  <p className="font-semibold text-gray-800">{day}</p>
-                  <p className="text-xs text-gray-700">{dayCounts[day] || 0} bokningar</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </DndContext>
   );
 }
