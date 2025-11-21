@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -28,6 +28,7 @@ import {
   Settings,
   ShieldAlert,
   BarChart3,
+  Upload,
   X
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -323,6 +324,8 @@ export default function NewSchedulePlanner() {
   ]);
   const [restrictions, setRestrictions] = useState<RestrictionRule[]>([]);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Filter State
   const [filterQuery, setFilterQuery] = useState("");
 
@@ -522,6 +525,65 @@ export default function NewSchedulePlanner() {
     setRestrictions(prev => prev.filter(r => r.id !== id));
   };
 
+  // Hantera export till JSON
+  const handleExportJSON = () => {
+    const dataToSave = {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      courses,
+      schedule,
+      timeSlots,
+      restrictions
+    };
+
+    const jsonString = JSON.stringify(dataToSave, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `schema-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Hantera import från JSON
+  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const parsed = JSON.parse(text);
+
+        if (parsed.courses && parsed.schedule && parsed.timeSlots) {
+          if (confirm('Detta kommer att ersätta ditt nuvarande schema. Vill du fortsätta?')) {
+            setCourses(parsed.courses);
+            setSchedule(parsed.schedule);
+            setTimeSlots(parsed.timeSlots);
+            if (parsed.restrictions) {
+              setRestrictions(parsed.restrictions);
+            }
+
+            const colorMap = parsed.courses.map((c: any) => ({ className: c.title, color: c.color }));
+            importColors(colorMap);
+          }
+        } else {
+          alert('Ogiltig filstruktur. Filen saknar nödvändig schemadata.');
+        }
+      } catch (error) {
+        console.error('Import failed:', error);
+        alert('Kunde inte läsa filen. Är det en giltig JSON-fil?');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
   const exportPDF = async () => {
     const element = document.getElementById('planner-grid');
     if (!element) return;
@@ -590,9 +652,34 @@ export default function NewSchedulePlanner() {
              <Button variant="neutral" onClick={exportPDF} className="border-2 border-black">
                 <Download size={16} className="mr-2"/> PDF
              </Button>
+             <input
+               type="file"
+               accept=".json"
+               ref={fileInputRef}
+               style={{ display: 'none' }}
+               onChange={handleImportJSON}
+             />
+
              <Button 
                variant="neutral" 
-               onClick={() => { if(confirm("Rensa hela schemat?")) setSchedule([]); }} 
+               onClick={handleExportJSON} 
+               className="border-2 border-black bg-blue-100 hover:bg-blue-200"
+               title="Spara backup till fil"
+             >
+               <Download size={16} className="mr-2"/> Spara
+             </Button>
+
+             <Button 
+               variant="neutral" 
+               onClick={() => fileInputRef.current?.click()} 
+               className="border-2 border-black bg-blue-100 hover:bg-blue-200"
+               title="Läs in backup från fil"
+             >
+               <Upload size={16} className="mr-2"/> Ladda
+             </Button>
+             <Button
+               variant="neutral"
+               onClick={() => { if(confirm("Rensa hela schemat?")) setSchedule([]); }}
                className="border-2 border-black bg-rose-100 hover:bg-rose-200 text-rose-800"
              >
                 <RefreshCcw size={16} className="mr-2"/> Rensa
