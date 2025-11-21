@@ -130,8 +130,41 @@ interface HSLColor {
       if (similarClassColor) {
         // Derive a related but distinct color
         const hsl = hexToHSL(similarClassColor);
-        // Shift the hue by a golden angle multiple
-        hsl.h = (hsl.h + 30 * (similarClasses.length + 1)) % 360;
+
+        const variantIndex = similarClasses.length;
+        // 0 for the first similar class, 1 for the next, etc.
+        // The original/base subject is conceptually index -1.
+
+        // Detect whether HSL is stored in [0, 1] or [0, 100].
+        const isPercentScale = hsl.l > 1 || hsl.s > 1;
+        const scale = isPercentScale ? 100 : 1;
+
+        // Normalize to 0–1 range for calculations
+        let l = hsl.l / scale;
+        let s = hsl.s / scale;
+
+        // How much to vary per "pair" step
+        const lightStep = 0.08; // 8% lighter/darker per level
+        const satStep   = 0.06; // 6% more/less saturated per level
+
+        // Alternate directions: lighter / darker / lighter / darker / ...
+        const direction = variantIndex % 2 === 0 ? 1 : -1;
+        const magnitude = Math.floor(variantIndex / 2) + 1;
+
+        const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
+        l = clamp01(l + direction * lightStep * magnitude);
+        s = clamp01(s + direction * satStep * magnitude);
+
+        // Apply back to original scale
+        hsl.l = l * scale;
+        hsl.s = s * scale;
+
+        // Small hue variation within the same family
+        const smallHueStep = 5; // degrees
+        const hueOffset = direction * smallHueStep * magnitude;
+        hsl.h = (hsl.h + hueOffset + 360) % 360;
+
         baseColor = HSLToHex(hsl);
       } else {
         // If we can't find a similar class's color, use one of our primary colors
