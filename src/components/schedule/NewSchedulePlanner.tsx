@@ -19,17 +19,13 @@ import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
-  CalendarRange,
   Download,
-  Printer,
   RefreshCcw,
   Trash2,
   Plus,
   Clock,
   Edit2,
   Settings,
-  X,
-  Save
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -42,28 +38,30 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { generateBoxColor, importColors } from '@/config/colorManagement';
 
-const STORAGE_KEY = 'drive-c-schedule-planner-v2';
+const STORAGE_KEY = 'drive-c-schedule-planner-v3';
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 
+// Uppdaterad palett med hex-koder (Dova men inte bleka)
 const palette = [
-  'bg-white', 
-  'bg-amber-200', 
-  'bg-sky-200', 
-  'bg-lime-200', 
-  'bg-rose-200', 
-  'bg-indigo-200', 
-  'bg-emerald-200',
-  'bg-purple-200',
-  'bg-orange-200'
+  '#ffffff', // Vit
+  '#fde68a', // Amber 200
+  '#bae6fd', // Sky 200
+  '#d9f99d', // Lime 200
+  '#fecdd3', // Rose 200
+  '#c7d2fe', // Indigo 200
+  '#a7f3d0', // Emerald 200
+  '#ddd6fe', // Violet 200
+  '#fed7aa'  // Orange 200
 ];
 
 // --- Types ---
 
 interface TimeSlot {
   id: string;
-  label: string; // T.ex "08:00 - 09:00"
+  label: string;
 }
 
 interface PlannerCourse {
@@ -72,11 +70,12 @@ interface PlannerCourse {
   teacher: string;
   room: string;
   color: string;
-  duration: number; // Enbart visuellt i detta fall
+  duration: number;
+  category?: string; // Lade till denna rad för att fixa felet
 }
 
 interface ScheduledEntry extends PlannerCourse {
-  instanceId: string; // Unikt ID för instansen i rutnätet
+  instanceId: string;
   day: string;
   slotId: string;
 }
@@ -86,6 +85,45 @@ interface PersistedPlannerState {
   schedule: ScheduledEntry[];
   timeSlots: TimeSlot[];
 }
+
+const baseCourses: PlannerCourse[] = [
+  {
+    id: 'course-1',
+    title: 'Matematik A',
+    teacher: 'L. Holm',
+    duration: 60,
+    color: '#fde68a', // Amber
+    category: 'Natur',
+    room: 'A1'
+  },
+  {
+    id: 'course-2',
+    title: 'Svenska',
+    teacher: 'E. Ström',
+    duration: 60,
+    color: '#bae6fd', // Sky
+    category: 'Språk',
+    room: 'B2'
+  },
+  {
+    id: 'course-3',
+    title: 'Engelska',
+    teacher: 'M. Khan',
+    duration: 60,
+    color: '#d9f99d', // Lime
+    category: 'Språk',
+    room: 'C3'
+  },
+  {
+    id: 'course-5',
+    title: 'Programmering',
+    teacher: 'J. Rivera',
+    duration: 90,
+    color: '#c7d2fe', // Indigo
+    category: 'Teknik',
+    room: 'Lab 1'
+  }
+];
 
 // --- Components ---
 
@@ -98,12 +136,15 @@ function CourseCard({ course, onEdit, onDelete, isOverlay }: {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: course.id,
     data: { type: 'course', course },
-    disabled: isOverlay // Disable dragging logic inside the overlay itself
+    disabled: isOverlay 
   });
 
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-  } : undefined;
+    backgroundColor: course.color
+  } : {
+    backgroundColor: course.color
+  };
 
   return (
     <div
@@ -111,7 +152,7 @@ function CourseCard({ course, onEdit, onDelete, isOverlay }: {
       style={style}
       {...listeners}
       {...attributes}
-      className={`planner-card relative group ${course.color} ${
+      className={`planner-card relative group ${
         isDragging ? 'opacity-50' : 'opacity-100'
       } ${isOverlay ? 'cursor-grabbing shadow-xl scale-105 rotate-1' : 'cursor-grab'}`}
     >
@@ -126,12 +167,11 @@ function CourseCard({ course, onEdit, onDelete, isOverlay }: {
         </div>
       </div>
       
-      {/* Edit/Delete actions (only visible when not dragging/overlay) */}
       {!isOverlay && onEdit && onDelete && (
         <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             type="button"
-            onPointerDown={(e) => e.stopPropagation()} // Prevent drag start
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={() => onEdit(course)}
             className="p-1 bg-white/50 hover:bg-white rounded-full"
           >
@@ -166,8 +206,11 @@ function ScheduledCard({
   });
 
   const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined;
+    ? { 
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        backgroundColor: entry.color 
+      }
+    : { backgroundColor: entry.color };
 
   return (
     <article
@@ -175,16 +218,16 @@ function ScheduledCard({
       style={style}
       {...listeners}
       {...attributes}
-      className={`planner-card relative group min-h-[60px] ${entry.color} ${isDragging ? 'opacity-30' : ''}`}
+      className={`planner-card relative group min-h-[60px] flex-1 min-w-0 w-full ${isDragging ? 'opacity-30' : ''}`}
     >
-      <div className="space-y-0.5">
-        <h4 className="text-xs font-bold text-gray-900 leading-tight">{entry.title}</h4>
-        <p className="text-[10px] text-gray-700">
+      <div className="space-y-0.5 overflow-hidden">
+        <h4 className="text-xs font-bold text-gray-900 leading-tight truncate">{entry.title}</h4>
+        <p className="text-[10px] text-gray-700 truncate">
            {entry.teacher} {entry.room ? `• ${entry.room}` : ''}
         </p>
       </div>
       
-      <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50 rounded p-0.5 backdrop-blur-sm z-10">
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
@@ -215,7 +258,7 @@ function ScheduleCell({ day, slotId, children }: { day: string; slotId: string; 
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[80px] flex-col gap-1 rounded-lg border border-gray-300 bg-white p-1 transition-colors ${
+      className={`flex min-h-[80px] flex-row items-stretch gap-1 rounded-lg border border-gray-300 bg-white p-1 transition-colors ${
         isOver ? 'bg-blue-50 ring-2 ring-inset ring-blue-400' : ''
       }`}
     >
@@ -237,12 +280,12 @@ export default function NewSchedulePlanner() {
     { id: 'slot-4', label: '12:00 - 13:00' },
   ]);
 
-  // Dragging state
   const [activeDragItem, setActiveDragItem] = useState<PlannerCourse | ScheduledEntry | null>(null);
 
   // Modals
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<PlannerCourse | null>(null);
+  const [manualColor, setManualColor] = useState(false);
   
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
   
@@ -252,7 +295,6 @@ export default function NewSchedulePlanner() {
   // --- Sensors ---
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      // VIKTIGT: Detta gör att klick fungerar normalt, drag startar efter 8px rörelse
       activationConstraint: {
         distance: 8,
       },
@@ -266,12 +308,14 @@ export default function NewSchedulePlanner() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as PersistedPlannerState;
-        setCourses(parsed.courses || []);
+        setCourses(parsed.courses || baseCourses);
         setSchedule(parsed.schedule || []);
         setTimeSlots(parsed.timeSlots || []);
       } catch (e) {
         console.error("Failed to load schedule", e);
       }
+    } else {
+      setCourses(baseCourses);
     }
   }, []);
 
@@ -280,7 +324,13 @@ export default function NewSchedulePlanner() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [courses, schedule, timeSlots]);
 
-  // --- Handlers: Drag & Drop ---
+  // Initiera färgsystemet med befintliga kurser för att hitta likheter
+  useEffect(() => {
+    const colorMap = courses.map(c => ({ className: c.title, color: c.color }));
+    importColors(colorMap);
+  }, [courses]);
+
+  // --- Handlers ---
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -299,13 +349,11 @@ export default function NewSchedulePlanner() {
 
     if (!over) return;
 
-    // Parse drop target ID (format: "Dag::SlotID")
     const [dropDay, dropSlotId] = (over.id as string).split('::');
     if (!dropDay || !dropSlotId) return;
 
     const type = active.data.current?.type;
 
-    // Case 1: Dragging a source course onto the grid
     if (type === 'course') {
       const course = active.data.current?.course as PlannerCourse;
       const newEntry: ScheduledEntry = {
@@ -316,7 +364,6 @@ export default function NewSchedulePlanner() {
       };
       setSchedule(prev => [...prev, newEntry]);
     } 
-    // Case 2: Moving an existing scheduled item
     else if (type === 'scheduled') {
       const entry = active.data.current?.entry as ScheduledEntry;
       setSchedule(prev => prev.map(e => 
@@ -327,17 +374,13 @@ export default function NewSchedulePlanner() {
     }
   };
 
-  // --- Handlers: Course Management ---
-
   const handleSaveCourse = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCourse) return;
 
     if (courses.find(c => c.id === editingCourse.id)) {
-      // Update existing
       setCourses(prev => prev.map(c => c.id === editingCourse.id ? editingCourse : c));
     } else {
-      // Create new
       setCourses(prev => [...prev, editingCourse]);
     }
     setIsCourseModalOpen(false);
@@ -351,14 +394,21 @@ export default function NewSchedulePlanner() {
   };
 
   const openNewCourseModal = () => {
+    setManualColor(false);
     setEditingCourse({
       id: uuidv4(),
       title: '',
       teacher: '',
       room: '',
-      color: palette[1],
+      color: '#ffffff',
       duration: 60
     });
+    setIsCourseModalOpen(true);
+  };
+
+  const openEditCourseModal = (course: PlannerCourse) => {
+    setManualColor(true);
+    setEditingCourse(course);
     setIsCourseModalOpen(true);
   };
 
@@ -379,7 +429,7 @@ export default function NewSchedulePlanner() {
     setSchedule(prev => prev.filter(e => e.instanceId !== instanceId));
   };
 
-  // --- Handlers: Time Slots ---
+  // --- Time Slots ---
 
   const addTimeSlot = () => {
     const newSlot: TimeSlot = { id: uuidv4(), label: 'Ny tid' };
@@ -392,7 +442,6 @@ export default function NewSchedulePlanner() {
 
   const removeTimeSlot = (id: string) => {
     setTimeSlots(prev => prev.filter(slot => slot.id !== id));
-    // Clean up scheduled items in that slot
     setSchedule(prev => prev.filter(entry => entry.slotId !== id));
   };
 
@@ -434,11 +483,10 @@ export default function NewSchedulePlanner() {
     >
       <div className="space-y-6 pb-20">
         
-        {/* Toolbar */}
         <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-wrap gap-4 items-center justify-between">
           <div>
             <h1 className="font-monument text-2xl">Schemaplanerare</h1>
-            <p className="text-sm text-gray-600">Skapa byggstenar, definiera tider och dra in i schemat.</p>
+            <p className="text-sm text-gray-600">Skapa byggstenar och planera schemat.</p>
           </div>
           <div className="flex gap-2">
              <Button variant="neutral" onClick={() => setIsTimeModalOpen(true)} className="border-2 border-black">
@@ -463,7 +511,7 @@ export default function NewSchedulePlanner() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
-          {/* Sidebar: Courses / Building Blocks */}
+          {/* Sidebar */}
           <div className="lg:col-span-1 space-y-4">
             <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] h-full">
               <div className="flex items-center justify-between mb-4">
@@ -485,7 +533,7 @@ export default function NewSchedulePlanner() {
                   <CourseCard 
                     key={course.id} 
                     course={course} 
-                    onEdit={(c) => { setEditingCourse(c); setIsCourseModalOpen(true); }}
+                    onEdit={openEditCourseModal}
                     onDelete={handleDeleteCourse}
                   />
                 ))}
@@ -493,7 +541,7 @@ export default function NewSchedulePlanner() {
             </div>
           </div>
 
-          {/* Main: Schedule Grid */}
+          {/* Main Grid */}
           <div className="lg:col-span-3">
             <div id="planner-grid" className="rounded-xl border-2 border-black bg-gray-50 p-4 overflow-x-auto shadow-[4px_4px_0px_rgba(0,0,0,1)]">
               <div className="min-w-[700px]">
@@ -507,16 +555,13 @@ export default function NewSchedulePlanner() {
                    ))}
                 </div>
 
-                {/* Time Slots Rows */}
+                {/* Time Slots */}
                 <div className="space-y-2">
                   {timeSlots.map(slot => (
                     <div key={slot.id} className="grid grid-cols-[100px_repeat(5,1fr)] gap-2 min-h-[80px]">
-                      {/* Time Label */}
                       <div className="flex items-center justify-center text-center text-xs font-semibold bg-white border border-gray-300 rounded p-2">
                         {slot.label}
                       </div>
-                      
-                      {/* Drop Zones */}
                       {days.map(day => (
                         <ScheduleCell key={`${day}::${slot.id}`} day={day} slotId={slot.id}>
                           {schedule
@@ -534,23 +579,19 @@ export default function NewSchedulePlanner() {
                     </div>
                   ))}
                 </div>
-
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Drag Overlay */}
       <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }) }}>
         {activeDragItem ? (
           'title' in activeDragItem && 'instanceId' in activeDragItem ? (
-            // Dragging a scheduled entry
-            <div className={`planner-card ${activeDragItem.color} w-[140px] opacity-90 shadow-xl`}>
+            <div className="planner-card w-[140px] opacity-90 shadow-xl" style={{ backgroundColor: activeDragItem.color }}>
                <p className="text-sm font-bold">{activeDragItem.title}</p>
             </div>
           ) : (
-            // Dragging a source course
             <CourseCard course={activeDragItem as PlannerCourse} isOverlay />
           )
         ) : null}
@@ -570,7 +611,15 @@ export default function NewSchedulePlanner() {
                 <Label>Ämne / Titel</Label>
                 <Input 
                   value={editingCourse.title} 
-                  onChange={e => setEditingCourse({...editingCourse, title: e.target.value})} 
+                  onChange={e => {
+                    const newTitle = e.target.value;
+                    // Auto-generate color if not manually set
+                    let newColor = editingCourse.color;
+                    if (!manualColor && newTitle.length > 1) {
+                      newColor = generateBoxColor(newTitle);
+                    }
+                    setEditingCourse({...editingCourse, title: newTitle, color: newColor});
+                  }} 
                   placeholder="t.ex. Matematik"
                   autoFocus
                 />
@@ -600,10 +649,18 @@ export default function NewSchedulePlanner() {
                     <button
                       key={c}
                       type="button"
-                      className={`w-8 h-8 rounded-full border-2 ${c} ${editingCourse.color === c ? 'border-black scale-110' : 'border-transparent hover:scale-105'}`}
-                      onClick={() => setEditingCourse({...editingCourse, color: c})}
+                      className={`w-8 h-8 rounded-full border-2 ${editingCourse.color === c ? 'border-black scale-110' : 'border-transparent hover:scale-105'}`}
+                      style={{ backgroundColor: c }}
+                      onClick={() => {
+                        setManualColor(true);
+                        setEditingCourse({...editingCourse, color: c});
+                      }}
                     />
                   ))}
+                  <div className="ml-auto flex items-center gap-2">
+                     <div className="w-8 h-8 rounded-full border-2 border-black" style={{ backgroundColor: editingCourse.color }} />
+                     <span className="text-xs text-gray-500">{manualColor ? '(Manuell)' : '(Auto)'}</span>
+                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -615,7 +672,7 @@ export default function NewSchedulePlanner() {
         </DialogContent>
       </Dialog>
 
-      {/* 2. Schedule Entry Edit Modal (Individual instances) */}
+      {/* 2. Schedule Entry Edit Modal */}
       <Dialog open={isEntryModalOpen} onOpenChange={setIsEntryModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -653,7 +710,8 @@ export default function NewSchedulePlanner() {
                     <button
                       key={c}
                       type="button"
-                      className={`w-8 h-8 rounded-full border-2 ${c} ${editingEntry.color === c ? 'border-black scale-110' : 'border-transparent hover:scale-105'}`}
+                      className={`w-8 h-8 rounded-full border-2 ${editingEntry.color === c ? 'border-black scale-110' : 'border-transparent hover:scale-105'}`}
+                      style={{ backgroundColor: c }}
                       onClick={() => setEditingEntry({...editingEntry, color: c})}
                     />
                   ))}
