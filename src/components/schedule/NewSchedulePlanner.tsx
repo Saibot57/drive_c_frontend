@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -26,6 +26,9 @@ import {
   Clock,
   Edit2,
   Settings,
+  ShieldAlert,
+  BarChart3,
+  X
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -40,21 +43,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { generateBoxColor, importColors } from '@/config/colorManagement';
 
-const STORAGE_KEY = 'drive-c-schedule-planner-v3';
+const STORAGE_KEY = 'drive-c-schedule-planner-v4'; // Uppdaterad version
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 
-// Uppdaterad palett med hex-koder (Dova men inte bleka)
 const palette = [
-  '#ffffff', // Vit
-  '#fde68a', // Amber 200
-  '#bae6fd', // Sky 200
-  '#d9f99d', // Lime 200
-  '#fecdd3', // Rose 200
-  '#c7d2fe', // Indigo 200
-  '#a7f3d0', // Emerald 200
-  '#ddd6fe', // Violet 200
-  '#fed7aa'  // Orange 200
+  '#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', 
+  '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'
 ];
 
 // --- Types ---
@@ -71,7 +66,7 @@ interface PlannerCourse {
   room: string;
   color: string;
   duration: number;
-  category?: string; // Lade till denna rad för att fixa felet
+  category?: string;
 }
 
 interface ScheduledEntry extends PlannerCourse {
@@ -80,64 +75,125 @@ interface ScheduledEntry extends PlannerCourse {
   slotId: string;
 }
 
+interface RestrictionRule {
+  id: string;
+  subjectA: string; // Kan innehålla wildcard, t.ex. "Matte*"
+  subjectB: string; // Kan innehålla wildcard, t.ex. "Svenska*"
+}
+
 interface PersistedPlannerState {
   courses: PlannerCourse[];
   schedule: ScheduledEntry[];
   timeSlots: TimeSlot[];
+  restrictions: RestrictionRule[];
 }
 
 const baseCourses: PlannerCourse[] = [
-  {
-    id: 'course-1',
-    title: 'Matematik A',
-    teacher: 'L. Holm',
-    duration: 60,
-    color: '#fde68a', // Amber
-    category: 'Natur',
-    room: 'A1'
-  },
-  {
-    id: 'course-2',
-    title: 'Svenska',
-    teacher: 'E. Ström',
-    duration: 60,
-    color: '#bae6fd', // Sky
-    category: 'Språk',
-    room: 'B2'
-  },
-  {
-    id: 'course-3',
-    title: 'Engelska',
-    teacher: 'M. Khan',
-    duration: 60,
-    color: '#d9f99d', // Lime
-    category: 'Språk',
-    room: 'C3'
-  },
-  {
-    id: 'course-5',
-    title: 'Programmering',
-    teacher: 'J. Rivera',
-    duration: 90,
-    color: '#c7d2fe', // Indigo
-    category: 'Teknik',
-    room: 'Lab 1'
-  }
+  { id: 'c1', title: 'Matematik 1a', teacher: 'L. Holm', duration: 60, color: '#fde68a', category: 'Natur', room: 'A1' },
+  { id: 'c2', title: 'Svenska 1', teacher: 'E. Ström', duration: 60, color: '#bae6fd', category: 'Språk', room: 'B2' },
+  { id: 'c3', title: 'Engelska 5', teacher: 'M. Khan', duration: 60, color: '#d9f99d', category: 'Språk', room: 'C3' },
 ];
+
+// --- Helper Logic: Advanced Filtering & Restrictions ---
+
+/**
+ * Parsar filtersträngen: "hanna; matte + engelska; -so"
+ */
+const advancedFilterMatch = (item: PlannerCourse | ScheduledEntry, filterQuery: string): boolean => {
+  if (!filterQuery.trim()) return true; // Inget filter = visa allt
+
+  const searchString = `${item.title} ${item.teacher} ${item.room} ${item.category || ''}`.toLowerCase();
+  
+  // Splitta på semikolon (OR-logik)
+  const blocks = filterQuery.toLowerCase().split(';');
+
+  // Om något block matchar, returnera true
+  return blocks.some(block => {
+    const parts = block.trim().split('+'); // Splitta på plus (AND-logik)
+    
+    // Alla delar i ett block måste matcha
+    return parts.every(part => {
+      const p = part.trim();
+      if (!p) return true;
+      
+      if (p.startsWith('-')) {
+        // Exkludering
+        const term = p.substring(1);
+        return !searchString.includes(term);
+      } else {
+        // Inkludering
+        return searchString.includes(p);
+      }
+    });
+  });
+};
+
+/**
+ * Kollar om två strängar matchar baserat på wildcard (*)
+ * Ex: "Matte*" matchar "Matte 1a"
+ */
+const wildcardMatch = (pattern: string, text: string): boolean => {
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&'); // Escape regex chars except *
+  const regexString = '^' + escaped.replace(/\*/g, '.*') + '$';
+  const regex = new RegExp(regexString, 'i');
+  return regex.test(text);
+};
+
+/**
+ * Validerar drop mot restriktioner
+ */
+const validateRestrictions = (
+  entryTitle: string,
+  targetDay: string,
+  targetSlotId: string,
+  currentSchedule: ScheduledEntry[],
+  rules: RestrictionRule[],
+  ignoreInstanceId?: string // Ignorera kortet vi flyttar (om det redan ligger i schemat)
+): string | null => {
+  
+  // Hitta vad som redan ligger i denna slot
+  const existingInSlot = currentSchedule.filter(
+    e => e.day === targetDay && e.slotId === targetSlotId && e.instanceId !== ignoreInstanceId
+  );
+
+  if (existingInSlot.length === 0) return null; // Tomt = okej
+
+  for (const existing of existingInSlot) {
+    for (const rule of rules) {
+      // Kolla regel A mot Nytt & B mot Befintligt
+      const matchA_New = wildcardMatch(rule.subjectA, entryTitle);
+      const matchB_Exist = wildcardMatch(rule.subjectB, existing.title);
+      
+      // Kolla regel B mot Nytt & A mot Befintligt (Bidirektionell)
+      const matchB_New = wildcardMatch(rule.subjectB, entryTitle);
+      const matchA_Exist = wildcardMatch(rule.subjectA, existing.title);
+
+      if ((matchA_New && matchB_Exist) || (matchB_New && matchA_Exist)) {
+        return `Konflikt! "${rule.subjectA}" får inte krocka med "${rule.subjectB}". (${existing.title} ligger redan här)`;
+      }
+    }
+  }
+
+  return null;
+};
+
 
 // --- Components ---
 
-function CourseCard({ course, onEdit, onDelete, isOverlay }: { 
+function CourseCard({ course, onEdit, onDelete, isOverlay, hidden }: { 
   course: PlannerCourse; 
   onEdit?: (c: PlannerCourse) => void; 
   onDelete?: (id: string) => void;
   isOverlay?: boolean;
+  hidden?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: course.id,
     data: { type: 'course', course },
     disabled: isOverlay 
   });
+
+  if (hidden) return null;
 
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
@@ -152,7 +208,7 @@ function CourseCard({ course, onEdit, onDelete, isOverlay }: {
       style={style}
       {...listeners}
       {...attributes}
-      className={`planner-card relative group ${
+      className={`planner-card relative group mb-2 ${
         isDragging ? 'opacity-50' : 'opacity-100'
       } ${isOverlay ? 'cursor-grabbing shadow-xl scale-105 rotate-1' : 'cursor-grab'}`}
     >
@@ -194,16 +250,20 @@ function CourseCard({ course, onEdit, onDelete, isOverlay }: {
 function ScheduledCard({
   entry,
   onRemove,
-  onEdit
+  onEdit,
+  hidden
 }: {
   entry: ScheduledEntry;
   onRemove: (id: string) => void;
   onEdit: (entry: ScheduledEntry) => void;
+  hidden?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: entry.instanceId,
     data: { type: 'scheduled', entry },
   });
+
+  if (hidden) return null;
 
   const style = transform
     ? { 
@@ -279,6 +339,10 @@ export default function NewSchedulePlanner() {
     { id: 'slot-3', label: '10:15 - 11:00' },
     { id: 'slot-4', label: '12:00 - 13:00' },
   ]);
+  const [restrictions, setRestrictions] = useState<RestrictionRule[]>([]);
+
+  // Filter State
+  const [filterQuery, setFilterQuery] = useState("");
 
   const [activeDragItem, setActiveDragItem] = useState<PlannerCourse | ScheduledEntry | null>(null);
 
@@ -292,12 +356,13 @@ export default function NewSchedulePlanner() {
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ScheduledEntry | null>(null);
 
+  const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
+  const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
+
   // --- Sensors ---
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+      activationConstraint: { distance: 8 },
     }),
     useSensor(KeyboardSensor)
   );
@@ -311,6 +376,7 @@ export default function NewSchedulePlanner() {
         setCourses(parsed.courses || baseCourses);
         setSchedule(parsed.schedule || []);
         setTimeSlots(parsed.timeSlots || []);
+        setRestrictions(parsed.restrictions || []);
       } catch (e) {
         console.error("Failed to load schedule", e);
       }
@@ -320,17 +386,32 @@ export default function NewSchedulePlanner() {
   }, []);
 
   useEffect(() => {
-    const payload: PersistedPlannerState = { courses, schedule, timeSlots };
+    const payload: PersistedPlannerState = { courses, schedule, timeSlots, restrictions };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [courses, schedule, timeSlots]);
+  }, [courses, schedule, timeSlots, restrictions]);
 
-  // Initiera färgsystemet med befintliga kurser för att hitta likheter
   useEffect(() => {
     const colorMap = courses.map(c => ({ className: c.title, color: c.color }));
     importColors(colorMap);
   }, [courses]);
 
-  // --- Handlers ---
+  // --- Computed Data for Statistics ---
+  const scheduleStats = useMemo(() => {
+    const stats: Record<string, number> = {};
+    
+    // Filtrera först schemat baserat på sökningen
+    const visibleSchedule = schedule.filter(entry => advancedFilterMatch(entry, filterQuery));
+
+    visibleSchedule.forEach(entry => {
+      if (!stats[entry.title]) stats[entry.title] = 0;
+      stats[entry.title] += entry.duration;
+    });
+    
+    return Object.entries(stats).sort((a, b) => b[1] - a[1]);
+  }, [schedule, filterQuery]);
+
+
+  // --- Handlers: Drag & Drop ---
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -354,6 +435,29 @@ export default function NewSchedulePlanner() {
 
     const type = active.data.current?.type;
 
+    // Validering mot restriktioner
+    let titleToCheck = "";
+    let ignoreId = undefined;
+
+    if (type === 'course') {
+      const course = active.data.current?.course as PlannerCourse;
+      titleToCheck = course.title;
+    } else if (type === 'scheduled') {
+      const entry = active.data.current?.entry as ScheduledEntry;
+      titleToCheck = entry.title;
+      ignoreId = entry.instanceId;
+    }
+
+    // Utför "Hard Check"
+    const conflictError = validateRestrictions(titleToCheck, dropDay, dropSlotId, schedule, restrictions, ignoreId);
+    
+    if (conflictError) {
+      // Här skulle man kunna visa en Toast
+      alert(conflictError); 
+      return; // Avbryt flytten
+    }
+
+    // Om ingen konflikt, utför flytten
     if (type === 'course') {
       const course = active.data.current?.course as PlannerCourse;
       const newEntry: ScheduledEntry = {
@@ -374,10 +478,10 @@ export default function NewSchedulePlanner() {
     }
   };
 
+  // --- Course Handlers ---
   const handleSaveCourse = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCourse) return;
-
     if (courses.find(c => c.id === editingCourse.id)) {
       setCourses(prev => prev.map(c => c.id === editingCourse.id ? editingCourse : c));
     } else {
@@ -406,18 +510,10 @@ export default function NewSchedulePlanner() {
     setIsCourseModalOpen(true);
   };
 
-  const openEditCourseModal = (course: PlannerCourse) => {
-    setManualColor(true);
-    setEditingCourse(course);
-    setIsCourseModalOpen(true);
-  };
-
-  // --- Handlers: Schedule Entry Management ---
-  
+  // --- Entry Handlers ---
   const handleSaveEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEntry) return;
-    
     setSchedule(prev => prev.map(entry => 
       entry.instanceId === editingEntry.instanceId ? editingEntry : entry
     ));
@@ -429,28 +525,28 @@ export default function NewSchedulePlanner() {
     setSchedule(prev => prev.filter(e => e.instanceId !== instanceId));
   };
 
-  // --- Time Slots ---
-
-  const addTimeSlot = () => {
-    const newSlot: TimeSlot = { id: uuidv4(), label: 'Ny tid' };
-    setTimeSlots(prev => [...prev, newSlot]);
-  };
-
-  const updateTimeSlot = (id: string, label: string) => {
-    setTimeSlots(prev => prev.map(slot => slot.id === id ? { ...slot, label } : slot));
-  };
-
+  // --- Time Handlers ---
+  const addTimeSlot = () => setTimeSlots(prev => [...prev, { id: uuidv4(), label: 'Ny tid' }]);
+  const updateTimeSlot = (id: string, label: string) => setTimeSlots(prev => prev.map(slot => slot.id === id ? { ...slot, label } : slot));
   const removeTimeSlot = (id: string) => {
     setTimeSlots(prev => prev.filter(slot => slot.id !== id));
     setSchedule(prev => prev.filter(entry => entry.slotId !== id));
   };
 
-  // --- Export ---
-  
+  // --- Restriction Handlers ---
+  const addRestriction = () => {
+    if(!newRule.subjectA || !newRule.subjectB) return;
+    setRestrictions(prev => [...prev, { ...newRule, id: uuidv4() }]);
+    setNewRule({ id: '', subjectA: '', subjectB: '' });
+  };
+
+  const removeRestriction = (id: string) => {
+    setRestrictions(prev => prev.filter(r => r.id !== id));
+  };
+
   const exportPDF = async () => {
     const element = document.getElementById('planner-grid');
     if (!element) return;
-    
     try {
       const canvas = await html2canvas(element, { scale: 2 });
       const imgData = canvas.toDataURL('image/png');
@@ -459,12 +555,10 @@ export default function NewSchedulePlanner() {
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(imgData);
       const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
-      
       const width = imgProps.width * ratio;
       const height = imgProps.height * ratio;
       const x = (pdfWidth - width) / 2;
       const y = 20;
-
       pdf.text("Schema", 40, 30);
       pdf.addImage(imgData, 'PNG', x, 50, width, height);
       pdf.save('schema.pdf');
@@ -483,12 +577,35 @@ export default function NewSchedulePlanner() {
     >
       <div className="space-y-6 pb-20">
         
-        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-wrap gap-4 items-center justify-between">
+        {/* Top Bar */}
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
           <div>
             <h1 className="font-monument text-2xl">Schemaplanerare</h1>
-            <p className="text-sm text-gray-600">Skapa byggstenar och planera schemat.</p>
+            <p className="text-sm text-gray-600">Dra kort, filtrera och hantera regler.</p>
           </div>
-          <div className="flex gap-2">
+
+          {/* Filter Input */}
+          <div className="flex-1 max-w-md mx-4">
+            <div className="relative">
+              <Input 
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                placeholder="Filter: matte + hanna; -eng..."
+                className="border-2 border-black shadow-sm pl-10"
+              />
+              <div className="absolute left-3 top-2.5 text-gray-400">
+                🔍
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-1">
+              Ex: "matte + 1a; svenska; -prov" (Semikolon=ELLER, Plus=OCH, Minus=INTE)
+            </p>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+             <Button variant="neutral" onClick={() => setIsRestrictionsModalOpen(true)} className="border-2 border-black bg-amber-100 hover:bg-amber-200">
+                <ShieldAlert size={16} className="mr-2"/> Regler
+             </Button>
              <Button variant="neutral" onClick={() => setIsTimeModalOpen(true)} className="border-2 border-black">
                 <Clock size={16} className="mr-2"/> Tider
              </Button>
@@ -497,11 +614,7 @@ export default function NewSchedulePlanner() {
              </Button>
              <Button 
                variant="neutral" 
-               onClick={() => {
-                 if(confirm("Är du säker på att du vill rensa hela schemat?")) {
-                   setSchedule([]);
-                 }
-               }} 
+               onClick={() => { if(confirm("Rensa hela schemat?")) setSchedule([]); }} 
                className="border-2 border-black bg-rose-100 hover:bg-rose-200 text-rose-800"
              >
                 <RefreshCcw size={16} className="mr-2"/> Rensa
@@ -511,9 +624,9 @@ export default function NewSchedulePlanner() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
-          {/* Sidebar */}
+          {/* Sidebar: Courses */}
           <div className="lg:col-span-1 space-y-4">
-            <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] h-full">
+            <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] h-full flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-lg flex items-center gap-2">
                   <Settings size={18}/> Byggstenar
@@ -523,25 +636,45 @@ export default function NewSchedulePlanner() {
                 </Button>
               </div>
               
-              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-                {courses.length === 0 && (
-                  <p className="text-sm text-gray-500 italic text-center py-4">
-                    Inga ämnen skapade än. Tryck på + för att börja.
-                  </p>
-                )}
-                {courses.map(course => (
-                  <CourseCard 
-                    key={course.id} 
-                    course={course} 
-                    onEdit={openEditCourseModal}
-                    onDelete={handleDeleteCourse}
-                  />
-                ))}
+              {/* Filtered List */}
+              <div className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1">
+                {courses.map(course => {
+                  const isMatch = advancedFilterMatch(course, filterQuery);
+                  return (
+                    <CourseCard 
+                      key={course.id} 
+                      course={course} 
+                      onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }}
+                      onDelete={handleDeleteCourse}
+                      hidden={!isMatch}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Mini Statistics */}
+              <div className="mt-4 pt-4 border-t-2 border-gray-100">
+                <div className="flex items-center gap-2 mb-2 text-gray-500">
+                  <BarChart3 size={14} /> 
+                  <span className="text-xs font-bold uppercase">Statistik (Filtrerat)</span>
+                </div>
+                <div className="space-y-1 text-xs">
+                  {scheduleStats.length === 0 ? (
+                    <span className="text-gray-400 italic">Inget schemalagt</span>
+                  ) : (
+                    scheduleStats.slice(0, 5).map(([title, minutes]) => (
+                      <div key={title} className="flex justify-between">
+                        <span>{title}</span>
+                        <span className="font-mono font-bold">{minutes} min</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Main Grid */}
+          {/* Main: Schedule Grid */}
           <div className="lg:col-span-3">
             <div id="planner-grid" className="rounded-xl border-2 border-black bg-gray-50 p-4 overflow-x-auto shadow-[4px_4px_0px_rgba(0,0,0,1)]">
               <div className="min-w-[700px]">
@@ -566,14 +699,18 @@ export default function NewSchedulePlanner() {
                         <ScheduleCell key={`${day}::${slot.id}`} day={day} slotId={slot.id}>
                           {schedule
                             .filter(e => e.day === day && e.slotId === slot.id)
-                            .map(entry => (
-                              <ScheduledCard 
-                                key={entry.instanceId} 
-                                entry={entry} 
-                                onRemove={handleRemoveEntry}
-                                onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
-                              />
-                            ))}
+                            .map(entry => {
+                                const isMatch = advancedFilterMatch(entry, filterQuery);
+                                return (
+                                  <ScheduledCard 
+                                    key={entry.instanceId} 
+                                    entry={entry} 
+                                    onRemove={handleRemoveEntry}
+                                    onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
+                                    hidden={!isMatch}
+                                  />
+                                )
+                            })}
                         </ScheduleCell>
                       ))}
                     </div>
@@ -613,7 +750,6 @@ export default function NewSchedulePlanner() {
                   value={editingCourse.title} 
                   onChange={e => {
                     const newTitle = e.target.value;
-                    // Auto-generate color if not manually set
                     let newColor = editingCourse.color;
                     if (!manualColor && newTitle.length > 1) {
                       newColor = generateBoxColor(newTitle);
@@ -626,19 +762,17 @@ export default function NewSchedulePlanner() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Lärare (valfritt)</Label>
+                  <Label>Lärare</Label>
                   <Input 
                     value={editingCourse.teacher} 
                     onChange={e => setEditingCourse({...editingCourse, teacher: e.target.value})} 
-                    placeholder="t.ex. A. Svensson"
                   />
                 </div>
                 <div className="space-y-2">
-                   <Label>Sal (valfritt)</Label>
+                   <Label>Sal</Label>
                    <Input 
                      value={editingCourse.room} 
                      onChange={e => setEditingCourse({...editingCourse, room: e.target.value})} 
-                     placeholder="t.ex. B123"
                    />
                 </div>
               </div>
@@ -761,6 +895,63 @@ export default function NewSchedulePlanner() {
           </div>
           <DialogFooter>
             <Button onClick={() => setIsTimeModalOpen(false)}>Klar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 4. Restrictions Manager */}
+      <Dialog open={isRestrictionsModalOpen} onOpenChange={setIsRestrictionsModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Krockregler</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+             <p className="text-sm text-gray-500">
+               Skapa regler för ämnen som inte får ligga samtidigt. Använd * som wildcard.
+               Ex: "Matte*" krockar med "Svenska*".
+             </p>
+             
+             <div className="flex gap-2 items-end bg-amber-50 p-3 rounded-lg border border-amber-200">
+               <div className="flex-1">
+                  <Label className="text-xs">Ämne/Grupp A</Label>
+                  <Input 
+                    value={newRule.subjectA} 
+                    onChange={e => setNewRule({...newRule, subjectA: e.target.value})}
+                    placeholder="t.ex. Matte*" 
+                  />
+               </div>
+               <div className="flex items-center pb-2 font-bold text-gray-400">⟷</div>
+               <div className="flex-1">
+                  <Label className="text-xs">Ämne/Grupp B</Label>
+                  <Input 
+                    value={newRule.subjectB} 
+                    onChange={e => setNewRule({...newRule, subjectB: e.target.value})}
+                    placeholder="t.ex. Svenska*" 
+                  />
+               </div>
+               <Button onClick={addRestriction} className="bg-black text-white">
+                 <Plus size={16} />
+               </Button>
+             </div>
+
+             <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {restrictions.length === 0 && <p className="text-center text-gray-400 text-sm py-4">Inga regler definierade</p>}
+                {restrictions.map(r => (
+                  <div key={r.id} className="flex items-center justify-between p-2 border rounded bg-white shadow-sm">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-bold bg-gray-100 px-2 py-0.5 rounded">{r.subjectA}</span>
+                      <span className="text-gray-400 text-xs">får ej krocka med</span>
+                      <span className="font-bold bg-gray-100 px-2 py-0.5 rounded">{r.subjectB}</span>
+                    </div>
+                    <Button size="icon" variant="neutral" onClick={() => removeRestriction(r.id)} className="h-6 w-6 text-gray-400 hover:text-rose-500">
+                      <X size={14} />
+                    </Button>
+                  </div>
+                ))}
+             </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsRestrictionsModalOpen(false)}>Klar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
