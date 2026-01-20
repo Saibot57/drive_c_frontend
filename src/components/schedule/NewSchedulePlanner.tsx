@@ -569,7 +569,7 @@ export default function NewSchedulePlanner() {
 
              <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
                 {/* VIKTIGT: pt-4 HÄR gör att 08:00 texten syns! */}
-                <div className="flex min-h-full pt-4">
+                <div className="flex min-h-full pt-4 border-t-2 border-black">
                    <div className="w-[50px] flex-shrink-0 bg-gray-100 border-r-2 border-black relative">
                       {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
                         <div key={h} className="absolute w-full text-right pr-1 text-xs font-bold text-gray-500 -mt-2"
