@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -16,7 +16,7 @@ import {
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
-  Download, RefreshCcw, Trash2, Plus, Edit2, ShieldAlert, Upload, X
+  Download, RefreshCcw, Trash2, Plus, Edit2, ShieldAlert, Upload, X, BarChart3, Settings
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { generateBoxColor, importColors } from '@/config/colorManagement';
-import { PlannerCourse, ScheduledEntry, RestrictionRule } from '@/types/schedule';
+import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
 import { 
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE, 
   timeToMinutes, minutesToTime, getPositionStyles, 
@@ -40,11 +40,31 @@ const baseCourses: PlannerCourse[] = [
   { id: 'c2', title: 'Svenska 1', teacher: 'E. Ström', duration: 60, color: '#bae6fd', category: 'Språk', room: 'B2' },
 ];
 
-// --- Helper: Conflict Check ---
+// --- Helper: Conflict Check & Filtering ---
+
 const wildcardMatch = (pattern: string, text: string): boolean => {
   const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp('^' + escaped.replace(/\*/g, '.*') + '$', 'i');
   return regex.test(text);
+};
+
+const advancedFilterMatch = (item: PlannerCourse | ScheduledEntry, filterQuery: string): boolean => {
+  if (!filterQuery.trim()) return true;
+  const searchString = `${item.title} ${item.teacher} ${item.room} ${item.category || ''}`.toLowerCase();
+  const blocks = filterQuery.toLowerCase().split(';');
+  return blocks.some(block => {
+    const parts = block.trim().split('+'); 
+    return parts.every(part => {
+      const p = part.trim();
+      if (!p) return true;
+      if (p.startsWith('-')) {
+        const term = p.substring(1);
+        return !searchString.includes(term);
+      } else {
+        return searchString.includes(p);
+      }
+    });
+  });
 };
 
 const validateRestrictions = (
@@ -75,13 +95,41 @@ const validateRestrictions = (
   return null;
 };
 
+// --- Helper: Data Sanitization (Fix #3) ---
+const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
+  if (!Array.isArray(importedSchedule)) return [];
+  
+  return importedSchedule.map(entry => {
+    // Säkerställ att start/slut finns
+    const start = entry.startTime || "08:00";
+    const end = entry.endTime || minutesToTime(timeToMinutes(start) + 60);
+    
+    // Beräkna duration om det saknas (Fix för äldre data)
+    let duration = entry.duration;
+    if (!duration || isNaN(duration)) {
+      duration = timeToMinutes(end) - timeToMinutes(start);
+    }
+
+    return {
+      ...entry,
+      instanceId: entry.instanceId || uuidv4(),
+      startTime: start,
+      endTime: end,
+      duration: duration > 0 ? duration : 60, // Fallback om beräkningen blev 0 eller negativ
+      day: days.includes(entry.day) ? entry.day : days[0] // Säkerställ giltig dag
+    };
+  });
+};
+
 // --- Sub-Components ---
 
-function DraggableSourceCard({ course, onEdit, onDelete }: { course: PlannerCourse; onEdit: (c: PlannerCourse) => void; onDelete: (id: string) => void }) {
+function DraggableSourceCard({ course, onEdit, onDelete, hidden }: { course: PlannerCourse; onEdit: (c: PlannerCourse) => void; onDelete: (id: string) => void; hidden?: boolean }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `source-${course.id}`,
     data: { type: 'course', course },
   });
+
+  if (hidden) return null;
 
   return (
     <div
@@ -106,13 +154,15 @@ function DraggableSourceCard({ course, onEdit, onDelete }: { course: PlannerCour
   );
 }
 
-function ScheduledEventCard({ entry, onEdit, onRemove }: { entry: ScheduledEntry; onEdit: (e: ScheduledEntry) => void; onRemove: (id: string) => void }) {
+function ScheduledEventCard({ entry, onEdit, onRemove, hidden }: { entry: ScheduledEntry; onEdit: (e: ScheduledEntry) => void; onRemove: (id: string) => void; hidden?: boolean }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
     data: { type: 'scheduled', entry },
   });
 
   const { top, height } = getPositionStyles(entry.startTime, entry.duration);
+
+  if (hidden) return null;
 
   return (
     <div
@@ -180,6 +230,10 @@ export default function NewSchedulePlanner() {
   const [schedule, setSchedule] = useState<ScheduledEntry[]>([]);
   const [restrictions, setRestrictions] = useState<RestrictionRule[]>([]);
   
+  // UI State
+  const [filterQuery, setFilterQuery] = useState("");
+  const [manualColor, setManualColor] = useState(false);
+  
   // Modals
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<PlannerCourse | null>(null);
@@ -187,37 +241,104 @@ export default function NewSchedulePlanner() {
   const [editingEntry, setEditingEntry] = useState<ScheduledEntry | null>(null);
   const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
-  const [manualColor, setManualColor] = useState(false);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
 
-  // Load/Save
+  // Load/Save LocalStorage
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         setCourses(parsed.courses || baseCourses);
-        setSchedule(parsed.schedule || []);
+        if (parsed.schedule) {
+          // Använd saniteringsfunktionen vid laddning också för säkerhets skull
+          setSchedule(sanitizeScheduleImport(parsed.schedule));
+        }
         setRestrictions(parsed.restrictions || []);
       } catch (e) { console.error("Load failed", e); }
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ courses, schedule, restrictions }));
+    const payload: PersistedPlannerState = { version: 5, timestamp: new Date().toISOString(), courses, schedule, restrictions };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [courses, schedule, restrictions]);
 
-  // Sync colors globally (Original feature)
+  // Sync colors
   useEffect(() => {
     const colorMap = courses.map(c => ({ className: c.title, color: c.color }));
     importColors(colorMap);
   }, [courses]);
+
+  // Statistics
+  const scheduleStats = useMemo(() => {
+    const stats: Record<string, number> = {};
+    const visibleSchedule = schedule.filter(entry => advancedFilterMatch(entry, filterQuery));
+    visibleSchedule.forEach(entry => {
+      if (!stats[entry.title]) stats[entry.title] = 0;
+      stats[entry.title] += entry.duration;
+    });
+    return Object.entries(stats).sort((a, b) => b[1] - a[1]);
+  }, [schedule, filterQuery]);
+
+
+  // --- JSON Import/Export Handlers ---
+
+  const handleExportJSON = () => {
+    const dataToSave: PersistedPlannerState = {
+      version: 5,
+      timestamp: new Date().toISOString(),
+      courses,
+      schedule,
+      restrictions
+    };
+    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `schema-backup-v5-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const parsed = JSON.parse(text);
+        if (parsed.courses && parsed.schedule) {
+          if (confirm('Ersätta nuvarande schema?')) {
+            setCourses(parsed.courses);
+            
+            // Fix #3: Normalisera importerad data
+            const sanitizedSchedule = sanitizeScheduleImport(parsed.schedule);
+            setSchedule(sanitizedSchedule);
+            
+            if (parsed.restrictions) setRestrictions(parsed.restrictions);
+          }
+        } else {
+          alert('Ogiltig filstruktur.');
+        }
+      } catch (error) {
+        alert('Kunde inte läsa filen.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
 
   // --- Drag & Drop Logic ---
 
@@ -233,42 +354,41 @@ export default function NewSchedulePlanner() {
 
     const targetDay = over.id as string;
     const type = active.data.current?.type;
-    
-    // Säkerställ att vi har koordinater
     const overRect = over.rect;
     const activeRect = active.rect.current?.translated;
 
     if (!activeRect || !overRect) return;
 
-    // Räkna ut Y-offset inuti kolumnen
+    // Hämta duration för att kunna beräkna korrekt maxTime
+    const itemDuration = type === 'course' 
+      ? (active.data.current?.course.duration || 60) 
+      : active.data.current?.entry.duration;
+
     const relativeY = activeRect.top - overRect.top;
-    
-    // Konvertera pixlar till minuter från start (08:00)
     let minutesFromStart = relativeY / PIXELS_PER_MINUTE;
     let totalMinutes = (START_HOUR * 60) + minutesFromStart;
     
-    // Snap to grid
+    // Snap & Constraints
     totalMinutes = snapTime(totalMinutes);
-    
-    // Begränsa
     const minTime = START_HOUR * 60;
-    const maxTime = (END_HOUR * 60) - 15;
+    
+    // Fix #2: Dra av duration från maxTime så att slutet inte hamnar utanför
+    const maxTime = (END_HOUR * 60) - itemDuration;
+    
     totalMinutes = Math.max(minTime, Math.min(totalMinutes, maxTime));
 
     const newStartTime = minutesToTime(totalMinutes);
+    const endMinutes = totalMinutes + itemDuration;
+    const newEndTime = minutesToTime(endMinutes);
 
     if (type === 'course') {
       const course = active.data.current?.course as PlannerCourse;
-      const duration = course.duration || 60;
-      const endMinutes = totalMinutes + duration;
-      const newEndTime = minutesToTime(endMinutes);
-
+      
       const conflict = validateRestrictions(
         { title: course.title, day: targetDay, startTime: newStartTime, endTime: newEndTime },
         schedule,
         restrictions
       );
-
       if (conflict) { alert(conflict); return; }
 
       const newEntry: ScheduledEntry = {
@@ -277,21 +397,18 @@ export default function NewSchedulePlanner() {
         day: targetDay,
         startTime: newStartTime,
         endTime: newEndTime,
+        duration: itemDuration
       };
       setSchedule(prev => [...prev, newEntry]);
 
     } else if (type === 'scheduled') {
       const entry = active.data.current?.entry as ScheduledEntry;
-      const duration = entry.duration;
-      const endMinutes = totalMinutes + duration;
-      const newEndTime = minutesToTime(endMinutes);
 
-       const conflict = validateRestrictions(
+      const conflict = validateRestrictions(
         { title: entry.title, day: targetDay, startTime: newStartTime, endTime: newEndTime, instanceId: entry.instanceId },
         schedule,
         restrictions
       );
-
       if (conflict) { alert(conflict); return; }
 
       setSchedule(prev => prev.map(e => 
@@ -316,16 +433,44 @@ export default function NewSchedulePlanner() {
     });
     setIsCourseModalOpen(false);
   };
+  
   const handleSaveEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if(!editingEntry) return;
+
+    // Beräkna duration
     const startMin = timeToMinutes(editingEntry.startTime);
     const endMin = timeToMinutes(editingEntry.endTime);
+    
+    if (endMin <= startMin) {
+        alert("Sluttid måste vara efter starttid!");
+        return;
+    }
+
     const newDuration = endMin - startMin;
+
+    // Fix #1: Validera mot regler innan vi sparar
+    const conflict = validateRestrictions(
+        { 
+            title: editingEntry.title, 
+            day: editingEntry.day, 
+            startTime: editingEntry.startTime, 
+            endTime: editingEntry.endTime, 
+            instanceId: editingEntry.instanceId 
+        },
+        schedule,
+        restrictions
+    );
+
+    if (conflict) {
+        alert(conflict);
+        return;
+    }
     
     setSchedule(p => p.map(entry => entry.instanceId === editingEntry.instanceId ? {...editingEntry, duration: newDuration} : entry));
     setIsEntryModalOpen(false);
   };
+
   const handleExportPDF = async () => {
     const el = document.getElementById('schedule-canvas');
     if(!el) return;
@@ -348,12 +493,29 @@ export default function NewSchedulePlanner() {
     >
       <div className="space-y-6 pb-20">
         
-        {/* Toolbar */}
-        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-wrap gap-4 items-center justify-between">
-           <h1 className="font-monument text-xl">FlexSchema <span className="text-xs font-sans font-normal text-gray-500">v5 Timeline</span></h1>
-           <div className="flex gap-2">
-              <Button variant="neutral" onClick={() => setIsRestrictionsModalOpen(true)} className="border-2 border-black"><ShieldAlert size={16} className="mr-2"/> Regler</Button>
+        {/* Toolbar & Filter */}
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+           <div>
+              <h1 className="font-monument text-xl">FlexSchema <span className="text-xs font-sans font-normal text-gray-500">v5 Timeline</span></h1>
+              <p className="text-sm text-gray-600">Dra och släpp på tidslinjen.</p>
+           </div>
+           
+           <div className="flex-1 max-w-md w-full relative">
+              <Input 
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                placeholder="Filter: matte + hanna; -eng..."
+                className="border-2 border-black shadow-sm pl-10"
+              />
+              <div className="absolute left-3 top-2.5 text-gray-400">🔍</div>
+           </div>
+
+           <div className="flex gap-2 flex-wrap">
+              <Button variant="neutral" onClick={() => setIsRestrictionsModalOpen(true)} className="border-2 border-black bg-amber-100 hover:bg-amber-200"><ShieldAlert size={16} className="mr-2"/> Regler</Button>
               <Button variant="neutral" onClick={handleExportPDF} className="border-2 border-black"><Download size={16} className="mr-2"/> PDF</Button>
+              <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
+              <Button variant="neutral" onClick={handleExportJSON} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Download size={16} className="mr-2"/> Spara</Button>
+              <Button variant="neutral" onClick={() => fileInputRef.current?.click()} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Upload size={16} className="mr-2"/> Ladda</Button>
               <Button variant="neutral" onClick={() => {if(confirm('Rensa?')) setSchedule([])}} className="border-2 border-black bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
            </div>
         </div>
@@ -361,26 +523,53 @@ export default function NewSchedulePlanner() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[800px]">
           
           {/* Sidebar */}
-          <div className="lg:col-span-1 flex flex-col gap-4">
+          <div className="lg:col-span-1 flex flex-col gap-4 h-full">
              <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-bold">Ämnen</h2>
+                  <h2 className="font-bold flex items-center gap-2"><Settings size={18}/> Byggstenar</h2>
                   <Button size="sm" onClick={() => { 
                     setManualColor(false);
                     setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: '#ffffff', duration: 60 }); 
                     setIsCourseModalOpen(true); 
                   }} className="h-8 w-8 p-0 rounded-full border-2 border-black bg-[#aee8fe]"><Plus size={16}/></Button>
                 </div>
+                
+                {/* Courses List */}
                 <div className="overflow-y-auto flex-1 pr-2">
                    {courses.map(c => (
-                     <DraggableSourceCard key={c.id} course={c} onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }} onDelete={handleDeleteCourse} />
+                     <DraggableSourceCard 
+                       key={c.id} 
+                       course={c} 
+                       onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }} 
+                       onDelete={handleDeleteCourse} 
+                       hidden={!advancedFilterMatch(c, filterQuery)}
+                     />
                    ))}
                 </div>
+
+                {/* Statistics */}
+                <div className="mt-4 pt-4 border-t-2 border-gray-100">
+                  <div className="flex items-center gap-2 mb-2 text-gray-500">
+                    <BarChart3 size={14} /> 
+                    <span className="text-xs font-bold uppercase">Tid (Filtrerat)</span>
+                  </div>
+                  <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
+                    {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> : 
+                      scheduleStats.slice(0, 10).map(([title, minutes]) => (
+                        <div key={title} className="flex justify-between">
+                          <span>{title}</span>
+                          <span className="font-mono font-bold">{minutes} min</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+
              </div>
           </div>
 
           {/* Main Schedule Area */}
-          <div className="lg:col-span-3 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col">
+          <div className="lg:col-span-3 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
              <div className="flex pl-[50px] border-b-2 border-black bg-white">
                 {days.map(day => (
                   <div key={day} className="flex-1 py-2 text-center font-bold text-sm border-r border-gray-200 last:border-0">{day}</div>
@@ -406,6 +595,7 @@ export default function NewSchedulePlanner() {
                              entry={entry} 
                              onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
                              onRemove={(id) => setSchedule(p => p.filter(e => e.instanceId !== id))}
+                             hidden={!advancedFilterMatch(entry, filterQuery)}
                            />
                         ))}
                      </DayColumn>
@@ -430,6 +620,7 @@ export default function NewSchedulePlanner() {
         )}
       </DragOverlay>
 
+      {/* Modals */}
       <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Hantera ämne</DialogTitle></DialogHeader>
@@ -443,6 +634,10 @@ export default function NewSchedulePlanner() {
                    setEditingCourse({...editingCourse, title: val, color: col});
                }} autoFocus/>
                <Label>Standardlängd (min)</Label> <Input type="number" value={editingCourse.duration} onChange={e => setEditingCourse({...editingCourse, duration: parseInt(e.target.value)})} />
+               <div className="grid grid-cols-2 gap-2">
+                 <div><Label>Lärare</Label><Input value={editingCourse.teacher} onChange={e => setEditingCourse({...editingCourse, teacher: e.target.value})} /></div>
+                 <div><Label>Rum</Label><Input value={editingCourse.room} onChange={e => setEditingCourse({...editingCourse, room: e.target.value})} /></div>
+               </div>
                <div className="flex gap-2 mt-2">{palette.map(c => <div key={c} onClick={() => { setManualColor(true); setEditingCourse({...editingCourse, color: c}); }} className={`w-6 h-6 rounded-full cursor-pointer border ${editingCourse.color === c ? 'ring-2 ring-black' : ''}`} style={{backgroundColor: c}} />)}</div>
                <DialogFooter><Button type="submit">Spara</Button></DialogFooter>
             </form>

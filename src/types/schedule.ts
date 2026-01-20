@@ -43,3 +43,11 @@ export interface RestrictionRule {
   subjectA: string; 
   subjectB: string; 
 }
+
+export interface PersistedPlannerState {
+  version: number;
+  timestamp: string;
+  courses: PlannerCourse[];
+  schedule: ScheduledEntry[];
+  restrictions: RestrictionRule[];
+}
