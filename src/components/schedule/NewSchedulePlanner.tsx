@@ -95,16 +95,14 @@ const validateRestrictions = (
   return null;
 };
 
-// --- Helper: Data Sanitization (Fix #3) ---
+// --- Helper: Data Sanitization ---
 const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
   if (!Array.isArray(importedSchedule)) return [];
   
   return importedSchedule.map(entry => {
-    // Säkerställ att start/slut finns
     const start = entry.startTime || "08:00";
     const end = entry.endTime || minutesToTime(timeToMinutes(start) + 60);
     
-    // Beräkna duration om det saknas (Fix för äldre data)
     let duration = entry.duration;
     if (!duration || isNaN(duration)) {
       duration = timeToMinutes(end) - timeToMinutes(start);
@@ -115,8 +113,8 @@ const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
       instanceId: entry.instanceId || uuidv4(),
       startTime: start,
       endTime: end,
-      duration: duration > 0 ? duration : 60, // Fallback om beräkningen blev 0 eller negativ
-      day: days.includes(entry.day) ? entry.day : days[0] // Säkerställ giltig dag
+      duration: duration > 0 ? duration : 60, 
+      day: days.includes(entry.day) ? entry.day : days[0] 
     };
   });
 };
@@ -258,7 +256,6 @@ export default function NewSchedulePlanner() {
         const parsed = JSON.parse(saved);
         setCourses(parsed.courses || baseCourses);
         if (parsed.schedule) {
-          // Använd saniteringsfunktionen vid laddning också för säkerhets skull
           setSchedule(sanitizeScheduleImport(parsed.schedule));
         }
         setRestrictions(parsed.restrictions || []);
@@ -321,11 +318,8 @@ export default function NewSchedulePlanner() {
         if (parsed.courses && parsed.schedule) {
           if (confirm('Ersätta nuvarande schema?')) {
             setCourses(parsed.courses);
-            
-            // Fix #3: Normalisera importerad data
             const sanitizedSchedule = sanitizeScheduleImport(parsed.schedule);
             setSchedule(sanitizedSchedule);
-            
             if (parsed.restrictions) setRestrictions(parsed.restrictions);
           }
         } else {
@@ -359,7 +353,6 @@ export default function NewSchedulePlanner() {
 
     if (!activeRect || !overRect) return;
 
-    // Hämta duration för att kunna beräkna korrekt maxTime
     const itemDuration = type === 'course' 
       ? (active.data.current?.course.duration || 60) 
       : active.data.current?.entry.duration;
@@ -372,7 +365,7 @@ export default function NewSchedulePlanner() {
     totalMinutes = snapTime(totalMinutes);
     const minTime = START_HOUR * 60;
     
-    // Fix #2: Dra av duration från maxTime så att slutet inte hamnar utanför
+    // Fix: Dra av duration från maxTime
     const maxTime = (END_HOUR * 60) - itemDuration;
     
     totalMinutes = Math.max(minTime, Math.min(totalMinutes, maxTime));
@@ -438,7 +431,6 @@ export default function NewSchedulePlanner() {
     e.preventDefault();
     if(!editingEntry) return;
 
-    // Beräkna duration
     const startMin = timeToMinutes(editingEntry.startTime);
     const endMin = timeToMinutes(editingEntry.endTime);
     
@@ -449,7 +441,6 @@ export default function NewSchedulePlanner() {
 
     const newDuration = endMin - startMin;
 
-    // Fix #1: Validera mot regler innan vi sparar
     const conflict = validateRestrictions(
         { 
             title: editingEntry.title, 
@@ -577,7 +568,8 @@ export default function NewSchedulePlanner() {
              </div>
 
              <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
-                <div className="flex min-h-full">
+                {/* VIKTIGT: pt-4 HÄR gör att 08:00 texten syns! */}
+                <div className="flex min-h-full pt-4">
                    <div className="w-[50px] flex-shrink-0 bg-gray-100 border-r-2 border-black relative">
                       {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
                         <div key={h} className="absolute w-full text-right pr-1 text-xs font-bold text-gray-500 -mt-2"
