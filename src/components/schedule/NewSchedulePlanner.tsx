@@ -512,7 +512,7 @@ export default function NewSchedulePlanner() {
            </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[800px]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[1100px]">
           
           {/* Sidebar */}
           <div className="lg:col-span-1 flex flex-col gap-4 h-full">
@@ -570,9 +570,9 @@ export default function NewSchedulePlanner() {
 
              <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
                 {/* VIKTIGT: pt-4 HÄR gör att 08:00 texten syns! */}
-                <div className="flex min-h-full pt-4 border-t-2 border-black">
-                   <div className="w-[50px] flex-shrink-0 bg-gray-100 border-r-2 border-black relative">
-                      <div className="absolute -top-4 left-0 right-0 h-4 bg-gray-100 border-r-2 border-black" />
+                <div className="flex min-h-full pt-4">
+                   <div className="w-[50px] flex-shrink-0 bg-gray-100 relative">
+                      <div className="absolute -top-4 left-0 right-0 h-4 bg-gray-100" />
                       {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
                         <div key={h} className="absolute w-full text-right pr-1 text-xs font-bold text-gray-500 -mt-2"
                              style={{ top: `${(h - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}>
