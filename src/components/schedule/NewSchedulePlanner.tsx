@@ -427,6 +427,11 @@ export default function NewSchedulePlanner() {
     return Object.entries(stats).sort((a, b) => b[1] - a[1]);
   }, [schedule, filterQuery]);
 
+  const hoursFormatter = useMemo(() => new Intl.NumberFormat('sv-SE', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }), []);
+
   const layoutByDay = useMemo(() => {
     const layout: Record<string, Map<string, { column: number; columns: number }>> = {};
     days.forEach(day => {
@@ -827,12 +832,15 @@ export default function NewSchedulePlanner() {
                   </div>
                   <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
                     {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> : 
-                      scheduleStats.slice(0, 10).map(([title, minutes]) => (
-                        <div key={title} className="flex justify-between">
-                          <span>{title}</span>
-                          <span className="font-mono font-bold">{minutes} min</span>
-                        </div>
-                      ))
+                      scheduleStats.slice(0, 10).map(([title, minutes]) => {
+                        const hours = minutes / 60;
+                        return (
+                          <div key={title} className="flex justify-between">
+                            <span>{title}</span>
+                            <span className="font-mono font-bold">{hoursFormatter.format(hours)} h</span>
+                          </div>
+                        );
+                      })
                     }
                   </div>
                 </div>
