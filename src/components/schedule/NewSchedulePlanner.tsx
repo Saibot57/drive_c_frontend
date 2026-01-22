@@ -222,6 +222,9 @@ function ScheduledEventCard({
         {adjustedHeight > 30 && (
            <p className="text-[10px] text-gray-700 truncate">{entry.teacher} {entry.room}</p>
         )}
+        {entry.notes && adjustedHeight > 46 && (
+          <p className="text-[10px] text-gray-600 truncate">{entry.notes}</p>
+        )}
       </div>
     </div>
   );
@@ -987,7 +990,16 @@ export default function NewSchedulePlanner() {
                   <div><Label>Start</Label><Input type="time" value={editingEntry.startTime} onChange={e => setEditingEntry({...editingEntry, startTime: e.target.value})} /></div>
                   <div><Label>Slut</Label><Input type="time" value={editingEntry.endTime} onChange={e => setEditingEntry({...editingEntry, endTime: e.target.value})} /></div>
                 </div>
-                <Label>Rum</Label><Input value={editingEntry.room} onChange={e => setEditingEntry({...editingEntry, room: e.target.value})} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>Lärare</Label><Input value={editingEntry.teacher} onChange={e => setEditingEntry({...editingEntry, teacher: e.target.value})} /></div>
+                  <div><Label>Rum</Label><Input value={editingEntry.room} onChange={e => setEditingEntry({...editingEntry, room: e.target.value})} /></div>
+                </div>
+                <Input
+                  aria-label="Anteckningar"
+                  placeholder="Anteckningar/övrigt"
+                  value={editingEntry.notes ?? ''}
+                  onChange={e => setEditingEntry({ ...editingEntry, notes: e.target.value })}
+                />
                 <div className="flex gap-2 mt-2">{palette.map(c => <div key={c} onClick={() => setEditingEntry({...editingEntry, color: c})} className={`w-6 h-6 rounded-full cursor-pointer border ${editingEntry.color === c ? 'ring-2 ring-black' : ''}`} style={{backgroundColor: c}} />)}</div>
                 <DialogFooter><Button type="submit">Uppdatera</Button></DialogFooter>
              </form>
