@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -294,6 +294,8 @@ export default function NewSchedulePlanner() {
   const [courses, setCourses] = useState<PlannerCourse[]>(baseCourses);
   const [schedule, setSchedule] = useState<ScheduledEntry[]>([]);
   const [restrictions, setRestrictions] = useState<RestrictionRule[]>([]);
+  const scheduleHistoryRef = useRef<ScheduledEntry[][]>([]);
+  const scheduleFutureRef = useRef<ScheduledEntry[][]>([]);
   
   // UI State
   const [filterQuery, setFilterQuery] = useState("");
@@ -326,6 +328,8 @@ export default function NewSchedulePlanner() {
           setSchedule(sanitizeScheduleImport(parsed.schedule));
         }
         setRestrictions(parsed.restrictions || []);
+        scheduleHistoryRef.current = [];
+        scheduleFutureRef.current = [];
       } catch (e) { console.error("Load failed", e); }
     }
   }, []);
@@ -394,7 +398,7 @@ export default function NewSchedulePlanner() {
           if (confirm('Ersätta nuvarande schema?')) {
             setCourses(parsed.courses);
             const sanitizedSchedule = sanitizeScheduleImport(parsed.schedule);
-            setSchedule(sanitizedSchedule);
+            commitSchedule(() => sanitizedSchedule);
             if (parsed.restrictions) setRestrictions(parsed.restrictions);
           }
         } else {
@@ -414,6 +418,47 @@ export default function NewSchedulePlanner() {
   const handleDragStart = (event: any) => {
     setActiveDragItem(event.active.data.current);
   };
+
+  const commitSchedule = useCallback((updater: (prev: ScheduledEntry[]) => ScheduledEntry[]) => {
+    setSchedule(prev => {
+      const next = updater(prev);
+      if (next !== prev) {
+        scheduleHistoryRef.current = [...scheduleHistoryRef.current, prev];
+        scheduleFutureRef.current = [];
+      }
+      return next;
+    });
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    const history = scheduleHistoryRef.current;
+    if (history.length === 0) return;
+    setSchedule(prev => {
+      const previous = history[history.length - 1];
+      scheduleHistoryRef.current = history.slice(0, -1);
+      scheduleFutureRef.current = [...scheduleFutureRef.current, prev];
+      return previous;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditable = target?.tagName === 'INPUT'
+        || target?.tagName === 'TEXTAREA'
+        || target?.isContentEditable;
+      if (isEditable) return;
+
+      const isUndoKey = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z';
+      if (!isUndoKey || event.shiftKey) return;
+
+      event.preventDefault();
+      handleUndo();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -467,7 +512,7 @@ export default function NewSchedulePlanner() {
         endTime: newEndTime,
         duration: itemDuration
       };
-      setSchedule(prev => [...prev, newEntry]);
+      commitSchedule(prev => [...prev, newEntry]);
 
     } else if (type === 'scheduled') {
       const entry = active.data.current?.entry as ScheduledEntry;
@@ -479,7 +524,7 @@ export default function NewSchedulePlanner() {
       );
       if (conflict) { alert(conflict); return; }
 
-      setSchedule(prev => prev.map(e => 
+      commitSchedule(prev => prev.map(e => 
         e.instanceId === entry.instanceId 
           ? { ...e, day: targetDay, startTime: newStartTime, endTime: newEndTime } 
           : e
@@ -533,7 +578,7 @@ export default function NewSchedulePlanner() {
         return;
     }
     
-    setSchedule(p => p.map(entry => entry.instanceId === editingEntry.instanceId ? {...editingEntry, duration: newDuration} : entry));
+    commitSchedule(p => p.map(entry => entry.instanceId === editingEntry.instanceId ? {...editingEntry, duration: newDuration} : entry));
     setIsEntryModalOpen(false);
   };
 
@@ -582,7 +627,7 @@ export default function NewSchedulePlanner() {
               <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
               <Button variant="neutral" onClick={handleExportJSON} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Download size={16} className="mr-2"/> Spara</Button>
               <Button variant="neutral" onClick={() => fileInputRef.current?.click()} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Upload size={16} className="mr-2"/> Ladda</Button>
-              <Button variant="neutral" onClick={() => {if(confirm('Rensa?')) setSchedule([])}} className="border-2 border-black bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
+              <Button variant="neutral" onClick={() => {if(confirm('Rensa?')) commitSchedule(() => [])}} className="border-2 border-black bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
            </div>
         </div>
 
@@ -666,7 +711,7 @@ export default function NewSchedulePlanner() {
                              key={entry.instanceId} 
                              entry={entry} 
                              onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
-                             onRemove={(id) => setSchedule(p => p.filter(e => e.instanceId !== id))}
+                             onRemove={(id) => commitSchedule(p => p.filter(e => e.instanceId !== id))}
                              hidden={!advancedFilterMatch(entry, filterQuery)}
                               columnIndex={columnIndex}
                               columnCount={columnCount}
