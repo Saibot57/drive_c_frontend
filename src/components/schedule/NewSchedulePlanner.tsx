@@ -200,13 +200,20 @@ function ScheduledEventCard({ entry, onEdit, onRemove, hidden, columnIndex, colu
   );
 }
 
-function DayColumn({ day, children }: { day: string; children: React.ReactNode }) {
+function DayColumn({ day, ghost, children }: { day: string; ghost: {
+  startTime: string;
+  endTime: string;
+  duration: number;
+  color: string;
+  title: string;
+} | null; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({
     id: day,
     data: { day }
   });
 
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+  const ghostStyles = ghost ? getPositionStyles(ghost.startTime, ghost.duration) : null;
 
   return (
     <div 
@@ -221,6 +228,28 @@ function DayColumn({ day, children }: { day: string; children: React.ReactNode }
            style={{ top: `${(h - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
          />
        ))}
+       {ghost && ghostStyles && (
+         <>
+           <div
+             className="absolute left-0 right-0 border-t border-dashed z-[5]"
+             style={{ top: `${ghostStyles.top}px`, borderColor: ghost.color }}
+           />
+           <div
+             className="absolute rounded border-2 border-dashed text-blue-900/80 px-1 py-0.5 z-[6] pointer-events-none opacity-70"
+             style={{
+               top: `${ghostStyles.top}px`,
+               height: `${Math.max(ghostStyles.height - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`,
+               left: '6px',
+               right: '6px',
+               borderColor: ghost.color,
+               backgroundColor: ghost.color
+             }}
+           >
+             <div className="text-[10px] font-mono font-bold opacity-70 leading-none">{ghost.startTime}–{ghost.endTime}</div>
+             <div className="text-xs font-bold truncate">{ghost.title}</div>
+           </div>
+         </>
+       )}
        {children}
     </div>
   );
@@ -312,6 +341,14 @@ export default function NewSchedulePlanner() {
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
+  const [ghostPlacement, setGhostPlacement] = useState<{
+    day: string;
+    startTime: string;
+    endTime: string;
+    duration: number;
+    color: string;
+    title: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const sensors = useSensors(
@@ -465,6 +502,7 @@ export default function NewSchedulePlanner() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragItem(null);
+    setGhostPlacement(null);
 
     if (!over) return;
 
@@ -532,6 +570,72 @@ export default function NewSchedulePlanner() {
           : e
       ));
     }
+  };
+
+  const handleDragMove = (event: any) => {
+    const { active, over } = event;
+
+    if (!over) {
+      setGhostPlacement(null);
+      return;
+    }
+
+    const targetDay = over.id as string;
+    const type = active.data.current?.type;
+    const overRect = over.rect;
+    const activeRect = active.rect.current?.translated;
+
+    if (!activeRect || !overRect) {
+      setGhostPlacement(null);
+      return;
+    }
+
+    const itemDuration = type === 'course' 
+      ? (active.data.current?.course.duration || 60) 
+      : active.data.current?.entry.duration;
+
+    const relativeY = activeRect.top - overRect.top;
+    let minutesFromStart = relativeY / PIXELS_PER_MINUTE;
+    let totalMinutes = (START_HOUR * 60) + minutesFromStart;
+
+    totalMinutes = snapTime(totalMinutes);
+    const minTime = START_HOUR * 60;
+    const maxTime = (END_HOUR * 60) - itemDuration;
+    totalMinutes = Math.max(minTime, Math.min(totalMinutes, maxTime));
+
+    const newStartTime = minutesToTime(totalMinutes);
+    const endMinutes = totalMinutes + itemDuration;
+    const newEndTime = minutesToTime(endMinutes);
+
+    if (type === 'course') {
+      const course = active.data.current?.course as PlannerCourse;
+      setGhostPlacement({
+        day: targetDay,
+        startTime: newStartTime,
+        endTime: newEndTime,
+        duration: itemDuration,
+        color: course.color,
+        title: course.title
+      });
+      return;
+    }
+
+    if (type === 'scheduled') {
+      const entry = active.data.current?.entry as ScheduledEntry;
+      setGhostPlacement({
+        day: targetDay,
+        startTime: newStartTime,
+        endTime: newEndTime,
+        duration: itemDuration,
+        color: entry.color,
+        title: entry.title
+      });
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragItem(null);
+    setGhostPlacement(null);
   };
 
   // --- CRUD Handlers ---
@@ -602,7 +706,9 @@ export default function NewSchedulePlanner() {
     <DndContext 
       sensors={sensors} 
       onDragStart={handleDragStart} 
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="space-y-6 pb-20">
         
@@ -703,7 +809,7 @@ export default function NewSchedulePlanner() {
                    </div>
 
                    {days.map(day => (
-                     <DayColumn key={day} day={day}>
+                     <DayColumn key={day} day={day} ghost={ghostPlacement?.day === day ? ghostPlacement : null}>
                         {schedule.filter(e => e.day === day).map(entry => {
                           const layout = layoutByDay[day]?.get(entry.instanceId);
                           const columnIndex = layout?.column ?? 0;
