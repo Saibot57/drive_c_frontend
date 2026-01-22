@@ -152,7 +152,25 @@ function DraggableSourceCard({ course, onEdit, onDelete, hidden }: { course: Pla
   );
 }
 
-function ScheduledEventCard({ entry, onEdit, onRemove, hidden, columnIndex, columnCount }: { entry: ScheduledEntry; onEdit: (e: ScheduledEntry) => void; onRemove: (id: string) => void; hidden?: boolean; columnIndex: number; columnCount: number }) {
+function ScheduledEventCard({
+  entry,
+  onEdit,
+  onRemove,
+  onContextMenu,
+  hidden,
+  columnIndex,
+  columnCount,
+  isLastOfDay
+}: {
+  entry: ScheduledEntry;
+  onEdit: (e: ScheduledEntry) => void;
+  onRemove: (id: string) => void;
+  onContextMenu: (event: React.MouseEvent<HTMLDivElement>, e: ScheduledEntry) => void;
+  hidden?: boolean;
+  columnIndex: number;
+  columnCount: number;
+  isLastOfDay: boolean;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
     data: { type: 'scheduled', entry },
@@ -166,11 +184,15 @@ function ScheduledEventCard({ entry, onEdit, onRemove, hidden, columnIndex, colu
 
   if (hidden) return null;
 
+  const isShortDuration = entry.duration < 50;
+  const timeLabel = isLastOfDay ? `${entry.startTime}–${entry.endTime}` : entry.startTime;
+
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      onContextMenu={(event) => onContextMenu(event, entry)}
       style={{ 
         position: 'absolute',
         top: `${adjustedTop}px`,
@@ -181,17 +203,22 @@ function ScheduledEventCard({ entry, onEdit, onRemove, hidden, columnIndex, colu
         zIndex: isDragging ? 50 : 10
       }}
       className={`rounded border border-black/20 shadow-sm overflow-hidden p-1 group cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-60 ring-2 ring-black' : ''}`}
-      title={`${entry.startTime} - ${entry.endTime}`}
+      title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="flex flex-col h-full">
         <div className="flex justify-between items-start">
-          <span className="text-[10px] font-mono font-bold opacity-70 leading-none">{entry.startTime}</span>
+          <span className="text-[10px] font-mono font-bold opacity-70 leading-none">
+            {timeLabel}
+            {isShortDuration && (
+              <span className="ml-1 font-sans font-bold">{entry.title}</span>
+            )}
+          </span>
           <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded">
              <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-0.5 hover:bg-white rounded"><Edit2 size={8}/></button>
              <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8}/></button>
           </div>
         </div>
-        <p className="text-xs font-bold leading-tight truncate">{entry.title}</p>
+        {!isShortDuration && <p className="text-xs font-bold leading-tight truncate">{entry.title}</p>}
         {adjustedHeight > 30 && (
            <p className="text-[10px] text-gray-700 truncate">{entry.teacher} {entry.room}</p>
         )}
@@ -339,6 +366,11 @@ export default function NewSchedulePlanner() {
   const [editingEntry, setEditingEntry] = useState<ScheduledEntry | null>(null);
   const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    entry: ScheduledEntry;
+  } | null>(null);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [ghostPlacement, setGhostPlacement] = useState<{
@@ -498,6 +530,27 @@ export default function NewSchedulePlanner() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const handleDismiss = () => setContextMenu(null);
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setContextMenu(null);
+      }
+    };
+
+    window.addEventListener('click', handleDismiss);
+    window.addEventListener('contextmenu', handleDismiss);
+    window.addEventListener('keydown', handleEsc);
+
+    return () => {
+      window.removeEventListener('click', handleDismiss);
+      window.removeEventListener('contextmenu', handleDismiss);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [contextMenu]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -810,7 +863,14 @@ export default function NewSchedulePlanner() {
 
                    {days.map(day => (
                      <DayColumn key={day} day={day} ghost={ghostPlacement?.day === day ? ghostPlacement : null}>
-                        {schedule.filter(e => e.day === day).map(entry => {
+                        {(() => {
+                          const dayEntries = schedule.filter(e => e.day === day);
+                          const lastEndTime = dayEntries.reduce((latest, entry) => {
+                            const endMinutes = timeToMinutes(entry.endTime);
+                            return Math.max(latest, endMinutes);
+                          }, -Infinity);
+
+                          return dayEntries.map(entry => {
                           const layout = layoutByDay[day]?.get(entry.instanceId);
                           const columnIndex = layout?.column ?? 0;
                           const columnCount = layout?.columns ?? 1;
@@ -820,12 +880,22 @@ export default function NewSchedulePlanner() {
                              entry={entry} 
                              onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
                              onRemove={(id) => commitSchedule(p => p.filter(e => e.instanceId !== id))}
+                             onContextMenu={(event, selectedEntry) => {
+                               event.preventDefault();
+                               setContextMenu({
+                                 x: event.clientX,
+                                 y: event.clientY,
+                                 entry: selectedEntry
+                               });
+                             }}
                              hidden={!advancedFilterMatch(entry, filterQuery)}
                               columnIndex={columnIndex}
                               columnCount={columnCount}
+                              isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
                            />
                           );
-                        })}
+                          });
+                        })()}
                      </DayColumn>
                    ))}
                 </div>
@@ -847,6 +917,33 @@ export default function NewSchedulePlanner() {
            </div>
         )}
       </DragOverlay>
+
+      {contextMenu && (
+        <div
+          className="fixed z-[100] min-w-[140px] rounded border-2 border-black bg-white shadow-lg"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+            onClick={() => {
+              setEditingEntry(contextMenu.entry);
+              setIsEntryModalOpen(true);
+              setContextMenu(null);
+            }}
+          >
+            Redigera
+          </button>
+          <button
+            className="w-full px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
+            onClick={() => {
+              commitSchedule(p => p.filter(e => e.instanceId !== contextMenu.entry.instanceId));
+              setContextMenu(null);
+            }}
+          >
+            Radera
+          </button>
+        </div>
+      )}
 
       {/* Modals */}
       <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
