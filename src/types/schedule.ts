@@ -36,6 +36,7 @@ export interface ScheduledEntry extends PlannerCourse {
   day: string;
   startTime: string; // "HH:MM", t.ex "08:15"
   endTime: string;   // "HH:MM", t.ex "09:15"
+  notes?: string;
 }
 
 export interface RestrictionRule {
