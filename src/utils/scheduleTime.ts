@@ -2,6 +2,8 @@ export const START_HOUR = 8; // Schemat börjar 08:00
 export const END_HOUR = 17;   // Schemat slutar 17:00
 export const PIXELS_PER_MINUTE = 2; // Hur högt varje minut är (zoom)
 export const SNAP_MINUTES = 15; // "Magnet" för tider (kvartar)
+export const EVENT_GAP_PX = 4;
+export const MIN_HEIGHT_PX = 8;
 
 /** Konverterar "08:30" till minuter från midnatt (00:00) men justerat för logiken */
 export const timeToMinutes = (time: string): number => {
