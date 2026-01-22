@@ -28,7 +28,7 @@ import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState }
 import { 
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE, 
   timeToMinutes, minutesToTime, getPositionStyles, 
-  snapTime, checkOverlap 
+  snapTime, checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 
 const STORAGE_KEY = 'drive-c-schedule-planner-v5-timeline';
@@ -159,6 +159,8 @@ function ScheduledEventCard({ entry, onEdit, onRemove, hidden, columnIndex, colu
   });
 
   const { top, height } = getPositionStyles(entry.startTime, entry.duration);
+  const adjustedTop = top + EVENT_GAP_PX / 2;
+  const adjustedHeight = Math.max(height - EVENT_GAP_PX, MIN_HEIGHT_PX);
   const widthPercentage = 100 / Math.max(columnCount, 1);
   const leftPercentage = widthPercentage * columnIndex;
 
@@ -171,8 +173,8 @@ function ScheduledEventCard({ entry, onEdit, onRemove, hidden, columnIndex, colu
       {...attributes}
       style={{ 
         position: 'absolute',
-        top: `${top}px`,
-        height: `${height}px`,
+        top: `${adjustedTop}px`,
+        height: `${adjustedHeight}px`,
         left: `calc(${leftPercentage}% + 4px)`,
         width: `calc(${widthPercentage}% - 8px)`,
         backgroundColor: entry.color,
@@ -190,7 +192,7 @@ function ScheduledEventCard({ entry, onEdit, onRemove, hidden, columnIndex, colu
           </div>
         </div>
         <p className="text-xs font-bold leading-tight truncate">{entry.title}</p>
-        {height > 30 && (
+        {adjustedHeight > 30 && (
            <p className="text-[10px] text-gray-700 truncate">{entry.teacher} {entry.room}</p>
         )}
       </div>
@@ -734,7 +736,7 @@ export default function NewSchedulePlanner() {
         )}
         {activeDragItem?.type === 'scheduled' && (
            <div className="w-[120px] bg-white border-2 border-black p-1 rounded shadow-xl opacity-80" 
-             style={{ height: `${activeDragItem.entry.duration * PIXELS_PER_MINUTE}px`, backgroundColor: activeDragItem.entry.color }}>
+             style={{ height: `${Math.max(activeDragItem.entry.duration * PIXELS_PER_MINUTE - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`, backgroundColor: activeDragItem.entry.color }}>
               {activeDragItem.entry.title}
            </div>
         )}
