@@ -105,6 +105,17 @@
   }
 }
 
+/* PDF-export justeringar */
+.pdf-export .scheduled-event-card {
+  overflow: visible;
+  padding-top: 6px;
+}
+
+.pdf-export .scheduled-event-card p,
+.pdf-export .scheduled-event-card span {
+  line-height: 1.25;
+}
+
 /* Tailwind Utilities Layer */
 @layer utilities {
   .font-light {
