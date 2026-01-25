@@ -18,6 +18,7 @@ import jsPDF from 'jspdf';
 import {
   Download, RefreshCcw, Trash2, Plus, Edit2, ShieldAlert, Upload, X, BarChart3, Settings
 } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -374,6 +375,7 @@ export default function NewSchedulePlanner() {
     y: number;
     entry: ScheduledEntry;
   } | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [ghostPlacement, setGhostPlacement] = useState<{
@@ -800,59 +802,84 @@ export default function NewSchedulePlanner() {
            </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[1100px]">
+        <div className="flex flex-col lg:flex-row gap-6 h-[1100px]">
           
           {/* Sidebar */}
-          <div className="lg:col-span-1 flex flex-col gap-4 h-full">
-             <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col">
+          <div
+            className={`flex flex-col gap-4 h-full transition-all duration-300 ${
+              isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[320px]'
+            }`}
+          >
+             <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
+               isSidebarCollapsed ? 'p-2' : 'p-4'
+             }`}>
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-bold flex items-center gap-2"><Settings size={18}/> Byggstenar</h2>
-                  <Button size="sm" onClick={() => { 
-                    setManualColor(false);
-                    setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: '#ffffff', duration: 60 }); 
-                    setIsCourseModalOpen(true); 
-                  }} className="h-8 w-8 p-0 rounded-full border-2 border-black bg-[#aee8fe]"><Plus size={16}/></Button>
+                  <h2 className={`font-bold flex items-center gap-2 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
+                    <Settings size={18}/> Byggstenar
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {!isSidebarCollapsed && (
+                      <Button size="sm" onClick={() => { 
+                        setManualColor(false);
+                        setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: '#ffffff', duration: 60 }); 
+                        setIsCourseModalOpen(true); 
+                      }} className="h-8 w-8 p-0 rounded-full border-2 border-black bg-[#aee8fe]"><Plus size={16}/></Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="neutral"
+                      onClick={() => setIsSidebarCollapsed(prev => !prev)}
+                      className="h-8 w-8 p-0 border-2 border-black"
+                      aria-label={isSidebarCollapsed ? 'Visa byggstenar' : 'Dölj byggstenar'}
+                    >
+                      {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                    </Button>
+                  </div>
                 </div>
                 
                 {/* Courses List */}
-                <div className="overflow-y-auto flex-1 pr-2">
-                   {courses.map(c => (
-                     <DraggableSourceCard 
-                       key={c.id} 
-                       course={c} 
-                       onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }} 
-                       onDelete={handleDeleteCourse} 
-                       hidden={!advancedFilterMatch(c, filterQuery)}
-                     />
-                   ))}
-                </div>
+                {!isSidebarCollapsed && (
+                  <div className="overflow-y-auto flex-1 pr-2">
+                     {courses.map(c => (
+                       <DraggableSourceCard 
+                         key={c.id} 
+                         course={c} 
+                         onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }} 
+                         onDelete={handleDeleteCourse} 
+                         hidden={!advancedFilterMatch(c, filterQuery)}
+                       />
+                     ))}
+                  </div>
+                )}
 
                 {/* Statistics */}
-                <div className="mt-4 pt-4 border-t-2 border-gray-100">
-                  <div className="flex items-center gap-2 mb-2 text-gray-500">
-                    <BarChart3 size={14} /> 
-                    <span className="text-xs font-bold uppercase">Tid (Filtrerat)</span>
+                {!isSidebarCollapsed && (
+                  <div className="mt-4 pt-4 border-t-2 border-gray-100">
+                    <div className="flex items-center gap-2 mb-2 text-gray-500">
+                      <BarChart3 size={14} /> 
+                      <span className="text-xs font-bold uppercase">Tid (Filtrerat)</span>
+                    </div>
+                    <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
+                      {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> : 
+                        scheduleStats.slice(0, 10).map(([title, minutes]) => {
+                          const hours = minutes / 60;
+                          return (
+                            <div key={title} className="flex justify-between">
+                              <span>{title}</span>
+                              <span className="font-mono font-bold">{hoursFormatter.format(hours)} h</span>
+                            </div>
+                          );
+                        })
+                      }
+                    </div>
                   </div>
-                  <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
-                    {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> : 
-                      scheduleStats.slice(0, 10).map(([title, minutes]) => {
-                        const hours = minutes / 60;
-                        return (
-                          <div key={title} className="flex justify-between">
-                            <span>{title}</span>
-                            <span className="font-mono font-bold">{hoursFormatter.format(hours)} h</span>
-                          </div>
-                        );
-                      })
-                    }
-                  </div>
-                </div>
+                )}
 
              </div>
           </div>
 
           {/* Main Schedule Area */}
-          <div className="lg:col-span-3 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
+          <div className="flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
              <div className="flex pl-[50px] border-b-2 border-black bg-white">
                 {days.map(day => (
                   <div key={day} className="flex-1 py-2 text-center font-bold text-sm border-r border-gray-200 last:border-0">{day}</div>
