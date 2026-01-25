@@ -203,7 +203,7 @@ function ScheduledEventCard({
         backgroundColor: entry.color,
         zIndex: isDragging ? 50 : 10
       }}
-      className={`rounded border border-black/20 shadow-sm overflow-hidden p-1 group cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-60 ring-2 ring-black' : ''}`}
+      className={`scheduled-event-card rounded border border-black/20 shadow-sm overflow-hidden p-1 group cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-60 ring-2 ring-black' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="flex flex-col h-full">
@@ -754,13 +754,18 @@ export default function NewSchedulePlanner() {
   const handleExportPDF = async () => {
     const el = document.getElementById('schedule-canvas');
     if(!el) return;
-    const canvas = await html2canvas(el, { scale: 2 });
-    const pdf = new jsPDF('l', 'pt', 'a4');
-    const imgProps = pdf.getImageProperties(canvas.toDataURL('image/png'));
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 20, pdfWidth, pdfHeight);
-    pdf.save('schema.pdf');
+    el.classList.add('pdf-export');
+    try {
+      const canvas = await html2canvas(el, { scale: 2 });
+      const pdf = new jsPDF('l', 'pt', 'a4');
+      const imgProps = pdf.getImageProperties(canvas.toDataURL('image/png'));
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 20, pdfWidth, pdfHeight);
+      pdf.save('schema.pdf');
+    } finally {
+      el.classList.remove('pdf-export');
+    }
   };
 
   // --- Render ---
