@@ -446,6 +446,37 @@ export default function NewSchedulePlanner() {
     return layout;
   }, [schedule]);
 
+  const daySubjectTotals = useMemo(() => {
+    const totals: Record<string, Record<string, number>> = {};
+    days.forEach(day => {
+      totals[day] = {};
+    });
+    schedule.forEach(entry => {
+      if (!totals[entry.day]) {
+        totals[entry.day] = {};
+      }
+      totals[entry.day][entry.title] = (totals[entry.day][entry.title] || 0) + entry.duration;
+    });
+    return totals;
+  }, [schedule]);
+
+  const dayHeaderTooltips = useMemo(() => {
+    const tooltips: Record<string, string> = {};
+    days.forEach(day => {
+      const entries = Object.entries(daySubjectTotals[day] ?? {});
+      if (entries.length === 0) {
+        tooltips[day] = 'Inget schemalagt';
+        return;
+      }
+      const totalMinutes = entries.reduce((sum, [, minutes]) => sum + minutes, 0);
+      const lines = entries
+        .sort((a, b) => b[1] - a[1])
+        .map(([title, minutes]) => `${title}: ${minutes} min`);
+      tooltips[day] = [`Totalt: ${totalMinutes} min`, ...lines].join('\n');
+    });
+    return tooltips;
+  }, [daySubjectTotals]);
+
   // --- JSON Import/Export Handlers ---
 
   const handleExportJSON = () => {
@@ -887,7 +918,13 @@ export default function NewSchedulePlanner() {
           <div className="flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
              <div className="flex pl-[50px] border-b-2 border-black bg-white">
                 {days.map(day => (
-                  <div key={day} className="flex-1 py-2 text-center font-bold text-sm border-r border-gray-200 last:border-0">{day}</div>
+                  <div
+                    key={day}
+                    className="flex-1 py-2 text-center font-bold text-sm border-r border-gray-200 last:border-0 cursor-help"
+                    title={dayHeaderTooltips[day]}
+                  >
+                    {day}
+                  </div>
                 ))}
              </div>
 
