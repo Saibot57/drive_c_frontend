@@ -12,6 +12,7 @@ export interface PlannerActivity {
   duration?: number;
   color?: string;
   category?: string;
+  archiveName?: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
@@ -58,5 +59,69 @@ export const plannerService = {
     if (!response.ok) {
       throw new Error('Failed to delete planner activity');
     }
+  },
+
+  async savePlannerArchive(name: string, activities: PlannerActivity[]): Promise<PlannerActivity[]> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`, {
+      method: 'POST',
+      body: JSON.stringify({ archiveName: name, activities }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to save planner archive');
+    }
+    const payload = await response.json();
+    if (Array.isArray(payload?.data)) {
+      return payload.data as PlannerActivity[];
+    }
+    if (Array.isArray(payload)) {
+      return payload as PlannerActivity[];
+    }
+    return [];
+  },
+
+  async getPlannerArchive(name: string): Promise<PlannerActivity[]> {
+    const response = await fetchWithAuth(
+      `${PLANNER_API_URL}/activities?archive_name=${encodeURIComponent(name)}`,
+    );
+    if (!response.ok) {
+      throw new Error('Failed to fetch planner archive');
+    }
+    const payload = await response.json();
+    if (Array.isArray(payload?.data)) {
+      return payload.data as PlannerActivity[];
+    }
+    if (Array.isArray(payload)) {
+      return payload as PlannerActivity[];
+    }
+    return [];
+  },
+
+  async deletePlannerArchive(name: string): Promise<void> {
+    const response = await fetchWithAuth(
+      `${PLANNER_API_URL}/activities?archive_name=${encodeURIComponent(name)}`,
+      { method: 'DELETE' },
+    );
+    if (!response.ok) {
+      throw new Error('Failed to delete planner archive');
+    }
+  },
+
+  async getPlannerArchiveNames(): Promise<string[]> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch planner archives');
+    }
+    const payload = await response.json();
+    const activities = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload)
+        ? payload
+        : [];
+    const names = activities
+      .map((activity: { archiveName?: string; archive_name?: string }) => (
+        activity.archiveName ?? activity.archive_name
+      ))
+      .filter((name: string | undefined): name is string => Boolean(name));
+    return Array.from(new Set(names));
   },
 };

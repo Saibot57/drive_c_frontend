@@ -391,7 +391,7 @@ export default function NewSchedulePlanner() {
   } | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
-  const [savedWeeks, setSavedWeeks] = useState<Record<string, ScheduledEntry[]>>({});
+  const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
@@ -441,6 +441,19 @@ export default function NewSchedulePlanner() {
     loadPlannerActivities();
   }, []);
 
+  useEffect(() => {
+    const loadArchiveNames = async () => {
+      try {
+        const names = await plannerService.getPlannerArchiveNames();
+        setSavedWeekNames(names);
+      } catch (error) {
+        console.error('Archive names load failed', error);
+      }
+    };
+
+    loadArchiveNames();
+  }, []);
+
   // Sync colors
   useEffect(() => {
     const colorMap = courses.map(c => ({ className: c.title, color: c.color }));
@@ -458,14 +471,14 @@ export default function NewSchedulePlanner() {
     return Object.entries(stats).sort((a, b) => b[1] - a[1]);
   }, [schedule, filterQuery]);
 
-  const savedWeekNames = useMemo(() => {
+  const sortedWeekNames = useMemo(() => {
     const weekPattern = /^v\.?\s*(\d+)$/i;
     const getWeekNumber = (name: string) => {
       const match = name.match(weekPattern);
       return match ? Number(match[1]) : null;
     };
 
-    return Object.keys(savedWeeks).sort((a, b) => {
+    return [...savedWeekNames].sort((a, b) => {
       const weekA = getWeekNumber(a);
       const weekB = getWeekNumber(b);
 
@@ -475,7 +488,7 @@ export default function NewSchedulePlanner() {
 
       return a.localeCompare(b, 'sv');
     });
-  }, [savedWeeks]);
+  }, [savedWeekNames]);
 
   const hoursFormatter = useMemo(() => new Intl.NumberFormat('sv-SE', {
     minimumFractionDigits: 1,
@@ -668,38 +681,68 @@ export default function NewSchedulePlanner() {
     });
   }, []);
 
-  const handleSaveWeek = useCallback(() => {
+  const handleSaveWeek = useCallback(async () => {
     const trimmedName = weekName.trim();
     if (!trimmedName) {
       alert('Ange ett veckonamn.');
       return;
     }
-    if (savedWeeks[trimmedName]) {
+    if (savedWeekNames.includes(trimmedName)) {
       const shouldOverwrite = confirm(`Vecka "${trimmedName}" finns redan. Skriva över?`);
       if (!shouldOverwrite) return;
     }
-    const snapshot = schedule.map(entry => ({ ...entry }));
-    setSavedWeeks(prev => ({ ...prev, [trimmedName]: snapshot }));
-    setWeekName('');
-  }, [weekName, savedWeeks, schedule]);
+    try {
+      const payload = mapScheduleToPlannerActivities(schedule);
+      await plannerService.savePlannerArchive(trimmedName, payload);
+      setSavedWeekNames(prev => (
+        prev.includes(trimmedName) ? prev : [...prev, trimmedName]
+      ));
+      setWeekName('');
+      alert('Veckan sparades i arkivet.');
+    } catch (error) {
+      console.error('Archive save failed', error);
+      alert('Kunde inte spara veckan.');
+    }
+  }, [weekName, savedWeekNames, schedule, mapScheduleToPlannerActivities]);
 
-  const handleLoadWeek = useCallback((name: string) => {
-    const entries = savedWeeks[name];
-    if (!entries) return;
+  const handleLoadWeek = useCallback(async (name: string) => {
     const shouldLoad = confirm(`Ersätta nuvarande schema med "${name}"?`);
     if (!shouldLoad) return;
-    const sanitized = sanitizeScheduleImport(entries);
-    commitSchedule(() => sanitized);
-  }, [savedWeeks, commitSchedule]);
+    try {
+      const entries = await plannerService.getPlannerArchive(name);
+      const mappedSchedule = sanitizeScheduleImport(
+        entries.map(activity => ({
+          id: activity.id,
+          title: activity.title,
+          teacher: activity.teacher ?? '',
+          room: activity.room ?? '',
+          color: activity.color ?? generateBoxColor(activity.title ?? ''),
+          duration: activity.duration ?? 60,
+          category: activity.category,
+          instanceId: activity.id,
+          day: activity.day ?? days[0],
+          startTime: activity.startTime ?? '08:00',
+          endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
+          notes: activity.notes ?? undefined
+        }))
+      );
+      commitSchedule(() => mappedSchedule);
+    } catch (error) {
+      console.error('Archive load failed', error);
+      alert('Kunde inte läsa in veckan.');
+    }
+  }, [commitSchedule]);
 
-  const handleDeleteWeek = useCallback((name: string) => {
+  const handleDeleteWeek = useCallback(async (name: string) => {
     const shouldDelete = confirm(`Radera vecka "${name}"?`);
     if (!shouldDelete) return;
-    setSavedWeeks(prev => {
-      const next = { ...prev };
-      delete next[name];
-      return next;
-    });
+    try {
+      await plannerService.deletePlannerArchive(name);
+      setSavedWeekNames(prev => prev.filter(existing => existing !== name));
+    } catch (error) {
+      console.error('Archive delete failed', error);
+      alert('Kunde inte ta bort veckan.');
+    }
   }, []);
 
   const handleUndo = useCallback(() => {
@@ -1195,10 +1238,10 @@ export default function NewSchedulePlanner() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                      {savedWeekNames.length === 0 ? (
+                      {sortedWeekNames.length === 0 ? (
                         <p className="text-sm text-gray-500 italic">Inga sparade veckor ännu.</p>
                       ) : (
-                        savedWeekNames.map(name => (
+                        sortedWeekNames.map(name => (
                           <div
                             key={name}
                             className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center justify-between gap-2"
