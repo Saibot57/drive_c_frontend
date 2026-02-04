@@ -598,6 +598,23 @@ export default function NewSchedulePlanner() {
     event.target.value = '';
   };
 
+  // --- Drag & Drop Logic ---
+
+  const handleDragStart = (event: any) => {
+    setActiveDragItem(event.active.data.current);
+  };
+
+  const commitSchedule = useCallback((updater: (prev: ScheduledEntry[]) => ScheduledEntry[]) => {
+    setSchedule(prev => {
+      const next = updater(prev);
+      if (next !== prev) {
+        scheduleHistoryRef.current = [...scheduleHistoryRef.current, prev];
+        scheduleFutureRef.current = [];
+      }
+      return next;
+    });
+  }, []);
+
   const handleSaveWeek = useCallback(() => {
     const trimmedName = weekName.trim();
     if (!trimmedName) {
@@ -628,24 +645,6 @@ export default function NewSchedulePlanner() {
     setSavedWeeks(prev => {
       const next = { ...prev };
       delete next[name];
-      return next;
-    });
-  }, []);
-
-
-  // --- Drag & Drop Logic ---
-
-  const handleDragStart = (event: any) => {
-    setActiveDragItem(event.active.data.current);
-  };
-
-  const commitSchedule = useCallback((updater: (prev: ScheduledEntry[]) => ScheduledEntry[]) => {
-    setSchedule(prev => {
-      const next = updater(prev);
-      if (next !== prev) {
-        scheduleHistoryRef.current = [...scheduleHistoryRef.current, prev];
-        scheduleFutureRef.current = [];
-      }
       return next;
     });
   }, []);
