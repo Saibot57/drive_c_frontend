@@ -30,7 +30,8 @@ import {
   Save,
   FolderOpen,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CloudUpload
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -39,14 +40,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { generateBoxColor, importColors } from '@/config/colorManagement';
 import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
+import { plannerService } from '@/services/plannerService';
 import { 
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE, 
   timeToMinutes, minutesToTime, getPositionStyles, 
   snapTime, checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 
-const STORAGE_KEY = 'drive-c-schedule-planner-v5-timeline';
-const ARCHIVE_KEY = 'drive-c-schedule-planner-v5-archive';
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'];
 
@@ -410,46 +410,36 @@ export default function NewSchedulePlanner() {
     useSensor(KeyboardSensor)
   );
 
-  // Load/Save LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    const loadPlannerActivities = async () => {
       try {
-        const parsed = JSON.parse(saved);
-        setCourses(parsed.courses || baseCourses);
-        if (parsed.schedule) {
-          setSchedule(sanitizeScheduleImport(parsed.schedule));
-        }
-        setRestrictions(parsed.restrictions || []);
+        const activities = await plannerService.getPlannerActivities();
+        const mappedSchedule = sanitizeScheduleImport(
+          activities.map(activity => ({
+            id: activity.id,
+            title: activity.title,
+            teacher: activity.teacher ?? '',
+            room: activity.room ?? '',
+            color: activity.color ?? generateBoxColor(activity.title ?? ''),
+            duration: activity.duration ?? 60,
+            category: activity.category,
+            instanceId: activity.id,
+            day: activity.day ?? days[0],
+            startTime: activity.startTime ?? '08:00',
+            endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
+            notes: activity.notes ?? undefined
+          }))
+        );
+        setSchedule(mappedSchedule);
         scheduleHistoryRef.current = [];
         scheduleFutureRef.current = [];
-      } catch (e) { console.error("Load failed", e); }
-    }
-    const archive = localStorage.getItem(ARCHIVE_KEY);
-    if (archive) {
-      try {
-        const parsedArchive = JSON.parse(archive);
-        if (parsedArchive && typeof parsedArchive === 'object') {
-          const normalized: Record<string, ScheduledEntry[]> = {};
-          Object.entries(parsedArchive).forEach(([key, entries]) => {
-            if (Array.isArray(entries)) {
-              normalized[key] = sanitizeScheduleImport(entries);
-            }
-          });
-          setSavedWeeks(normalized);
-        }
-      } catch (e) { console.error("Archive load failed", e); }
-    }
+      } catch (e) {
+        console.error('Planner load failed', e);
+      }
+    };
+
+    loadPlannerActivities();
   }, []);
-
-  useEffect(() => {
-    const payload: PersistedPlannerState = { version: 5, timestamp: new Date().toISOString(), courses, schedule, restrictions };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [courses, schedule, restrictions]);
-
-  useEffect(() => {
-    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(savedWeeks));
-  }, [savedWeeks]);
 
   // Sync colors
   useEffect(() => {
@@ -549,6 +539,22 @@ export default function NewSchedulePlanner() {
     return `${hours}h + ${remaining} min`;
   }, []);
 
+  const mapScheduleToPlannerActivities = useCallback((entries: ScheduledEntry[]) => (
+    entries.map(entry => ({
+      id: entry.instanceId,
+      title: entry.title,
+      room: entry.room,
+      teacher: entry.teacher,
+      notes: entry.notes ?? '',
+      day: entry.day,
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+      duration: entry.duration,
+      color: entry.color,
+      category: entry.category
+    }))
+  ), []);
+
   const dayHeaderTooltips = useMemo(() => {
     const tooltips: Record<string, string> = {};
     days.forEach(day => {
@@ -612,6 +618,38 @@ export default function NewSchedulePlanner() {
     reader.readAsText(file);
     event.target.value = '';
   };
+
+  const handleSyncToCloud = useCallback(async () => {
+    try {
+      const payload = mapScheduleToPlannerActivities(schedule);
+      const synced = await plannerService.syncActivities(payload);
+      if (synced.length > 0) {
+        const mappedSchedule = sanitizeScheduleImport(
+          synced.map(activity => ({
+            id: activity.id,
+            title: activity.title,
+            teacher: activity.teacher ?? '',
+            room: activity.room ?? '',
+            color: activity.color ?? generateBoxColor(activity.title ?? ''),
+            duration: activity.duration ?? 60,
+            category: activity.category,
+            instanceId: activity.id,
+            day: activity.day ?? days[0],
+            startTime: activity.startTime ?? '08:00',
+            endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
+            notes: activity.notes ?? undefined
+          }))
+        );
+        setSchedule(mappedSchedule);
+        scheduleHistoryRef.current = [];
+        scheduleFutureRef.current = [];
+      }
+      alert('Schema synkat till molnet.');
+    } catch (error) {
+      console.error('Cloud sync failed', error);
+      alert('Kunde inte synka schemat.');
+    }
+  }, [mapScheduleToPlannerActivities, schedule]);
 
   // --- Drag & Drop Logic ---
 
@@ -956,6 +994,7 @@ export default function NewSchedulePlanner() {
               <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
               <Button variant="neutral" onClick={handleExportJSON} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Download size={16} className="mr-2"/> Spara</Button>
               <Button variant="neutral" onClick={() => fileInputRef.current?.click()} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Upload size={16} className="mr-2"/> Ladda</Button>
+              <Button variant="neutral" onClick={handleSyncToCloud} className="border-2 border-black bg-sky-100 hover:bg-sky-200"><CloudUpload size={16} className="mr-2"/> Spara till molnet</Button>
               <Button variant="neutral" onClick={() => {if(confirm('Rensa?')) commitSchedule(() => [])}} className="border-2 border-black bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
            </div>
         </div>
