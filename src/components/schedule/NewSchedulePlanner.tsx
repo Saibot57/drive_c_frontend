@@ -469,7 +469,22 @@ export default function NewSchedulePlanner() {
   }, [schedule, filterQuery]);
 
   const savedWeekNames = useMemo(() => {
-    return Object.keys(savedWeeks).sort((a, b) => a.localeCompare(b, 'sv'));
+    const weekPattern = /^v\.?\s*(\d+)$/i;
+    const getWeekNumber = (name: string) => {
+      const match = name.match(weekPattern);
+      return match ? Number(match[1]) : null;
+    };
+
+    return Object.keys(savedWeeks).sort((a, b) => {
+      const weekA = getWeekNumber(a);
+      const weekB = getWeekNumber(b);
+
+      if (weekA !== null && weekB !== null) {
+        return weekA - weekB;
+      }
+
+      return a.localeCompare(b, 'sv');
+    });
   }, [savedWeeks]);
 
   const hoursFormatter = useMemo(() => new Intl.NumberFormat('sv-SE', {
