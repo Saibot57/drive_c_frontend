@@ -448,17 +448,51 @@ export default function NewSchedulePlanner() {
 
   const daySubjectTotals = useMemo(() => {
     const totals: Record<string, Record<string, number>> = {};
+    const intervalsByDay: Record<string, Record<string, { start: number; end: number }[]>> = {};
     days.forEach(day => {
       totals[day] = {};
+      intervalsByDay[day] = {};
     });
     schedule.forEach(entry => {
-      if (!totals[entry.day]) {
-        totals[entry.day] = {};
+      if (!intervalsByDay[entry.day]) {
+        intervalsByDay[entry.day] = {};
       }
-      totals[entry.day][entry.title] = (totals[entry.day][entry.title] || 0) + entry.duration;
+      if (!intervalsByDay[entry.day][entry.title]) {
+        intervalsByDay[entry.day][entry.title] = [];
+      }
+      intervalsByDay[entry.day][entry.title].push({
+        start: timeToMinutes(entry.startTime),
+        end: timeToMinutes(entry.endTime),
+      });
+    });
+    Object.entries(intervalsByDay).forEach(([day, subjects]) => {
+      Object.entries(subjects).forEach(([title, intervals]) => {
+        if (intervals.length === 0) return;
+        const sorted = [...intervals].sort((a, b) => a.start - b.start);
+        let total = 0;
+        let currentStart = sorted[0].start;
+        let currentEnd = sorted[0].end;
+        sorted.slice(1).forEach(interval => {
+          if (interval.start < currentEnd && interval.end > currentStart) {
+            currentEnd = Math.max(currentEnd, interval.end);
+          } else {
+            total += currentEnd - currentStart;
+            currentStart = interval.start;
+            currentEnd = interval.end;
+          }
+        });
+        total += currentEnd - currentStart;
+        totals[day][title] = total;
+      });
     });
     return totals;
   }, [schedule]);
+
+  const formatDuration = useCallback((minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+    return `${hours}h + ${remaining} min`;
+  }, []);
 
   const dayHeaderTooltips = useMemo(() => {
     const tooltips: Record<string, string> = {};
@@ -471,11 +505,11 @@ export default function NewSchedulePlanner() {
       const totalMinutes = entries.reduce((sum, [, minutes]) => sum + minutes, 0);
       const lines = entries
         .sort((a, b) => b[1] - a[1])
-        .map(([title, minutes]) => `${title}: ${minutes} min`);
-      tooltips[day] = [`Totalt: ${totalMinutes} min`, ...lines].join('\n');
+        .map(([title, minutes]) => `${title}: ${formatDuration(minutes)}`);
+      tooltips[day] = [`Totalt: ${formatDuration(totalMinutes)}`, ...lines].join('\n');
     });
     return tooltips;
-  }, [daySubjectTotals]);
+  }, [daySubjectTotals, formatDuration]);
 
   // --- JSON Import/Export Handlers ---
 
