@@ -16,9 +16,22 @@ import {
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
-  Download, RefreshCcw, Trash2, Plus, Edit2, ShieldAlert, Upload, X, BarChart3, Settings
+  Archive,
+  Download,
+  RefreshCcw,
+  Trash2,
+  Plus,
+  Edit2,
+  ShieldAlert,
+  Upload,
+  X,
+  BarChart3,
+  Settings,
+  Save,
+  FolderOpen,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,6 +46,7 @@ import {
 } from '@/utils/scheduleTime';
 
 const STORAGE_KEY = 'drive-c-schedule-planner-v5-timeline';
+const ARCHIVE_KEY = 'drive-c-schedule-planner-v5-archive';
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'];
 
@@ -376,6 +390,9 @@ export default function NewSchedulePlanner() {
     entry: ScheduledEntry;
   } | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
+  const [savedWeeks, setSavedWeeks] = useState<Record<string, ScheduledEntry[]>>({});
+  const [weekName, setWeekName] = useState('');
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [ghostPlacement, setGhostPlacement] = useState<{
@@ -408,12 +425,31 @@ export default function NewSchedulePlanner() {
         scheduleFutureRef.current = [];
       } catch (e) { console.error("Load failed", e); }
     }
+    const archive = localStorage.getItem(ARCHIVE_KEY);
+    if (archive) {
+      try {
+        const parsedArchive = JSON.parse(archive);
+        if (parsedArchive && typeof parsedArchive === 'object') {
+          const normalized: Record<string, ScheduledEntry[]> = {};
+          Object.entries(parsedArchive).forEach(([key, entries]) => {
+            if (Array.isArray(entries)) {
+              normalized[key] = sanitizeScheduleImport(entries);
+            }
+          });
+          setSavedWeeks(normalized);
+        }
+      } catch (e) { console.error("Archive load failed", e); }
+    }
   }, []);
 
   useEffect(() => {
     const payload: PersistedPlannerState = { version: 5, timestamp: new Date().toISOString(), courses, schedule, restrictions };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [courses, schedule, restrictions]);
+
+  useEffect(() => {
+    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(savedWeeks));
+  }, [savedWeeks]);
 
   // Sync colors
   useEffect(() => {
@@ -431,6 +467,10 @@ export default function NewSchedulePlanner() {
     });
     return Object.entries(stats).sort((a, b) => b[1] - a[1]);
   }, [schedule, filterQuery]);
+
+  const savedWeekNames = useMemo(() => {
+    return Object.keys(savedWeeks).sort((a, b) => a.localeCompare(b, 'sv'));
+  }, [savedWeeks]);
 
   const hoursFormatter = useMemo(() => new Intl.NumberFormat('sv-SE', {
     minimumFractionDigits: 1,
@@ -558,7 +598,6 @@ export default function NewSchedulePlanner() {
     event.target.value = '';
   };
 
-
   // --- Drag & Drop Logic ---
 
   const handleDragStart = (event: any) => {
@@ -572,6 +611,40 @@ export default function NewSchedulePlanner() {
         scheduleHistoryRef.current = [...scheduleHistoryRef.current, prev];
         scheduleFutureRef.current = [];
       }
+      return next;
+    });
+  }, []);
+
+  const handleSaveWeek = useCallback(() => {
+    const trimmedName = weekName.trim();
+    if (!trimmedName) {
+      alert('Ange ett veckonamn.');
+      return;
+    }
+    if (savedWeeks[trimmedName]) {
+      const shouldOverwrite = confirm(`Vecka "${trimmedName}" finns redan. Skriva över?`);
+      if (!shouldOverwrite) return;
+    }
+    const snapshot = schedule.map(entry => ({ ...entry }));
+    setSavedWeeks(prev => ({ ...prev, [trimmedName]: snapshot }));
+    setWeekName('');
+  }, [weekName, savedWeeks, schedule]);
+
+  const handleLoadWeek = useCallback((name: string) => {
+    const entries = savedWeeks[name];
+    if (!entries) return;
+    const shouldLoad = confirm(`Ersätta nuvarande schema med "${name}"?`);
+    if (!shouldLoad) return;
+    const sanitized = sanitizeScheduleImport(entries);
+    commitSchedule(() => sanitized);
+  }, [savedWeeks, commitSchedule]);
+
+  const handleDeleteWeek = useCallback((name: string) => {
+    const shouldDelete = confirm(`Radera vecka "${name}"?`);
+    if (!shouldDelete) return;
+    setSavedWeeks(prev => {
+      const next = { ...prev };
+      delete next[name];
       return next;
     });
   }, []);
@@ -1013,6 +1086,95 @@ export default function NewSchedulePlanner() {
                      </DayColumn>
                    ))}
                 </div>
+             </div>
+          </div>
+
+          {/* Archive Sidebar */}
+          <div
+            className={`flex flex-col gap-4 h-full transition-all duration-300 ${
+              isRightSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[320px]'
+            }`}
+          >
+             <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
+               isRightSidebarCollapsed ? 'p-2' : 'p-4'
+             }`}>
+                <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
+                  <h2 className={`font-bold flex items-center gap-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
+                    <Archive size={18}/> Sparade Veckor
+                  </h2>
+                  <Button
+                    size="sm"
+                    variant="neutral"
+                    onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
+                    className="h-8 w-8 p-0 border-2 border-black"
+                    aria-label={isRightSidebarCollapsed ? 'Visa arkiv' : 'Dölj arkiv'}
+                  >
+                    {isRightSidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                  </Button>
+                  {isRightSidebarCollapsed && (
+                    <div className="flex flex-col items-center gap-2 text-xs font-bold text-gray-600">
+                      <Archive size={18}/>
+                      <span className="rotate-90 whitespace-nowrap">Archive</span>
+                    </div>
+                  )}
+                </div>
+
+                {!isRightSidebarCollapsed && (
+                  <div className="flex flex-col gap-4 flex-1">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase text-gray-500">Spara vecka</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={weekName}
+                          onChange={(e) => setWeekName(e.target.value)}
+                          placeholder="Vecka 42 eller Höstlov"
+                          className="border-2 border-black shadow-sm"
+                        />
+                        <Button
+                          variant="neutral"
+                          onClick={handleSaveWeek}
+                          disabled={!weekName.trim()}
+                          className="border-2 border-black bg-amber-100 hover:bg-amber-200"
+                        >
+                          <Save size={14} className="mr-2"/> Spara
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+                      {savedWeekNames.length === 0 ? (
+                        <p className="text-sm text-gray-500 italic">Inga sparade veckor ännu.</p>
+                      ) : (
+                        savedWeekNames.map(name => (
+                          <div
+                            key={name}
+                            className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center justify-between gap-2"
+                          >
+                            <span className="font-bold text-sm truncate">{name}</span>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="neutral"
+                                onClick={() => handleLoadWeek(name)}
+                                className="h-8 border-2 border-black bg-emerald-100 hover:bg-emerald-200"
+                              >
+                                <FolderOpen size={14} className="mr-1"/> Ladda
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="neutral"
+                                onClick={() => handleDeleteWeek(name)}
+                                className="h-8 w-8 p-0 border-2 border-black bg-rose-100 hover:bg-rose-200 text-rose-800"
+                              >
+                                <Trash2 size={14}/>
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
              </div>
           </div>
         </div>
