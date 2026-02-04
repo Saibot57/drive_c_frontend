@@ -1114,7 +1114,6 @@ export default function NewSchedulePlanner() {
                   {isRightSidebarCollapsed && (
                     <div className="flex flex-col items-center gap-2 text-xs font-bold text-gray-600">
                       <Archive size={18}/>
-                      <span className="rotate-90 whitespace-nowrap">Archive</span>
                     </div>
                   )}
                 </div>
