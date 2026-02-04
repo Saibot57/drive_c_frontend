@@ -20,7 +20,7 @@ const PLANNER_API_URL = `${API_URL}/planner`;
 
 export const plannerService = {
   async getPlannerActivities(): Promise<PlannerActivity[]> {
-    const response = await fetchWithAuth(PLANNER_API_URL);
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`);
     if (!response.ok) {
       throw new Error('Failed to fetch planner activities');
     }
@@ -35,7 +35,7 @@ export const plannerService = {
   },
 
   async syncActivities(activities: PlannerActivity[]): Promise<PlannerActivity[]> {
-    const response = await fetchWithAuth(PLANNER_API_URL, {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`, {
       method: 'POST',
       body: JSON.stringify({ activities }),
     });
@@ -107,21 +107,17 @@ export const plannerService = {
   },
 
   async getPlannerArchiveNames(): Promise<string[]> {
-    const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`);
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives`);
     if (!response.ok) {
       throw new Error('Failed to fetch planner archives');
     }
     const payload = await response.json();
-    const activities = Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload)
-        ? payload
-        : [];
-    const names = activities
-      .map((activity: { archiveName?: string; archive_name?: string }) => (
-        activity.archiveName ?? activity.archive_name
-      ))
-      .filter((name: string | undefined): name is string => Boolean(name));
-    return Array.from(new Set(names));
+    if (Array.isArray(payload?.data)) {
+      return payload.data as string[];
+    }
+    if (Array.isArray(payload)) {
+      return payload as string[];
+    }
+    return [];
   },
 };
