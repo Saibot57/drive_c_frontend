@@ -87,11 +87,11 @@ const deriveCoursesFromSchedule = (scheduleEntries: ScheduledEntry[]) => {
     const mappedCourse: PlannerCourse = {
       id: '',
       title: entry.title ?? '',
-      teacher: entry.teacher ?? '',
-      room: entry.room ?? '',
+      teacher: '',
+      room: '',
       duration: entry.duration ?? 60,
       color: entry.color ?? generateBoxColor(entry.title ?? ''),
-      category: entry.category
+      category: undefined
     };
     const dedupeKey = buildCourseDedupeKey(mappedCourse);
     if (unique.has(dedupeKey)) return;
@@ -222,7 +222,7 @@ function DraggableSourceCard({
 }: {
   course: PlannerCourse;
   onEdit: (c: PlannerCourse) => void;
-  onDelete: (id: string) => void;
+  onDelete: (course: PlannerCourse, isDerived: boolean) => void;
   hidden?: boolean;
   isDerived?: boolean;
 }) {
@@ -253,7 +253,7 @@ function DraggableSourceCard({
         <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(course)} className="p-1 bg-white/50 hover:bg-white rounded-full"><Edit2 size={10} /></button>
         <button
           onPointerDown={e => e.stopPropagation()}
-          onClick={() => onDelete(course.id)}
+          onClick={() => onDelete(course, Boolean(isDerived))}
           className="p-1 bg-white/50 hover:bg-rose-200 rounded-full text-rose-700 disabled:opacity-40 disabled:hover:bg-white/50"
           disabled={isDerived}
           title={isDerived ? 'Automatiska byggstenar kan inte raderas här.' : 'Ta bort byggsten'}
@@ -584,6 +584,14 @@ export default function NewSchedulePlanner() {
     const merged = mergeCourses(nextManual, derived);
     setCourses(merged);
   }, []);
+
+  const manualCourseKeys = useMemo(() => (
+    new Set(manualCourses.map(course => buildCourseDedupeKey(course)))
+  ), [manualCourses]);
+
+  const derivedCourseKeys = useMemo(() => (
+    new Set(deriveCoursesFromSchedule(schedule).map(course => buildCourseDedupeKey(course)))
+  ), [schedule]);
 
   useEffect(() => {
     recomputeCourses(schedule, manualCourses);
@@ -1080,18 +1088,19 @@ export default function NewSchedulePlanner() {
 
   // --- CRUD Handlers ---
 
-  const handleDeleteCourse = (id: string) => {
-     if (id.startsWith(DERIVED_COURSE_PREFIX)) {
+  const handleDeleteCourse = (course: PlannerCourse, isDerived: boolean) => {
+     if (isDerived) {
        alert('Automatiska byggstenar kan inte raderas. Redigera för att skapa en manuell kopia.');
        return;
      }
-     if(confirm("Ta bort?")) setManualCourses(p => p.filter(c => c.id !== id));
+     if(confirm("Ta bort?")) setManualCourses(p => p.filter(c => c.id !== course.id));
   };
   const handleSaveCourse = (e: React.FormEvent) => {
     e.preventDefault();
     if(!editingCourse) return;
     setManualCourses(p => {
-      const isDerived = editingCourse.id.startsWith(DERIVED_COURSE_PREFIX);
+      const courseKey = buildCourseDedupeKey(editingCourse);
+      const isDerived = derivedCourseKeys.has(courseKey) && !manualCourseKeys.has(courseKey);
       const manualId = isDerived ? uuidv4() : editingCourse.id;
       const nextCourse = { ...editingCourse, id: manualId };
       const exists = p.find(c => c.id === manualId);
@@ -1242,11 +1251,11 @@ export default function NewSchedulePlanner() {
                   <div className="overflow-y-auto flex-1 pr-2">
                      {courses.map(c => (
                        <DraggableSourceCard 
-                         key={c.id} 
-                         course={c} 
-                         onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }} 
+                         key={c.id}
+                         course={c}
+                         onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }}
                          onDelete={handleDeleteCourse}
-                         isDerived={c.id.startsWith(DERIVED_COURSE_PREFIX)}
+                         isDerived={derivedCourseKeys.has(buildCourseDedupeKey(c)) && !manualCourseKeys.has(buildCourseDedupeKey(c))}
                          hidden={!advancedFilterMatch(c, filterQuery)}
                        />
                      ))}
