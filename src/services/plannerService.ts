@@ -1,22 +1,47 @@
 import { fetchWithAuth } from './authService';
-
-export interface PlannerActivity {
-  id: string;
-  title: string;
-  room?: string;
-  teacher?: string;
-  notes?: string | null;
-  day?: string;
-  startTime?: string;
-  endTime?: string;
-  duration?: number;
-  color?: string;
-  category?: string;
-  archiveName?: string;
-}
+import type { PlannerActivity } from '@/types/schedule';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 const PLANNER_API_URL = `${API_URL}/planner`;
+
+type PlannerSyncResponse = {
+  activities: PlannerActivity[];
+  count: number;
+};
+
+type PlannerSyncPayload = {
+  activities?: unknown;
+  count?: unknown;
+  data?: {
+    activities?: unknown;
+    count?: unknown;
+  };
+};
+
+const normalizePlannerSyncResponse = (payload: unknown): PlannerSyncResponse => {
+  if (!payload || typeof payload !== 'object') {
+    return { activities: [], count: 0 };
+  }
+
+  const typedPayload = payload as PlannerSyncPayload;
+  const dataPayload = typedPayload.data && typeof typedPayload.data === 'object'
+    ? (typedPayload.data as PlannerSyncPayload['data'])
+    : undefined;
+
+  const directActivities = Array.isArray(typedPayload.activities)
+    ? (typedPayload.activities as PlannerActivity[])
+    : undefined;
+  const dataActivities = Array.isArray(dataPayload?.activities)
+    ? (dataPayload?.activities as PlannerActivity[])
+    : undefined;
+
+  const activities = directActivities ?? dataActivities ?? [];
+  const directCount = typeof typedPayload.count === 'number' ? typedPayload.count : undefined;
+  const dataCount = typeof dataPayload?.count === 'number' ? dataPayload.count : undefined;
+  const count = directCount ?? dataCount ?? activities.length;
+
+  return { activities, count };
+};
 
 export const plannerService = {
   async getPlannerActivities(): Promise<PlannerActivity[]> {
@@ -34,7 +59,7 @@ export const plannerService = {
     return [];
   },
 
-  async syncActivities(activities: PlannerActivity[]): Promise<PlannerActivity[]> {
+  async syncActivities(activities: PlannerActivity[]): Promise<PlannerSyncResponse> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`, {
       method: 'POST',
       body: JSON.stringify({ activities }),
@@ -43,13 +68,7 @@ export const plannerService = {
       throw new Error('Failed to sync planner activities');
     }
     const payload = await response.json();
-    if (Array.isArray(payload?.data)) {
-      return payload.data as PlannerActivity[];
-    }
-    if (Array.isArray(payload)) {
-      return payload as PlannerActivity[];
-    }
-    return [];
+    return normalizePlannerSyncResponse(payload);
   },
 
   async deletePlannerActivity(id: string): Promise<void> {

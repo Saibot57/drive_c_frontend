@@ -19,6 +19,22 @@ export type ActivityImportItem = {
   seriesId?: string;
 };
 
+export interface PlannerActivity {
+  id: string;
+  userId?: string;
+  title: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  archiveName?: string | null;
+  teacher?: string;
+  room?: string;
+  notes?: string;
+  color?: string;
+  category?: string;
+}
+
 // --- Nya typer för Schema-planeraren (Timeline Version) ---
 
 export interface PlannerCourse {
