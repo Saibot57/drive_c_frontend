@@ -246,7 +246,6 @@ function DraggableSourceCard({
           <p className="text-sm font-bold">{course.title}</p>
           <p className="text-[10px] text-gray-600">{course.teacher} {course.room && `(${course.room})`}</p>
           <p className="text-[10px] text-gray-500">{course.duration} min</p>
-          {isDerived && <p className="text-[10px] text-gray-500 italic">Auto från schema</p>}
         </div>
       </div>
       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
