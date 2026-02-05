@@ -49,11 +49,88 @@ import {
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'];
+const MANUAL_COURSES_STORAGE_KEY = 'planner_manual_courses_v1';
+const DERIVED_COURSE_PREFIX = 'gen_';
 
 const baseCourses: PlannerCourse[] = [
   { id: 'c1', title: 'Matematik 1a', teacher: 'L. Holm', duration: 60, color: '#fde68a', category: 'Natur', room: 'A1' },
   { id: 'c2', title: 'Svenska 1', teacher: 'E. Ström', duration: 60, color: '#bae6fd', category: 'Språk', room: 'B2' },
 ];
+
+// --- Helper: Derived Courses ---
+const normalizeCoursePart = (value?: string) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+const buildCourseDedupeKey = (course: Pick<PlannerCourse, 'title' | 'teacher' | 'room' | 'duration' | 'color' | 'category'>) => (
+  [
+    normalizeCoursePart(course.title),
+    normalizeCoursePart(course.teacher),
+    normalizeCoursePart(course.room),
+    course.duration,
+    normalizeCoursePart(course.color),
+    normalizeCoursePart(course.category)
+  ].join('|') // Dedupe key to keep schedule-derived courses stable.
+);
+
+const hashStringFnv1a = (value: string) => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = (hash * 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+};
+
+const deriveCoursesFromSchedule = (scheduleEntries: ScheduledEntry[]) => {
+  const unique = new Map<string, PlannerCourse>();
+
+  scheduleEntries.forEach(entry => {
+    const mappedCourse: PlannerCourse = {
+      id: '',
+      title: entry.title ?? '',
+      teacher: entry.teacher ?? '',
+      room: entry.room ?? '',
+      duration: entry.duration ?? 60,
+      color: entry.color ?? generateBoxColor(entry.title ?? ''),
+      category: entry.category
+    };
+    const dedupeKey = buildCourseDedupeKey(mappedCourse);
+    if (unique.has(dedupeKey)) return;
+    // Deterministic ID based on the dedupe key so derived courses stay stable across reloads.
+    mappedCourse.id = `${DERIVED_COURSE_PREFIX}${hashStringFnv1a(dedupeKey)}`;
+    unique.set(dedupeKey, mappedCourse);
+  });
+
+  return Array.from(unique.values()).sort((a, b) => a.title.localeCompare(b.title, 'sv'));
+};
+
+const sanitizeManualCourses = (input: unknown): PlannerCourse[] => {
+  if (!Array.isArray(input)) return [];
+  return input.flatMap(item => {
+    if (!item || typeof item !== 'object') return [];
+    const raw = item as Partial<PlannerCourse>;
+    if (typeof raw.id !== 'string' || typeof raw.title !== 'string') return [];
+    return [{
+      id: raw.id,
+      title: raw.title,
+      teacher: typeof raw.teacher === 'string' ? raw.teacher : '',
+      room: typeof raw.room === 'string' ? raw.room : '',
+      color: typeof raw.color === 'string' ? raw.color : '#ffffff',
+      duration: typeof raw.duration === 'number' && !Number.isNaN(raw.duration) ? raw.duration : 60,
+      category: typeof raw.category === 'string' ? raw.category : undefined
+    }];
+  });
+};
+
+const mergeCourses = (manual: PlannerCourse[], derived: PlannerCourse[]) => {
+  const merged = new Map<string, PlannerCourse>();
+  manual.forEach(course => merged.set(buildCourseDedupeKey(course), course));
+  // Manual courses win when keys collide with derived ones.
+  derived.forEach(course => {
+    const key = buildCourseDedupeKey(course);
+    if (!merged.has(key)) merged.set(key, course);
+  });
+  return Array.from(merged.values()).sort((a, b) => a.title.localeCompare(b.title, 'sv'));
+};
 
 // --- Helper: Conflict Check & Filtering ---
 
@@ -136,7 +213,19 @@ const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
 
 // --- Sub-Components ---
 
-function DraggableSourceCard({ course, onEdit, onDelete, hidden }: { course: PlannerCourse; onEdit: (c: PlannerCourse) => void; onDelete: (id: string) => void; hidden?: boolean }) {
+function DraggableSourceCard({
+  course,
+  onEdit,
+  onDelete,
+  hidden,
+  isDerived
+}: {
+  course: PlannerCourse;
+  onEdit: (c: PlannerCourse) => void;
+  onDelete: (id: string) => void;
+  hidden?: boolean;
+  isDerived?: boolean;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `source-${course.id}`,
     data: { type: 'course', course },
@@ -157,11 +246,20 @@ function DraggableSourceCard({ course, onEdit, onDelete, hidden }: { course: Pla
           <p className="text-sm font-bold">{course.title}</p>
           <p className="text-[10px] text-gray-600">{course.teacher} {course.room && `(${course.room})`}</p>
           <p className="text-[10px] text-gray-500">{course.duration} min</p>
+          {isDerived && <p className="text-[10px] text-gray-500 italic">Auto från schema</p>}
         </div>
       </div>
       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(course)} className="p-1 bg-white/50 hover:bg-white rounded-full"><Edit2 size={10} /></button>
-        <button onPointerDown={e => e.stopPropagation()} onClick={() => onDelete(course.id)} className="p-1 bg-white/50 hover:bg-rose-200 rounded-full text-rose-700"><Trash2 size={10} /></button>
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => onDelete(course.id)}
+          className="p-1 bg-white/50 hover:bg-rose-200 rounded-full text-rose-700 disabled:opacity-40 disabled:hover:bg-white/50"
+          disabled={isDerived}
+          title={isDerived ? 'Automatiska byggstenar kan inte raderas här.' : 'Ta bort byggsten'}
+        >
+          <Trash2 size={10} />
+        </button>
       </div>
     </div>
   );
@@ -367,7 +465,8 @@ const buildDayLayout = (entries: ScheduledEntry[]) => {
 // --- Main Component ---
 
 export default function NewSchedulePlanner() {
-  const [courses, setCourses] = useState<PlannerCourse[]>(baseCourses);
+  const [manualCourses, setManualCourses] = useState<PlannerCourse[]>(baseCourses);
+  const [courses, setCourses] = useState<PlannerCourse[]>([]);
   const [schedule, setSchedule] = useState<ScheduledEntry[]>([]);
   const [restrictions, setRestrictions] = useState<RestrictionRule[]>([]);
   const scheduleHistoryRef = useRef<ScheduledEntry[][]>([]);
@@ -413,6 +512,30 @@ export default function NewSchedulePlanner() {
   );
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem(MANUAL_COURSES_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      const sanitized = sanitizeManualCourses(parsed);
+      if (sanitized.length > 0) {
+        setManualCourses(sanitized);
+      }
+    } catch (error) {
+      console.warn('Kunde inte läsa manuella byggstenar.', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(MANUAL_COURSES_STORAGE_KEY, JSON.stringify(manualCourses));
+    } catch (error) {
+      console.warn('Kunde inte spara manuella byggstenar.', error);
+    }
+  }, [manualCourses]);
+
+  useEffect(() => {
     const loadPlannerActivities = async () => {
       try {
         const activities = await plannerService.getPlannerActivities();
@@ -455,6 +578,16 @@ export default function NewSchedulePlanner() {
 
     loadArchiveNames();
   }, []);
+
+  const recomputeCourses = useCallback((nextSchedule: ScheduledEntry[], nextManual: PlannerCourse[]) => {
+    const derived = deriveCoursesFromSchedule(nextSchedule);
+    const merged = mergeCourses(nextManual, derived);
+    setCourses(merged);
+  }, []);
+
+  useEffect(() => {
+    recomputeCourses(schedule, manualCourses);
+  }, [manualCourses, recomputeCourses, schedule]);
 
   // Sync colors
   useEffect(() => {
@@ -618,7 +751,7 @@ export default function NewSchedulePlanner() {
         const parsed = JSON.parse(text);
         if (parsed.courses && parsed.schedule) {
           if (confirm('Ersätta nuvarande schema?')) {
-            setCourses(parsed.courses);
+            setManualCourses(sanitizeManualCourses(parsed.courses));
             const sanitizedSchedule = sanitizeScheduleImport(parsed.schedule);
             commitSchedule(() => sanitizedSchedule);
             if (parsed.restrictions) setRestrictions(parsed.restrictions);
@@ -948,14 +1081,21 @@ export default function NewSchedulePlanner() {
   // --- CRUD Handlers ---
 
   const handleDeleteCourse = (id: string) => {
-     if(confirm("Ta bort?")) setCourses(p => p.filter(c => c.id !== id));
+     if (id.startsWith(DERIVED_COURSE_PREFIX)) {
+       alert('Automatiska byggstenar kan inte raderas. Redigera för att skapa en manuell kopia.');
+       return;
+     }
+     if(confirm("Ta bort?")) setManualCourses(p => p.filter(c => c.id !== id));
   };
   const handleSaveCourse = (e: React.FormEvent) => {
     e.preventDefault();
     if(!editingCourse) return;
-    setCourses(p => {
-       const exists = p.find(c => c.id === editingCourse.id);
-       return exists ? p.map(c => c.id === editingCourse.id ? editingCourse : c) : [...p, editingCourse];
+    setManualCourses(p => {
+      const isDerived = editingCourse.id.startsWith(DERIVED_COURSE_PREFIX);
+      const manualId = isDerived ? uuidv4() : editingCourse.id;
+      const nextCourse = { ...editingCourse, id: manualId };
+      const exists = p.find(c => c.id === manualId);
+      return exists ? p.map(c => c.id === manualId ? nextCourse : c) : [...p, nextCourse];
     });
     setIsCourseModalOpen(false);
   };
@@ -1048,6 +1188,16 @@ export default function NewSchedulePlanner() {
               <Button variant="neutral" onClick={handleExportJSON} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Download size={16} className="mr-2"/> Spara</Button>
               <Button variant="neutral" onClick={() => fileInputRef.current?.click()} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Upload size={16} className="mr-2"/> Ladda</Button>
               <Button variant="neutral" onClick={handleSyncToCloud} disabled={isSaving} className="border-2 border-black bg-sky-100 hover:bg-sky-200"><CloudUpload size={16} className="mr-2"/> Spara till molnet</Button>
+              <Button
+                variant="neutral"
+                onClick={() => {
+                  recomputeCourses(schedule, manualCourses);
+                  alert('Byggstenar uppdaterade.');
+                }}
+                className="border-2 border-black bg-emerald-100 hover:bg-emerald-200"
+              >
+                <RefreshCcw size={16} className="mr-2"/> Uppdatera byggstenar från schema
+              </Button>
               <Button variant="neutral" onClick={() => {if(confirm('Rensa?')) commitSchedule(() => [])}} className="border-2 border-black bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
            </div>
         </div>
@@ -1095,7 +1245,8 @@ export default function NewSchedulePlanner() {
                          key={c.id} 
                          course={c} 
                          onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }} 
-                         onDelete={handleDeleteCourse} 
+                         onDelete={handleDeleteCourse}
+                         isDerived={c.id.startsWith(DERIVED_COURSE_PREFIX)}
                          hidden={!advancedFilterMatch(c, filterQuery)}
                        />
                      ))}
