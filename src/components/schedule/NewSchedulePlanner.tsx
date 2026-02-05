@@ -39,7 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { generateBoxColor, importColors } from '@/config/colorManagement';
-import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
+import { PlannerActivity, PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
 import { plannerService } from '@/services/plannerService';
 import { 
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE, 
@@ -393,6 +393,8 @@ export default function NewSchedulePlanner() {
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
   const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [ghostPlacement, setGhostPlacement] = useState<{
@@ -552,7 +554,7 @@ export default function NewSchedulePlanner() {
     return `${hours}h + ${remaining} min`;
   }, []);
 
-  const mapScheduleToPlannerActivities = useCallback((entries: ScheduledEntry[]) => (
+  const mapScheduleToPlannerActivities = useCallback((entries: ScheduledEntry[]): PlannerActivity[] => (
     entries.map(entry => ({
       id: entry.instanceId,
       title: entry.title,
@@ -633,34 +635,42 @@ export default function NewSchedulePlanner() {
   };
 
   const handleSyncToCloud = useCallback(async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
       const payload = mapScheduleToPlannerActivities(schedule);
-      const synced = await plannerService.syncActivities(payload);
-      if (synced.length > 0) {
-        const mappedSchedule = sanitizeScheduleImport(
-          synced.map(activity => ({
-            id: activity.id,
-            title: activity.title,
-            teacher: activity.teacher ?? '',
-            room: activity.room ?? '',
-            color: activity.color ?? generateBoxColor(activity.title ?? ''),
-            duration: activity.duration ?? 60,
-            category: activity.category,
-            instanceId: activity.id,
-            day: activity.day ?? days[0],
-            startTime: activity.startTime ?? '08:00',
-            endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
-            notes: activity.notes ?? undefined
-          }))
-        );
-        setSchedule(mappedSchedule);
-        scheduleHistoryRef.current = [];
-        scheduleFutureRef.current = [];
+      const { activities } = await plannerService.syncActivities(payload);
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('Planner sync returned activities', activities);
       }
+      const mappedSchedule = sanitizeScheduleImport(
+        activities.map(activity => ({
+          id: activity.id,
+          title: activity.title,
+          teacher: activity.teacher ?? '',
+          room: activity.room ?? '',
+          color: activity.color ?? generateBoxColor(activity.title ?? ''),
+          duration: activity.duration ?? 60,
+          category: activity.category,
+          instanceId: activity.id,
+          day: activity.day ?? days[0],
+          startTime: activity.startTime ?? '08:00',
+          endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
+          notes: activity.notes ?? undefined
+        }))
+      );
+      // Replace local IDs after sync because the server generates new UUIDs.
+      setSchedule(mappedSchedule);
+      scheduleHistoryRef.current = [];
+      scheduleFutureRef.current = [];
       alert('Schema synkat till molnet.');
     } catch (error) {
       console.error('Cloud sync failed', error);
       alert('Kunde inte synka schemat.');
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   }, [mapScheduleToPlannerActivities, schedule]);
 
@@ -1037,7 +1047,7 @@ export default function NewSchedulePlanner() {
               <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
               <Button variant="neutral" onClick={handleExportJSON} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Download size={16} className="mr-2"/> Spara</Button>
               <Button variant="neutral" onClick={() => fileInputRef.current?.click()} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Upload size={16} className="mr-2"/> Ladda</Button>
-              <Button variant="neutral" onClick={handleSyncToCloud} className="border-2 border-black bg-sky-100 hover:bg-sky-200"><CloudUpload size={16} className="mr-2"/> Spara till molnet</Button>
+              <Button variant="neutral" onClick={handleSyncToCloud} disabled={isSaving} className="border-2 border-black bg-sky-100 hover:bg-sky-200"><CloudUpload size={16} className="mr-2"/> Spara till molnet</Button>
               <Button variant="neutral" onClick={() => {if(confirm('Rensa?')) commitSchedule(() => [])}} className="border-2 border-black bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
            </div>
         </div>
