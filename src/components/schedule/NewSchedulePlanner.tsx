@@ -294,6 +294,7 @@ function ScheduledEventCard({
   if (hidden) return null;
 
   const isShortDuration = entry.duration < 50;
+  const isCompactHeight = adjustedHeight < 38;
   const timeLabel = isLastOfDay ? `${entry.startTime}–${entry.endTime}` : entry.startTime;
 
   return (
@@ -327,12 +328,18 @@ function ScheduledEventCard({
              <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8}/></button>
           </div>
         </div>
-        {!isShortDuration && <p className="text-xs font-bold leading-tight truncate">{entry.title}</p>}
+        {!isShortDuration && (
+          <p className={`font-bold leading-tight truncate ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>{entry.title}</p>
+        )}
         {adjustedHeight > 30 && (
-           <p className="text-[10px] text-gray-700 truncate">{entry.teacher} {entry.room}</p>
+           <p className={`text-gray-700 truncate ${isCompactHeight ? 'text-[10px]' : 'text-xs'}`}>
+             {entry.teacher && <span className="font-semibold">{entry.teacher}</span>}
+             {entry.teacher && entry.room ? ' ' : ''}
+             {entry.room}
+           </p>
         )}
         {entry.notes && adjustedHeight > 46 && (
-          <p className="text-[10px] text-gray-600 truncate">{entry.notes}</p>
+          <p className={`text-gray-600 truncate ${isCompactHeight ? 'text-[10px]' : 'text-xs'}`}>{entry.notes}</p>
         )}
       </div>
     </div>
