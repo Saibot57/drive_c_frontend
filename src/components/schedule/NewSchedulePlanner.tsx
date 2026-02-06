@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { generateBoxColor, importColors } from '@/config/colorManagement';
 import { PlannerActivity, PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
 import { plannerService } from '@/services/plannerService';
@@ -51,6 +52,8 @@ const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'];
 const MANUAL_COURSES_STORAGE_KEY = 'planner_manual_courses_v1';
 const DERIVED_COURSE_PREFIX = 'gen_';
+const TEACHERS_STORAGE_KEY = 'app.teachers.v1';
+const ROOMS_STORAGE_KEY = 'app.rooms.v1';
 
 const baseCourses: PlannerCourse[] = [];
 
@@ -207,6 +210,198 @@ const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
     };
   });
 };
+
+const normalizeAutofillValue = (value: string) => (
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+);
+
+const sanitizeHiddenList = (input: string) => {
+  const lines = input
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  return lines.filter(line => {
+    const key = line.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+function SmartTextInput({
+  options,
+  value,
+  onChange,
+  minChars = 2,
+  fieldId,
+  label,
+  placeholder
+}: {
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+  minChars?: number;
+  fieldId: string;
+  label: string;
+  placeholder?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [autoDisabled, setAutoDisabled] = useState(false);
+  const backspaceJustPressedRef = useRef(false);
+  const lastAutofillAtRef = useRef<number | null>(null);
+  const lastAutofillValueRef = useRef<string | null>(null);
+  const lastTypedPrefixLengthRef = useRef<number | null>(null);
+  const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
+
+  const normalizedOptions = useMemo(() => (
+    options.map(option => ({
+      raw: option,
+      normalized: normalizeAutofillValue(option)
+    }))
+  ), [options]);
+
+  useEffect(() => {
+    const query = normalizeAutofillValue(value);
+    if (autoDisabled) return;
+    if (backspaceJustPressedRef.current) {
+      backspaceJustPressedRef.current = false;
+      return;
+    }
+    if (query.length < minChars) return;
+    const matches = normalizedOptions.filter(option => option.normalized.startsWith(query));
+    if (matches.length !== 1) return;
+    const match = matches[0].raw;
+    if (value === match) return;
+    const prefixLength = value.length;
+    lastTypedPrefixLengthRef.current = prefixLength;
+    lastAutofillAtRef.current = Date.now();
+    lastAutofillValueRef.current = match;
+    pendingSelectionRef.current = { start: prefixLength, end: match.length };
+    onChange(match);
+  }, [autoDisabled, minChars, normalizedOptions, onChange, value]);
+
+  useLayoutEffect(() => {
+    if (!pendingSelectionRef.current) return;
+    if (!inputRef.current) return;
+    if (value !== lastAutofillValueRef.current) return;
+    const { start, end } = pendingSelectionRef.current;
+    inputRef.current.setSelectionRange(start, end);
+    pendingSelectionRef.current = null;
+  }, [value]);
+
+  const handleEdit = () => {
+    if (!lastAutofillAtRef.current || !lastAutofillValueRef.current) return;
+    if (Date.now() - lastAutofillAtRef.current > 7000) return;
+    if (value !== lastAutofillValueRef.current) return;
+    setAutoDisabled(true);
+    const prefixLength = lastTypedPrefixLengthRef.current ?? 0;
+    const nextValue = lastAutofillValueRef.current.slice(0, prefixLength);
+    onChange(nextValue);
+    requestAnimationFrame(() => {
+      inputRef.current?.setSelectionRange(nextValue.length, nextValue.length);
+    });
+  };
+
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={fieldId}>{label}</Label>
+      <div className="relative">
+        <Input
+          id={fieldId}
+          ref={inputRef}
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Backspace') {
+              backspaceJustPressedRef.current = true;
+            }
+          }}
+          onBlur={() => setAutoDisabled(false)}
+          placeholder={placeholder}
+          className="pr-12"
+        />
+        <button
+          type="button"
+          onClick={handleEdit}
+          aria-label={`${label} edit`}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-black bg-white px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide hover:bg-gray-100"
+        >
+          Edit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function HiddenSettingsPanel({
+  open,
+  onOpenChange,
+  teachers,
+  rooms,
+  onSave
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  teachers: string[];
+  rooms: string[];
+  onSave: (nextTeachers: string[], nextRooms: string[]) => void;
+}) {
+  const [teacherText, setTeacherText] = useState('');
+  const [roomText, setRoomText] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setTeacherText(teachers.join('\n'));
+    setRoomText(rooms.join('\n'));
+  }, [open, rooms, teachers]);
+
+  const handleSave = () => {
+    const nextTeachers = sanitizeHiddenList(teacherText);
+    const nextRooms = sanitizeHiddenList(roomText);
+    onSave(nextTeachers, nextRooms);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Hidden settings</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label htmlFor="hidden-teachers">Lärare (en per rad)</Label>
+            <Textarea
+              id="hidden-teachers"
+              value={teacherText}
+              onChange={event => setTeacherText(event.target.value)}
+              rows={6}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="hidden-rooms">Salar (en per rad)</Label>
+            <Textarea
+              id="hidden-rooms"
+              value={roomText}
+              onChange={event => setRoomText(event.target.value)}
+              rows={6}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="neutral" onClick={handleSave} className="border-2 border-black">
+            Spara
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // --- Sub-Components ---
 
@@ -497,6 +692,10 @@ export default function NewSchedulePlanner() {
   const [weekName, setWeekName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
+  const [teachers, setTeachers] = useState<string[]>([]);
+  const [rooms, setRooms] = useState<string[]>([]);
+  const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
+  const titleHoldTimerRef = useRef<number | null>(null);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [ghostPlacement, setGhostPlacement] = useState<{
@@ -527,6 +726,31 @@ export default function NewSchedulePlanner() {
     } catch (error) {
       console.warn('Kunde inte läsa manuella byggstenar.', error);
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedTeachers = window.localStorage.getItem(TEACHERS_STORAGE_KEY);
+      const storedRooms = window.localStorage.getItem(ROOMS_STORAGE_KEY);
+      const parsedTeachers = storedTeachers ? JSON.parse(storedTeachers) : [];
+      const parsedRooms = storedRooms ? JSON.parse(storedRooms) : [];
+      setTeachers(Array.isArray(parsedTeachers) ? parsedTeachers.filter(item => typeof item === 'string') : []);
+      setRooms(Array.isArray(parsedRooms) ? parsedRooms.filter(item => typeof item === 'string') : []);
+    } catch (error) {
+      console.warn('Kunde inte läsa lärare/salar.', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'k') return;
+      if (!event.ctrlKey || !event.shiftKey) return;
+      event.preventDefault();
+      setIsHiddenSettingsOpen(true);
+    };
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
   }, []);
 
   useEffect(() => {
@@ -581,6 +805,34 @@ export default function NewSchedulePlanner() {
 
     loadArchiveNames();
   }, []);
+
+  const handleHiddenSettingsSave = useCallback((nextTeachers: string[], nextRooms: string[]) => {
+    setTeachers(nextTeachers);
+    setRooms(nextRooms);
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(TEACHERS_STORAGE_KEY, JSON.stringify(nextTeachers));
+      window.localStorage.setItem(ROOMS_STORAGE_KEY, JSON.stringify(nextRooms));
+    } catch (error) {
+      console.warn('Kunde inte spara lärare/salar.', error);
+    }
+  }, []);
+
+  const startTitleHold = () => {
+    if (titleHoldTimerRef.current) {
+      window.clearTimeout(titleHoldTimerRef.current);
+    }
+    titleHoldTimerRef.current = window.setTimeout(() => {
+      setIsHiddenSettingsOpen(true);
+      titleHoldTimerRef.current = null;
+    }, 700);
+  };
+
+  const clearTitleHold = () => {
+    if (!titleHoldTimerRef.current) return;
+    window.clearTimeout(titleHoldTimerRef.current);
+    titleHoldTimerRef.current = null;
+  };
 
   const recomputeCourses = useCallback((nextSchedule: ScheduledEntry[], nextManual: PlannerCourse[]) => {
     const derived = deriveCoursesFromSchedule(nextSchedule);
@@ -1197,7 +1449,15 @@ export default function NewSchedulePlanner() {
         {/* Toolbar & Filter */}
         <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
            <div>
-              <h1 className="font-monument text-xl">FlexSchema <span className="text-xs font-sans font-normal text-gray-500">v5 Timeline</span></h1>
+              <h1
+                className="font-monument text-xl select-none"
+                onPointerDown={startTitleHold}
+                onPointerUp={clearTitleHold}
+                onPointerLeave={clearTitleHold}
+                onPointerCancel={clearTitleHold}
+              >
+                FlexSchema <span className="text-xs font-sans font-normal text-gray-500">v5 Timeline</span>
+              </h1>
               <p className="text-sm text-gray-600">Dra och släpp på tidslinjen.</p>
            </div>
            
@@ -1509,6 +1769,13 @@ export default function NewSchedulePlanner() {
       )}
 
       {/* Modals */}
+      <HiddenSettingsPanel
+        open={isHiddenSettingsOpen}
+        onOpenChange={setIsHiddenSettingsOpen}
+        teachers={teachers}
+        rooms={rooms}
+        onSave={handleHiddenSettingsSave}
+      />
       <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Hantera ämne</DialogTitle></DialogHeader>
@@ -1523,8 +1790,20 @@ export default function NewSchedulePlanner() {
                }} autoFocus/>
                <Label>Standardlängd (min)</Label> <Input type="number" value={editingCourse.duration} onChange={e => setEditingCourse({...editingCourse, duration: parseInt(e.target.value)})} />
                <div className="grid grid-cols-2 gap-2">
-                 <div><Label>Lärare</Label><Input value={editingCourse.teacher} onChange={e => setEditingCourse({...editingCourse, teacher: e.target.value})} /></div>
-                 <div><Label>Rum</Label><Input value={editingCourse.room} onChange={e => setEditingCourse({...editingCourse, room: e.target.value})} /></div>
+                 <SmartTextInput
+                   fieldId="course-teacher"
+                   label="Lärare"
+                   value={editingCourse.teacher}
+                   options={teachers}
+                   onChange={teacher => setEditingCourse({ ...editingCourse, teacher })}
+                 />
+                 <SmartTextInput
+                   fieldId="course-room"
+                   label="Rum"
+                   value={editingCourse.room}
+                   options={rooms}
+                   onChange={room => setEditingCourse({ ...editingCourse, room })}
+                 />
                </div>
                <div className="flex gap-2 mt-2">{palette.map(c => <div key={c} onClick={() => { setManualColor(true); setEditingCourse({...editingCourse, color: c}); }} className={`w-6 h-6 rounded-full cursor-pointer border ${editingCourse.color === c ? 'ring-2 ring-black' : ''}`} style={{backgroundColor: c}} />)}</div>
                <DialogFooter><Button type="submit">Spara</Button></DialogFooter>
@@ -1543,8 +1822,20 @@ export default function NewSchedulePlanner() {
                   <div><Label>Slut</Label><Input type="time" value={editingEntry.endTime} onChange={e => setEditingEntry({...editingEntry, endTime: e.target.value})} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><Label>Lärare</Label><Input value={editingEntry.teacher} onChange={e => setEditingEntry({...editingEntry, teacher: e.target.value})} /></div>
-                  <div><Label>Rum</Label><Input value={editingEntry.room} onChange={e => setEditingEntry({...editingEntry, room: e.target.value})} /></div>
+                  <SmartTextInput
+                    fieldId="entry-teacher"
+                    label="Lärare"
+                    value={editingEntry.teacher}
+                    options={teachers}
+                    onChange={teacher => setEditingEntry({ ...editingEntry, teacher })}
+                  />
+                  <SmartTextInput
+                    fieldId="entry-room"
+                    label="Rum"
+                    value={editingEntry.room}
+                    options={rooms}
+                    onChange={room => setEditingEntry({ ...editingEntry, room })}
+                  />
                 </div>
                 <Input
                   aria-label="Anteckningar"
