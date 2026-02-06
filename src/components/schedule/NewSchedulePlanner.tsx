@@ -52,10 +52,7 @@ const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe
 const MANUAL_COURSES_STORAGE_KEY = 'planner_manual_courses_v1';
 const DERIVED_COURSE_PREFIX = 'gen_';
 
-const baseCourses: PlannerCourse[] = [
-  { id: 'c1', title: 'Matematik 1a', teacher: 'L. Holm', duration: 60, color: '#fde68a', category: 'Natur', room: 'A1' },
-  { id: 'c2', title: 'Svenska 1', teacher: 'E. Ström', duration: 60, color: '#bae6fd', category: 'Språk', room: 'B2' },
-];
+const baseCourses: PlannerCourse[] = [];
 
 // --- Helper: Derived Courses ---
 const normalizeCoursePart = (value?: string) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -246,11 +243,6 @@ function DraggableSourceCard({
           <p className="text-sm font-bold">{course.title}</p>
           <p className="text-[10px] text-gray-600">{course.teacher} {course.room && `(${course.room})`}</p>
           <p className="text-[10px] text-gray-500">{course.duration} min</p>
-          {isDerived && (
-            <span className="inline-flex items-center rounded-full bg-gray-900/10 px-1.5 py-0.5 text-[9px] font-medium text-gray-700">
-              Auto
-            </span>
-          )}
         </div>
       </div>
       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
