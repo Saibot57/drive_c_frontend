@@ -1152,12 +1152,30 @@ export default function NewSchedulePlanner() {
     if(!el) return;
     el.classList.add('pdf-export');
     try {
-      const canvas = await html2canvas(el, { scale: 2 });
+      const maxCanvasSize = 16000;
+      const targetWidth = el.scrollWidth;
+      const targetHeight = el.scrollHeight;
+      const scaleToLimit = Math.min(
+        2,
+        maxCanvasSize / Math.max(targetWidth, 1),
+        maxCanvasSize / Math.max(targetHeight, 1)
+      );
+      const canvas = await html2canvas(el, {
+        // Clamp scale to avoid exceeding browser canvas limits on large schedules.
+        scale: scaleToLimit,
+        width: targetWidth,
+        height: targetHeight,
+        windowWidth: targetWidth,
+        windowHeight: targetHeight
+      });
       const pdf = new jsPDF('l', 'pt', 'a4');
-      const imgProps = pdf.getImageProperties(canvas.toDataURL('image/png'));
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const imageData = canvas.toDataURL('image/png');
+      const imgProps = pdf.getImageProperties(imageData);
+      const margin = 20;
+      const pdfWidth = pdf.internal.pageSize.getWidth() - margin * 2;
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 20, pdfWidth, pdfHeight);
+      // Fit to the printable width so content cannot clip horizontally in the PDF.
+      pdf.addImage(imageData, 'PNG', margin, margin, pdfWidth, pdfHeight);
       pdf.save('schema.pdf');
     } finally {
       el.classList.remove('pdf-export');
