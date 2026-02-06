@@ -1145,12 +1145,20 @@ export default function NewSchedulePlanner() {
     if(!el) return;
     el.classList.add('pdf-export');
     try {
-      const canvas = await html2canvas(el, { scale: 2 });
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight
+      });
       const pdf = new jsPDF('l', 'pt', 'a4');
       const imgProps = pdf.getImageProperties(canvas.toDataURL('image/png'));
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const margin = 20;
+      const pdfWidth = pdf.internal.pageSize.getWidth() - margin * 2;
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 20, pdfWidth, pdfHeight);
+      // Fit to the printable width so content cannot clip horizontally in the PDF.
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, pdfWidth, pdfHeight);
       pdf.save('schema.pdf');
     } finally {
       el.classList.remove('pdf-export');
