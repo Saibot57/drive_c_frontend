@@ -257,6 +257,7 @@ function SmartTextInput({
   const lastAutofillValueRef = useRef<string | null>(null);
   const lastTypedPrefixLengthRef = useRef<number | null>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const suffixSelectionRef = useRef(false);
 
   const normalizedOptions = useMemo(() => (
     options.map(option => ({
@@ -294,17 +295,10 @@ function SmartTextInput({
     pendingSelectionRef.current = null;
   }, [value]);
 
-  const handleEdit = () => {
-    if (!lastAutofillAtRef.current || !lastAutofillValueRef.current) return;
-    if (Date.now() - lastAutofillAtRef.current > 7000) return;
-    if (value !== lastAutofillValueRef.current) return;
-    setAutoDisabled(true);
-    const prefixLength = lastTypedPrefixLengthRef.current ?? 0;
-    const nextValue = lastAutofillValueRef.current.slice(0, prefixLength);
-    onChange(nextValue);
-    requestAnimationFrame(() => {
-      inputRef.current?.setSelectionRange(nextValue.length, nextValue.length);
-    });
+  const shouldDisableAutofill = () => {
+    if (!lastAutofillAtRef.current || !lastAutofillValueRef.current) return false;
+    if (Date.now() - lastAutofillAtRef.current > 7000) return false;
+    return value === lastAutofillValueRef.current;
   };
 
   return (
@@ -315,24 +309,37 @@ function SmartTextInput({
           id={fieldId}
           ref={inputRef}
           value={value}
-          onChange={event => onChange(event.target.value)}
+          onChange={event => {
+            if (shouldDisableAutofill()) {
+              setAutoDisabled(true);
+            }
+            onChange(event.target.value);
+            if (suffixSelectionRef.current) {
+              const nextValue = event.target.value;
+              requestAnimationFrame(() => {
+                inputRef.current?.setSelectionRange(nextValue.length, nextValue.length);
+              });
+              suffixSelectionRef.current = false;
+            }
+          }}
           onKeyDown={event => {
             if (event.key === 'Backspace') {
               backspaceJustPressedRef.current = true;
             }
+            if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+              if (shouldDisableAutofill()) {
+                setAutoDisabled(true);
+                const input = inputRef.current;
+                const prefixLength = lastTypedPrefixLengthRef.current ?? 0;
+                if (input && input.selectionStart === prefixLength && input.selectionEnd === value.length) {
+                  suffixSelectionRef.current = true;
+                }
+              }
+            }
           }}
           onBlur={() => setAutoDisabled(false)}
           placeholder={placeholder}
-          className="pr-12"
         />
-        <button
-          type="button"
-          onClick={handleEdit}
-          aria-label={`${label} edit`}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-black bg-white px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide hover:bg-gray-100"
-        >
-          Edit
-        </button>
       </div>
     </div>
   );
