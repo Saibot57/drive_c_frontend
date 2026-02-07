@@ -1406,9 +1406,9 @@ export default function NewSchedulePlanner() {
     setIsEntryModalOpen(false);
   };
 
-  const handleExportPDF = async () => {
+  const captureScheduleCanvas = async () => {
     const el = document.getElementById('schedule-canvas');
-    if(!el) return;
+    if (!el) return null;
     el.classList.add('pdf-export');
     try {
       const maxCanvasSize = 16000;
@@ -1419,7 +1419,7 @@ export default function NewSchedulePlanner() {
         maxCanvasSize / Math.max(targetWidth, 1),
         maxCanvasSize / Math.max(targetHeight, 1)
       );
-      const canvas = await html2canvas(el, {
+      return await html2canvas(el, {
         // Clamp scale to avoid exceeding browser canvas limits on large schedules.
         scale: scaleToLimit,
         width: targetWidth,
@@ -1427,18 +1427,35 @@ export default function NewSchedulePlanner() {
         windowWidth: targetWidth,
         windowHeight: targetHeight
       });
-      const pdf = new jsPDF('l', 'pt', 'a4');
-      const imageData = canvas.toDataURL('image/png');
-      const imgProps = pdf.getImageProperties(imageData);
-      const margin = 20;
-      const pdfWidth = pdf.internal.pageSize.getWidth() - margin * 2;
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      // Fit to the printable width so content cannot clip horizontally in the PDF.
-      pdf.addImage(imageData, 'PNG', margin, margin, pdfWidth, pdfHeight);
-      pdf.save('schema.pdf');
     } finally {
       el.classList.remove('pdf-export');
     }
+  };
+
+  const handleExportPDF = async () => {
+    const canvas = await captureScheduleCanvas();
+    if (!canvas) return;
+    const pdf = new jsPDF('l', 'pt', 'a4');
+    const imageData = canvas.toDataURL('image/png');
+    const imgProps = pdf.getImageProperties(imageData);
+    const margin = 20;
+    const pdfWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    // Fit to the printable width so content cannot clip horizontally in the PDF.
+    pdf.addImage(imageData, 'PNG', margin, margin, pdfWidth, pdfHeight);
+    pdf.save('schema.pdf');
+  };
+
+  const handleExportImage = async (type: 'png' | 'jpeg') => {
+    const canvas = await captureScheduleCanvas();
+    if (!canvas) return;
+    const dataUrl = type === 'png'
+      ? canvas.toDataURL('image/png')
+      : canvas.toDataURL('image/jpeg', 0.92);
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = type === 'png' ? 'schema.png' : 'schema.jpg';
+    link.click();
   };
 
   // --- Render ---
@@ -1481,6 +1498,8 @@ export default function NewSchedulePlanner() {
            <div className="flex gap-2 flex-wrap">
               <Button variant="neutral" onClick={() => setIsRestrictionsModalOpen(true)} className="border-2 border-black bg-amber-100 hover:bg-amber-200"><ShieldAlert size={16} className="mr-2"/> Regler</Button>
               <Button variant="neutral" onClick={handleExportPDF} className="border-2 border-black"><Download size={16} className="mr-2"/> PDF</Button>
+              <Button variant="neutral" onClick={() => handleExportImage('png')} className="border-2 border-black">PNG</Button>
+              <Button variant="neutral" onClick={() => handleExportImage('jpeg')} className="border-2 border-black">JPG</Button>
               <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
               <Button variant="neutral" onClick={handleExportJSON} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Download size={16} className="mr-2"/> Spara</Button>
               <Button variant="neutral" onClick={() => fileInputRef.current?.click()} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Upload size={16} className="mr-2"/> Ladda</Button>
