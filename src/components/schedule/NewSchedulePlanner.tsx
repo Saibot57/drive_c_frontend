@@ -1831,7 +1831,40 @@ export default function NewSchedulePlanner() {
                    onChange={room => setEditingCourse({ ...editingCourse, room })}
                  />
                </div>
-               <div className="flex gap-2 mt-2">{palette.map(c => <div key={c} onClick={() => { setManualColor(true); setEditingCourse({...editingCourse, color: c}); }} className={`w-6 h-6 rounded-full cursor-pointer border ${editingCourse.color === c ? 'ring-2 ring-black' : ''}`} style={{backgroundColor: c}} />)}</div>
+               <div className="flex flex-wrap items-center gap-2 mt-2">
+                 <div className="flex gap-2">
+                   {palette.map(c => (
+                     <div
+                       key={c}
+                       onClick={() => {
+                         setManualColor(true);
+                         setEditingCourse({ ...editingCourse, color: c });
+                       }}
+                       className={`w-6 h-6 rounded-full cursor-pointer border ${
+                         editingCourse.color === c ? 'ring-2 ring-black' : ''
+                       }`}
+                       style={{ backgroundColor: c }}
+                     />
+                   ))}
+                 </div>
+                 <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
+                   <span
+                     className="h-4 w-4 rounded-full border border-black"
+                     style={{ backgroundColor: editingCourse.color }}
+                   />
+                   Egen färg
+                   <input
+                     type="color"
+                     className="sr-only"
+                     aria-label="Välj egen färg"
+                     value={editingCourse.color}
+                     onChange={e => {
+                       setManualColor(true);
+                       setEditingCourse({ ...editingCourse, color: e.target.value });
+                     }}
+                   />
+                 </label>
+               </div>
                <DialogFooter><Button type="submit">Spara</Button></DialogFooter>
             </form>
           )}
@@ -1869,7 +1902,34 @@ export default function NewSchedulePlanner() {
                   value={editingEntry.notes ?? ''}
                   onChange={e => setEditingEntry({ ...editingEntry, notes: e.target.value })}
                 />
-                <div className="flex gap-2 mt-2">{palette.map(c => <div key={c} onClick={() => setEditingEntry({...editingEntry, color: c})} className={`w-6 h-6 rounded-full cursor-pointer border ${editingEntry.color === c ? 'ring-2 ring-black' : ''}`} style={{backgroundColor: c}} />)}</div>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <div className="flex gap-2">
+                    {palette.map(c => (
+                      <div
+                        key={c}
+                        onClick={() => setEditingEntry({ ...editingEntry, color: c })}
+                        className={`w-6 h-6 rounded-full cursor-pointer border ${
+                          editingEntry.color === c ? 'ring-2 ring-black' : ''
+                        }`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
+                    <span
+                      className="h-4 w-4 rounded-full border border-black"
+                      style={{ backgroundColor: editingEntry.color || '#ffffff' }}
+                    />
+                    Egen färg
+                    <input
+                      type="color"
+                      className="sr-only"
+                      aria-label="Välj egen färg"
+                      value={editingEntry.color || '#ffffff'}
+                      onChange={e => setEditingEntry({ ...editingEntry, color: e.target.value })}
+                    />
+                  </label>
+                </div>
                 <DialogFooter><Button type="submit">Uppdatera</Button></DialogFooter>
              </form>
            )}
