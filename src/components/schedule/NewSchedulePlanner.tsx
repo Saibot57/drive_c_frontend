@@ -410,6 +410,62 @@ function HiddenSettingsPanel({
   );
 }
 
+function CategoryDebugPanel({
+  open,
+  onOpenChange,
+  categories,
+  missingCount,
+  totalCount
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  categories: string[];
+  missingCount: number;
+  totalCount: number;
+}) {
+  const hasCategories = categories.length > 0;
+  const hasActivities = totalCount > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Kategorier (debug)</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div>
+            <p className="font-semibold">Unika kategorier ({categories.length})</p>
+            {hasCategories ? (
+              <ul className="list-disc pl-5">
+                {categories.map(category => (
+                  <li key={category}>{category}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500">Inga kategorier hittades.</p>
+            )}
+          </div>
+          <div>
+            <p className="font-semibold">Aktiviteter utan kategori</p>
+            <p>{missingCount} av {totalCount}</p>
+          </div>
+          {!hasActivities && (
+            <p className="text-gray-500">Inga aktiviteter laddade ännu.</p>
+          )}
+          <p className="text-xs text-gray-500">
+            Öppna via Ctrl + Shift + C.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="neutral" onClick={() => onOpenChange(false)} className="border-2 border-black">
+            Stäng
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // --- Sub-Components ---
 
 function DraggableSourceCard({
@@ -702,6 +758,7 @@ export default function NewSchedulePlanner() {
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
+  const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
   const titleHoldTimerRef = useRef<number | null>(null);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
@@ -755,6 +812,17 @@ export default function NewSchedulePlanner() {
       if (!event.ctrlKey || !event.shiftKey) return;
       event.preventDefault();
       setIsHiddenSettingsOpen(true);
+    };
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, []);
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'c') return;
+      if (!event.ctrlKey || !event.shiftKey) return;
+      event.preventDefault();
+      setIsCategoryDebugOpen(true);
     };
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
@@ -854,6 +922,19 @@ export default function NewSchedulePlanner() {
   const derivedCourseKeys = useMemo(() => (
     new Set(deriveCoursesFromSchedule(schedule).map(course => buildCourseDedupeKey(course)))
   ), [schedule]);
+
+  const categoryStats = useMemo(() => {
+    const normalized = schedule.map(entry => (
+      typeof entry.category === 'string' ? entry.category.trim() : ''
+    ));
+    const unique = Array.from(new Set(normalized.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'sv'));
+    const missingCount = normalized.filter(value => !value).length;
+    return {
+      unique,
+      missingCount,
+      totalCount: schedule.length
+    };
+  }, [schedule]);
 
   useEffect(() => {
     recomputeCourses(schedule, manualCourses);
@@ -1801,6 +1882,13 @@ export default function NewSchedulePlanner() {
         teachers={teachers}
         rooms={rooms}
         onSave={handleHiddenSettingsSave}
+      />
+      <CategoryDebugPanel
+        open={isCategoryDebugOpen}
+        onOpenChange={setIsCategoryDebugOpen}
+        categories={categoryStats.unique}
+        missingCount={categoryStats.missingCount}
+        totalCount={categoryStats.totalCount}
       />
       <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
         <DialogContent>
