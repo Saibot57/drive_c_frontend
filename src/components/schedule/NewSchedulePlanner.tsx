@@ -31,7 +31,8 @@ import {
   FolderOpen,
   ChevronLeft,
   ChevronRight,
-  CloudUpload
+  CloudUpload,
+  FileText
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -78,6 +79,12 @@ const hashStringFnv1a = (value: string) => {
     hash = (hash * 0x01000193) >>> 0;
   }
   return hash.toString(16).padStart(8, '0');
+};
+
+const extractUrl = (value?: string) => {
+  if (!value) return null;
+  const match = value.match(/https?:\/\/[^\s]+/i);
+  return match ? match[0] : null;
 };
 
 const deriveCoursesFromSchedule = (scheduleEntries: ScheduledEntry[]) => {
@@ -410,6 +417,62 @@ function HiddenSettingsPanel({
   );
 }
 
+function CategoryDebugPanel({
+  open,
+  onOpenChange,
+  categories,
+  missingCount,
+  totalCount
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  categories: string[];
+  missingCount: number;
+  totalCount: number;
+}) {
+  const hasCategories = categories.length > 0;
+  const hasActivities = totalCount > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Kategorier (debug)</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div>
+            <p className="font-semibold">Unika kategorier ({categories.length})</p>
+            {hasCategories ? (
+              <ul className="list-disc pl-5">
+                {categories.map(category => (
+                  <li key={category}>{category}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500">Inga kategorier hittades.</p>
+            )}
+          </div>
+          <div>
+            <p className="font-semibold">Aktiviteter utan kategori</p>
+            <p>{missingCount} av {totalCount}</p>
+          </div>
+          {!hasActivities && (
+            <p className="text-gray-500">Inga aktiviteter laddade ännu.</p>
+          )}
+          <p className="text-xs text-gray-500">
+            Öppna via Ctrl + Shift + C.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="neutral" onClick={() => onOpenChange(false)} className="border-2 border-black">
+            Stäng
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // --- Sub-Components ---
 
 function DraggableSourceCard({
@@ -492,6 +555,7 @@ function ScheduledEventCard({
   const adjustedHeight = Math.max(height - EVENT_GAP_PX, MIN_HEIGHT_PX);
   const widthPercentage = 100 / Math.max(columnCount, 1);
   const leftPercentage = widthPercentage * columnIndex;
+  const assignmentUrl = extractUrl(entry.category);
 
   if (hidden) return null;
 
@@ -525,9 +589,25 @@ function ScheduledEventCard({
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
             )}
           </span>
-          <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded">
-             <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-0.5 hover:bg-white rounded"><Edit2 size={8}/></button>
-             <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8}/></button>
+          <div className="flex items-start gap-0.5">
+            {assignmentUrl && (
+              <a
+                href={assignmentUrl}
+                target="_blank"
+                rel="noreferrer"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
+                className="p-0.5 bg-white/70 hover:bg-white rounded text-gray-700"
+                aria-label="Öppna uppgift"
+                title="Öppna uppgift"
+              >
+                <FileText size={10} />
+              </a>
+            )}
+            <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded">
+               <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-0.5 hover:bg-white rounded"><Edit2 size={8}/></button>
+               <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8}/></button>
+            </div>
           </div>
         </div>
         {!isShortDuration && (
@@ -702,6 +782,7 @@ export default function NewSchedulePlanner() {
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
+  const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
   const titleHoldTimerRef = useRef<number | null>(null);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
@@ -755,6 +836,17 @@ export default function NewSchedulePlanner() {
       if (!event.ctrlKey || !event.shiftKey) return;
       event.preventDefault();
       setIsHiddenSettingsOpen(true);
+    };
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, []);
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'c') return;
+      if (!event.ctrlKey || !event.shiftKey) return;
+      event.preventDefault();
+      setIsCategoryDebugOpen(true);
     };
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
@@ -854,6 +946,19 @@ export default function NewSchedulePlanner() {
   const derivedCourseKeys = useMemo(() => (
     new Set(deriveCoursesFromSchedule(schedule).map(course => buildCourseDedupeKey(course)))
   ), [schedule]);
+
+  const categoryStats = useMemo(() => {
+    const normalized = schedule.map(entry => (
+      typeof entry.category === 'string' ? entry.category.trim() : ''
+    ));
+    const unique = Array.from(new Set(normalized.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'sv'));
+    const missingCount = normalized.filter(value => !value).length;
+    return {
+      unique,
+      missingCount,
+      totalCount: schedule.length
+    };
+  }, [schedule]);
 
   useEffect(() => {
     recomputeCourses(schedule, manualCourses);
@@ -1802,6 +1907,13 @@ export default function NewSchedulePlanner() {
         rooms={rooms}
         onSave={handleHiddenSettingsSave}
       />
+      <CategoryDebugPanel
+        open={isCategoryDebugOpen}
+        onOpenChange={setIsCategoryDebugOpen}
+        categories={categoryStats.unique}
+        missingCount={categoryStats.missingCount}
+        totalCount={categoryStats.totalCount}
+      />
       <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Hantera ämne</DialogTitle></DialogHeader>
@@ -1894,6 +2006,16 @@ export default function NewSchedulePlanner() {
                     value={editingEntry.room}
                     options={rooms}
                     onChange={room => setEditingEntry({ ...editingEntry, room })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="entry-category">Uppgift:</Label>
+                  <Textarea
+                    id="entry-category"
+                    placeholder="Klistra in uppgiftslänk eller skriv en kort markering"
+                    value={editingEntry.category ?? ''}
+                    onChange={e => setEditingEntry({ ...editingEntry, category: e.target.value })}
+                    rows={2}
                   />
                 </div>
                 <Input
