@@ -31,7 +31,8 @@ import {
   FolderOpen,
   ChevronLeft,
   ChevronRight,
-  CloudUpload
+  CloudUpload,
+  FileText
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -78,6 +79,12 @@ const hashStringFnv1a = (value: string) => {
     hash = (hash * 0x01000193) >>> 0;
   }
   return hash.toString(16).padStart(8, '0');
+};
+
+const extractUrl = (value?: string) => {
+  if (!value) return null;
+  const match = value.match(/https?:\/\/[^\s]+/i);
+  return match ? match[0] : null;
 };
 
 const deriveCoursesFromSchedule = (scheduleEntries: ScheduledEntry[]) => {
@@ -548,6 +555,7 @@ function ScheduledEventCard({
   const adjustedHeight = Math.max(height - EVENT_GAP_PX, MIN_HEIGHT_PX);
   const widthPercentage = 100 / Math.max(columnCount, 1);
   const leftPercentage = widthPercentage * columnIndex;
+  const assignmentUrl = extractUrl(entry.category);
 
   if (hidden) return null;
 
@@ -581,9 +589,25 @@ function ScheduledEventCard({
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
             )}
           </span>
-          <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded">
-             <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-0.5 hover:bg-white rounded"><Edit2 size={8}/></button>
-             <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8}/></button>
+          <div className="flex items-start gap-0.5">
+            {assignmentUrl && (
+              <a
+                href={assignmentUrl}
+                target="_blank"
+                rel="noreferrer"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
+                className="p-0.5 bg-white/70 hover:bg-white rounded text-gray-700"
+                aria-label="Öppna uppgift"
+                title="Öppna uppgift"
+              >
+                <FileText size={10} />
+              </a>
+            )}
+            <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded">
+               <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-0.5 hover:bg-white rounded"><Edit2 size={8}/></button>
+               <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8}/></button>
+            </div>
           </div>
         </div>
         {!isShortDuration && (
@@ -1982,6 +2006,16 @@ export default function NewSchedulePlanner() {
                     value={editingEntry.room}
                     options={rooms}
                     onChange={room => setEditingEntry({ ...editingEntry, room })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="entry-category">Uppgift:</Label>
+                  <Textarea
+                    id="entry-category"
+                    placeholder="Klistra in uppgiftslänk eller skriv en kort markering"
+                    value={editingEntry.category ?? ''}
+                    onChange={e => setEditingEntry({ ...editingEntry, category: e.target.value })}
+                    rows={2}
                   />
                 </div>
                 <Input
