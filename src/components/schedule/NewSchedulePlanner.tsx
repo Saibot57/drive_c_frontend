@@ -50,6 +50,7 @@ import {
   snapTime, checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 import { exportElementToVectorPdf } from '@/utils/vectorPdfExport';
+import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'];
@@ -536,7 +537,8 @@ function ScheduledEventCard({
   hidden,
   columnIndex,
   columnCount,
-  isLastOfDay
+  isLastOfDay,
+  showLayoutDebug
 }: {
   entry: ScheduledEntry;
   onEdit: (e: ScheduledEntry) => void;
@@ -546,6 +548,7 @@ function ScheduledEventCard({
   columnIndex: number;
   columnCount: number;
   isLastOfDay: boolean;
+  showLayoutDebug: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
@@ -591,6 +594,11 @@ function ScheduledEventCard({
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
             )}
           </span>
+          {showLayoutDebug && (
+            <span className="rounded bg-white/70 px-1 text-[9px] font-mono font-bold text-gray-700">
+              {columnIndex}/{columnCount}
+            </span>
+          )}
           <div className="flex items-start gap-0.5">
             {assignmentUrl && (
               <a
@@ -685,70 +693,6 @@ function DayColumn({ day, ghost, children }: { day: string; ghost: {
   );
 }
 
-const buildDayLayout = (entries: ScheduledEntry[]) => {
-  const groups: ScheduledEntry[][] = [];
-
-  entries.forEach(entry => {
-    const overlappingGroups = groups.filter(group =>
-      group.some(existing =>
-        checkOverlap(entry.startTime, entry.endTime, existing.startTime, existing.endTime)
-      )
-    );
-
-    if (overlappingGroups.length === 0) {
-      groups.push([entry]);
-      return;
-    }
-
-    const mergedGroup = overlappingGroups.flat();
-    overlappingGroups.forEach(group => {
-      const index = groups.indexOf(group);
-      if (index > -1) {
-        groups.splice(index, 1);
-      }
-    });
-    groups.push([...mergedGroup, entry]);
-  });
-
-  const layout = new Map<string, { column: number; columns: number }>();
-
-  groups.forEach(group => {
-    const sorted = [...group].sort((a, b) => {
-      const startDiff = timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
-      if (startDiff !== 0) return startDiff;
-      return timeToMinutes(a.endTime) - timeToMinutes(b.endTime);
-    });
-
-    const columns: ScheduledEntry[][] = [];
-
-    sorted.forEach(entry => {
-      let placed = false;
-      for (let i = 0; i < columns.length; i += 1) {
-        const last = columns[i][columns[i].length - 1];
-        if (!checkOverlap(last.startTime, last.endTime, entry.startTime, entry.endTime)) {
-          columns[i].push(entry);
-          layout.set(entry.instanceId, { column: i, columns: 0 });
-          placed = true;
-          break;
-        }
-      }
-      if (!placed) {
-        columns.push([entry]);
-        layout.set(entry.instanceId, { column: columns.length - 1, columns: 0 });
-      }
-    });
-
-    const totalColumns = columns.length;
-    columns.forEach((columnEntries, columnIndex) => {
-      columnEntries.forEach(entry => {
-        layout.set(entry.instanceId, { column: columnIndex, columns: totalColumns });
-      });
-    });
-  });
-
-  return layout;
-};
-
 // --- Main Component ---
 
 export default function NewSchedulePlanner() {
@@ -780,6 +724,7 @@ export default function NewSchedulePlanner() {
   const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const isSavingRef = useRef(false);
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
@@ -802,6 +747,15 @@ export default function NewSchedulePlanner() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (process.env.NODE_ENV !== 'development') return;
+    const params = new URLSearchParams(window.location.search);
+    const queryEnabled = params.has('debugLayout') && params.get('debugLayout') !== '0';
+    const envEnabled = process.env.NEXT_PUBLIC_SCHEDULE_DEBUG_LAYOUT === 'true';
+    setShowLayoutDebug(queryEnabled || envEnabled);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1008,7 +962,7 @@ export default function NewSchedulePlanner() {
   }), []);
 
   const layoutByDay = useMemo(() => {
-    const layout: Record<string, Map<string, { column: number; columns: number }>> = {};
+    const layout: Record<string, Map<string, DayLayoutEntry>> = {};
     days.forEach(day => {
       const entries = schedule.filter(entry => entry.day === day);
       layout[day] = buildDayLayout(entries);
@@ -1748,8 +1702,8 @@ export default function NewSchedulePlanner() {
 
                           return dayEntries.map(entry => {
                           const layout = layoutByDay[day]?.get(entry.instanceId);
-                          const columnIndex = layout?.column ?? 0;
-                          const columnCount = layout?.columns ?? 1;
+                          const columnIndex = layout?.colIndex ?? 0;
+                          const columnCount = layout?.colCount ?? 1;
                           return (
                            <ScheduledEventCard 
                              key={entry.instanceId} 
@@ -1768,6 +1722,7 @@ export default function NewSchedulePlanner() {
                               columnIndex={columnIndex}
                               columnCount={columnCount}
                               isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
+                              showLayoutDebug={showLayoutDebug}
                            />
                           );
                           });
