@@ -534,7 +534,8 @@ function ScheduledEventCard({
   hidden,
   columnIndex,
   columnCount,
-  isLastOfDay
+  isLastOfDay,
+  showLayoutDebug
 }: {
   entry: ScheduledEntry;
   onEdit: (e: ScheduledEntry) => void;
@@ -544,6 +545,7 @@ function ScheduledEventCard({
   columnIndex: number;
   columnCount: number;
   isLastOfDay: boolean;
+  showLayoutDebug: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
@@ -589,6 +591,11 @@ function ScheduledEventCard({
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
             )}
           </span>
+          {showLayoutDebug && (
+            <span className="rounded bg-white/70 px-1 text-[9px] font-mono font-bold text-gray-700">
+              {columnIndex}/{columnCount}
+            </span>
+          )}
           <div className="flex items-start gap-0.5">
             {assignmentUrl && (
               <a
@@ -778,6 +785,7 @@ export default function NewSchedulePlanner() {
   const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const isSavingRef = useRef(false);
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
@@ -800,6 +808,15 @@ export default function NewSchedulePlanner() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (process.env.NODE_ENV !== 'development') return;
+    const params = new URLSearchParams(window.location.search);
+    const queryEnabled = params.has('debugLayout') && params.get('debugLayout') !== '0';
+    const envEnabled = process.env.NEXT_PUBLIC_SCHEDULE_DEBUG_LAYOUT === 'true';
+    setShowLayoutDebug(queryEnabled || envEnabled);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1758,6 +1775,7 @@ export default function NewSchedulePlanner() {
                               columnIndex={columnIndex}
                               columnCount={columnCount}
                               isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
+                              showLayoutDebug={showLayoutDebug}
                            />
                           );
                           });
