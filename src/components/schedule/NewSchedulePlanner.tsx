@@ -48,6 +48,8 @@ import {
   timeToMinutes, minutesToTime, getPositionStyles, 
   snapTime, checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
+import { buildDayLayout } from '@/components/schedule/layoutUtils';
+import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
@@ -768,6 +770,11 @@ export default function NewSchedulePlanner() {
     } catch (error) {
       console.warn('Kunde inte läsa manuella byggstenar.', error);
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    runLayoutFixtureValidation();
   }, []);
 
   useEffect(() => {
