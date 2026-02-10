@@ -58,9 +58,10 @@ export const exportElementToVectorPdf = async (
   const clippedHeight = Number.isFinite(options.clipHeightPx)
     ? Math.min(targetHeight, options.clipHeightPx as number)
     : targetHeight;
+  const shouldClipHeight = Number.isFinite(options.clipHeightPx);
   clonedElement.style.width = `${targetWidth}px`;
   clonedElement.style.height = `${clippedHeight}px`;
-  clonedElement.style.overflow = 'visible';
+  clonedElement.style.overflow = shouldClipHeight ? 'hidden' : 'visible';
   options.extraClassNames?.forEach((className) =>
     clonedElement.classList.add(className)
   );
