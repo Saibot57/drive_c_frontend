@@ -832,22 +832,7 @@ export default function NewSchedulePlanner() {
     const loadPlannerActivities = async () => {
       try {
         const activities = await plannerService.getPlannerActivities();
-        const mappedSchedule = sanitizeScheduleImport(
-          activities.map(activity => ({
-            id: activity.id,
-            title: activity.title,
-            teacher: activity.teacher ?? '',
-            room: activity.room ?? '',
-            color: activity.color ?? generateBoxColor(activity.title ?? ''),
-            duration: activity.duration ?? 60,
-            category: activity.category,
-            instanceId: activity.id,
-            day: activity.day ?? days[0],
-            startTime: activity.startTime ?? '08:00',
-            endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
-            notes: activity.notes ?? undefined
-          }))
-        );
+        const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
         setSchedule(mappedSchedule);
         scheduleHistoryRef.current = [];
         scheduleFutureRef.current = [];
@@ -859,7 +844,7 @@ export default function NewSchedulePlanner() {
     };
 
     loadPlannerActivities();
-  }, []);
+  }, [mapPlannerActivitiesToSchedule]);
 
   useEffect(() => {
     const loadArchiveNames = async () => {
