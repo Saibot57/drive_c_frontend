@@ -49,8 +49,9 @@ import {
   timeToMinutes, minutesToTime, getPositionStyles, 
   snapTime, checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
-import { buildDayLayout } from '@/utils/scheduleLayout';
+import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 import { exportElementToVectorPdf } from '@/utils/vectorPdfExport';
+import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'];
@@ -1707,8 +1708,8 @@ export default function NewSchedulePlanner() {
 
                           return dayEntries.map(entry => {
                           const layout = layoutByDay[day]?.get(entry.instanceId);
-                          const columnIndex = layout?.colIndex ?? 0;
-                          const columnCount = layout?.colCount ?? 1;
+                          const columnIndex = layout?.column ?? 0;
+                          const columnCount = layout?.columns ?? 1;
                           return (
                            <ScheduledEventCard 
                              key={entry.instanceId} 
