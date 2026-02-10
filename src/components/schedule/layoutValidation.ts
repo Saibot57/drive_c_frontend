@@ -1,4 +1,5 @@
-import { buildDayGroups, buildDayLayout } from '@/utils/scheduleLayout';
+import { buildDayLayout } from '@/utils/scheduleLayout';
+import { checkOverlap } from '@/utils/scheduleTime';
 import { layoutTortureFixtures } from '@/components/schedule/__fixtures__/layoutTorture';
 
 const assertCondition = (condition: boolean, message: string) => {
@@ -11,6 +12,35 @@ const normalizeGroups = (groups: string[][]) =>
   groups
     .map(group => [...group].sort())
     .sort((a, b) => a.join('|').localeCompare(b.join('|')));
+
+const buildDayGroups = <T extends { startTime: string; endTime: string }>(entries: T[]) => {
+  const groups: T[][] = [];
+
+  entries.forEach((entry) => {
+    const overlappingGroups = groups.filter((group) =>
+      group.some((existing) =>
+        checkOverlap(entry.startTime, entry.endTime, existing.startTime, existing.endTime)
+      )
+    );
+
+    if (overlappingGroups.length === 0) {
+      groups.push([entry]);
+      return;
+    }
+
+    const mergedGroup = overlappingGroups.flat();
+    overlappingGroups.forEach((group) => {
+      const index = groups.indexOf(group);
+      if (index > -1) {
+        groups.splice(index, 1);
+      }
+    });
+
+    groups.push([...mergedGroup, entry]);
+  });
+
+  return groups;
+};
 
 export const runLayoutFixtureValidation = () => {
   if (process.env.NODE_ENV === 'production') return;
