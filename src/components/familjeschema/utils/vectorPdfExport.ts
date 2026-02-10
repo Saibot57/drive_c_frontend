@@ -22,13 +22,31 @@ export type VectorPdfExportOptions = {
   minEventHeightMM?: number;
   maxOverlapColumns?: number;
   timeSlotMinutes?: number;
+  activityColorLightenFactor?: number;
+  daySeparator?: {
+    lineWidth?: number;
+    color?: PdfColor;
+  };
 };
 
 type PdfColor = { r: number; g: number; b: number };
 
 const DEFAULT_MARGINS = { top: 12, right: 10, bottom: 10, left: 10 };
+const DEFAULT_ACTIVITY_COLOR_LIGHTEN_FACTOR = 0.65;
+const DEFAULT_DAY_SEPARATOR_LINE_WIDTH = 0.5;
+const DEFAULT_DAY_SEPARATOR_COLOR: PdfColor = { r: 200, g: 205, b: 210 };
+const DEFAULT_GRID_LINE_WIDTH = 0.2;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const lightenColor = (color: PdfColor, factor: number): PdfColor => {
+  const clampedFactor = clamp(factor, 0, 1);
+  return {
+    r: Math.round(color.r + (255 - color.r) * clampedFactor),
+    g: Math.round(color.g + (255 - color.g) * clampedFactor),
+    b: Math.round(color.b + (255 - color.b) * clampedFactor),
+  };
+};
 
 const hexToRgb = (hex: string): PdfColor => {
   const normalized = hex.replace('#', '');
@@ -108,12 +126,19 @@ export const exportScheduleVectorPdf = async (
   const windowMinutes = Math.max(windowEnd - windowStart, 1);
   const minutesToMm = gridHeight / windowMinutes;
   const timeSlotMinutes = options.timeSlotMinutes ?? 60;
+  const activityColorLightenFactor = clamp(
+    options.activityColorLightenFactor ?? DEFAULT_ACTIVITY_COLOR_LIGHTEN_FACTOR,
+    0,
+    1
+  );
+  const daySeparatorLineWidth = options.daySeparator?.lineWidth ?? DEFAULT_DAY_SEPARATOR_LINE_WIDTH;
+  const daySeparatorColor = options.daySeparator?.color ?? DEFAULT_DAY_SEPARATOR_COLOR;
 
   const gridLeft = margins.left + timeColumnWidth;
   const gridRight = gridLeft + dayColumnWidth * options.visibleDays.length;
 
   pdf.setDrawColor(218, 223, 230);
-  pdf.setLineWidth(0.2);
+  pdf.setLineWidth(DEFAULT_GRID_LINE_WIDTH);
   pdf.setFont('helvetica', 'normal');
 
   pdf.setFillColor(245, 247, 250);
@@ -121,7 +146,8 @@ export const exportScheduleVectorPdf = async (
 
   options.visibleDays.forEach((day, index) => {
     const x = gridLeft + dayColumnWidth * index;
-    pdf.setDrawColor(218, 223, 230);
+    pdf.setDrawColor(daySeparatorColor.r, daySeparatorColor.g, daySeparatorColor.b);
+    pdf.setLineWidth(daySeparatorLineWidth);
     pdf.line(x, margins.top, x, margins.top + contentHeight);
 
     const label = formatDayLabel(day, options.weekDates?.[index]);
@@ -130,7 +156,11 @@ export const exportScheduleVectorPdf = async (
     pdf.text(label, x + 2, margins.top + 8);
   });
 
+  pdf.setDrawColor(daySeparatorColor.r, daySeparatorColor.g, daySeparatorColor.b);
+  pdf.setLineWidth(daySeparatorLineWidth);
   pdf.line(gridRight, margins.top, gridRight, margins.top + contentHeight);
+  // Keep horizontal time grid lines thin; only day separators should stand out.
+  pdf.setLineWidth(DEFAULT_GRID_LINE_WIDTH);
 
   for (let minutes = windowStart; minutes <= windowEnd; minutes += timeSlotMinutes) {
     const offset = (minutes - windowStart) * minutesToMm;
@@ -186,7 +216,8 @@ export const exportScheduleVectorPdf = async (
       const height = Math.max(rawHeight, minEventHeight);
       const y = gridTop + (visibleStart - windowStart) * minutesToMm;
 
-      const color = resolveActivityColor(activity, familyMembers, index);
+      const rawColor = resolveActivityColor(activity, familyMembers, index);
+      const color = lightenColor(rawColor, activityColorLightenFactor);
       pdf.setFillColor(color.r, color.g, color.b);
       pdf.setDrawColor(255, 255, 255);
       pdf.rect(x + padding, y, columnWidth - padding * 2, height, 'F');
