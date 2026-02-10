@@ -1,3 +1,10 @@
+import { ScheduledEntry } from '@/types/schedule';
+import { checkOverlap, timeToMinutes } from '@/utils/scheduleTime';
+
+export const buildDayGroups = (entries: ScheduledEntry[]) => {
+  const groups: ScheduledEntry[][] = [];
+
+  entries.forEach(entry => {
 import { checkOverlap, timeToMinutes } from '@/utils/scheduleTime';
 
 type EntryWithTime = {
@@ -51,6 +58,9 @@ export const buildDayLayout = <T extends EntryWithTime>(
 
     const mergedGroup = overlappingGroups.flat();
     overlappingGroups.forEach(group => {
+      const index = groups.indexOf(group);
+      if (index > -1) {
+        groups.splice(index, 1);
       const groupIndex = groups.indexOf(group);
       if (groupIndex > -1) {
         groups.splice(groupIndex, 1);
@@ -59,6 +69,14 @@ export const buildDayLayout = <T extends EntryWithTime>(
     groups.push([...mergedGroup, entry]);
   });
 
+  return groups;
+};
+
+export const buildDayLayout = (entries: ScheduledEntry[]) => {
+  const groups = buildDayGroups(entries);
+  const layout = new Map<string, { column: number; columns: number }>();
+
+  groups.forEach(group => {
   const layout = new Map<string, DayLayoutEntry>();
 
   groups.forEach((group, groupIndex) => {
@@ -68,6 +86,7 @@ export const buildDayLayout = <T extends EntryWithTime>(
       return timeToMinutes(a.endTime) - timeToMinutes(b.endTime);
     });
 
+    const columns: ScheduledEntry[][] = [];
     const columns: T[][] = [];
 
     sorted.forEach(entry => {
@@ -76,16 +95,21 @@ export const buildDayLayout = <T extends EntryWithTime>(
         const last = columns[i][columns[i].length - 1];
         if (!checkOverlap(last.startTime, last.endTime, entry.startTime, entry.endTime)) {
           columns[i].push(entry);
+          layout.set(entry.instanceId, { column: i, columns: 0 });
           placed = true;
           break;
         }
       }
       if (!placed) {
         columns.push([entry]);
+        layout.set(entry.instanceId, { column: columns.length - 1, columns: 0 });
       }
     });
 
     const totalColumns = columns.length;
+    columns.forEach((columnEntries, columnIndex) => {
+      columnEntries.forEach(entry => {
+        layout.set(entry.instanceId, { column: columnIndex, columns: totalColumns });
     const includeGroupId = config.includeGroupId !== false;
     const groupId = includeGroupId
       ? `${config.groupIdPrefix ?? 'group'}-${groupIndex + 1}`

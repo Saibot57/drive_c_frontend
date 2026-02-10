@@ -774,6 +774,11 @@ export default function NewSchedulePlanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    runLayoutFixtureValidation();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
       const storedTeachers = window.localStorage.getItem(TEACHERS_STORAGE_KEY);
       const storedRooms = window.localStorage.getItem(ROOMS_STORAGE_KEY);
