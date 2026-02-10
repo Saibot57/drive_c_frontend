@@ -50,6 +50,7 @@ import {
 } from '@/utils/scheduleTime';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
 import { buildDayLayout } from '@/utils/scheduleLayout';
+import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
 const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'];
@@ -536,7 +537,8 @@ function ScheduledEventCard({
   hidden,
   columnIndex,
   columnCount,
-  isLastOfDay
+  isLastOfDay,
+  showLayoutDebug
 }: {
   entry: ScheduledEntry;
   onEdit: (e: ScheduledEntry) => void;
@@ -546,6 +548,7 @@ function ScheduledEventCard({
   columnIndex: number;
   columnCount: number;
   isLastOfDay: boolean;
+  showLayoutDebug: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
@@ -591,6 +594,11 @@ function ScheduledEventCard({
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
             )}
           </span>
+          {showLayoutDebug && (
+            <span className="rounded bg-white/70 px-1 text-[9px] font-mono font-bold text-gray-700">
+              {columnIndex}/{columnCount}
+            </span>
+          )}
           <div className="flex items-start gap-0.5">
             {assignmentUrl && (
               <a
@@ -716,6 +724,7 @@ export default function NewSchedulePlanner() {
   const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const isSavingRef = useRef(false);
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
@@ -738,6 +747,15 @@ export default function NewSchedulePlanner() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (process.env.NODE_ENV !== 'development') return;
+    const params = new URLSearchParams(window.location.search);
+    const queryEnabled = params.has('debugLayout') && params.get('debugLayout') !== '0';
+    const envEnabled = process.env.NEXT_PUBLIC_SCHEDULE_DEBUG_LAYOUT === 'true';
+    setShowLayoutDebug(queryEnabled || envEnabled);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -949,7 +967,7 @@ export default function NewSchedulePlanner() {
   }), []);
 
   const layoutByDay = useMemo(() => {
-    const layout: Record<string, Map<string, { column: number; columns: number }>> = {};
+    const layout: Record<string, Map<string, DayLayoutEntry>> = {};
     days.forEach(day => {
       const entries = schedule.filter(entry => entry.day === day);
       layout[day] = buildDayLayout(entries);
@@ -1681,8 +1699,8 @@ export default function NewSchedulePlanner() {
 
                           return dayEntries.map(entry => {
                           const layout = layoutByDay[day]?.get(entry.instanceId);
-                          const columnIndex = layout?.column ?? 0;
-                          const columnCount = layout?.columns ?? 1;
+                          const columnIndex = layout?.colIndex ?? 0;
+                          const columnCount = layout?.colCount ?? 1;
                           return (
                            <ScheduledEventCard 
                              key={entry.instanceId} 
@@ -1701,6 +1719,7 @@ export default function NewSchedulePlanner() {
                               columnIndex={columnIndex}
                               columnCount={columnCount}
                               isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
+                              showLayoutDebug={showLayoutDebug}
                            />
                           );
                           });
