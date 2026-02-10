@@ -3,6 +3,8 @@
 import type { Activity } from '../types';
 import { getWeekDateRange } from './dateUtils';
 import { ALL_DAYS } from '../constants';
+import { isVectorPdfExportEnabled } from '@/config/featureFlags';
+import { exportElementToVectorPdf } from '@/utils/vectorPdfExport';
 
 export const downloadICS = (
   activities: Activity[],
@@ -279,6 +281,16 @@ export const exportScheduleToPDF = async (
 ) => {
   if (!element) throw new Error('exportScheduleToPDF: element is null');
 
+  const filename = options.filename ?? 'familjeschema.pdf';
+
+  if (isVectorPdfExportEnabled) {
+    await exportElementToVectorPdf(element, {
+      filename,
+      extraClassNames: ['print-mode']
+    });
+    return;
+  }
+
   const html2canvasModule = await import('html2canvas');
   const html2canvas = html2canvasModule.default;
 
@@ -295,8 +307,6 @@ export const exportScheduleToPDF = async (
 
   const scale = clamp(options.scale ?? window.devicePixelRatio ?? 1, 2, 3);
   const margin = options.marginMM ?? 10;
-  const filename = options.filename ?? 'familjeschema.pdf';
-
   element.classList.add('print-mode');
 
   let restoreElementLayout: (() => void) | undefined;

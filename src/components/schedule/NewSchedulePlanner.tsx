@@ -41,6 +41,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { generateBoxColor, importColors } from '@/config/colorManagement';
+import { isVectorPdfExportEnabled } from '@/config/featureFlags';
 import { PlannerActivity, PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
 import { plannerService } from '@/services/plannerService';
 import { 
@@ -48,8 +49,7 @@ import {
   timeToMinutes, minutesToTime, getPositionStyles, 
   snapTime, checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
-import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
-import { buildDayLayout } from '@/utils/scheduleLayout';
+import { exportElementToVectorPdf } from '@/utils/vectorPdfExport';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 
 const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
@@ -1499,6 +1499,14 @@ export default function NewSchedulePlanner() {
   };
 
   const handleExportPDF = async () => {
+    const exportElement = document.getElementById('schedule-canvas');
+    if (isVectorPdfExportEnabled && exportElement) {
+      await exportElementToVectorPdf(exportElement, {
+        filename: 'schema.pdf',
+        extraClassNames: ['pdf-export']
+      });
+      return;
+    }
     const canvas = await captureScheduleCanvas();
     if (!canvas) return;
     const pdf = new jsPDF('l', 'pt', 'a4');
