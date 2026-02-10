@@ -17,6 +17,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
   Archive,
+  Copy,
   Download,
   RefreshCcw,
   Trash2,
@@ -724,9 +725,13 @@ export default function NewSchedulePlanner() {
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
   const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
+  const [activeArchiveName, setActiveArchiveName] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const isSavingRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+  const isHydratingFromServerRef = useRef(true);
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
@@ -827,32 +832,19 @@ export default function NewSchedulePlanner() {
     const loadPlannerActivities = async () => {
       try {
         const activities = await plannerService.getPlannerActivities();
-        const mappedSchedule = sanitizeScheduleImport(
-          activities.map(activity => ({
-            id: activity.id,
-            title: activity.title,
-            teacher: activity.teacher ?? '',
-            room: activity.room ?? '',
-            color: activity.color ?? generateBoxColor(activity.title ?? ''),
-            duration: activity.duration ?? 60,
-            category: activity.category,
-            instanceId: activity.id,
-            day: activity.day ?? days[0],
-            startTime: activity.startTime ?? '08:00',
-            endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
-            notes: activity.notes ?? undefined
-          }))
-        );
+        const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
         setSchedule(mappedSchedule);
         scheduleHistoryRef.current = [];
         scheduleFutureRef.current = [];
+        isHydratingFromServerRef.current = false;
       } catch (e) {
         console.error('Planner load failed', e);
+        isHydratingFromServerRef.current = false;
       }
     };
 
     loadPlannerActivities();
-  }, []);
+  }, [mapPlannerActivitiesToSchedule]);
 
   useEffect(() => {
     const loadArchiveNames = async () => {
@@ -1040,6 +1032,25 @@ export default function NewSchedulePlanner() {
     }))
   ), []);
 
+  const mapPlannerActivitiesToSchedule = useCallback((activities: PlannerActivity[]) => (
+    sanitizeScheduleImport(
+      activities.map(activity => ({
+        id: activity.id,
+        title: activity.title,
+        teacher: activity.teacher ?? '',
+        room: activity.room ?? '',
+        color: activity.color ?? generateBoxColor(activity.title ?? ''),
+        duration: activity.duration ?? 60,
+        category: activity.category,
+        instanceId: activity.id,
+        day: activity.day ?? days[0],
+        startTime: activity.startTime ?? '08:00',
+        endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
+        notes: activity.notes ?? undefined
+      }))
+    )
+  ), []);
+
   const dayHeaderTooltips = useMemo(() => {
     const tooltips: Record<string, string> = {};
     days.forEach(day => {
@@ -1108,41 +1119,75 @@ export default function NewSchedulePlanner() {
     if (isSavingRef.current) return;
     isSavingRef.current = true;
     setIsSaving(true);
+    setSaveStatus('saving');
     try {
       const payload = mapScheduleToPlannerActivities(schedule);
-      const { activities } = await plannerService.syncActivities(payload);
+      const { activities } = activeArchiveName
+        ? { activities: await plannerService.savePlannerArchive(activeArchiveName, payload) }
+        : await plannerService.syncActivities(payload);
       if (process.env.NODE_ENV !== 'production') {
         console.info('Planner sync returned activities', activities);
       }
-      const mappedSchedule = sanitizeScheduleImport(
-        activities.map(activity => ({
-          id: activity.id,
-          title: activity.title,
-          teacher: activity.teacher ?? '',
-          room: activity.room ?? '',
-          color: activity.color ?? generateBoxColor(activity.title ?? ''),
-          duration: activity.duration ?? 60,
-          category: activity.category,
-          instanceId: activity.id,
-          day: activity.day ?? days[0],
-          startTime: activity.startTime ?? '08:00',
-          endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
-          notes: activity.notes ?? undefined
-        }))
-      );
+      const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
       // Replace local IDs after sync because the server generates new UUIDs.
       setSchedule(mappedSchedule);
       scheduleHistoryRef.current = [];
       scheduleFutureRef.current = [];
-      alert('Schema synkat till molnet.');
+      setSaveStatus('saved');
+      alert(activeArchiveName ? `Veckan "${activeArchiveName}" uppdaterades i arkivet.` : 'Schema synkat till molnet.');
     } catch (error) {
       console.error('Cloud sync failed', error);
+      setSaveStatus('error');
       alert('Kunde inte synka schemat.');
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [mapScheduleToPlannerActivities, schedule]);
+  }, [activeArchiveName, mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, schedule]);
+
+
+  const performAutosave = useCallback(async () => {
+    if (isHydratingFromServerRef.current) return;
+    if (isSavingRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+    setSaveStatus('saving');
+
+    try {
+      const payload = mapScheduleToPlannerActivities(schedule);
+      if (activeArchiveName) {
+        await plannerService.savePlannerArchive(activeArchiveName, payload);
+      } else {
+        await plannerService.syncActivities(payload);
+      }
+      setSaveStatus('saved');
+    } catch (error) {
+      console.error('Autosave failed', error);
+      setSaveStatus('error');
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        window.setTimeout(() => {
+          performAutosave();
+        }, 0);
+      }
+    }
+  }, [activeArchiveName, mapScheduleToPlannerActivities, schedule]);
+
+  useEffect(() => {
+    if (isHydratingFromServerRef.current) return;
+    const timeout = window.setTimeout(() => {
+      performAutosave();
+    }, 1000);
+
+    return () => window.clearTimeout(timeout);
+  }, [performAutosave, schedule, activeArchiveName]);
 
   // --- Drag & Drop Logic ---
 
@@ -1177,6 +1222,7 @@ export default function NewSchedulePlanner() {
       setSavedWeekNames(prev => (
         prev.includes(trimmedName) ? prev : [...prev, trimmedName]
       ));
+      setActiveArchiveName(trimmedName);
       setWeekName('');
       alert('Veckan sparades i arkivet.');
     } catch (error) {
@@ -1190,28 +1236,14 @@ export default function NewSchedulePlanner() {
     if (!shouldLoad) return;
     try {
       const entries = await plannerService.getPlannerArchive(name);
-      const mappedSchedule = sanitizeScheduleImport(
-        entries.map(activity => ({
-          id: activity.id,
-          title: activity.title,
-          teacher: activity.teacher ?? '',
-          room: activity.room ?? '',
-          color: activity.color ?? generateBoxColor(activity.title ?? ''),
-          duration: activity.duration ?? 60,
-          category: activity.category,
-          instanceId: activity.id,
-          day: activity.day ?? days[0],
-          startTime: activity.startTime ?? '08:00',
-          endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
-          notes: activity.notes ?? undefined
-        }))
-      );
+      const mappedSchedule = mapPlannerActivitiesToSchedule(entries);
       commitSchedule(() => mappedSchedule);
+      setActiveArchiveName(name);
     } catch (error) {
       console.error('Archive load failed', error);
       alert('Kunde inte läsa in veckan.');
     }
-  }, [commitSchedule]);
+  }, [commitSchedule, mapPlannerActivitiesToSchedule]);
 
   const handleDeleteWeek = useCallback(async (name: string) => {
     const shouldDelete = confirm(`Radera vecka "${name}"?`);
@@ -1219,11 +1251,39 @@ export default function NewSchedulePlanner() {
     try {
       await plannerService.deletePlannerArchive(name);
       setSavedWeekNames(prev => prev.filter(existing => existing !== name));
+      setActiveArchiveName(prev => (prev === name ? null : prev));
     } catch (error) {
       console.error('Archive delete failed', error);
       alert('Kunde inte ta bort veckan.');
     }
   }, []);
+
+  const handleDuplicateWeek = useCallback(async (name: string) => {
+    const suggestedName = `${name} (kopia)`;
+    const duplicateName = window.prompt('Namn på kopian:', suggestedName)?.trim();
+    if (!duplicateName) return;
+    if (savedWeekNames.includes(duplicateName)) {
+      alert('Det finns redan en vecka med det namnet.');
+      return;
+    }
+
+    try {
+      const entries = await plannerService.getPlannerArchive(name);
+      const duplicatedEntries = entries.map(entry => ({
+        ...entry,
+        id: uuidv4(),
+      }));
+      await plannerService.savePlannerArchive(duplicateName, duplicatedEntries);
+      setSavedWeekNames(prev => [...prev, duplicateName]);
+      setActiveArchiveName(duplicateName);
+      setWeekName(duplicateName);
+      commitSchedule(() => mapPlannerActivitiesToSchedule(duplicatedEntries));
+      alert(`"${name}" duplicerades till "${duplicateName}".`);
+    } catch (error) {
+      console.error('Archive duplication failed', error);
+      alert('Kunde inte duplicera veckan.');
+    }
+  }, [commitSchedule, mapPlannerActivitiesToSchedule, savedWeekNames]);
 
   const handleUndo = useCallback(() => {
     const history = scheduleHistoryRef.current;
@@ -1574,7 +1634,7 @@ export default function NewSchedulePlanner() {
               >
                 FlexSchema <span className="text-xs font-sans font-normal text-gray-500">v5 Timeline</span>
               </h1>
-              <p className="text-sm text-gray-600">Dra och släpp på tidslinjen.</p>
+              <p className="text-sm text-gray-600">Dra och släpp på tidslinjen. {saveStatus === 'saving' ? 'Sparar…' : saveStatus === 'saved' ? 'Sparat.' : saveStatus === 'error' ? 'Kunde inte spara (försöker igen vid nästa ändring).' : ''}</p>
            </div>
            
            <div className="flex-1 max-w-md w-full relative">
@@ -1595,7 +1655,7 @@ export default function NewSchedulePlanner() {
               <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
               <Button variant="neutral" onClick={handleExportJSON} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Download size={16} className="mr-2"/> Spara</Button>
               <Button variant="neutral" onClick={() => fileInputRef.current?.click()} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Upload size={16} className="mr-2"/> Ladda</Button>
-              <Button variant="neutral" onClick={handleSyncToCloud} disabled={isSaving} className="border-2 border-black bg-sky-100 hover:bg-sky-200"><CloudUpload size={16} className="mr-2"/> Spara till molnet</Button>
+              <Button variant="neutral" onClick={handleSyncToCloud} disabled={isSaving} className="border-2 border-black bg-sky-100 hover:bg-sky-200"><CloudUpload size={16} className="mr-2"/> Synka nu</Button>
               <Button
                 variant="neutral"
                 onClick={() => {
@@ -1816,7 +1876,7 @@ export default function NewSchedulePlanner() {
                             key={name}
                             className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center justify-between gap-2"
                           >
-                            <span className="font-bold text-sm truncate">{name}</span>
+                            <span className="font-bold text-sm truncate">{name}{activeArchiveName === name ? ' • aktiv' : ''}</span>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -1825,6 +1885,14 @@ export default function NewSchedulePlanner() {
                                 className="h-8 border-2 border-black bg-emerald-100 hover:bg-emerald-200"
                               >
                                 <FolderOpen size={14} className="mr-1"/> Ladda
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="neutral"
+                                onClick={() => handleDuplicateWeek(name)}
+                                className="h-8 border-2 border-black bg-indigo-100 hover:bg-indigo-200"
+                              >
+                                <Copy size={14} className="mr-1"/> Duplicera
                               </Button>
                               <Button
                                 size="sm"
