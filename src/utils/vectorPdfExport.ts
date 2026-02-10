@@ -2,6 +2,7 @@ type VectorPdfExportOptions = {
   filename?: string;
   title?: string;
   extraClassNames?: string[];
+  clipHeightPx?: number;
 };
 
 const collectStyles = () => {
@@ -54,9 +55,13 @@ export const exportElementToVectorPdf = async (
   const clonedElement = element.cloneNode(true) as HTMLElement;
   const targetWidth = Math.max(element.scrollWidth, element.clientWidth);
   const targetHeight = Math.max(element.scrollHeight, element.clientHeight);
+  const clippedHeight = Number.isFinite(options.clipHeightPx)
+    ? Math.min(targetHeight, options.clipHeightPx as number)
+    : targetHeight;
+  const shouldClipHeight = Number.isFinite(options.clipHeightPx);
   clonedElement.style.width = `${targetWidth}px`;
-  clonedElement.style.height = `${targetHeight}px`;
-  clonedElement.style.overflow = 'visible';
+  clonedElement.style.height = `${clippedHeight}px`;
+  clonedElement.style.overflow = shouldClipHeight ? 'hidden' : 'visible';
   options.extraClassNames?.forEach((className) =>
     clonedElement.classList.add(className)
   );

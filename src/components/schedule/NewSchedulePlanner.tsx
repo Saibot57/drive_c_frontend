@@ -1501,10 +1501,27 @@ export default function NewSchedulePlanner() {
 
   const handleExportPDF = async () => {
     const exportElement = document.getElementById('schedule-canvas');
+    const maxEndMinutes = schedule.reduce((latestEndMinutes, entry) => {
+      const endMinutes = timeToMinutes(entry.endTime);
+      return Number.isFinite(endMinutes)
+        ? Math.max(latestEndMinutes, endMinutes)
+        : latestEndMinutes;
+    }, Number.NEGATIVE_INFINITY);
+
+    const clipHeightPx = (() => {
+      if (!Number.isFinite(maxEndMinutes)) return undefined;
+      const contentHeightPx = (maxEndMinutes - START_HOUR * 60) * PIXELS_PER_MINUTE;
+      if (!Number.isFinite(contentHeightPx) || contentHeightPx <= 0) return undefined;
+      const topOffsetPx = 16; // Mirrors the canvas pt-4 offset.
+      const safetyMarginPx = 8;
+      return contentHeightPx + topOffsetPx + safetyMarginPx;
+    })();
+
     if (isVectorPdfExportEnabled && exportElement) {
       await exportElementToVectorPdf(exportElement, {
         filename: 'schema.pdf',
-        extraClassNames: ['pdf-export']
+        extraClassNames: ['pdf-export'],
+        clipHeightPx
       });
       return;
     }
