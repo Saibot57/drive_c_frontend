@@ -4,6 +4,7 @@ import React from 'react';
 import type { Activity, FamilyMember, Settings } from '../types';
 import { ActivityBlock } from './ActivityBlock';
 import { calculatePosition, calculateOverlapGroups } from '../utils/scheduleUtils';
+import { buildActivityColumnLayout } from '../utils/layoutUtils';
 import { isToday } from '../utils/dateUtils';
 
 interface ScheduleGridProps {
@@ -88,7 +89,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
           const date = weekDates[index];
           const dayActivities = getActivitiesForDay(day);
           const overlapGroups = calculateOverlapGroups(dayActivities);
-          const numColumns = overlapGroups.length;
+          const layout = buildActivityColumnLayout(dayActivities);
 
           return (
             <div key={day} className={`day-column ${getDayIntensityClass(day)}`}>
@@ -99,6 +100,9 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
               <div className="day-content" style={{ height: `${timeSlots.length * 60}px` }}>
                 {overlapGroups.map((group, groupIndex) =>
                   group.map(activity => {
+                    const position = layout.get(activity.id);
+                    const columnIndex = position?.colIndex ?? groupIndex;
+                    const columnCount = position?.colCount ?? overlapGroups.length;
                     const { top, height } = calculatePosition(
                       activity.startTime,
                       activity.endTime,
@@ -109,11 +113,11 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                     let width: string;
                     let left: string;
 
-                    if (numColumns > 1) {
-                        const baseWidth = 100 / numColumns;
+                    if (columnCount > 1) {
+                        const baseWidth = 100 / columnCount;
                         // 2px margin on each side of the block, creating a 4px gap between blocks
                         width = `calc(${baseWidth}% - 4px)`;
-                        left = `calc(${baseWidth * groupIndex}% + 2px)`;
+                        left = `calc(${baseWidth * columnIndex}% + 2px)`;
                     } else {
                         // 4px margin on each side for single blocks
                         width = 'calc(100% - 8px)';

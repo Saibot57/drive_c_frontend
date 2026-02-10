@@ -537,7 +537,8 @@ function ScheduledEventCard({
   hidden,
   columnIndex,
   columnCount,
-  isLastOfDay
+  isLastOfDay,
+  showLayoutDebug
 }: {
   entry: ScheduledEntry;
   onEdit: (e: ScheduledEntry) => void;
@@ -547,6 +548,7 @@ function ScheduledEventCard({
   columnIndex: number;
   columnCount: number;
   isLastOfDay: boolean;
+  showLayoutDebug: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
@@ -592,6 +594,11 @@ function ScheduledEventCard({
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
             )}
           </span>
+          {showLayoutDebug && (
+            <span className="rounded bg-white/70 px-1 text-[9px] font-mono font-bold text-gray-700">
+              {columnIndex}/{columnCount}
+            </span>
+          )}
           <div className="flex items-start gap-0.5">
             {assignmentUrl && (
               <a
@@ -717,6 +724,7 @@ export default function NewSchedulePlanner() {
   const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const isSavingRef = useRef(false);
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
@@ -742,6 +750,15 @@ export default function NewSchedulePlanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (process.env.NODE_ENV !== 'development') return;
+    const params = new URLSearchParams(window.location.search);
+    const queryEnabled = params.has('debugLayout') && params.get('debugLayout') !== '0';
+    const envEnabled = process.env.NEXT_PUBLIC_SCHEDULE_DEBUG_LAYOUT === 'true';
+    setShowLayoutDebug(queryEnabled || envEnabled);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
       const stored = window.localStorage.getItem(MANUAL_COURSES_STORAGE_KEY);
       if (!stored) return;
@@ -753,6 +770,11 @@ export default function NewSchedulePlanner() {
     } catch (error) {
       console.warn('Kunde inte läsa manuella byggstenar.', error);
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    runLayoutFixtureValidation();
   }, []);
 
   useEffect(() => {
@@ -945,7 +967,7 @@ export default function NewSchedulePlanner() {
   }), []);
 
   const layoutByDay = useMemo(() => {
-    const layout: Record<string, Map<string, { column: number; columns: number }>> = {};
+    const layout: Record<string, Map<string, DayLayoutEntry>> = {};
     days.forEach(day => {
       const entries = schedule.filter(entry => entry.day === day);
       layout[day] = buildDayLayout(entries);
@@ -1685,8 +1707,8 @@ export default function NewSchedulePlanner() {
 
                           return dayEntries.map(entry => {
                           const layout = layoutByDay[day]?.get(entry.instanceId);
-                          const columnIndex = layout?.column ?? 0;
-                          const columnCount = layout?.columns ?? 1;
+                          const columnIndex = layout?.colIndex ?? 0;
+                          const columnCount = layout?.colCount ?? 1;
                           return (
                            <ScheduledEventCard 
                              key={entry.instanceId} 
@@ -1705,6 +1727,7 @@ export default function NewSchedulePlanner() {
                               columnIndex={columnIndex}
                               columnCount={columnCount}
                               isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
+                              showLayoutDebug={showLayoutDebug}
                            />
                           );
                           });
