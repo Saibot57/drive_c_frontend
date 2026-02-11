@@ -639,13 +639,13 @@ function ScheduledEventCard({
   );
 }
 
-function DayColumn({ day, ghost, children }: { day: string; ghost: {
+function DayColumn({ day, ghost, children, className = '' }: { day: string; ghost: {
   startTime: string;
   endTime: string;
   duration: number;
   color: string;
   title: string;
-} | null; children: React.ReactNode }) {
+} | null; children: React.ReactNode; className?: string }) {
   const { setNodeRef, isOver } = useDroppable({
     id: day,
     data: { day }
@@ -657,7 +657,7 @@ function DayColumn({ day, ghost, children }: { day: string; ghost: {
   return (
     <div 
       ref={setNodeRef}
-      className={`relative flex-1 min-w-[140px] border-r border-gray-200 bg-white transition-colors ${isOver ? 'bg-blue-50' : ''}`}
+      className={`relative flex-1 min-w-[140px] border-r border-gray-200 bg-white transition-colors ${isOver ? 'bg-blue-50' : ''} ${className}`}
       style={{ height: `${(END_HOUR - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
     >
        <div className={`absolute -top-4 left-0 right-0 h-4 border-r border-gray-200 ${isOver ? 'bg-blue-50' : 'bg-white'}`} />
@@ -725,6 +725,8 @@ export default function NewSchedulePlanner() {
   const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
   const [activeArchiveName, setActiveArchiveName] = useState<string | null>(null);
+  const [mobileActiveArchiveIndex, setMobileActiveArchiveIndex] = useState(-1);
+  const [mobileActiveDayIndex, setMobileActiveDayIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
@@ -972,6 +974,26 @@ export default function NewSchedulePlanner() {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1
   }), []);
+
+  useEffect(() => {
+    if (sortedWeekNames.length === 0) {
+      setMobileActiveArchiveIndex(-1);
+      return;
+    }
+    if (!activeArchiveName) {
+      setMobileActiveArchiveIndex(0);
+      return;
+    }
+    const foundIndex = sortedWeekNames.findIndex(name => name === activeArchiveName);
+    setMobileActiveArchiveIndex(foundIndex >= 0 ? foundIndex : 0);
+  }, [activeArchiveName, sortedWeekNames]);
+
+  const mobileSelectedDay = days[mobileActiveDayIndex] ?? days[0];
+  const mobileSelectedArchiveName = sortedWeekNames[mobileActiveArchiveIndex] ?? null;
+  const isAtFirstMobileArchive = mobileActiveArchiveIndex <= 0;
+  const isAtLastMobileArchive = mobileActiveArchiveIndex < 0 || mobileActiveArchiveIndex >= sortedWeekNames.length - 1;
+  const isAtFirstMobileDay = mobileActiveDayIndex <= 0;
+  const isAtLastMobileDay = mobileActiveDayIndex >= days.length - 1;
 
   const layoutByDay = useMemo(() => {
     const layout: Record<string, Map<string, DayLayoutEntry>> = {};
@@ -1269,6 +1291,14 @@ export default function NewSchedulePlanner() {
       alert('Kunde inte ta bort veckan.');
     }
   }, []);
+
+  const handleMobileArchiveStep = useCallback(async (direction: 'prev' | 'next') => {
+    if (sortedWeekNames.length === 0) return;
+    const delta = direction === 'next' ? 1 : -1;
+    const nextIndex = mobileActiveArchiveIndex + delta;
+    if (nextIndex < 0 || nextIndex >= sortedWeekNames.length) return;
+    await handleLoadWeek(sortedWeekNames[nextIndex]);
+  }, [handleLoadWeek, mobileActiveArchiveIndex, sortedWeekNames]);
 
   const handleDuplicateWeek = useCallback(async (name: string) => {
     const suggestedName = `${name} (kopia)`;
@@ -1688,7 +1718,7 @@ export default function NewSchedulePlanner() {
           <div
             className={`flex flex-col gap-4 h-full transition-all duration-300 ${
               isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[320px]'
-            }`}
+            } hidden lg:flex`}
           >
              <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
                isSidebarCollapsed ? 'p-2' : 'p-4'
@@ -1761,7 +1791,7 @@ export default function NewSchedulePlanner() {
 
           {/* Main Schedule Area */}
           <div className="flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
-             <div className="flex pl-[50px] border-b-2 border-black bg-white">
+             <div className="hidden lg:flex pl-[50px] border-b-2 border-black bg-white">
                 {days.map(day => (
                   <div
                     key={day}
@@ -1771,6 +1801,57 @@ export default function NewSchedulePlanner() {
                     {day}
                   </div>
                 ))}
+             </div>
+
+             <div className="lg:hidden border-b-2 border-black bg-white">
+               <div className="flex items-center justify-between gap-2 px-2 py-1">
+                 <Button
+                   size="sm"
+                   variant="neutral"
+                   className="h-8 w-8 p-0 border-2 border-black"
+                   aria-label="Föregående schema"
+                   onClick={() => { void handleMobileArchiveStep('prev'); }}
+                   disabled={isAtFirstMobileArchive}
+                 >
+                   <ChevronLeft size={16} />
+                 </Button>
+                 <span className="truncate px-2 text-sm font-bold text-center">
+                   {mobileSelectedArchiveName ?? activeArchiveName ?? 'Aktivt schema'}
+                 </span>
+                 <Button
+                   size="sm"
+                   variant="neutral"
+                   className="h-8 w-8 p-0 border-2 border-black"
+                   aria-label="Nästa schema"
+                   onClick={() => { void handleMobileArchiveStep('next'); }}
+                   disabled={isAtLastMobileArchive}
+                 >
+                   <ChevronRight size={16} />
+                 </Button>
+               </div>
+               <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-2 py-1">
+                 <Button
+                   size="sm"
+                   variant="neutral"
+                   className="h-8 w-8 p-0 border-2 border-black"
+                   aria-label="Föregående dag"
+                   onClick={() => setMobileActiveDayIndex(prev => Math.max(0, prev - 1))}
+                   disabled={isAtFirstMobileDay}
+                 >
+                   <ChevronLeft size={16} />
+                 </Button>
+                 <span className="text-sm font-bold">{mobileSelectedDay}</span>
+                 <Button
+                   size="sm"
+                   variant="neutral"
+                   className="h-8 w-8 p-0 border-2 border-black"
+                   aria-label="Nästa dag"
+                   onClick={() => setMobileActiveDayIndex(prev => Math.min(days.length - 1, prev + 1))}
+                   disabled={isAtLastMobileDay}
+                 >
+                   <ChevronRight size={16} />
+                 </Button>
+               </div>
              </div>
 
              <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
@@ -1786,6 +1867,7 @@ export default function NewSchedulePlanner() {
                       ))}
                    </div>
 
+                   <div className="hidden lg:contents">
                    {days.map(day => (
                      <DayColumn key={day} day={day} ghost={ghostPlacement?.day === day ? ghostPlacement : null}>
                         {(() => {
@@ -1824,6 +1906,50 @@ export default function NewSchedulePlanner() {
                         })()}
                      </DayColumn>
                    ))}
+                   </div>
+
+                   <div className="lg:hidden flex-1 min-w-0">
+                     <DayColumn
+                       day={mobileSelectedDay}
+                       ghost={ghostPlacement?.day === mobileSelectedDay ? ghostPlacement : null}
+                       className="min-w-0"
+                     >
+                       {(() => {
+                         const dayEntries = schedule.filter(e => e.day === mobileSelectedDay);
+                         const lastEndTime = dayEntries.reduce((latest, entry) => {
+                           const endMinutes = timeToMinutes(entry.endTime);
+                           return Math.max(latest, endMinutes);
+                         }, -Infinity);
+
+                         return dayEntries.map(entry => {
+                           const layout = layoutByDay[mobileSelectedDay]?.get(entry.instanceId);
+                           const columnIndex = layout?.column ?? 0;
+                           const columnCount = layout?.columns ?? 1;
+                           return (
+                             <ScheduledEventCard
+                               key={entry.instanceId}
+                               entry={entry}
+                               onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
+                               onRemove={(id) => commitSchedule(p => p.filter(e => e.instanceId !== id))}
+                               onContextMenu={(event, selectedEntry) => {
+                                 event.preventDefault();
+                                 setContextMenu({
+                                   x: event.clientX,
+                                   y: event.clientY,
+                                   entry: selectedEntry
+                                 });
+                               }}
+                               hidden={!advancedFilterMatch(entry, filterQuery)}
+                               columnIndex={columnIndex}
+                               columnCount={columnCount}
+                               isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
+                               showLayoutDebug={showLayoutDebug}
+                             />
+                           );
+                         });
+                       })()}
+                     </DayColumn>
+                   </div>
                 </div>
              </div>
           </div>
@@ -1832,7 +1958,7 @@ export default function NewSchedulePlanner() {
           <div
             className={`flex flex-col gap-4 h-full transition-all duration-300 ${
               isRightSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[320px]'
-            }`}
+            } hidden lg:flex`}
           >
              <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
                isRightSidebarCollapsed ? 'p-2' : 'p-4'
