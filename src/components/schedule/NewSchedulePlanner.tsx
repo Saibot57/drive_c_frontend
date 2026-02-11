@@ -29,7 +29,6 @@ import {
   BarChart3,
   Settings,
   Save,
-  FolderOpen,
   ChevronLeft,
   ChevronRight,
   CloudUpload,
@@ -1889,31 +1888,34 @@ export default function NewSchedulePlanner() {
                         sortedWeekNames.map(name => (
                           <div
                             key={name}
-                            className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center justify-between gap-2"
+                            className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-2"
                           >
-                            <span className="font-bold text-sm truncate">{name}{activeArchiveName === name ? ' • aktiv' : ''}</span>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="neutral"
-                                onClick={() => handleLoadWeek(name)}
-                                className="h-8 border-2 border-black bg-emerald-100 hover:bg-emerald-200"
-                              >
-                                <FolderOpen size={14} className="mr-1"/> Ladda
-                              </Button>
+                            <Button
+                              type="button"
+                              variant="noShadow"
+                              onClick={() => handleLoadWeek(name)}
+                              className="h-auto flex-1 min-w-0 justify-start whitespace-normal border-0 bg-transparent p-0 text-left shadow-none hover:translate-x-0 hover:translate-y-0 hover:bg-transparent"
+                            >
+                              <span className="font-bold text-sm break-words leading-tight">{name}{activeArchiveName === name ? ' • aktiv' : ''}</span>
+                            </Button>
+                            <div className="flex shrink-0 gap-2">
                               <Button
                                 size="sm"
                                 variant="neutral"
                                 onClick={() => handleDuplicateWeek(name)}
-                                className="h-8 border-2 border-black bg-indigo-100 hover:bg-indigo-200"
+                                className="h-8 w-8 p-0 border-2 border-black bg-indigo-100 hover:bg-indigo-200"
+                                aria-label={`Duplicera ${name}`}
+                                title={`Duplicera ${name}`}
                               >
-                                <Copy size={14} className="mr-1"/> Duplicera
+                                <Copy size={14}/>
                               </Button>
                               <Button
                                 size="sm"
                                 variant="neutral"
                                 onClick={() => handleDeleteWeek(name)}
                                 className="h-8 w-8 p-0 border-2 border-black bg-rose-100 hover:bg-rose-200 text-rose-800"
+                                aria-label={`Ta bort ${name}`}
+                                title={`Ta bort ${name}`}
                               >
                                 <Trash2 size={14}/>
                               </Button>
