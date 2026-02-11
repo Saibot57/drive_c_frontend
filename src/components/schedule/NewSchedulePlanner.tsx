@@ -1889,9 +1889,9 @@ export default function NewSchedulePlanner() {
                         sortedWeekNames.map(name => (
                           <div
                             key={name}
-                            className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center justify-between gap-2"
+                            className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex flex-col gap-2"
                           >
-                            <span className="font-bold text-sm truncate">{name}{activeArchiveName === name ? ' • aktiv' : ''}</span>
+                            <span className="font-bold text-sm break-words leading-tight">{name}{activeArchiveName === name ? ' • aktiv' : ''}</span>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
