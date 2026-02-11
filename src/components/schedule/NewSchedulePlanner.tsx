@@ -1246,8 +1246,6 @@ export default function NewSchedulePlanner() {
   }, [weekName, savedWeekNames, schedule, mapScheduleToPlannerActivities]);
 
   const handleLoadWeek = useCallback(async (name: string) => {
-    const shouldLoad = confirm(`Ersätta nuvarande schema med "${name}"?`);
-    if (!shouldLoad) return;
     try {
       const entries = await plannerService.getPlannerArchive(name);
       const mappedSchedule = mapPlannerActivitiesToSchedule(entries);
