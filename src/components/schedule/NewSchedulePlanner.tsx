@@ -772,8 +772,17 @@ export default function NewSchedulePlanner() {
     const updateDragSupport = () => setIsMobileDragDisabled(mediaQuery.matches);
 
     updateDragSupport();
-    mediaQuery.addEventListener('change', updateDragSupport);
-    return () => mediaQuery.removeEventListener('change', updateDragSupport);
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', updateDragSupport);
+      return () => mediaQuery.removeEventListener('change', updateDragSupport);
+    }
+
+    if (mediaQuery.addListener) {
+      mediaQuery.addListener(updateDragSupport);
+      return () => mediaQuery.removeListener(updateDragSupport);
+    }
+
+    return undefined;
   }, []);
 
   useEffect(() => {
