@@ -484,17 +484,20 @@ function DraggableSourceCard({
   onEdit,
   onDelete,
   hidden,
-  isDerived
+  isDerived,
+  dragDisabled = false
 }: {
   course: PlannerCourse;
   onEdit: (c: PlannerCourse) => void;
   onDelete: (course: PlannerCourse, isDerived: boolean) => void;
   hidden?: boolean;
   isDerived?: boolean;
+  dragDisabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `source-${course.id}`,
     data: { type: 'course', course },
+    disabled: dragDisabled,
   });
 
   if (hidden) return null;
@@ -505,7 +508,7 @@ function DraggableSourceCard({
       {...listeners}
       {...attributes}
       style={{ backgroundColor: course.color }}
-      className={`relative group p-2 mb-2 rounded border border-black/10 cursor-grab hover:shadow-md transition-all ${isDragging ? 'opacity-50' : ''}`}
+      className={`relative group p-2 mb-2 rounded border border-black/10 transition-all ${dragDisabled ? 'cursor-default' : 'cursor-grab hover:shadow-md'} ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="flex justify-between items-start">
         <div>
@@ -539,7 +542,8 @@ function ScheduledEventCard({
   columnIndex,
   columnCount,
   isLastOfDay,
-  showLayoutDebug
+  showLayoutDebug,
+  dragDisabled = false
 }: {
   entry: ScheduledEntry;
   onEdit: (e: ScheduledEntry) => void;
@@ -550,10 +554,12 @@ function ScheduledEventCard({
   columnCount: number;
   isLastOfDay: boolean;
   showLayoutDebug: boolean;
+  dragDisabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
     data: { type: 'scheduled', entry },
+    disabled: dragDisabled,
   });
 
   const { top, height } = getPositionStyles(entry.startTime, entry.duration);
@@ -584,7 +590,7 @@ function ScheduledEventCard({
         backgroundColor: entry.color,
         zIndex: isDragging ? 50 : 10
       }}
-      className={`scheduled-event-card rounded border border-black/20 shadow-sm overflow-hidden p-1 group cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-60 ring-2 ring-black' : ''}`}
+      className={`scheduled-event-card rounded border border-black/20 shadow-sm overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 ring-2 ring-black' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="flex flex-col h-full">
@@ -737,6 +743,7 @@ export default function NewSchedulePlanner() {
   const [rooms, setRooms] = useState<string[]>([]);
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
   const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
+  const [isMobileDragDisabled, setIsMobileDragDisabled] = useState(false);
   const titleHoldTimerRef = useRef<number | null>(null);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
@@ -750,10 +757,24 @@ export default function NewSchedulePlanner() {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const sensors = useSensors(
+  const desktopSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
+  const mobileSensors = useSensors(useSensor(KeyboardSensor));
+
+  const sensors = isMobileDragDisabled ? mobileSensors : desktopSensors;
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+
+    const mediaQuery = window.matchMedia('(pointer: coarse), (max-width: 1023px)');
+    const updateDragSupport = () => setIsMobileDragDisabled(mediaQuery.matches);
+
+    updateDragSupport();
+    mediaQuery.addEventListener('change', updateDragSupport);
+    return () => mediaQuery.removeEventListener('change', updateDragSupport);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1757,6 +1778,7 @@ export default function NewSchedulePlanner() {
                          onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }}
                          onDelete={handleDeleteCourse}
                          isDerived={derivedCourseKeys.has(buildCourseDedupeKey(c)) && !manualCourseKeys.has(buildCourseDedupeKey(c))}
+                         dragDisabled={isMobileDragDisabled}
                          hidden={!advancedFilterMatch(c, filterQuery)}
                        />
                      ))}
@@ -1896,6 +1918,7 @@ export default function NewSchedulePlanner() {
                                });
                              }}
                              hidden={!advancedFilterMatch(entry, filterQuery)}
+                              dragDisabled={isMobileDragDisabled}
                               columnIndex={columnIndex}
                               columnCount={columnCount}
                               isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
@@ -1940,6 +1963,7 @@ export default function NewSchedulePlanner() {
                                  });
                                }}
                                hidden={!advancedFilterMatch(entry, filterQuery)}
+                               dragDisabled={isMobileDragDisabled}
                                columnIndex={columnIndex}
                                columnCount={columnCount}
                                isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
