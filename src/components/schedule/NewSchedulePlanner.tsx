@@ -1822,7 +1822,7 @@ export default function NewSchedulePlanner() {
 
           {/* Main Schedule Area */}
           <div className="flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
-             <div className="hidden lg:flex pl-[50px] border-b-2 border-black bg-white">
+             <div className="schedule-desktop-header hidden lg:flex pl-[50px] border-b-2 border-black bg-white">
                 {days.map(day => (
                   <div
                     key={day}
@@ -1834,7 +1834,7 @@ export default function NewSchedulePlanner() {
                 ))}
              </div>
 
-             <div className="lg:hidden border-b-2 border-black bg-white">
+             <div className="schedule-mobile-header lg:hidden border-b-2 border-black bg-white">
                <div className="flex items-center justify-between gap-2 px-2 py-1">
                  <Button
                    size="sm"
@@ -1898,7 +1898,7 @@ export default function NewSchedulePlanner() {
                       ))}
                    </div>
 
-                   <div className="hidden lg:contents">
+                   <div className="schedule-desktop-grid hidden lg:contents">
                    {days.map(day => (
                      <DayColumn key={day} day={day} ghost={ghostPlacement?.day === day ? ghostPlacement : null}>
                         {(() => {
@@ -1940,7 +1940,7 @@ export default function NewSchedulePlanner() {
                    ))}
                    </div>
 
-                   <div className="lg:hidden flex-1 min-w-0">
+                   <div className="schedule-mobile-grid lg:hidden flex-1 min-w-0">
                      <DayColumn
                        day={mobileSelectedDay}
                        ghost={ghostPlacement?.day === mobileSelectedDay ? ghostPlacement : null}

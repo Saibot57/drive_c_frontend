@@ -144,6 +144,19 @@
   flex: 1 1 auto;
 }
 
+.pdf-export .schedule-desktop-header {
+  display: flex !important;
+}
+
+.pdf-export .schedule-mobile-header,
+.pdf-export .schedule-mobile-grid {
+  display: none !important;
+}
+
+.pdf-export .schedule-desktop-grid {
+  display: contents !important;
+}
+
 /* Tailwind Utilities Layer */
 @layer utilities {
   .font-light {
