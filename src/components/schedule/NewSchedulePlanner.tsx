@@ -735,10 +735,10 @@ export default function NewSchedulePlanner() {
   const [mobileActiveDayIndex, setMobileActiveDayIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [loadStatus, setLoadStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
-  const isHydratingFromServerRef = useRef(true);
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
@@ -882,10 +882,10 @@ export default function NewSchedulePlanner() {
         setSchedule(mappedSchedule);
         scheduleHistoryRef.current = [];
         scheduleFutureRef.current = [];
-        isHydratingFromServerRef.current = false;
+        setLoadStatus('loaded');
       } catch (e) {
         console.error('Planner load failed', e);
-        isHydratingFromServerRef.current = false;
+        setLoadStatus('error');
       }
     };
 
@@ -1213,7 +1213,7 @@ export default function NewSchedulePlanner() {
 
 
   const performAutosave = useCallback(async () => {
-    if (isHydratingFromServerRef.current) return;
+    if (loadStatus !== 'loaded') return;
     if (isSavingRef.current) {
       pendingSaveRef.current = true;
       return;
@@ -1244,16 +1244,16 @@ export default function NewSchedulePlanner() {
         }, 0);
       }
     }
-  }, [activeArchiveName, mapScheduleToPlannerActivities, schedule]);
+  }, [activeArchiveName, loadStatus, mapScheduleToPlannerActivities, schedule]);
 
   useEffect(() => {
-    if (isHydratingFromServerRef.current) return;
+    if (loadStatus !== 'loaded') return;
     const timeout = window.setTimeout(() => {
       performAutosave();
     }, 1000);
 
     return () => window.clearTimeout(timeout);
-  }, [performAutosave, schedule, activeArchiveName]);
+  }, [activeArchiveName, loadStatus, performAutosave, schedule]);
 
   // --- Drag & Drop Logic ---
 
