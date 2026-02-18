@@ -739,6 +739,7 @@ export default function NewSchedulePlanner() {
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
+  const isFirstRenderRef = useRef(true);
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
@@ -861,6 +862,10 @@ export default function NewSchedulePlanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
     if (activeArchiveName) {
       window.localStorage.setItem('active_archive_name', activeArchiveName);
       return;
