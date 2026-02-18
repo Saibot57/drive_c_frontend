@@ -860,37 +860,38 @@ export default function NewSchedulePlanner() {
   }, [manualCourses]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (activeArchiveName) {
+      window.localStorage.setItem('active_archive_name', activeArchiveName);
+      return;
+    }
+    window.localStorage.removeItem('active_archive_name');
+  }, [activeArchiveName]);
+
+  useEffect(() => {
     const loadPlannerActivities = async () => {
       try {
-        const activities = await plannerService.getPlannerActivities();
-        const mappedSchedule = sanitizeScheduleImport(
-          activities.map(activity => ({
-            id: activity.id,
-            title: activity.title,
-            teacher: activity.teacher ?? '',
-            room: activity.room ?? '',
-            color: activity.color ?? generateBoxColor(activity.title ?? ''),
-            duration: activity.duration ?? 60,
-            category: activity.category,
-            instanceId: activity.id,
-            day: activity.day ?? days[0],
-            startTime: activity.startTime ?? '08:00',
-            endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
-            notes: activity.notes ?? undefined
-          }))
-        );
+        const storedArchiveName = window.localStorage.getItem('active_archive_name');
+        const activities = storedArchiveName
+          ? await plannerService.getPlannerArchive(storedArchiveName)
+          : await plannerService.getPlannerActivities();
+        const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
         setSchedule(mappedSchedule);
+        if (storedArchiveName) {
+          setActiveArchiveName(storedArchiveName);
+        }
         scheduleHistoryRef.current = [];
         scheduleFutureRef.current = [];
         setLoadStatus('loaded');
       } catch (e) {
         console.error('Planner load failed', e);
+        window.localStorage.removeItem('active_archive_name');
         setLoadStatus('error');
       }
     };
 
     loadPlannerActivities();
-  }, []);
+  }, [mapPlannerActivitiesToSchedule]);
 
   useEffect(() => {
     const loadArchiveNames = async () => {
