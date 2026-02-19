@@ -1260,18 +1260,16 @@ export default function NewSchedulePlanner() {
     setSaveStatus('saving');
     try {
       const payload = mapScheduleToPlannerActivities(schedule);
-      const { activities } = activeArchiveName
-        ? { activities: await plannerService.savePlannerArchive(activeArchiveName, payload) }
-        : await plannerService.syncActivities(payload);
-      if (process.env.NODE_ENV !== 'production') {
-        console.info('Planner sync returned activities', activities);
+      if (activeArchiveName) {
+        await plannerService.savePlannerArchive(activeArchiveName, payload);
+      } else {
+        await plannerService.syncActivities(payload);
       }
-      const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
-      // Replace local IDs after sync because the server generates new UUIDs.
-      commitSchedule(() => mappedSchedule, { clearHistory: true });
       setSaveStatus('saved');
       setPlannerNotice({
-        message: activeArchiveName ? `Veckan "${activeArchiveName}" uppdaterades i arkivet.` : 'Schema synkat till molnet.',
+        message: activeArchiveName
+          ? `"${activeArchiveName}" uppdaterades i arkivet.`
+          : 'Schema synkat till molnet.',
         tone: 'success'
       });
     } catch (error) {
@@ -1282,7 +1280,7 @@ export default function NewSchedulePlanner() {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [activeArchiveName, commitSchedule, mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, schedule]);
+  }, [activeArchiveName, mapScheduleToPlannerActivities, schedule]);
 
 
   const performAutosave = useCallback(async () => {
