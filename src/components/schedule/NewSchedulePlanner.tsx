@@ -757,6 +757,29 @@ export default function NewSchedulePlanner() {
     title: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Contract: all schedule mutations must go through this function.
+  const commitSchedule = useCallback((
+    updater: (prev: ScheduledEntry[]) => ScheduledEntry[],
+    options?: { clearHistory?: boolean }
+  ) => {
+    setSchedule(prev => {
+      const next = updater(prev);
+      if (next === prev) {
+        return next;
+      }
+
+      if (options?.clearHistory) {
+        scheduleHistoryRef.current = [];
+        scheduleFutureRef.current = [];
+        return next;
+      }
+
+      scheduleHistoryRef.current = [...scheduleHistoryRef.current, prev];
+      scheduleFutureRef.current = [];
+      return next;
+    });
+  }, []);
   
   const desktopSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -900,12 +923,10 @@ export default function NewSchedulePlanner() {
           ? await plannerService.getPlannerArchive(storedArchiveName)
           : await plannerService.getPlannerActivities();
         const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
-        setSchedule(mappedSchedule);
+        commitSchedule(() => mappedSchedule, { clearHistory: true });
         if (storedArchiveName) {
           setActiveArchiveName(storedArchiveName);
         }
-        scheduleHistoryRef.current = [];
-        scheduleFutureRef.current = [];
         setLoadStatus('loaded');
       } catch (e) {
         console.error('Planner load failed', e);
@@ -915,7 +936,7 @@ export default function NewSchedulePlanner() {
     };
 
     loadPlannerActivities();
-  }, [mapPlannerActivitiesToSchedule]);
+  }, [commitSchedule, mapPlannerActivitiesToSchedule]);
 
   useEffect(() => {
     const loadArchiveNames = async () => {
@@ -1173,7 +1194,7 @@ export default function NewSchedulePlanner() {
           if (confirm('Ersätta nuvarande schema?')) {
             setManualCourses(sanitizeManualCourses(parsed.courses));
             const sanitizedSchedule = sanitizeScheduleImport(parsed.schedule);
-            commitSchedule(() => sanitizedSchedule);
+            commitSchedule(() => sanitizedSchedule, { clearHistory: true });
             if (parsed.restrictions) setRestrictions(parsed.restrictions);
           }
         } else {
@@ -1202,9 +1223,7 @@ export default function NewSchedulePlanner() {
       }
       const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
       // Replace local IDs after sync because the server generates new UUIDs.
-      setSchedule(mappedSchedule);
-      scheduleHistoryRef.current = [];
-      scheduleFutureRef.current = [];
+      commitSchedule(() => mappedSchedule, { clearHistory: true });
       setSaveStatus('saved');
       alert(activeArchiveName ? `Veckan "${activeArchiveName}" uppdaterades i arkivet.` : 'Schema synkat till molnet.');
     } catch (error) {
@@ -1215,7 +1234,7 @@ export default function NewSchedulePlanner() {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [activeArchiveName, mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, schedule]);
+  }, [activeArchiveName, commitSchedule, mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, schedule]);
 
 
   const performAutosave = useCallback(async () => {
@@ -1267,17 +1286,6 @@ export default function NewSchedulePlanner() {
     setActiveDragItem(event.active.data.current);
   };
 
-  const commitSchedule = useCallback((updater: (prev: ScheduledEntry[]) => ScheduledEntry[]) => {
-    setSchedule(prev => {
-      const next = updater(prev);
-      if (next !== prev) {
-        scheduleHistoryRef.current = [...scheduleHistoryRef.current, prev];
-        scheduleFutureRef.current = [];
-      }
-      return next;
-    });
-  }, []);
-
   const handleSaveWeek = useCallback(async () => {
     const trimmedName = weekName.trim();
     if (!trimmedName) {
@@ -1307,7 +1315,7 @@ export default function NewSchedulePlanner() {
     try {
       const entries = await plannerService.getPlannerArchive(name);
       const mappedSchedule = mapPlannerActivitiesToSchedule(entries);
-      commitSchedule(() => mappedSchedule);
+      commitSchedule(() => mappedSchedule, { clearHistory: true });
       setActiveArchiveName(name);
     } catch (error) {
       console.error('Archive load failed', error);
@@ -1355,7 +1363,7 @@ export default function NewSchedulePlanner() {
       setSavedWeekNames(prev => [...prev, duplicateName]);
       setActiveArchiveName(duplicateName);
       setWeekName(duplicateName);
-      commitSchedule(() => mapPlannerActivitiesToSchedule(duplicatedEntries));
+      commitSchedule(() => mapPlannerActivitiesToSchedule(duplicatedEntries), { clearHistory: true });
       alert(`"${name}" duplicerades till "${duplicateName}".`);
     } catch (error) {
       console.error('Archive duplication failed', error);
