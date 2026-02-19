@@ -745,6 +745,15 @@ export default function NewSchedulePlanner() {
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
   const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
   const [isMobileDragDisabled, setIsMobileDragDisabled] = useState(false);
+  const [plannerNotice, setPlannerNotice] = useState<{ message: string; tone: 'success' | 'error' | 'warning' } | null>(null);
+  const [pendingImportData, setPendingImportData] = useState<{
+    courses: PlannerCourse[];
+    schedule: ScheduledEntry[];
+    restrictions?: RestrictionRule[];
+  } | null>(null);
+  const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
+  const [overwriteWeekName, setOverwriteWeekName] = useState<string | null>(null);
+  const [deleteWeekName, setDeleteWeekName] = useState<string | null>(null);
   const titleHoldTimerRef = useRef<number | null>(null);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
@@ -836,6 +845,15 @@ export default function NewSchedulePlanner() {
     const envEnabled = process.env.NEXT_PUBLIC_SCHEDULE_DEBUG_LAYOUT === 'true';
     setShowLayoutDebug(queryEnabled || envEnabled);
   }, []);
+
+  useEffect(() => {
+    if (!plannerNotice) return;
+    const timeout = window.setTimeout(() => {
+      setPlannerNotice(null);
+    }, 2600);
+
+    return () => window.clearTimeout(timeout);
+  }, [plannerNotice]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1191,22 +1209,49 @@ export default function NewSchedulePlanner() {
         const text = e.target?.result as string;
         const parsed = JSON.parse(text);
         if (parsed.courses && parsed.schedule) {
-          if (confirm('Ersätta nuvarande schema?')) {
-            setManualCourses(sanitizeManualCourses(parsed.courses));
-            const sanitizedSchedule = sanitizeScheduleImport(parsed.schedule);
-            commitSchedule(() => sanitizedSchedule, { clearHistory: true });
-            if (parsed.restrictions) setRestrictions(parsed.restrictions);
-          }
+          setPendingImportData({
+            courses: sanitizeManualCourses(parsed.courses),
+            schedule: sanitizeScheduleImport(parsed.schedule),
+            restrictions: parsed.restrictions
+          });
+          setIsImportConfirmOpen(true);
         } else {
-          alert('Ogiltig filstruktur.');
+          setPlannerNotice({ message: 'Ogiltig filstruktur.', tone: 'error' });
         }
       } catch (error) {
-        alert('Kunde inte läsa filen.');
+        setPlannerNotice({ message: 'Kunde inte läsa filen.', tone: 'error' });
       }
     };
     reader.readAsText(file);
     event.target.value = '';
   };
+
+  const handleConfirmImport = useCallback(() => {
+    if (!pendingImportData) return;
+    setManualCourses(pendingImportData.courses);
+    commitSchedule(() => pendingImportData.schedule, { clearHistory: true });
+    if (pendingImportData.restrictions) {
+      setRestrictions(pendingImportData.restrictions);
+    }
+    setIsImportConfirmOpen(false);
+    setPendingImportData(null);
+  }, [commitSchedule, pendingImportData]);
+
+  const saveWeekArchive = useCallback(async (archiveName: string) => {
+    try {
+      const payload = mapScheduleToPlannerActivities(schedule);
+      await plannerService.savePlannerArchive(archiveName, payload);
+      setSavedWeekNames(prev => (
+        prev.includes(archiveName) ? prev : [...prev, archiveName]
+      ));
+      setActiveArchiveName(archiveName);
+      setWeekName('');
+      setPlannerNotice({ message: 'Veckan sparades i arkivet.', tone: 'success' });
+    } catch (error) {
+      console.error('Archive save failed', error);
+      setPlannerNotice({ message: 'Kunde inte spara veckan.', tone: 'error' });
+    }
+  }, [mapScheduleToPlannerActivities, schedule]);
 
   const handleSyncToCloud = useCallback(async () => {
     if (isSavingRef.current) return;
@@ -1225,11 +1270,14 @@ export default function NewSchedulePlanner() {
       // Replace local IDs after sync because the server generates new UUIDs.
       commitSchedule(() => mappedSchedule, { clearHistory: true });
       setSaveStatus('saved');
-      alert(activeArchiveName ? `Veckan "${activeArchiveName}" uppdaterades i arkivet.` : 'Schema synkat till molnet.');
+      setPlannerNotice({
+        message: activeArchiveName ? `Veckan "${activeArchiveName}" uppdaterades i arkivet.` : 'Schema synkat till molnet.',
+        tone: 'success'
+      });
     } catch (error) {
       console.error('Cloud sync failed', error);
       setSaveStatus('error');
-      alert('Kunde inte synka schemat.');
+      setPlannerNotice({ message: 'Kunde inte synka schemat.', tone: 'error' });
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -1289,27 +1337,15 @@ export default function NewSchedulePlanner() {
   const handleSaveWeek = useCallback(async () => {
     const trimmedName = weekName.trim();
     if (!trimmedName) {
-      alert('Ange ett veckonamn.');
+      setPlannerNotice({ message: 'Ange ett veckonamn.', tone: 'warning' });
       return;
     }
     if (savedWeekNames.includes(trimmedName)) {
-      const shouldOverwrite = confirm(`Vecka "${trimmedName}" finns redan. Skriva över?`);
-      if (!shouldOverwrite) return;
+      setOverwriteWeekName(trimmedName);
+      return;
     }
-    try {
-      const payload = mapScheduleToPlannerActivities(schedule);
-      await plannerService.savePlannerArchive(trimmedName, payload);
-      setSavedWeekNames(prev => (
-        prev.includes(trimmedName) ? prev : [...prev, trimmedName]
-      ));
-      setActiveArchiveName(trimmedName);
-      setWeekName('');
-      alert('Veckan sparades i arkivet.');
-    } catch (error) {
-      console.error('Archive save failed', error);
-      alert('Kunde inte spara veckan.');
-    }
-  }, [weekName, savedWeekNames, schedule, mapScheduleToPlannerActivities]);
+    await saveWeekArchive(trimmedName);
+  }, [saveWeekArchive, savedWeekNames, weekName]);
 
   const handleLoadWeek = useCallback(async (name: string) => {
     try {
@@ -1319,22 +1355,26 @@ export default function NewSchedulePlanner() {
       setActiveArchiveName(name);
     } catch (error) {
       console.error('Archive load failed', error);
-      alert('Kunde inte läsa in veckan.');
+      setPlannerNotice({ message: 'Kunde inte läsa in veckan.', tone: 'error' });
     }
   }, [commitSchedule, mapPlannerActivitiesToSchedule]);
 
   const handleDeleteWeek = useCallback(async (name: string) => {
-    const shouldDelete = confirm(`Radera vecka "${name}"?`);
-    if (!shouldDelete) return;
+    setDeleteWeekName(name);
+  }, []);
+
+  const handleConfirmDeleteWeek = useCallback(async () => {
+    if (!deleteWeekName) return;
     try {
-      await plannerService.deletePlannerArchive(name);
-      setSavedWeekNames(prev => prev.filter(existing => existing !== name));
-      setActiveArchiveName(prev => (prev === name ? null : prev));
+      await plannerService.deletePlannerArchive(deleteWeekName);
+      setSavedWeekNames(prev => prev.filter(existing => existing !== deleteWeekName));
+      setActiveArchiveName(prev => (prev === deleteWeekName ? null : prev));
+      setDeleteWeekName(null);
     } catch (error) {
       console.error('Archive delete failed', error);
-      alert('Kunde inte ta bort veckan.');
+      setPlannerNotice({ message: 'Kunde inte ta bort veckan.', tone: 'error' });
     }
-  }, []);
+  }, [deleteWeekName]);
 
   const handleMobileArchiveStep = useCallback(async (direction: 'prev' | 'next') => {
     if (sortedWeekNames.length === 0) return;
@@ -1349,7 +1389,7 @@ export default function NewSchedulePlanner() {
     const duplicateName = window.prompt('Namn på kopian:', suggestedName)?.trim();
     if (!duplicateName) return;
     if (savedWeekNames.includes(duplicateName)) {
-      alert('Det finns redan en vecka med det namnet.');
+      setPlannerNotice({ message: 'Det finns redan en vecka med det namnet.', tone: 'warning' });
       return;
     }
 
@@ -1364,12 +1404,18 @@ export default function NewSchedulePlanner() {
       setActiveArchiveName(duplicateName);
       setWeekName(duplicateName);
       commitSchedule(() => mapPlannerActivitiesToSchedule(duplicatedEntries), { clearHistory: true });
-      alert(`"${name}" duplicerades till "${duplicateName}".`);
+      setPlannerNotice({ message: `"${name}" duplicerades till "${duplicateName}".`, tone: 'success' });
     } catch (error) {
       console.error('Archive duplication failed', error);
-      alert('Kunde inte duplicera veckan.');
+      setPlannerNotice({ message: 'Kunde inte duplicera veckan.', tone: 'error' });
     }
   }, [commitSchedule, mapPlannerActivitiesToSchedule, savedWeekNames]);
+
+  const handleConfirmOverwriteWeek = useCallback(async () => {
+    if (!overwriteWeekName) return;
+    await saveWeekArchive(overwriteWeekName);
+    setOverwriteWeekName(null);
+  }, [overwriteWeekName, saveWeekArchive]);
 
   const handleUndo = useCallback(() => {
     const history = scheduleHistoryRef.current;
@@ -2310,6 +2356,59 @@ export default function NewSchedulePlanner() {
             </div>
          </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={isImportConfirmOpen}
+        onOpenChange={(open) => {
+          setIsImportConfirmOpen(open);
+          if (!open) setPendingImportData(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ersätta nuvarande schema?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-700">
+            Om du fortsätter ersätts aktuella byggstenar och schema med innehållet från filen.
+          </p>
+          <DialogFooter>
+            <Button variant="neutral" onClick={() => setIsImportConfirmOpen(false)}>Avbryt</Button>
+            <Button onClick={handleConfirmImport}>Ersätt schema</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(overwriteWeekName)} onOpenChange={(open) => { if (!open) setOverwriteWeekName(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ersätta befintlig vecka?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-700">Vecka &quot;{overwriteWeekName}&quot; finns redan. Vill du skriva över den?</p>
+          <DialogFooter>
+            <Button variant="neutral" onClick={() => setOverwriteWeekName(null)}>Avbryt</Button>
+            <Button onClick={handleConfirmOverwriteWeek}>Skriv över</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(deleteWeekName)} onOpenChange={(open) => { if (!open) setDeleteWeekName(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Radera vecka?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-700">Radera vecka &quot;{deleteWeekName}&quot;?</p>
+          <DialogFooter>
+            <Button variant="neutral" onClick={() => setDeleteWeekName(null)}>Avbryt</Button>
+            <Button className="bg-rose-200 hover:bg-rose-300" onClick={handleConfirmDeleteWeek}>Radera</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {plannerNotice && (
+        <div className={`fixed bottom-4 right-4 z-[80] rounded-xl border-2 border-black px-4 py-3 text-sm font-semibold shadow-[4px_4px_0px_rgba(0,0,0,1)] ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
+          {plannerNotice.message}
+        </div>
+      )}
 
     </DndContext>
   );
