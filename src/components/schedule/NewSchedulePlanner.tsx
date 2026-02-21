@@ -4,8 +4,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
   DragEndEvent,
-  useDroppable,
-  useDraggable,
   DragOverlay,
   useSensors,
   useSensor,
@@ -22,29 +20,22 @@ import {
   RefreshCcw,
   Trash2,
   Plus,
-  Edit2,
   ShieldAlert,
   Upload,
-  X,
   BarChart3,
   Settings,
   Save,
   ChevronLeft,
   ChevronRight,
   CloudUpload,
-  FileText
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { SmartTextInput } from '@/components/ui/SmartTextInput';
 import {
   ACTIVE_ARCHIVE_NAME_KEY,
   AUTOSAVE_DELAY_MS,
-  COURSE_COLOR_PALETTE,
   DEFAULT_COURSE_COLOR,
   DERIVED_COURSE_PREFIX,
   MANUAL_COURSES_KEY,
@@ -61,12 +52,17 @@ import { ContextMenuState, GhostPlacement, PlannerNotice } from '@/types/planner
 import { plannerService } from '@/services/plannerService';
 import { 
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE, 
-  timeToMinutes, minutesToTime, getPositionStyles, 
+  timeToMinutes, minutesToTime, 
   snapTime, checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 import { exportElementToVectorPdf } from '@/utils/vectorPdfExport';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
+import { DraggableSourceCard } from '@/components/schedule/DraggableSourceCard';
+import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
+import { DayColumn } from '@/components/schedule/DayColumn';
+import { CategoryDebugPanel, HiddenSettingsPanel } from '@/components/schedule/DebugPanels';
+import { ScheduleModals } from '@/components/schedule/ScheduleModals';
 
 const baseCourses: PlannerCourse[] = [];
 
@@ -91,12 +87,6 @@ const hashStringFnv1a = (value: string) => {
     hash = (hash * 0x01000193) >>> 0;
   }
   return hash.toString(16).padStart(8, '0');
-};
-
-const extractUrl = (value?: string) => {
-  if (!value) return null;
-  const match = value.match(/https?:\/\/[^\s]+/i);
-  return match ? match[0] : null;
 };
 
 const deriveCoursesFromSchedule = (scheduleEntries: ScheduledEntry[]) => {
@@ -229,364 +219,6 @@ const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
     };
   });
 };
-
-const sanitizeHiddenList = (input: string) => {
-  const lines = input
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean);
-  const seen = new Set<string>();
-  return lines.filter(line => {
-    const key = line.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
-function HiddenSettingsPanel({
-  open,
-  onOpenChange,
-  teachers,
-  rooms,
-  onSave
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  teachers: string[];
-  rooms: string[];
-  onSave: (nextTeachers: string[], nextRooms: string[]) => void;
-}) {
-  const [teacherText, setTeacherText] = useState('');
-  const [roomText, setRoomText] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    setTeacherText(teachers.join('\n'));
-    setRoomText(rooms.join('\n'));
-  }, [open, rooms, teachers]);
-
-  const handleSave = () => {
-    const nextTeachers = sanitizeHiddenList(teacherText);
-    const nextRooms = sanitizeHiddenList(roomText);
-    onSave(nextTeachers, nextRooms);
-    onOpenChange(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Hidden settings</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="hidden-teachers">Lärare (en per rad)</Label>
-            <Textarea
-              id="hidden-teachers"
-              value={teacherText}
-              onChange={event => setTeacherText(event.target.value)}
-              rows={6}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="hidden-rooms">Salar (en per rad)</Label>
-            <Textarea
-              id="hidden-rooms"
-              value={roomText}
-              onChange={event => setRoomText(event.target.value)}
-              rows={6}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="neutral" onClick={handleSave} className="border-2 border-black">
-            Spara
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CategoryDebugPanel({
-  open,
-  onOpenChange,
-  categories,
-  missingCount,
-  totalCount
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  categories: string[];
-  missingCount: number;
-  totalCount: number;
-}) {
-  const hasCategories = categories.length > 0;
-  const hasActivities = totalCount > 0;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Kategorier (debug)</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 text-sm">
-          <div>
-            <p className="font-semibold">Unika kategorier ({categories.length})</p>
-            {hasCategories ? (
-              <ul className="list-disc pl-5">
-                {categories.map(category => (
-                  <li key={category}>{category}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500">Inga kategorier hittades.</p>
-            )}
-          </div>
-          <div>
-            <p className="font-semibold">Aktiviteter utan kategori</p>
-            <p>{missingCount} av {totalCount}</p>
-          </div>
-          {!hasActivities && (
-            <p className="text-gray-500">Inga aktiviteter laddade ännu.</p>
-          )}
-          <p className="text-xs text-gray-500">
-            Öppna via Ctrl + Shift + C.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="neutral" onClick={() => onOpenChange(false)} className="border-2 border-black">
-            Stäng
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// --- Sub-Components ---
-
-function DraggableSourceCard({
-  course,
-  onEdit,
-  onDelete,
-  hidden,
-  isDerived,
-  dragDisabled = false
-}: {
-  course: PlannerCourse;
-  onEdit: (c: PlannerCourse) => void;
-  onDelete: (course: PlannerCourse, isDerived: boolean) => void;
-  hidden?: boolean;
-  isDerived?: boolean;
-  dragDisabled?: boolean;
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `source-${course.id}`,
-    data: { type: 'course', course },
-    disabled: dragDisabled,
-  });
-
-  if (hidden) return null;
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      style={{ backgroundColor: course.color }}
-      className={`relative group p-2 mb-2 rounded border border-black/10 transition-all ${dragDisabled ? 'cursor-default' : 'cursor-grab hover:shadow-md'} ${isDragging ? 'opacity-50' : ''}`}
-    >
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="text-sm font-bold">{course.title}</p>
-          <p className="text-[10px] text-gray-600">{course.teacher} {course.room && `(${course.room})`}</p>
-          <p className="text-[10px] text-gray-500">{course.duration} min</p>
-        </div>
-      </div>
-      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(course)} className="p-1 bg-white/50 hover:bg-white rounded-full"><Edit2 size={10} /></button>
-        <button
-          onPointerDown={e => e.stopPropagation()}
-          onClick={() => onDelete(course, Boolean(isDerived))}
-          className="p-1 bg-white/50 hover:bg-rose-200 rounded-full text-rose-700 disabled:opacity-40 disabled:hover:bg-white/50"
-          disabled={isDerived}
-          title={isDerived ? 'Automatiska byggstenar kan inte raderas här.' : 'Ta bort byggsten'}
-        >
-          <Trash2 size={10} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ScheduledEventCard({
-  entry,
-  onEdit,
-  onRemove,
-  onContextMenu,
-  hidden,
-  columnIndex,
-  columnCount,
-  isLastOfDay,
-  showLayoutDebug,
-  dragDisabled = false
-}: {
-  entry: ScheduledEntry;
-  onEdit: (e: ScheduledEntry) => void;
-  onRemove: (id: string) => void;
-  onContextMenu: (event: React.MouseEvent<HTMLDivElement>, e: ScheduledEntry) => void;
-  hidden?: boolean;
-  columnIndex: number;
-  columnCount: number;
-  isLastOfDay: boolean;
-  showLayoutDebug: boolean;
-  dragDisabled?: boolean;
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: entry.instanceId,
-    data: { type: 'scheduled', entry },
-    disabled: dragDisabled,
-  });
-
-  const { top, height } = getPositionStyles(entry.startTime, entry.duration);
-  const adjustedTop = top + EVENT_GAP_PX / 2;
-  const adjustedHeight = Math.max(height - EVENT_GAP_PX, MIN_HEIGHT_PX);
-  const widthPercentage = 100 / Math.max(columnCount, 1);
-  const leftPercentage = widthPercentage * columnIndex;
-  const assignmentUrl = extractUrl(entry.category);
-
-  if (hidden) return null;
-
-  const isShortDuration = entry.duration < 50;
-  const isCompactHeight = adjustedHeight < 38;
-  const timeLabel = isLastOfDay ? `${entry.startTime}–${entry.endTime}` : entry.startTime;
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      onContextMenu={(event) => onContextMenu(event, entry)}
-      style={{ 
-        position: 'absolute',
-        top: `${adjustedTop}px`,
-        height: `${adjustedHeight}px`,
-        left: `calc(${leftPercentage}% + 4px)`,
-        width: `calc(${widthPercentage}% - 8px)`,
-        backgroundColor: entry.color,
-        zIndex: isDragging ? 50 : 10
-      }}
-      className={`scheduled-event-card rounded border border-black/20 shadow-sm overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 ring-2 ring-black' : ''}`}
-      title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
-    >
-      <div className="flex flex-col h-full">
-        <div className="flex justify-between items-start">
-          <span className="text-[10px] font-mono font-bold opacity-70 leading-none">
-            {timeLabel}
-            {isShortDuration && (
-              <span className="ml-1 font-sans font-bold">{entry.title}</span>
-            )}
-          </span>
-          {showLayoutDebug && (
-            <span className="rounded bg-white/70 px-1 text-[9px] font-mono font-bold text-gray-700">
-              {columnIndex}/{columnCount}
-            </span>
-          )}
-          <div className="flex items-start gap-0.5">
-            {assignmentUrl && (
-              <a
-                href={assignmentUrl}
-                target="_blank"
-                rel="noreferrer"
-                onPointerDown={e => e.stopPropagation()}
-                onClick={e => e.stopPropagation()}
-                className="p-0.5 bg-white/70 hover:bg-white rounded text-gray-700"
-                aria-label="Öppna uppgift"
-                title="Öppna uppgift"
-              >
-                <FileText size={10} />
-              </a>
-            )}
-            <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded">
-               <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-0.5 hover:bg-white rounded"><Edit2 size={8}/></button>
-               <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8}/></button>
-            </div>
-          </div>
-        </div>
-        {!isShortDuration && (
-          <p className={`font-bold leading-tight truncate ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>{entry.title}</p>
-        )}
-        {adjustedHeight > 30 && (
-           <p className={`text-gray-700 truncate ${isCompactHeight ? 'text-[10px]' : 'text-xs'}`}>
-             {entry.teacher && <span className="font-semibold">{entry.teacher}</span>}
-             {entry.teacher && entry.room ? ' ' : ''}
-             {entry.room}
-           </p>
-        )}
-        {entry.notes && adjustedHeight > 46 && (
-          <p className={`text-gray-600 truncate ${isCompactHeight ? 'text-[10px]' : 'text-xs'}`}>{entry.notes}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DayColumn({ day, ghost, children, className = '' }: { day: string; ghost: {
-  startTime: string;
-  endTime: string;
-  duration: number;
-  color: string;
-  title: string;
-} | null; children: React.ReactNode; className?: string }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: day,
-    data: { day }
-  });
-
-  const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
-  const ghostStyles = ghost ? getPositionStyles(ghost.startTime, ghost.duration) : null;
-
-  return (
-    <div 
-      ref={setNodeRef}
-      className={`relative flex-1 min-w-[140px] border-r border-gray-200 bg-white transition-colors ${isOver ? 'bg-blue-50' : ''} ${className}`}
-      style={{ height: `${(END_HOUR - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
-    >
-       <div className={`absolute -top-4 left-0 right-0 h-4 border-r border-gray-200 ${isOver ? 'bg-blue-50' : 'bg-white'}`} />
-       {hours.map(h => (
-         <div key={h} 
-           className="absolute w-full border-t border-gray-100"
-           style={{ top: `${(h - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
-         />
-       ))}
-       {ghost && ghostStyles && (
-         <>
-           <div
-             className="absolute left-0 right-0 border-t border-dashed z-[5]"
-             style={{ top: `${ghostStyles.top}px`, borderColor: ghost.color }}
-           />
-           <div
-             className="absolute rounded border-2 border-dashed text-blue-900/80 px-1 py-0.5 z-[6] pointer-events-none opacity-70"
-             style={{
-               top: `${ghostStyles.top}px`,
-               height: `${Math.max(ghostStyles.height - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`,
-               left: '6px',
-               right: '6px',
-               borderColor: ghost.color,
-               backgroundColor: ghost.color
-             }}
-           >
-             <div className="text-[10px] font-mono font-bold opacity-70 leading-none">{ghost.startTime}–{ghost.endTime}</div>
-             <div className="text-xs font-bold truncate">{ghost.title}</div>
-           </div>
-         </>
-       )}
-       {children}
-    </div>
-  );
-}
 
 // --- Main Component ---
 
@@ -1284,6 +916,15 @@ export default function NewSchedulePlanner() {
     await saveWeekArchive(overwriteWeekName);
     setOverwriteWeekName(null);
   }, [overwriteWeekName, saveWeekArchive]);
+
+  const handleAddRestrictionRule = useCallback(() => {
+    if (!newRule.subjectA || !newRule.subjectB) return;
+    setRestrictions(prev => [...prev, { ...newRule, id: uuidv4() }]);
+  }, [newRule]);
+
+  const handleRemoveRestrictionRule = useCallback((ruleId: string) => {
+    setRestrictions(prev => prev.filter(rule => rule.id !== ruleId));
+  }, []);
 
   const handleUndo = useCallback(() => {
     const history = scheduleHistoryRef.current;
@@ -2072,205 +1713,42 @@ export default function NewSchedulePlanner() {
         missingCount={categoryStats.missingCount}
         totalCount={categoryStats.totalCount}
       />
-      <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Hantera ämne</DialogTitle></DialogHeader>
-          {editingCourse && (
-            <form onSubmit={handleSaveCourse} className="space-y-3">
-               <Label>Titel</Label> 
-               <Input value={editingCourse.title} onChange={e => {
-                   const val = e.target.value;
-                   let col = editingCourse.color;
-                   if(!manualColor && val.length > 1) col = generateBoxColor(val);
-                   setEditingCourse({...editingCourse, title: val, color: col});
-               }} autoFocus/>
-               <Label>Standardlängd (min)</Label> <Input type="number" value={editingCourse.duration} onChange={e => setEditingCourse({...editingCourse, duration: parseInt(e.target.value)})} />
-               <div className="grid grid-cols-2 gap-2">
-                 <SmartTextInput
-                   fieldId="course-teacher"
-                   label="Lärare"
-                   value={editingCourse.teacher}
-                   options={teachers}
-                   onChange={teacher => setEditingCourse({ ...editingCourse, teacher })}
-                 />
-                 <SmartTextInput
-                   fieldId="course-room"
-                   label="Rum"
-                   value={editingCourse.room}
-                   options={rooms}
-                   onChange={room => setEditingCourse({ ...editingCourse, room })}
-                 />
-               </div>
-               <div className="flex flex-wrap items-center gap-2 mt-2">
-                 <div className="flex gap-2">
-                   {COURSE_COLOR_PALETTE.map(c => (
-                     <div
-                       key={c}
-                       onClick={() => {
-                         setManualColor(true);
-                         setEditingCourse({ ...editingCourse, color: c });
-                       }}
-                       className={`w-6 h-6 rounded-full cursor-pointer border ${
-                         editingCourse.color === c ? 'ring-2 ring-black' : ''
-                       }`}
-                       style={{ backgroundColor: c }}
-                     />
-                   ))}
-                 </div>
-                 <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
-                   <span
-                     className="h-4 w-4 rounded-full border border-black"
-                     style={{ backgroundColor: editingCourse.color }}
-                   />
-                   Egen färg
-                   <input
-                     type="color"
-                     className="sr-only"
-                     aria-label="Välj egen färg"
-                     value={editingCourse.color}
-                     onChange={e => {
-                       setManualColor(true);
-                       setEditingCourse({ ...editingCourse, color: e.target.value });
-                     }}
-                   />
-                 </label>
-               </div>
-               <DialogFooter><Button type="submit">Spara</Button></DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isEntryModalOpen} onOpenChange={setIsEntryModalOpen}>
-        <DialogContent>
-           <DialogHeader><DialogTitle>Redigera Tid</DialogTitle></DialogHeader>
-           {editingEntry && (
-             <form onSubmit={handleSaveEntry} className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div><Label>Start</Label><Input type="time" value={editingEntry.startTime} onChange={e => setEditingEntry({...editingEntry, startTime: e.target.value})} /></div>
-                  <div><Label>Slut</Label><Input type="time" value={editingEntry.endTime} onChange={e => setEditingEntry({...editingEntry, endTime: e.target.value})} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <SmartTextInput
-                    fieldId="entry-teacher"
-                    label="Lärare"
-                    value={editingEntry.teacher}
-                    options={teachers}
-                    onChange={teacher => setEditingEntry({ ...editingEntry, teacher })}
-                  />
-                  <SmartTextInput
-                    fieldId="entry-room"
-                    label="Rum"
-                    value={editingEntry.room}
-                    options={rooms}
-                    onChange={room => setEditingEntry({ ...editingEntry, room })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="entry-category">Uppgift:</Label>
-                  <Textarea
-                    id="entry-category"
-                    placeholder="Klistra in uppgiftslänk eller skriv en kort markering"
-                    value={editingEntry.category ?? ''}
-                    onChange={e => setEditingEntry({ ...editingEntry, category: e.target.value })}
-                    rows={2}
-                  />
-                </div>
-                <Input
-                  aria-label="Anteckningar"
-                  placeholder="Anteckningar/övrigt"
-                  value={editingEntry.notes ?? ''}
-                  onChange={e => setEditingEntry({ ...editingEntry, notes: e.target.value })}
-                />
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <div className="flex gap-2">
-                    {COURSE_COLOR_PALETTE.map(c => (
-                      <div
-                        key={c}
-                        onClick={() => setEditingEntry({ ...editingEntry, color: c })}
-                        className={`w-6 h-6 rounded-full cursor-pointer border ${
-                          editingEntry.color === c ? 'ring-2 ring-black' : ''
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                  <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
-                    <span
-                      className="h-4 w-4 rounded-full border border-black"
-                      style={{ backgroundColor: editingEntry.color || DEFAULT_COURSE_COLOR }}
-                    />
-                    Egen färg
-                    <input
-                      type="color"
-                      className="sr-only"
-                      aria-label="Välj egen färg"
-                      value={editingEntry.color || DEFAULT_COURSE_COLOR}
-                      onChange={e => setEditingEntry({ ...editingEntry, color: e.target.value })}
-                    />
-                  </label>
-                </div>
-                <DialogFooter><Button type="submit">Uppdatera</Button></DialogFooter>
-             </form>
-           )}
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isRestrictionsModalOpen} onOpenChange={setIsRestrictionsModalOpen}>
-         <DialogContent><DialogHeader><DialogTitle>Regler</DialogTitle></DialogHeader>
-            <div className="space-y-2">
-               <div className="flex gap-2"><Input placeholder="Matte*" value={newRule.subjectA} onChange={e => setNewRule({...newRule, subjectA: e.target.value})} /><Input placeholder="Svenska*" value={newRule.subjectB} onChange={e => setNewRule({...newRule, subjectB: e.target.value})} /><Button onClick={() => { if(newRule.subjectA && newRule.subjectB) setRestrictions([...restrictions, {...newRule, id: uuidv4()}]) }}>+</Button></div>
-               {restrictions.map(r => <div key={r.id} className="flex justify-between text-sm p-2 bg-gray-50 rounded"><span>{r.subjectA} ⚡ {r.subjectB}</span><X size={14} className="cursor-pointer" onClick={() => setRestrictions(restrictions.filter(x => x.id !== r.id))}/></div>)}
-            </div>
-         </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={isImportConfirmOpen}
-        onOpenChange={(open) => {
+      <ScheduleModals
+        isCourseModalOpen={isCourseModalOpen}
+        onCourseModalOpenChange={setIsCourseModalOpen}
+        editingCourse={editingCourse}
+        setEditingCourse={setEditingCourse}
+        manualColor={manualColor}
+        setManualColor={setManualColor}
+        onSaveCourse={handleSaveCourse}
+        teachers={teachers}
+        rooms={rooms}
+        isEntryModalOpen={isEntryModalOpen}
+        onEntryModalOpenChange={setIsEntryModalOpen}
+        editingEntry={editingEntry}
+        setEditingEntry={setEditingEntry}
+        onSaveEntry={handleSaveEntry}
+        isRestrictionsModalOpen={isRestrictionsModalOpen}
+        onRestrictionsModalOpenChange={setIsRestrictionsModalOpen}
+        newRule={newRule}
+        setNewRule={setNewRule}
+        restrictions={restrictions}
+        onAddRule={handleAddRestrictionRule}
+        onRemoveRule={handleRemoveRestrictionRule}
+        isImportConfirmOpen={isImportConfirmOpen}
+        onImportConfirmOpenChange={(open) => {
           setIsImportConfirmOpen(open);
           if (!open) setPendingImportData(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ersätta nuvarande schema?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-700">
-            Om du fortsätter ersätts aktuella byggstenar och schema med innehållet från filen.
-          </p>
-          <DialogFooter>
-            <Button variant="neutral" onClick={() => setIsImportConfirmOpen(false)}>Avbryt</Button>
-            <Button onClick={handleConfirmImport}>Ersätt schema</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(overwriteWeekName)} onOpenChange={(open) => { if (!open) setOverwriteWeekName(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ersätta befintlig vecka?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-700">Vecka &quot;{overwriteWeekName}&quot; finns redan. Vill du skriva över den?</p>
-          <DialogFooter>
-            <Button variant="neutral" onClick={() => setOverwriteWeekName(null)}>Avbryt</Button>
-            <Button onClick={handleConfirmOverwriteWeek}>Skriv över</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(deleteWeekName)} onOpenChange={(open) => { if (!open) setDeleteWeekName(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Radera vecka?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-700">Radera vecka &quot;{deleteWeekName}&quot;?</p>
-          <DialogFooter>
-            <Button variant="neutral" onClick={() => setDeleteWeekName(null)}>Avbryt</Button>
-            <Button className="bg-rose-200 hover:bg-rose-300" onClick={handleConfirmDeleteWeek}>Radera</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onCancelImport={() => setIsImportConfirmOpen(false)}
+        onConfirmImport={handleConfirmImport}
+        overwriteWeekName={overwriteWeekName}
+        onOverwriteWeekNameChange={setOverwriteWeekName}
+        onConfirmOverwriteWeek={handleConfirmOverwriteWeek}
+        deleteWeekName={deleteWeekName}
+        onDeleteWeekNameChange={setDeleteWeekName}
+        onConfirmDeleteWeek={handleConfirmDeleteWeek}
+      />
 
       {plannerNotice && (
         <div className={`fixed bottom-4 right-4 z-[80] rounded-xl border-2 border-black px-4 py-3 text-sm font-semibold shadow-[4px_4px_0px_rgba(0,0,0,1)] ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
