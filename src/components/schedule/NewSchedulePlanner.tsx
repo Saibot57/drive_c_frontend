@@ -20,7 +20,7 @@ import {
   Save,
   ChevronLeft,
   ChevronRight,
-  CloudUpload,
+  MoreVertical,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,7 @@ import { useScheduleHistory } from '@/hooks/useScheduleHistory';
 import { useHiddenSettings } from '@/hooks/useHiddenSettings';
 import { useCourseManager } from '@/hooks/useCourseManager';
 import { useArchiveManager } from '@/hooks/useArchiveManager';
-import { buildCourseDedupeKey, sanitizeManualCourses } from '@/components/schedule/courseUtils';
+import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/components/schedule/courseUtils';
 import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
 import { useScheduleExport } from '@/hooks/useScheduleExport';
@@ -181,8 +181,12 @@ export default function NewSchedulePlanner() {
   } | null>(null);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [isClearScheduleConfirmOpen, setIsClearScheduleConfirmOpen] = useState(false);
+  const [isImageExportMenuOpen, setIsImageExportMenuOpen] = useState(false);
+  const [isJsonMenuOpen, setIsJsonMenuOpen] = useState(false);
   const titleHoldTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageExportMenuRef = useRef<HTMLDivElement>(null);
+  const jsonMenuRef = useRef<HTMLDivElement>(null);
 
   const {
     sortedWeekNames,
@@ -208,7 +212,7 @@ export default function NewSchedulePlanner() {
     showNotice
   });
 
-  const { isSaving, saveStatus, loadedArchiveName, handleSyncToCloud } = usePlannerSync({
+  const { loadedArchiveName } = usePlannerSync({
     schedule,
     commitSchedule,
     activeArchiveName,
@@ -307,6 +311,23 @@ export default function NewSchedulePlanner() {
     setActiveArchiveName(loadedArchiveName);
   }, [loadedArchiveName, setActiveArchiveName]);
 
+  useEffect(() => {
+    if (!isImageExportMenuOpen && !isJsonMenuOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (imageExportMenuRef.current && !imageExportMenuRef.current.contains(target)) {
+        setIsImageExportMenuOpen(false);
+      }
+      if (jsonMenuRef.current && !jsonMenuRef.current.contains(target)) {
+        setIsJsonMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handleOutsideClick);
+    return () => window.removeEventListener('mousedown', handleOutsideClick);
+  }, [isImageExportMenuOpen, isJsonMenuOpen]);
+
   const startTitleHold = () => {
     if (titleHoldTimerRef.current) {
       window.clearTimeout(titleHoldTimerRef.current);
@@ -351,6 +372,13 @@ export default function NewSchedulePlanner() {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1
   }), []);
+
+  const hasMissingScheduleBlocks = useMemo(() => {
+    if (schedule.length === 0) return false;
+    const currentCourseKeys = new Set(courses.map(course => buildCourseDedupeKey(course)));
+    const derivedScheduleCourses = deriveCoursesFromSchedule(schedule);
+    return derivedScheduleCourses.some(course => !currentCourseKeys.has(buildCourseDedupeKey(course)));
+  }, [courses, schedule]);
 
   const layoutByDay = useMemo(() => {
     const layout: Record<string, Map<string, DayLayoutEntry>> = {};
@@ -579,9 +607,8 @@ export default function NewSchedulePlanner() {
                 onPointerLeave={clearTitleHold}
                 onPointerCancel={clearTitleHold}
               >
-                FlexSchema <span className="text-xs font-sans font-normal text-gray-500">v5 Timeline</span>
+                Bygg Schema
               </h1>
-              <p className="text-sm text-gray-600">Dra och släpp på tidslinjen. {saveStatus === 'saving' ? 'Sparar…' : saveStatus === 'saved' ? 'Sparat.' : saveStatus === 'error' ? 'Kunde inte spara (försöker igen vid nästa ändring).' : ''}</p>
            </div>
            
            <div className="flex-1 max-w-md w-full relative">
@@ -597,23 +624,78 @@ export default function NewSchedulePlanner() {
            <div className="flex gap-2 flex-wrap">
               <Button variant="neutral" onClick={() => setIsRestrictionsModalOpen(true)} className="border-2 border-black bg-amber-100 hover:bg-amber-200"><ShieldAlert size={16} className="mr-2"/> Regler</Button>
               <Button variant="neutral" onClick={handleExportPDF} className="border-2 border-black"><Download size={16} className="mr-2"/> PDF</Button>
-              <Button variant="neutral" onClick={() => handleExportImage('png')} className="border-2 border-black">PNG</Button>
-              <Button variant="neutral" onClick={() => handleExportImage('jpeg')} className="border-2 border-black">JPG</Button>
+              <div className="relative" ref={imageExportMenuRef}>
+                <Button
+                  variant="neutral"
+                  onClick={() => setIsImageExportMenuOpen(open => !open)}
+                  className="h-10 w-10 p-0 border-2 border-black"
+                  aria-label="Bildexport meny"
+                >
+                  <MoreVertical size={16} />
+                </Button>
+                {isImageExportMenuOpen && (
+                  <div className="absolute right-0 z-20 mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                    <button
+                      type="button"
+                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      onClick={() => {
+                        handleExportImage('png');
+                        setIsImageExportMenuOpen(false);
+                      }}
+                    >
+                      Exportera PNG
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      onClick={() => {
+                        handleExportImage('jpeg');
+                        setIsImageExportMenuOpen(false);
+                      }}
+                    >
+                      Exportera JPG
+                    </button>
+                  </div>
+                )}
+              </div>
               <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
-              <Button variant="neutral" onClick={handleExportJSON} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Download size={16} className="mr-2"/> Spara</Button>
-              <Button variant="neutral" onClick={() => fileInputRef.current?.click()} className="border-2 border-black bg-blue-100 hover:bg-blue-200"><Upload size={16} className="mr-2"/> Ladda</Button>
-              <Button variant="neutral" onClick={handleSyncToCloud} disabled={isSaving} className="border-2 border-black bg-sky-100 hover:bg-sky-200"><CloudUpload size={16} className="mr-2"/> Synka nu</Button>
-              <Button
-                variant="neutral"
-                onClick={() => {
-                  recomputeCourses(schedule, manualCourses);
-                  showNotice('Byggstenar uppdaterade.', 'success');
-                }}
-                className="border-2 border-black bg-emerald-100 hover:bg-emerald-200"
-              >
-                <RefreshCcw size={16} className="mr-2"/> Uppdatera byggstenar från schema
-              </Button>
               <Button variant="neutral" onClick={() => setIsClearScheduleConfirmOpen(true)} className="border-2 border-black bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
+              <div className="relative ml-auto" ref={jsonMenuRef}>
+                <Button
+                  variant="neutral"
+                  onClick={() => setIsJsonMenuOpen(open => !open)}
+                  className="h-10 w-10 p-0 border-2 border-black"
+                  aria-label="JSON meny"
+                >
+                  <MoreVertical size={16} />
+                </Button>
+                {isJsonMenuOpen && (
+                  <div className="absolute right-0 z-20 mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      onClick={() => {
+                        handleExportJSON();
+                        setIsJsonMenuOpen(false);
+                      }}
+                    >
+                      <Download size={14} />
+                      Spara
+                    </button>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                        setIsJsonMenuOpen(false);
+                      }}
+                    >
+                      <Upload size={14} />
+                      Ladda
+                    </button>
+                  </div>
+                )}
+              </div>
            </div>
         </div>
 
@@ -654,6 +736,19 @@ export default function NewSchedulePlanner() {
                 
                 {/* Courses List */}
                 {!isSidebarCollapsed && (
+                  <>
+                    {hasMissingScheduleBlocks && (
+                      <Button
+                        variant="neutral"
+                        onClick={() => {
+                          recomputeCourses(schedule, manualCourses);
+                          showNotice('Byggstenar uppdaterade.', 'success');
+                        }}
+                        className="mb-3 border-2 border-black bg-emerald-100 hover:bg-emerald-200"
+                      >
+                        <RefreshCcw size={16} className="mr-2"/> Uppdatera byggstenar från schema
+                      </Button>
+                    )}
                   <div className="overflow-y-auto flex-1 pr-2">
                      {courses.map(c => (
                        <DraggableSourceCard 
@@ -667,6 +762,7 @@ export default function NewSchedulePlanner() {
                        />
                      ))}
                   </div>
+                  </>
                 )}
 
                 {/* Statistics */}
