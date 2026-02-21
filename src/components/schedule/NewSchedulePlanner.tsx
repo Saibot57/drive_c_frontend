@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -40,9 +40,24 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SmartTextInput } from '@/components/ui/SmartTextInput';
+import {
+  ACTIVE_ARCHIVE_NAME_KEY,
+  AUTOSAVE_DELAY_MS,
+  COURSE_COLOR_PALETTE,
+  DEFAULT_COURSE_COLOR,
+  DERIVED_COURSE_PREFIX,
+  MANUAL_COURSES_KEY,
+  PLANNER_DAYS,
+  PLANNER_NOTICE_DISMISS_MS,
+  ROOMS_KEY,
+  TEACHERS_KEY,
+  TITLE_HOLD_OPEN_MS
+} from '@/components/schedule/constants';
 import { generateBoxColor, importColors } from '@/config/colorManagement';
 import { isVectorPdfExportEnabled } from '@/config/featureFlags';
 import { PlannerActivity, PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
+import { ContextMenuState, GhostPlacement, PlannerNotice } from '@/types/plannerUI';
 import { plannerService } from '@/services/plannerService';
 import { 
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE, 
@@ -52,13 +67,6 @@ import {
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 import { exportElementToVectorPdf } from '@/utils/vectorPdfExport';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
-
-const days = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag'];
-const palette = ['#ffffff', '#fde68a', '#bae6fd', '#d9f99d', '#fecdd3', '#c7d2fe', '#a7f3d0', '#ddd6fe', '#fed7aa'];
-const MANUAL_COURSES_STORAGE_KEY = 'planner_manual_courses_v1';
-const DERIVED_COURSE_PREFIX = 'gen_';
-const TEACHERS_STORAGE_KEY = 'app.teachers.v1';
-const ROOMS_STORAGE_KEY = 'app.rooms.v1';
 
 const baseCourses: PlannerCourse[] = [];
 
@@ -125,7 +133,7 @@ const sanitizeManualCourses = (input: unknown): PlannerCourse[] => {
       title: raw.title,
       teacher: typeof raw.teacher === 'string' ? raw.teacher : '',
       room: typeof raw.room === 'string' ? raw.room : '',
-      color: typeof raw.color === 'string' ? raw.color : '#ffffff',
+      color: typeof raw.color === 'string' ? raw.color : DEFAULT_COURSE_COLOR,
       duration: typeof raw.duration === 'number' && !Number.isNaN(raw.duration) ? raw.duration : 60,
       category: typeof raw.category === 'string' ? raw.category : undefined
     }];
@@ -217,18 +225,10 @@ const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
       startTime: start,
       endTime: end,
       duration: duration > 0 ? duration : 60, 
-      day: days.includes(entry.day) ? entry.day : days[0] 
+      day: PLANNER_DAYS.includes(entry.day as typeof PLANNER_DAYS[number]) ? entry.day : PLANNER_DAYS[0]
     };
   });
 };
-
-const normalizeAutofillValue = (value: string) => (
-  value
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-);
 
 const sanitizeHiddenList = (input: string) => {
   const lines = input
@@ -243,118 +243,6 @@ const sanitizeHiddenList = (input: string) => {
     return true;
   });
 };
-
-function SmartTextInput({
-  options,
-  value,
-  onChange,
-  minChars = 2,
-  fieldId,
-  label,
-  placeholder
-}: {
-  options: string[];
-  value: string;
-  onChange: (value: string) => void;
-  minChars?: number;
-  fieldId: string;
-  label: string;
-  placeholder?: string;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [autoDisabled, setAutoDisabled] = useState(false);
-  const backspaceJustPressedRef = useRef(false);
-  const lastAutofillAtRef = useRef<number | null>(null);
-  const lastAutofillValueRef = useRef<string | null>(null);
-  const lastTypedPrefixLengthRef = useRef<number | null>(null);
-  const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
-  const suffixSelectionRef = useRef(false);
-
-  const normalizedOptions = useMemo(() => (
-    options.map(option => ({
-      raw: option,
-      normalized: normalizeAutofillValue(option)
-    }))
-  ), [options]);
-
-  useEffect(() => {
-    const query = normalizeAutofillValue(value);
-    if (autoDisabled) return;
-    if (backspaceJustPressedRef.current) {
-      backspaceJustPressedRef.current = false;
-      return;
-    }
-    if (query.length < minChars) return;
-    const matches = normalizedOptions.filter(option => option.normalized.startsWith(query));
-    if (matches.length !== 1) return;
-    const match = matches[0].raw;
-    if (value === match) return;
-    const prefixLength = value.length;
-    lastTypedPrefixLengthRef.current = prefixLength;
-    lastAutofillAtRef.current = Date.now();
-    lastAutofillValueRef.current = match;
-    pendingSelectionRef.current = { start: prefixLength, end: match.length };
-    onChange(match);
-  }, [autoDisabled, minChars, normalizedOptions, onChange, value]);
-
-  useLayoutEffect(() => {
-    if (!pendingSelectionRef.current) return;
-    if (!inputRef.current) return;
-    if (value !== lastAutofillValueRef.current) return;
-    const { start, end } = pendingSelectionRef.current;
-    inputRef.current.setSelectionRange(start, end);
-    pendingSelectionRef.current = null;
-  }, [value]);
-
-  const shouldDisableAutofill = () => {
-    if (!lastAutofillAtRef.current || !lastAutofillValueRef.current) return false;
-    if (Date.now() - lastAutofillAtRef.current > 7000) return false;
-    return value === lastAutofillValueRef.current;
-  };
-
-  return (
-    <div className="space-y-1">
-      <Label htmlFor={fieldId}>{label}</Label>
-      <div className="relative">
-        <Input
-          id={fieldId}
-          ref={inputRef}
-          value={value}
-          onChange={event => {
-            if (shouldDisableAutofill()) {
-              setAutoDisabled(true);
-            }
-            onChange(event.target.value);
-            if (suffixSelectionRef.current) {
-              const nextValue = event.target.value;
-              requestAnimationFrame(() => {
-                inputRef.current?.setSelectionRange(nextValue.length, nextValue.length);
-              });
-              suffixSelectionRef.current = false;
-            }
-          }}
-          onKeyDown={event => {
-            if (event.key === 'Backspace') {
-              backspaceJustPressedRef.current = true;
-            }
-            if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
-              if (shouldDisableAutofill()) {
-                setAutoDisabled(true);
-                const input = inputRef.current;
-                const prefixLength = lastTypedPrefixLengthRef.current ?? 0;
-                if (input && input.selectionStart === prefixLength && input.selectionEnd === value.length) {
-                  suffixSelectionRef.current = true;
-                }
-              }
-            }
-          }}
-          onBlur={() => setAutoDisabled(false)}
-          placeholder={placeholder}
-        />
-      </div>
-    </div>
-  );
-}
 
 function HiddenSettingsPanel({
   open,
@@ -721,17 +609,12 @@ export default function NewSchedulePlanner() {
   const [editingEntry, setEditingEntry] = useState<ScheduledEntry | null>(null);
   const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    entry: ScheduledEntry;
-  } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
   const [savedWeekNames, setSavedWeekNames] = useState<string[]>([]);
   const [weekName, setWeekName] = useState('');
   const [activeArchiveName, setActiveArchiveName] = useState<string | null>(null);
-  const [mobileActiveArchiveIndex, setMobileActiveArchiveIndex] = useState(-1);
   const [mobileActiveDayIndex, setMobileActiveDayIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -745,7 +628,7 @@ export default function NewSchedulePlanner() {
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
   const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
   const [isMobileDragDisabled, setIsMobileDragDisabled] = useState(false);
-  const [plannerNotice, setPlannerNotice] = useState<{ message: string; tone: 'success' | 'error' | 'warning' } | null>(null);
+  const [plannerNotice, setPlannerNotice] = useState<PlannerNotice | null>(null);
   const [pendingImportData, setPendingImportData] = useState<{
     courses: PlannerCourse[];
     schedule: ScheduledEntry[];
@@ -757,14 +640,7 @@ export default function NewSchedulePlanner() {
   const titleHoldTimerRef = useRef<number | null>(null);
 
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
-  const [ghostPlacement, setGhostPlacement] = useState<{
-    day: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-    color: string;
-    title: string;
-  } | null>(null);
+  const [ghostPlacement, setGhostPlacement] = useState<GhostPlacement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Contract: all schedule mutations must go through this function.
@@ -809,7 +685,7 @@ export default function NewSchedulePlanner() {
         duration: activity.duration ?? 60,
         category: activity.category,
         instanceId: activity.id,
-        day: activity.day ?? days[0],
+        day: activity.day ?? PLANNER_DAYS[0],
         startTime: activity.startTime ?? '08:00',
         endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
         notes: activity.notes ?? undefined
@@ -850,7 +726,7 @@ export default function NewSchedulePlanner() {
     if (!plannerNotice) return;
     const timeout = window.setTimeout(() => {
       setPlannerNotice(null);
-    }, 2600);
+    }, PLANNER_NOTICE_DISMISS_MS);
 
     return () => window.clearTimeout(timeout);
   }, [plannerNotice]);
@@ -858,7 +734,7 @@ export default function NewSchedulePlanner() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const stored = window.localStorage.getItem(MANUAL_COURSES_STORAGE_KEY);
+      const stored = window.localStorage.getItem(MANUAL_COURSES_KEY);
       if (!stored) return;
       const parsed = JSON.parse(stored);
       const sanitized = sanitizeManualCourses(parsed);
@@ -878,8 +754,8 @@ export default function NewSchedulePlanner() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const storedTeachers = window.localStorage.getItem(TEACHERS_STORAGE_KEY);
-      const storedRooms = window.localStorage.getItem(ROOMS_STORAGE_KEY);
+      const storedTeachers = window.localStorage.getItem(TEACHERS_KEY);
+      const storedRooms = window.localStorage.getItem(ROOMS_KEY);
       const parsedTeachers = storedTeachers ? JSON.parse(storedTeachers) : [];
       const parsedRooms = storedRooms ? JSON.parse(storedRooms) : [];
       setTeachers(Array.isArray(parsedTeachers) ? parsedTeachers.filter(item => typeof item === 'string') : []);
@@ -914,7 +790,7 @@ export default function NewSchedulePlanner() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(MANUAL_COURSES_STORAGE_KEY, JSON.stringify(manualCourses));
+      window.localStorage.setItem(MANUAL_COURSES_KEY, JSON.stringify(manualCourses));
     } catch (error) {
       console.warn('Kunde inte spara manuella byggstenar.', error);
     }
@@ -927,16 +803,16 @@ export default function NewSchedulePlanner() {
       return;
     }
     if (activeArchiveName) {
-      window.localStorage.setItem('active_archive_name', activeArchiveName);
+      window.localStorage.setItem(ACTIVE_ARCHIVE_NAME_KEY, activeArchiveName);
       return;
     }
-    window.localStorage.removeItem('active_archive_name');
+    window.localStorage.removeItem(ACTIVE_ARCHIVE_NAME_KEY);
   }, [activeArchiveName]);
 
   useEffect(() => {
     const loadPlannerActivities = async () => {
       try {
-        const storedArchiveName = window.localStorage.getItem('active_archive_name');
+        const storedArchiveName = window.localStorage.getItem(ACTIVE_ARCHIVE_NAME_KEY);
         const activities = storedArchiveName
           ? await plannerService.getPlannerArchive(storedArchiveName)
           : await plannerService.getPlannerActivities();
@@ -948,7 +824,7 @@ export default function NewSchedulePlanner() {
         setLoadStatus('loaded');
       } catch (e) {
         console.error('Planner load failed', e);
-        window.localStorage.removeItem('active_archive_name');
+        window.localStorage.removeItem(ACTIVE_ARCHIVE_NAME_KEY);
         setLoadStatus('error');
       }
     };
@@ -974,8 +850,8 @@ export default function NewSchedulePlanner() {
     setRooms(nextRooms);
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(TEACHERS_STORAGE_KEY, JSON.stringify(nextTeachers));
-      window.localStorage.setItem(ROOMS_STORAGE_KEY, JSON.stringify(nextRooms));
+      window.localStorage.setItem(TEACHERS_KEY, JSON.stringify(nextTeachers));
+      window.localStorage.setItem(ROOMS_KEY, JSON.stringify(nextRooms));
     } catch (error) {
       console.warn('Kunde inte spara lärare/salar.', error);
     }
@@ -988,7 +864,7 @@ export default function NewSchedulePlanner() {
     titleHoldTimerRef.current = window.setTimeout(() => {
       setIsHiddenSettingsOpen(true);
       titleHoldTimerRef.current = null;
-    }, 700);
+    }, TITLE_HOLD_OPEN_MS);
   };
 
   const clearTitleHold = () => {
@@ -1069,29 +945,23 @@ export default function NewSchedulePlanner() {
     maximumFractionDigits: 1
   }), []);
 
-  useEffect(() => {
-    if (sortedWeekNames.length === 0) {
-      setMobileActiveArchiveIndex(-1);
-      return;
-    }
-    if (!activeArchiveName) {
-      setMobileActiveArchiveIndex(0);
-      return;
-    }
+  const mobileActiveArchiveIndex = useMemo(() => {
+    if (sortedWeekNames.length === 0) return -1;
+    if (!activeArchiveName) return 0;
     const foundIndex = sortedWeekNames.findIndex(name => name === activeArchiveName);
-    setMobileActiveArchiveIndex(foundIndex >= 0 ? foundIndex : 0);
+    return foundIndex >= 0 ? foundIndex : 0;
   }, [activeArchiveName, sortedWeekNames]);
 
-  const mobileSelectedDay = days[mobileActiveDayIndex] ?? days[0];
+  const mobileSelectedDay = PLANNER_DAYS[mobileActiveDayIndex] ?? PLANNER_DAYS[0];
   const mobileSelectedArchiveName = sortedWeekNames[mobileActiveArchiveIndex] ?? null;
   const isAtFirstMobileArchive = mobileActiveArchiveIndex <= 0;
   const isAtLastMobileArchive = mobileActiveArchiveIndex < 0 || mobileActiveArchiveIndex >= sortedWeekNames.length - 1;
   const isAtFirstMobileDay = mobileActiveDayIndex <= 0;
-  const isAtLastMobileDay = mobileActiveDayIndex >= days.length - 1;
+  const isAtLastMobileDay = mobileActiveDayIndex >= PLANNER_DAYS.length - 1;
 
   const layoutByDay = useMemo(() => {
     const layout: Record<string, Map<string, DayLayoutEntry>> = {};
-    days.forEach(day => {
+    PLANNER_DAYS.forEach(day => {
       const entries = schedule.filter(entry => entry.day === day);
       layout[day] = buildDayLayout(entries);
     });
@@ -1101,7 +971,7 @@ export default function NewSchedulePlanner() {
   const daySubjectTotals = useMemo(() => {
     const totals: Record<string, Record<string, number>> = {};
     const intervalsByDay: Record<string, Record<string, { start: number; end: number }[]>> = {};
-    days.forEach(day => {
+    PLANNER_DAYS.forEach(day => {
       totals[day] = {};
       intervalsByDay[day] = {};
     });
@@ -1164,7 +1034,7 @@ export default function NewSchedulePlanner() {
 
   const dayHeaderTooltips = useMemo(() => {
     const tooltips: Record<string, string> = {};
-    days.forEach(day => {
+    PLANNER_DAYS.forEach(day => {
       const entries = Object.entries(daySubjectTotals[day] ?? {});
       if (entries.length === 0) {
         tooltips[day] = 'Inget schemalagt';
@@ -1321,7 +1191,7 @@ export default function NewSchedulePlanner() {
     if (loadStatus !== 'loaded') return;
     const timeout = window.setTimeout(() => {
       performAutosave();
-    }, 1000);
+    }, AUTOSAVE_DELAY_MS);
 
     return () => window.clearTimeout(timeout);
   }, [activeArchiveName, loadStatus, performAutosave, schedule]);
@@ -1819,7 +1689,7 @@ export default function NewSchedulePlanner() {
                     {!isSidebarCollapsed && (
                       <Button size="sm" onClick={() => { 
                         setManualColor(false);
-                        setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: '#ffffff', duration: 60 }); 
+                        setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: DEFAULT_COURSE_COLOR, duration: 60 });
                         setIsCourseModalOpen(true); 
                       }} className="h-8 w-8 p-0 rounded-full border-2 border-black bg-[#aee8fe]"><Plus size={16}/></Button>
                     )}
@@ -1881,7 +1751,7 @@ export default function NewSchedulePlanner() {
           {/* Main Schedule Area */}
           <div className="flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
              <div className="schedule-desktop-header hidden lg:flex pl-[50px] border-b-2 border-black bg-white">
-                {days.map(day => (
+                {PLANNER_DAYS.map(day => (
                   <div
                     key={day}
                     className="flex-1 py-2 text-center font-bold text-sm border-r border-gray-200 last:border-0 cursor-help"
@@ -1935,7 +1805,7 @@ export default function NewSchedulePlanner() {
                    variant="neutral"
                    className="h-8 w-8 p-0 border-2 border-black"
                    aria-label="Nästa dag"
-                   onClick={() => setMobileActiveDayIndex(prev => Math.min(days.length - 1, prev + 1))}
+                   onClick={() => setMobileActiveDayIndex(prev => Math.min(PLANNER_DAYS.length - 1, prev + 1))}
                    disabled={isAtLastMobileDay}
                  >
                    <ChevronRight size={16} />
@@ -1957,7 +1827,7 @@ export default function NewSchedulePlanner() {
                    </div>
 
                    <div className="schedule-desktop-grid hidden lg:contents">
-                   {days.map(day => (
+                   {PLANNER_DAYS.map(day => (
                      <DayColumn key={day} day={day} ghost={ghostPlacement?.day === day ? ghostPlacement : null}>
                         {(() => {
                           const dayEntries = schedule.filter(e => e.day === day);
@@ -2233,7 +2103,7 @@ export default function NewSchedulePlanner() {
                </div>
                <div className="flex flex-wrap items-center gap-2 mt-2">
                  <div className="flex gap-2">
-                   {palette.map(c => (
+                   {COURSE_COLOR_PALETTE.map(c => (
                      <div
                        key={c}
                        onClick={() => {
@@ -2314,7 +2184,7 @@ export default function NewSchedulePlanner() {
                 />
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <div className="flex gap-2">
-                    {palette.map(c => (
+                    {COURSE_COLOR_PALETTE.map(c => (
                       <div
                         key={c}
                         onClick={() => setEditingEntry({ ...editingEntry, color: c })}
@@ -2328,14 +2198,14 @@ export default function NewSchedulePlanner() {
                   <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
                     <span
                       className="h-4 w-4 rounded-full border border-black"
-                      style={{ backgroundColor: editingEntry.color || '#ffffff' }}
+                      style={{ backgroundColor: editingEntry.color || DEFAULT_COURSE_COLOR }}
                     />
                     Egen färg
                     <input
                       type="color"
                       className="sr-only"
                       aria-label="Välj egen färg"
-                      value={editingEntry.color || '#ffffff'}
+                      value={editingEntry.color || DEFAULT_COURSE_COLOR}
                       onChange={e => setEditingEntry({ ...editingEntry, color: e.target.value })}
                     />
                   </label>

@@ -11,7 +11,7 @@ export type DayLayoutEntry = {
   columns: number;
 };
 
-export const buildDayLayout = <T extends EntryWithTime>(entries: T[]) => {
+export const buildDayGroups = <T extends EntryWithTime>(entries: T[]) => {
   const groups: T[][] = [];
 
   entries.forEach((entry) => {
@@ -35,6 +35,12 @@ export const buildDayLayout = <T extends EntryWithTime>(entries: T[]) => {
     });
     groups.push([...mergedGroup, entry]);
   });
+
+  return groups;
+};
+
+export const buildDayLayout = <T extends EntryWithTime>(entries: T[]) => {
+  const groups = buildDayGroups(entries);
 
   const layout = new Map<string, DayLayoutEntry>();
 
