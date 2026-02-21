@@ -44,6 +44,12 @@ type ScheduleModalsProps = {
   deleteWeekName: string | null;
   onDeleteWeekNameChange: (value: string | null) => void;
   onConfirmDeleteWeek: () => void;
+  deleteCourseName: string | null;
+  onDeleteCourseNameChange: (value: string | null) => void;
+  onConfirmDeleteCourse: () => void;
+  isClearScheduleConfirmOpen: boolean;
+  onClearScheduleConfirmOpenChange: (open: boolean) => void;
+  onConfirmClearSchedule: () => void;
 };
 
 export function ScheduleModals({
@@ -77,7 +83,13 @@ export function ScheduleModals({
   onConfirmOverwriteWeek,
   deleteWeekName,
   onDeleteWeekNameChange,
-  onConfirmDeleteWeek
+  onConfirmDeleteWeek,
+  deleteCourseName,
+  onDeleteCourseNameChange,
+  onConfirmDeleteCourse,
+  isClearScheduleConfirmOpen,
+  onClearScheduleConfirmOpenChange,
+  onConfirmClearSchedule
 }: ScheduleModalsProps) {
   return (
     <>
@@ -270,6 +282,32 @@ export function ScheduleModals({
           <DialogFooter>
             <Button variant="neutral" onClick={() => onDeleteWeekNameChange(null)}>Avbryt</Button>
             <Button className="bg-rose-200 hover:bg-rose-300" onClick={onConfirmDeleteWeek}>Radera</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(deleteCourseName)} onOpenChange={(open) => { if (!open) onDeleteCourseNameChange(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ta bort byggsten?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-700">Ta bort byggstenen &quot;{deleteCourseName}&quot;?</p>
+          <DialogFooter>
+            <Button variant="neutral" onClick={() => onDeleteCourseNameChange(null)}>Avbryt</Button>
+            <Button className="bg-rose-200 hover:bg-rose-300" onClick={onConfirmDeleteCourse}>Ta bort</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isClearScheduleConfirmOpen} onOpenChange={onClearScheduleConfirmOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rensa schemat?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-700">Detta tar bort alla schemaposter från den aktuella vyn.</p>
+          <DialogFooter>
+            <Button variant="neutral" onClick={() => onClearScheduleConfirmOpenChange(false)}>Avbryt</Button>
+            <Button className="bg-rose-200 hover:bg-rose-300" onClick={onConfirmClearSchedule}>Rensa</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
