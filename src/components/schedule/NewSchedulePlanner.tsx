@@ -783,7 +783,7 @@ export default function NewSchedulePlanner() {
                         <RefreshCcw size={16} className="mr-2"/> Uppdatera byggstenar från schema
                       </Button>
                     )}
-                  <div className="overflow-y-auto flex-1 pr-2">
+                  <div className="overflow-y-auto pr-2 min-h-0">
                      {courses.map(c => (
                        <DraggableSourceCard 
                          key={c.id}
@@ -801,7 +801,7 @@ export default function NewSchedulePlanner() {
 
                 {/* Statistics */}
                 {!isSidebarCollapsed && (
-                  <div className="mt-4 pt-4 border-t-2 border-gray-100">
+                  <div className="mt-4 pt-4 border-t-2 border-gray-100 mb-auto">
                     <div className="flex items-center gap-2 mb-2 text-gray-500">
                       <BarChart3 size={14} /> 
                       <span className="text-xs font-bold uppercase">Tid (Filtrerat)</span>
