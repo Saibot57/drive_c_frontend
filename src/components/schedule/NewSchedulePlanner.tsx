@@ -359,12 +359,46 @@ export default function NewSchedulePlanner() {
 
   // Statistics
   const scheduleStats = useMemo(() => {
-    const stats: Record<string, number> = {};
     const visibleSchedule = schedule.filter(entry => advancedFilterMatch(entry, filterQuery));
+    const intervalsByDayAndTitle: Record<string, Record<string, { start: number; end: number }[]>> = {};
+
     visibleSchedule.forEach(entry => {
-      if (!stats[entry.title]) stats[entry.title] = 0;
-      stats[entry.title] += entry.duration;
+      if (!intervalsByDayAndTitle[entry.day]) intervalsByDayAndTitle[entry.day] = {};
+      if (!intervalsByDayAndTitle[entry.day][entry.title]) intervalsByDayAndTitle[entry.day][entry.title] = [];
+      
+      intervalsByDayAndTitle[entry.day][entry.title].push({
+        start: timeToMinutes(entry.startTime),
+        end: timeToMinutes(entry.endTime),
+      });
     });
+
+    const stats: Record<string, number> = {};
+
+    Object.entries(intervalsByDayAndTitle).forEach(([day, subjects]) => {
+      Object.entries(subjects).forEach(([title, intervals]) => {
+        if (intervals.length === 0) return;
+        
+        const sorted = [...intervals].sort((a, b) => a.start - b.start);
+        let totalForDay = 0;
+        let currentStart = sorted[0].start;
+        let currentEnd = sorted[0].end;
+
+        sorted.slice(1).forEach(interval => {
+          if (interval.start <= currentEnd) {
+            currentEnd = Math.max(currentEnd, interval.end);
+          } else {
+            totalForDay += currentEnd - currentStart;
+            currentStart = interval.start;
+            currentEnd = interval.end;
+          }
+        });
+        totalForDay += currentEnd - currentStart;
+
+        if (!stats[title]) stats[title] = 0;
+        stats[title] += totalForDay;
+      });
+    });
+
     return Object.entries(stats).sort((a, b) => b[1] - a[1]);
   }, [schedule, filterQuery]);
 
