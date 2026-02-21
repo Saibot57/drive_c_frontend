@@ -169,6 +169,7 @@ export default function NewSchedulePlanner() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
+  const [isMobileView, setIsMobileView] = useState(false);
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const { teachers, rooms, isHiddenSettingsOpen, setIsHiddenSettingsOpen, handleHiddenSettingsSave } = useHiddenSettings();
   const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
@@ -265,6 +266,15 @@ export default function NewSchedulePlanner() {
     }
 
     return undefined;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 1023px)');
+    setIsMobileView(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobileView(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
   }, []);
 
   useEffect(() => {
@@ -764,89 +774,95 @@ export default function NewSchedulePlanner() {
                    </div>
 
                    <div className="schedule-desktop-grid hidden lg:contents">
-                   {PLANNER_DAYS.map(day => (
-                     <DayColumn key={day} day={day} ghost={ghostPlacement?.day === day ? ghostPlacement : null}>
-                        {(() => {
-                          const dayEntries = schedule.filter(e => e.day === day);
-                          const lastEndTime = dayEntries.reduce((latest, entry) => {
-                            const endMinutes = timeToMinutes(entry.endTime);
-                            return Math.max(latest, endMinutes);
-                          }, -Infinity);
+                   {(!isMobileView) && (
+                     <>
+                       {PLANNER_DAYS.map(day => (
+                         <DayColumn key={day} day={day} ghost={ghostPlacement?.day === day ? ghostPlacement : null}>
+                            {(() => {
+                              const dayEntries = schedule.filter(e => e.day === day);
+                              const lastEndTime = dayEntries.reduce((latest, entry) => {
+                                const endMinutes = timeToMinutes(entry.endTime);
+                                return Math.max(latest, endMinutes);
+                              }, -Infinity);
 
-                          return dayEntries.map(entry => {
-                          const layout = layoutByDay[day]?.get(entry.instanceId);
-                          const columnIndex = layout?.column ?? 0;
-                          const columnCount = layout?.columns ?? 1;
-                          return (
-                           <ScheduledEventCard 
-                             key={entry.instanceId} 
-                             entry={entry} 
-                             onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
-                             onRemove={(id) => commitSchedule(p => p.filter(e => e.instanceId !== id))}
-                             onContextMenu={(event, selectedEntry) => {
-                               event.preventDefault();
-                               setContextMenu({
-                                 x: event.clientX,
-                                 y: event.clientY,
-                                 entry: selectedEntry
-                               });
-                             }}
-                             hidden={!advancedFilterMatch(entry, filterQuery)}
-                              dragDisabled={isMobileDragDisabled}
-                              columnIndex={columnIndex}
-                              columnCount={columnCount}
-                              isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
-                              showLayoutDebug={showLayoutDebug}
-                           />
-                          );
-                          });
-                        })()}
-                     </DayColumn>
-                   ))}
+                              return dayEntries.map(entry => {
+                              const layout = layoutByDay[day]?.get(entry.instanceId);
+                              const columnIndex = layout?.column ?? 0;
+                              const columnCount = layout?.columns ?? 1;
+                              return (
+                               <ScheduledEventCard
+                                 key={entry.instanceId}
+                                 entry={entry}
+                                 onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
+                                 onRemove={(id) => commitSchedule(p => p.filter(e => e.instanceId !== id))}
+                                 onContextMenu={(event, selectedEntry) => {
+                                   event.preventDefault();
+                                   setContextMenu({
+                                     x: event.clientX,
+                                     y: event.clientY,
+                                     entry: selectedEntry
+                                   });
+                                 }}
+                                 hidden={!advancedFilterMatch(entry, filterQuery)}
+                                  dragDisabled={isMobileDragDisabled}
+                                  columnIndex={columnIndex}
+                                  columnCount={columnCount}
+                                  isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
+                                  showLayoutDebug={showLayoutDebug}
+                               />
+                              );
+                              });
+                            })()}
+                         </DayColumn>
+                       ))}
+                     </>
+                   )}
                    </div>
 
                    <div className="schedule-mobile-grid lg:hidden flex-1 min-w-0">
-                     <DayColumn
-                       day={mobileSelectedDay}
-                       ghost={ghostPlacement?.day === mobileSelectedDay ? ghostPlacement : null}
-                       className="min-w-0"
-                     >
-                       {(() => {
-                         const dayEntries = schedule.filter(e => e.day === mobileSelectedDay);
-                         const lastEndTime = dayEntries.reduce((latest, entry) => {
-                           const endMinutes = timeToMinutes(entry.endTime);
-                           return Math.max(latest, endMinutes);
-                         }, -Infinity);
+                     {(isMobileView) && (
+                       <DayColumn
+                         day={mobileSelectedDay}
+                         ghost={ghostPlacement?.day === mobileSelectedDay ? ghostPlacement : null}
+                         className="min-w-0"
+                       >
+                         {(() => {
+                           const dayEntries = schedule.filter(e => e.day === mobileSelectedDay);
+                           const lastEndTime = dayEntries.reduce((latest, entry) => {
+                             const endMinutes = timeToMinutes(entry.endTime);
+                             return Math.max(latest, endMinutes);
+                           }, -Infinity);
 
-                         return dayEntries.map(entry => {
-                           const layout = layoutByDay[mobileSelectedDay]?.get(entry.instanceId);
-                           const columnIndex = layout?.column ?? 0;
-                           const columnCount = layout?.columns ?? 1;
-                           return (
-                             <ScheduledEventCard
-                               key={entry.instanceId}
-                               entry={entry}
-                               onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
-                               onRemove={(id) => commitSchedule(p => p.filter(e => e.instanceId !== id))}
-                               onContextMenu={(event, selectedEntry) => {
-                                 event.preventDefault();
-                                 setContextMenu({
-                                   x: event.clientX,
-                                   y: event.clientY,
-                                   entry: selectedEntry
-                                 });
-                               }}
-                               hidden={!advancedFilterMatch(entry, filterQuery)}
-                               dragDisabled={isMobileDragDisabled}
-                               columnIndex={columnIndex}
-                               columnCount={columnCount}
-                               isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
-                               showLayoutDebug={showLayoutDebug}
-                             />
-                           );
-                         });
-                       })()}
-                     </DayColumn>
+                           return dayEntries.map(entry => {
+                             const layout = layoutByDay[mobileSelectedDay]?.get(entry.instanceId);
+                             const columnIndex = layout?.column ?? 0;
+                             const columnCount = layout?.columns ?? 1;
+                             return (
+                               <ScheduledEventCard
+                                 key={entry.instanceId}
+                                 entry={entry}
+                                 onEdit={(e) => { setEditingEntry(e); setIsEntryModalOpen(true); }}
+                                 onRemove={(id) => commitSchedule(p => p.filter(e => e.instanceId !== id))}
+                                 onContextMenu={(event, selectedEntry) => {
+                                   event.preventDefault();
+                                   setContextMenu({
+                                     x: event.clientX,
+                                     y: event.clientY,
+                                     entry: selectedEntry
+                                   });
+                                 }}
+                                 hidden={!advancedFilterMatch(entry, filterQuery)}
+                                 dragDisabled={isMobileDragDisabled}
+                                 columnIndex={columnIndex}
+                                 columnCount={columnCount}
+                                 isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
+                                 showLayoutDebug={showLayoutDebug}
+                               />
+                             );
+                           });
+                         })()}
+                       </DayColumn>
+                     )}
                    </div>
                 </div>
              </div>
