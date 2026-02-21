@@ -5,7 +5,7 @@ import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/c
 import { v4 as uuidv4 } from 'uuid';
 import { GhostPlacement } from '@/types/plannerUI';
 import { PlannerCourse, RestrictionRule, ScheduledEntry } from '@/types/schedule';
-import { checkOverlap, END_HOUR, minutesToTime, PIXELS_PER_MINUTE, snapTime, START_HOUR } from '@/utils/scheduleTime';
+import { checkOverlap, END_HOUR, minutesToTime, PIXELS_PER_MINUTE, snapTime, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
 
 type UseDragHandlersParams = {
   schedule: ScheduledEntry[];
@@ -83,18 +83,27 @@ export const useDragHandlers = ({
 
     const targetDay = over.id as string;
     const type = active.data.current?.type;
-    const overRect = over.rect;
-    const activeRect = active.rect.current?.translated;
-
-    if (!activeRect || !overRect) return null;
 
     const itemDuration = type === 'course'
       ? (active.data.current?.course.duration || 60)
       : active.data.current?.entry.duration;
 
-    const relativeY = activeRect.top - overRect.top;
-    let minutesFromStart = relativeY / PIXELS_PER_MINUTE;
-    let totalMinutes = (START_HOUR * 60) + minutesFromStart;
+    let totalMinutes: number;
+
+    if (type === 'scheduled') {
+      const entry = active.data.current?.entry as ScheduledEntry | undefined;
+      if (!entry) return null;
+      const originalStartMinutes = timeToMinutes(entry.startTime);
+      const deltaMinutes = event.delta.y / PIXELS_PER_MINUTE;
+      totalMinutes = originalStartMinutes + deltaMinutes;
+    } else {
+      const overRect = over.rect;
+      const activeRect = active.rect.current?.translated;
+      if (!activeRect || !overRect) return null;
+      const relativeY = activeRect.top - overRect.top;
+      const minutesFromStart = relativeY / PIXELS_PER_MINUTE;
+      totalMinutes = (START_HOUR * 60) + minutesFromStart;
+    }
 
     totalMinutes = snapTime(totalMinutes);
     const minTime = START_HOUR * 60;
