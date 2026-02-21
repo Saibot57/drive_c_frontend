@@ -827,70 +827,70 @@ export default function NewSchedulePlanner() {
 
           {/* Main Schedule Area */}
           <div className="flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
-             <div className="schedule-desktop-header hidden lg:flex pl-[50px] border-b-2 border-black bg-white">
-                {PLANNER_DAYS.map(day => (
-                  <div
-                    key={day}
-                    className="flex-1 py-2 text-center font-bold text-sm border-r border-gray-200 last:border-0 cursor-help"
-                    title={dayHeaderTooltips[day]}
-                  >
-                    {day}
-                  </div>
-                ))}
-             </div>
-
-             <div className="schedule-mobile-header lg:hidden border-b-2 border-black bg-white">
-               <div className="flex items-center justify-between gap-2 px-2 py-1">
-                 <Button
-                   size="sm"
-                   variant="neutral"
-                   className="h-8 w-8 p-0 border-2 border-black"
-                   aria-label="Föregående schema"
-                   onClick={() => { void handleMobileArchiveStep('prev'); }}
-                   disabled={isAtFirstMobileArchive}
-                 >
-                   <ChevronLeft size={16} />
-                 </Button>
-                 <span className="truncate px-2 text-sm font-bold text-center">
-                   {mobileSelectedArchiveName ?? activeArchiveName ?? 'Aktivt schema'}
-                 </span>
-                 <Button
-                   size="sm"
-                   variant="neutral"
-                   className="h-8 w-8 p-0 border-2 border-black"
-                   aria-label="Nästa schema"
-                   onClick={() => { void handleMobileArchiveStep('next'); }}
-                   disabled={isAtLastMobileArchive}
-                 >
-                   <ChevronRight size={16} />
-                 </Button>
-               </div>
-               <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-2 py-1">
-                 <Button
-                   size="sm"
-                   variant="neutral"
-                   className="h-8 w-8 p-0 border-2 border-black"
-                   aria-label="Föregående dag"
-                   onClick={() => setMobileActiveDayIndex(prev => Math.max(0, prev - 1))}
-                   disabled={isAtFirstMobileDay}
-                 >
-                   <ChevronLeft size={16} />
-                 </Button>
-                 <span className="text-sm font-bold">{mobileSelectedDay}</span>
-                 <Button
-                   size="sm"
-                   variant="neutral"
-                   className="h-8 w-8 p-0 border-2 border-black"
-                   aria-label="Nästa dag"
-                   onClick={() => setMobileActiveDayIndex(prev => Math.min(PLANNER_DAYS.length - 1, prev + 1))}
-                   disabled={isAtLastMobileDay}
-                 >
-                   <ChevronRight size={16} />
-                 </Button>
-               </div>
-             </div>
-
              <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
+                <div className="schedule-desktop-header hidden lg:flex sticky top-0 z-[60] pl-[50px] border-b-2 border-black bg-white">
+                   {PLANNER_DAYS.map(day => (
+                     <div
+                       key={day}
+                       className="flex-1 py-2 text-center font-bold text-sm border-r border-gray-200 last:border-0 cursor-help"
+                       title={dayHeaderTooltips[day]}
+                     >
+                       {day}
+                     </div>
+                   ))}
+                </div>
+
+                <div className="schedule-mobile-header lg:hidden sticky top-0 z-[60] border-b-2 border-black bg-white">
+                  <div className="flex items-center justify-between gap-2 px-2 py-1">
+                    <Button
+                      size="sm"
+                      variant="neutral"
+                      className="h-8 w-8 p-0 border-2 border-black"
+                      aria-label="Föregående schema"
+                      onClick={() => { void handleMobileArchiveStep('prev'); }}
+                      disabled={isAtFirstMobileArchive}
+                    >
+                      <ChevronLeft size={16} />
+                    </Button>
+                    <span className="truncate px-2 text-sm font-bold text-center">
+                      {mobileSelectedArchiveName ?? activeArchiveName ?? 'Aktivt schema'}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="neutral"
+                      className="h-8 w-8 p-0 border-2 border-black"
+                      aria-label="Nästa schema"
+                      onClick={() => { void handleMobileArchiveStep('next'); }}
+                      disabled={isAtLastMobileArchive}
+                    >
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-2 py-1">
+                    <Button
+                      size="sm"
+                      variant="neutral"
+                      className="h-8 w-8 p-0 border-2 border-black"
+                      aria-label="Föregående dag"
+                      onClick={() => setMobileActiveDayIndex(prev => Math.max(0, prev - 1))}
+                      disabled={isAtFirstMobileDay}
+                    >
+                      <ChevronLeft size={16} />
+                    </Button>
+                    <span className="text-sm font-bold">{mobileSelectedDay}</span>
+                    <Button
+                      size="sm"
+                      variant="neutral"
+                      className="h-8 w-8 p-0 border-2 border-black"
+                      aria-label="Nästa dag"
+                      onClick={() => setMobileActiveDayIndex(prev => Math.min(PLANNER_DAYS.length - 1, prev + 1))}
+                      disabled={isAtLastMobileDay}
+                    >
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                </div>
+
                 {/* VIKTIGT: pt-4 HÄR gör att 08:00 texten syns! */}
                 <div className="flex min-h-full pt-4">
                    <div className="w-[50px] flex-shrink-0 bg-gray-100 relative">
