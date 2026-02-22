@@ -162,7 +162,7 @@ export function ScheduleModals({
 
       <Dialog open={isEntryModalOpen} onOpenChange={onEntryModalOpenChange}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Redigera Tid</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Redigera</DialogTitle></DialogHeader>
           {editingEntry && (
             <form onSubmit={onSaveEntry} className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
@@ -186,21 +186,24 @@ export function ScheduleModals({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="entry-category">Uppgift:</Label>
+                <Label htmlFor="entry-notes">Anteckningar:</Label>
                 <Textarea
+                  id="entry-notes"
+                  placeholder="Anteckningar/övrigt"
+                  value={editingEntry.notes ?? ''}
+                  onChange={e => setEditingEntry({ ...editingEntry, notes: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="entry-category">Uppgift:</Label>
+                <Input
                   id="entry-category"
                   placeholder="Klistra in uppgiftslänk eller skriv en kort markering"
                   value={editingEntry.category ?? ''}
                   onChange={e => setEditingEntry({ ...editingEntry, category: e.target.value })}
-                  rows={2}
                 />
               </div>
-              <Input
-                aria-label="Anteckningar"
-                placeholder="Anteckningar/övrigt"
-                value={editingEntry.notes ?? ''}
-                onChange={e => setEditingEntry({ ...editingEntry, notes: e.target.value })}
-              />
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <div className="flex gap-2">
                   {COURSE_COLOR_PALETTE.map(c => (
