@@ -672,7 +672,7 @@ export default function NewSchedulePlanner() {
                   <MoreVertical size={16} />
                 </Button>
                 {isImageExportMenuOpen && (
-                  <div className="absolute right-0 z-20 mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                     <button
                       type="button"
                       className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
@@ -708,7 +708,7 @@ export default function NewSchedulePlanner() {
                   <MoreVertical size={16} />
                 </Button>
                 {isJsonMenuOpen && (
-                  <div className="absolute right-0 z-20 mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                     <button
                       type="button"
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
