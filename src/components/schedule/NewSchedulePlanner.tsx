@@ -635,7 +635,7 @@ export default function NewSchedulePlanner() {
         <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
            <div>
               <h1
-                className="font-monument text-xl select-none"
+                className="font-monument text-2xl lg:text-3xl leading-none select-none"
                 onPointerDown={startTitleHold}
                 onPointerUp={clearTitleHold}
                 onPointerLeave={clearTitleHold}
@@ -645,18 +645,22 @@ export default function NewSchedulePlanner() {
               </h1>
            </div>
            
-           <div className="flex-1 max-w-md w-full relative">
+           <div className="flex-1 max-w-md w-full relative mr-auto lg:ml-6">
               <Input 
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
-                placeholder="Filter: matte + hanna; -eng..."
+                placeholder="Filter: 'Lärare'+'ämne'; -Ämne"
                 className="border-2 border-black shadow-sm pl-10"
               />
-              <div className="absolute left-3 top-2.5 text-gray-400">🔍</div>
+              <div
+                className="absolute left-3 top-2.5 text-gray-400 cursor-help"
+                title={"Sökguide:\n+ = Kräver båda (ex: matte+hanna)\n; = ELLER-sökning (ex: idrott;musik)\n- = Exkludera (ex: -engelska)"}
+              >
+                🔍
+              </div>
            </div>
 
            <div className="flex gap-2 flex-wrap">
-              <Button variant="neutral" onClick={() => setIsRestrictionsModalOpen(true)} className="border-2 border-black bg-amber-100 hover:bg-amber-200"><ShieldAlert size={16} className="mr-2"/> Regler</Button>
               <Button variant="neutral" onClick={handleExportPDF} className="border-2 border-black"><Download size={16} className="mr-2"/> PDF</Button>
               <div className="relative" ref={imageExportMenuRef}>
                 <Button
@@ -738,7 +742,7 @@ export default function NewSchedulePlanner() {
           {/* Sidebar */}
           <div
             className={`flex flex-col gap-4 h-full transition-all duration-300 ${
-              isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[320px]'
+              isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[360px]'
             } hidden lg:flex`}
           >
              <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
@@ -749,6 +753,16 @@ export default function NewSchedulePlanner() {
                     <Settings size={18}/> Byggstenar
                   </h2>
                   <div className="flex items-center gap-2">
+                    {!isSidebarCollapsed && (
+                      <Button
+                        size="sm"
+                        variant="neutral"
+                        onClick={() => setIsRestrictionsModalOpen(true)}
+                        className="h-8 border-2 border-black bg-amber-100 hover:bg-amber-200 text-xs"
+                      >
+                        <ShieldAlert size={14} className="mr-1" /> Regler
+                      </Button>
+                    )}
                     {!isSidebarCollapsed && (
                       <Button size="sm" onClick={() => { 
                         setManualColor(false);
