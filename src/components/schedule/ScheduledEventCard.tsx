@@ -119,7 +119,7 @@ export function ScheduledEventCard({
           </p>
         )}
         {entry.notes && adjustedHeight > 46 && (
-          <p className={`text-gray-600 truncate ${isCompactHeight ? 'text-[10px]' : 'text-xs'}`}>{entry.notes}</p>
+          <p className={`text-gray-600 line-clamp-4 ${isCompactHeight ? 'text-[10px]' : 'text-xs'}`}>{entry.notes}</p>
         )}
       </div>
     </div>

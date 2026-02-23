@@ -32,10 +32,10 @@ import {
   TITLE_HOLD_OPEN_MS
 } from '@/components/schedule/constants';
 import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
-import { ContextMenuState } from '@/types/plannerUI';
+import { ContextMenuState, GhostPlacement } from '@/types/plannerUI';
 import { 
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE,
-  timeToMinutes, minutesToTime,
+  timeToMinutes, minutesToTime, snapTime,
   checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
@@ -167,6 +167,8 @@ export default function NewSchedulePlanner() {
   const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [pendingPlacement, setPendingPlacement] = useState<ScheduledEntry | null>(null);
+  const [placementGhost, setPlacementGhost] = useState<GhostPlacement | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
@@ -566,12 +568,10 @@ export default function NewSchedulePlanner() {
     };
 
     window.addEventListener('click', handleDismiss);
-    window.addEventListener('contextmenu', handleDismiss);
     window.addEventListener('keydown', handleEsc);
 
     return () => {
       window.removeEventListener('click', handleDismiss);
-      window.removeEventListener('contextmenu', handleDismiss);
       window.removeEventListener('keydown', handleEsc);
     };
   }, [contextMenu]);
@@ -618,6 +618,59 @@ export default function NewSchedulePlanner() {
     commitSchedule(p => p.map(entry => entry.instanceId === editingEntry.instanceId ? {...editingEntry, duration: newDuration} : entry));
     setIsEntryModalOpen(false);
   };
+
+  // --- Duplicate / Placement Handlers ---
+
+  const handleDuplicateParallel = useCallback((entry: ScheduledEntry) => {
+    const newEntry: ScheduledEntry = { ...entry, instanceId: uuidv4() };
+    commitSchedule(prev => [...prev, newEntry]);
+    setContextMenu(null);
+    showNotice('Post duplicerad parallellt', 'success');
+  }, [commitSchedule, showNotice]);
+
+  const handleDuplicateAndPlace = useCallback((entry: ScheduledEntry) => {
+    setPendingPlacement({ ...entry, instanceId: uuidv4() });
+    setContextMenu(null);
+  }, []);
+
+  const handlePlacementMouseMove = useCallback((day: string, relativeY: number) => {
+    if (!pendingPlacement) return;
+    const rawMin = relativeY / PIXELS_PER_MINUTE + START_HOUR * 60;
+    const snapped = snapTime(Math.max(START_HOUR * 60, Math.min((END_HOUR * 60) - pendingPlacement.duration, rawMin)));
+    setPlacementGhost({
+      day,
+      startTime: minutesToTime(snapped),
+      endTime: minutesToTime(snapped + pendingPlacement.duration),
+      duration: pendingPlacement.duration,
+      color: pendingPlacement.color,
+      title: pendingPlacement.title,
+    });
+  }, [pendingPlacement]);
+
+  const handlePlacementClick = useCallback((day: string, relativeY: number) => {
+    if (!pendingPlacement) return;
+    const rawMin = relativeY / PIXELS_PER_MINUTE + START_HOUR * 60;
+    const snapped = snapTime(Math.max(START_HOUR * 60, Math.min((END_HOUR * 60) - pendingPlacement.duration, rawMin)));
+    const startTime = minutesToTime(snapped);
+    const endTime = minutesToTime(snapped + pendingPlacement.duration);
+    commitSchedule(prev => [...prev, { ...pendingPlacement, day, startTime, endTime }]);
+    setPendingPlacement(null);
+    setPlacementGhost(null);
+    showNotice('Post placerad', 'success');
+  }, [pendingPlacement, commitSchedule, showNotice]);
+
+  // Escape to cancel placement mode
+  useEffect(() => {
+    if (!pendingPlacement) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPendingPlacement(null);
+        setPlacementGhost(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [pendingPlacement]);
 
   // --- Render ---
 
@@ -921,7 +974,14 @@ export default function NewSchedulePlanner() {
                    {(!isMobileView) && (
                      <>
                        {PLANNER_DAYS.map(day => (
-                         <DayColumn key={day} day={day} ghost={ghostPlacement?.day === day ? ghostPlacement : null}>
+                         <DayColumn
+                           key={day} day={day}
+                           ghost={ghostPlacement?.day === day ? ghostPlacement : null}
+                           placementGhost={placementGhost?.day === day ? placementGhost : null}
+                           isPlacementMode={!!pendingPlacement}
+                           onPlacementMouseMove={pendingPlacement ? (relY) => handlePlacementMouseMove(day, relY) : undefined}
+                           onPlacementClick={pendingPlacement ? (relY) => handlePlacementClick(day, relY) : undefined}
+                         >
                             {(() => {
                               const dayEntries = schedule.filter(e => e.day === day);
                               const lastEndTime = dayEntries.reduce((latest, entry) => {
@@ -968,6 +1028,10 @@ export default function NewSchedulePlanner() {
                        <DayColumn
                          day={mobileSelectedDay}
                          ghost={ghostPlacement?.day === mobileSelectedDay ? ghostPlacement : null}
+                         placementGhost={placementGhost?.day === mobileSelectedDay ? placementGhost : null}
+                         isPlacementMode={!!pendingPlacement}
+                         onPlacementMouseMove={pendingPlacement ? (relY) => handlePlacementMouseMove(mobileSelectedDay, relY) : undefined}
+                         onPlacementClick={pendingPlacement ? (relY) => handlePlacementClick(mobileSelectedDay, relY) : undefined}
                          className="min-w-0"
                        >
                          {(() => {
@@ -1143,6 +1207,18 @@ export default function NewSchedulePlanner() {
             Redigera
           </button>
           <button
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+            onClick={() => handleDuplicateParallel(contextMenu.entry)}
+          >
+            Duplicera och lägg parallellt
+          </button>
+          <button
+            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+            onClick={() => handleDuplicateAndPlace(contextMenu.entry)}
+          >
+            Duplicera och placera
+          </button>
+          <button
             className="w-full px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
             onClick={() => {
               commitSchedule(p => p.filter(e => e.instanceId !== contextMenu.entry.instanceId));
@@ -1151,6 +1227,12 @@ export default function NewSchedulePlanner() {
           >
             Radera
           </button>
+        </div>
+      )}
+
+      {pendingPlacement && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
+          Klicka i schemat för att placera <strong>&quot;{pendingPlacement.title}&quot;</strong> · Esc avbryter
         </div>
       )}
 
