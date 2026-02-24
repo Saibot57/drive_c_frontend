@@ -697,7 +697,7 @@ export default function NewSchedulePlanner() {
         <div className="flex-1 min-w-0 space-y-6">
 
         {/* Toolbar & Filter */}
-        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-6 items-start lg:items-center">
            {/* Mobile title */}
            <h1
              className="font-monument text-xl leading-none select-none tracking-[0.2em] lg:hidden"
@@ -709,9 +709,9 @@ export default function NewSchedulePlanner() {
              S C H E M A
            </h1>
            {/* Desktop title wrapper – matches left sidebar width */}
-           <div className={`flex-shrink-0 transition-all duration-300 hidden lg:flex items-center justify-center ${isSidebarCollapsed ? 'w-[72px]' : 'w-[360px]'}`}>
+           <div className={`flex-shrink-0 transition-all duration-300 hidden lg:flex items-center justify-center overflow-hidden lg:-ml-4 ${isSidebarCollapsed ? 'w-[72px]' : 'w-[360px]'}`}>
               <h1
-                className="font-monument text-lg leading-none select-none tracking-[0.3em]"
+                className="font-monument text-4xl leading-none select-none tracking-[0.3em] whitespace-nowrap"
                 onPointerDown={startTitleHold}
                 onPointerUp={clearTitleHold}
                 onPointerLeave={clearTitleHold}
@@ -721,7 +721,7 @@ export default function NewSchedulePlanner() {
               </h1>
            </div>
            
-           <div className="flex-1 max-w-md w-full relative mr-auto lg:ml-6">
+           <div className="flex-1 max-w-md w-full relative mr-auto">
               <Input 
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
