@@ -63,8 +63,8 @@ export default function RootLayoutBase({
             </div>
           </div>
 
-          {/* Main Content */}
-          <main className="px-8">{children}</main>
+          {/* Main Content — pt-8 gives 32px breathing room so background shows above panels */}
+          <main className="pt-8 px-8">{children}</main>
         </AuthProvider>
       </body>
     </html>

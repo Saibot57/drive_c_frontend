@@ -684,13 +684,15 @@ export default function NewSchedulePlanner() {
     >
       <div>
         {/* Background image */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/bakgrund57.jpeg"
-          alt=""
-          className="fixed inset-0 w-full h-full object-cover z-0"
-        />
-      <div className="space-y-6 pb-20 relative z-10">
+        <div className="fixed inset-0 z-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/image_60bb1e.png"
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <div className="space-y-6 pb-20 relative z-10">
         
         {/* Toolbar & Filter */}
         <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
