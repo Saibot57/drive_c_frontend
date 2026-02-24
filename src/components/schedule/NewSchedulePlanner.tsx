@@ -706,7 +706,7 @@ export default function NewSchedulePlanner() {
              onPointerLeave={clearTitleHold}
              onPointerCancel={clearTitleHold}
            >
-             S C H E M A
+             SCHEMA
            </h1>
            {/* Desktop title wrapper – matches left sidebar width */}
            <div className={`flex-shrink-0 transition-all duration-300 hidden lg:flex items-center justify-center overflow-hidden lg:-ml-4 ${isSidebarCollapsed ? 'w-[72px]' : 'w-[360px]'}`}>
@@ -717,7 +717,7 @@ export default function NewSchedulePlanner() {
                 onPointerLeave={clearTitleHold}
                 onPointerCancel={clearTitleHold}
               >
-                S C H E M A
+                SCHEMA
               </h1>
            </div>
            
