@@ -692,19 +692,32 @@ export default function NewSchedulePlanner() {
             className="w-full h-full object-cover"
           />
         </div>
-        <div className="space-y-6 pb-20 relative z-10">
-        
+        <div className="pb-20 relative z-10">
+        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex-1 min-w-0 space-y-6">
+
         {/* Toolbar & Filter */}
-        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-           <div>
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+           {/* Mobile title */}
+           <h1
+             className="font-monument text-xl leading-none select-none tracking-[0.2em] lg:hidden"
+             onPointerDown={startTitleHold}
+             onPointerUp={clearTitleHold}
+             onPointerLeave={clearTitleHold}
+             onPointerCancel={clearTitleHold}
+           >
+             S C H E M A
+           </h1>
+           {/* Desktop title wrapper – matches left sidebar width */}
+           <div className={`flex-shrink-0 transition-all duration-300 hidden lg:flex items-center justify-center ${isSidebarCollapsed ? 'w-[72px]' : 'w-[360px]'}`}>
               <h1
-                className="font-monument text-2xl lg:text-3xl leading-none select-none"
+                className="font-monument text-lg leading-none select-none tracking-[0.3em]"
                 onPointerDown={startTitleHold}
                 onPointerUp={clearTitleHold}
                 onPointerLeave={clearTitleHold}
                 onPointerCancel={clearTitleHold}
               >
-                Bygg Schema
+                S C H E M A
               </h1>
            </div>
            
@@ -811,38 +824,36 @@ export default function NewSchedulePlanner() {
              <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
                isSidebarCollapsed ? 'p-2' : 'p-4'
              }`}>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className={`font-bold flex items-center gap-2 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <h2 className={`font-bold flex items-center gap-2 flex-1 min-w-0 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
                     <Settings size={18}/> Byggstenar
                   </h2>
-                  <div className="flex items-center gap-2">
-                    {!isSidebarCollapsed && (
-                      <Button
-                        size="sm"
-                        variant="neutral"
-                        onClick={() => setIsRestrictionsModalOpen(true)}
-                        className="h-8 border-2 border-black bg-amber-100 hover:bg-amber-200 text-xs"
-                      >
-                        <ShieldAlert size={14} className="mr-1" /> Regler
-                      </Button>
-                    )}
-                    {!isSidebarCollapsed && (
-                      <Button size="sm" onClick={() => { 
-                        setManualColor(false);
-                        setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: DEFAULT_COURSE_COLOR, duration: 60 });
-                        setIsCourseModalOpen(true); 
-                      }} className="h-8 w-8 p-0 rounded-full border-2 border-black bg-[#aee8fe]"><Plus size={16}/></Button>
-                    )}
+                  {!isSidebarCollapsed && (
                     <Button
                       size="sm"
                       variant="neutral"
-                      onClick={() => setIsSidebarCollapsed(prev => !prev)}
-                      className="h-8 w-8 p-0 border-2 border-black"
-                      aria-label={isSidebarCollapsed ? 'Visa byggstenar' : 'Dölj byggstenar'}
+                      onClick={() => setIsRestrictionsModalOpen(true)}
+                      className="h-8 border-2 border-black bg-amber-100 hover:bg-amber-200 text-xs"
                     >
-                      {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                      <ShieldAlert size={14} className="mr-1" /> Regler
                     </Button>
-                  </div>
+                  )}
+                  {!isSidebarCollapsed && (
+                    <Button size="sm" onClick={() => {
+                      setManualColor(false);
+                      setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: DEFAULT_COURSE_COLOR, duration: 60 });
+                      setIsCourseModalOpen(true);
+                    }} className="h-8 w-8 p-0 rounded-full border-2 border-black bg-[#aee8fe]"><Plus size={16}/></Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="neutral"
+                    onClick={() => setIsSidebarCollapsed(prev => !prev)}
+                    className="h-8 w-8 p-0 border-2 border-black"
+                    aria-label={isSidebarCollapsed ? 'Visa byggstenar' : 'Dölj byggstenar'}
+                  >
+                    {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                  </Button>
                 </div>
                 
                 {/* Courses List */}
@@ -1086,106 +1097,109 @@ export default function NewSchedulePlanner() {
              </div>
           </div>
 
-          {/* Archive Sidebar */}
-          <div
-            className={`flex flex-col gap-4 h-full transition-all duration-300 ${
-              isRightSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[320px]'
-            } hidden lg:flex`}
-          >
-             <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
-               isRightSidebarCollapsed ? 'p-2' : 'p-4'
-             }`}>
-                <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
-                  <h2 className={`font-bold flex items-center gap-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
-                    <Archive size={18}/> Sparade Veckor
-                  </h2>
-                  <Button
-                    size="sm"
-                    variant="neutral"
-                    onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                    className="h-8 w-8 p-0 border-2 border-black"
-                    aria-label={isRightSidebarCollapsed ? 'Visa arkiv' : 'Dölj arkiv'}
-                  >
-                    {isRightSidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-                  </Button>
-                  {isRightSidebarCollapsed && (
-                    <div className="flex flex-col items-center gap-2 text-xs font-bold text-gray-600">
-                      <Archive size={18}/>
-                    </div>
-                  )}
-                </div>
+        </div>
+        </div>
 
-                {!isRightSidebarCollapsed && (
-                  <div className="flex flex-col gap-4 flex-1">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-gray-500">Spara vecka</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={weekName}
-                          onChange={(e) => setWeekName(e.target.value)}
-                          placeholder="Vecka 42 eller Höstlov"
-                          className="border-2 border-black shadow-sm"
-                        />
-                        <Button
-                          variant="neutral"
-                          onClick={handleSaveWeek}
-                          disabled={!weekName.trim()}
-                          className="border-2 border-black bg-amber-100 hover:bg-amber-200"
-                        >
-                          <Save size={14} className="mr-2"/> Spara
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                      {sortedWeekNames.length === 0 ? (
-                        <p className="text-sm text-gray-500 italic">Inga sparade veckor ännu.</p>
-                      ) : (
-                        sortedWeekNames.map(name => (
-                          <div
-                            key={name}
-                            className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-2"
-                          >
-                            <Button
-                              type="button"
-                              variant="noShadow"
-                              onClick={() => handleLoadWeek(name)}
-                              className="h-auto flex-1 min-w-0 justify-start whitespace-normal border-0 bg-transparent p-0 text-left shadow-none hover:translate-x-0 hover:translate-y-0 hover:bg-transparent"
-                            >
-                              <span className="font-bold text-sm break-words leading-tight">{name}{activeArchiveName === name ? ' • aktiv' : ''}</span>
-                            </Button>
-                            <div className="flex shrink-0 gap-2">
-                              <Button
-                                size="sm"
-                                variant="neutral"
-                                onClick={() => handleDuplicateWeek(name)}
-                                className="h-8 w-8 p-0 border-2 border-black bg-indigo-100 hover:bg-indigo-200"
-                                aria-label={`Duplicera ${name}`}
-                                title={`Duplicera ${name}`}
-                              >
-                                <Copy size={14}/>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="neutral"
-                                onClick={() => handleDeleteWeek(name)}
-                                className="h-8 w-8 p-0 border-2 border-black bg-rose-100 hover:bg-rose-200 text-rose-800"
-                                aria-label={`Ta bort ${name}`}
-                                title={`Ta bort ${name}`}
-                              >
-                                <Trash2 size={14}/>
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
+        {/* Archive Sidebar – sibling of left column, spans full height */}
+        <div
+          className={`hidden lg:flex flex-col gap-4 transition-all duration-300 ${
+            isRightSidebarCollapsed ? 'w-[72px]' : 'w-[320px]'
+          }`}
+        >
+           <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
+             isRightSidebarCollapsed ? 'p-2' : 'p-4'
+           }`}>
+              <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
+                <h2 className={`font-bold flex items-center gap-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
+                  <Archive size={18}/> Sparade Veckor
+                </h2>
+                <Button
+                  size="sm"
+                  variant="neutral"
+                  onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
+                  className="h-8 w-8 p-0 border-2 border-black"
+                  aria-label={isRightSidebarCollapsed ? 'Visa arkiv' : 'Dölj arkiv'}
+                >
+                  {isRightSidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                </Button>
+                {isRightSidebarCollapsed && (
+                  <div className="flex flex-col items-center gap-2 text-xs font-bold text-gray-600">
+                    <Archive size={18}/>
                   </div>
                 )}
-             </div>
-          </div>
+              </div>
+
+              {!isRightSidebarCollapsed && (
+                <div className="flex flex-col gap-4 flex-1">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-gray-500">Spara vecka</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={weekName}
+                        onChange={(e) => setWeekName(e.target.value)}
+                        placeholder="Vecka 42 eller Höstlov"
+                        className="border-2 border-black shadow-sm"
+                      />
+                      <Button
+                        variant="neutral"
+                        onClick={handleSaveWeek}
+                        disabled={!weekName.trim()}
+                        className="border-2 border-black bg-amber-100 hover:bg-amber-200"
+                      >
+                        <Save size={14} className="mr-2"/> Spara
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+                    {sortedWeekNames.length === 0 ? (
+                      <p className="text-sm text-gray-500 italic">Inga sparade veckor ännu.</p>
+                    ) : (
+                      sortedWeekNames.map(name => (
+                        <div
+                          key={name}
+                          className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-2"
+                        >
+                          <Button
+                            type="button"
+                            variant="noShadow"
+                            onClick={() => handleLoadWeek(name)}
+                            className="h-auto flex-1 min-w-0 justify-start whitespace-normal border-0 bg-transparent p-0 text-left shadow-none hover:translate-x-0 hover:translate-y-0 hover:bg-transparent"
+                          >
+                            <span className="font-bold text-sm break-words leading-tight">{name}{activeArchiveName === name ? ' • aktiv' : ''}</span>
+                          </Button>
+                          <div className="flex shrink-0 gap-2">
+                            <Button
+                              size="sm"
+                              variant="neutral"
+                              onClick={() => handleDuplicateWeek(name)}
+                              className="h-8 w-8 p-0 border-2 border-black bg-indigo-100 hover:bg-indigo-200"
+                              aria-label={`Duplicera ${name}`}
+                              title={`Duplicera ${name}`}
+                            >
+                              <Copy size={14}/>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="neutral"
+                              onClick={() => handleDeleteWeek(name)}
+                              className="h-8 w-8 p-0 border-2 border-black bg-rose-100 hover:bg-rose-200 text-rose-800"
+                              aria-label={`Ta bort ${name}`}
+                              title={`Ta bort ${name}`}
+                            >
+                              <Trash2 size={14}/>
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+           </div>
         </div>
-      </div>
+        </div>
+        </div>
       </div>
 
       <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.5' } } }) }}>
