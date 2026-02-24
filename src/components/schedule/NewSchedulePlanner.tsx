@@ -824,8 +824,8 @@ export default function NewSchedulePlanner() {
              <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
                isSidebarCollapsed ? 'p-2' : 'p-4'
              }`}>
-                <div className="flex items-center gap-3 mb-4">
-                  <h2 className={`font-bold flex items-center gap-2 flex-1 min-w-0 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
+                <div className={`flex items-center gap-3 mb-4 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+                  <h2 className={`font-bold flex items-center gap-2 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
                     <Hammer size={18}/> Byggstenar
                   </h2>
                   {!isSidebarCollapsed && (
