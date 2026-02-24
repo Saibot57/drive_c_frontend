@@ -4,7 +4,7 @@ import {
   ChevronRight,
   Home,
   Plus,
-  Hammer,
+  Settings,
   ArrowRightLeft,
   Menu,
   Grid3x3,
@@ -150,13 +150,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
-
-        {/* Hammer icon visible in collapsed state */}
-        {isCollapsed && (
-          <div className="sidebar-collapsed-icon" aria-hidden="true">
-            <Hammer className="h-4 w-4" />
-          </div>
-        )}
 
         {/* Week Navigation & View Mode */}
         <div className="sidebar-section sidebar-top-controls">
@@ -346,7 +339,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               aria-label="Inställningar"
               type="button"
             >
-              <Hammer size={20} />
+              <Settings size={20} />
               <span className="sr-only">Inställningar</span>
             </button>
           </div>
