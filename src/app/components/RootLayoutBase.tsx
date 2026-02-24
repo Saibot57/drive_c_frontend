@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { Red_Hat_Text } from 'next/font/google';
 import localFont from 'next/font/local';
 import { NavigationHeader } from '@/components/NavigationHeader';
@@ -28,6 +30,8 @@ const monument = localFont({
 export default function RootLayoutBase({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const [isHeaderVisible, setIsHeaderVisible] = useState(false);
+
   return (
     <html lang="en">
       <head>
@@ -36,8 +40,21 @@ export default function RootLayoutBase({
       </head>
       <body className={`${redHat.className} ${monument.variable} min-h-screen bg-white`}>
         <AuthProvider>
-          {/* Top Navigation Bar */}
-          <div className="fixed top-0 left-0 right-0 h-16 bg-[#fcd7d7] z-20">
+          {/* Invisible hover trigger at the very top of the viewport */}
+          <div
+            className="h-4 w-full fixed top-0 z-40"
+            onMouseEnter={() => setIsHeaderVisible(true)}
+            onMouseLeave={() => setIsHeaderVisible(false)}
+          />
+
+          {/* Top Navigation Bar — slides in/out on hover */}
+          <div
+            className={`fixed top-0 left-0 right-0 h-16 bg-[#fcd7d7] z-50 transition-transform duration-300 ${
+              isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+            }`}
+            onMouseEnter={() => setIsHeaderVisible(true)}
+            onMouseLeave={() => setIsHeaderVisible(false)}
+          >
             {/* Bottom border */}
             <div className="absolute bottom-0 left-0 right-0 border-b-2 border-black"></div>
 
@@ -46,11 +63,10 @@ export default function RootLayoutBase({
             </div>
           </div>
 
-          {/* Main Content - reduced top padding */}
-          <main className="pt-20 px-8">{children}</main>
+          {/* Main Content */}
+          <main className="px-8">{children}</main>
         </AuthProvider>
       </body>
     </html>
   );
 }
-
