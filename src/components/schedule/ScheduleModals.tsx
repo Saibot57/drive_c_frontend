@@ -91,13 +91,21 @@ export function ScheduleModals({
   onClearScheduleConfirmOpenChange,
   onConfirmClearSchedule
 }: ScheduleModalsProps) {
+  const ctrlEnter = (submit: (e: React.FormEvent) => void) =>
+    (e: React.KeyboardEvent<HTMLFormElement>) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        submit(e as unknown as React.FormEvent);
+      }
+    };
+
   return (
     <>
       <Dialog open={isCourseModalOpen} onOpenChange={onCourseModalOpenChange}>
         <DialogContent>
           <DialogHeader><DialogTitle>Hantera ämne</DialogTitle></DialogHeader>
           {editingCourse && (
-            <form onSubmit={onSaveCourse} className="space-y-3">
+            <form onSubmit={onSaveCourse} onKeyDown={ctrlEnter(onSaveCourse)} className="space-y-3">
               <Label>Titel</Label>
               <Input value={editingCourse.title} onChange={e => {
                 const val = e.target.value;
@@ -164,7 +172,7 @@ export function ScheduleModals({
         <DialogContent>
           <DialogHeader><DialogTitle>Redigera</DialogTitle></DialogHeader>
           {editingEntry && (
-            <form onSubmit={onSaveEntry} className="space-y-3">
+            <form onSubmit={onSaveEntry} onKeyDown={ctrlEnter(onSaveEntry)} className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>Start</Label><Input type="time" value={editingEntry.startTime} onChange={e => setEditingEntry({ ...editingEntry, startTime: e.target.value })} /></div>
                 <div><Label>Slut</Label><Input type="time" value={editingEntry.endTime} onChange={e => setEditingEntry({ ...editingEntry, endTime: e.target.value })} /></div>
