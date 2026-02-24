@@ -16,7 +16,7 @@ import {
   ShieldAlert,
   Upload,
   BarChart3,
-  Settings,
+  Hammer,
   Save,
   ChevronLeft,
   ChevronRight,
@@ -826,7 +826,7 @@ export default function NewSchedulePlanner() {
              }`}>
                 <div className="flex items-center gap-3 mb-4">
                   <h2 className={`font-bold flex items-center gap-2 flex-1 min-w-0 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
-                    <Settings size={18}/> Byggstenar
+                    <Hammer size={18}/> Byggstenar
                   </h2>
                   {!isSidebarCollapsed && (
                     <Button
@@ -855,7 +855,13 @@ export default function NewSchedulePlanner() {
                     {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
                   </Button>
                 </div>
-                
+
+                {isSidebarCollapsed && (
+                  <div className="flex justify-center">
+                    <Hammer size={18} />
+                  </div>
+                )}
+
                 {/* Courses List */}
                 {!isSidebarCollapsed && (
                   <>
