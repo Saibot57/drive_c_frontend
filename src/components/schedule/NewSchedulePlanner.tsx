@@ -709,7 +709,7 @@ export default function NewSchedulePlanner() {
              SCHEMA
            </h1>
            {/* Desktop title wrapper – matches left sidebar width */}
-           <div className={`flex-shrink-0 transition-all duration-300 hidden lg:flex items-center justify-center overflow-hidden lg:-ml-4 ${isSidebarCollapsed ? 'w-[72px]' : 'w-[360px]'}`}>
+           <div className={`flex-shrink-0 transition-all duration-300 hidden lg:flex items-center overflow-hidden lg:-ml-4 ${isSidebarCollapsed ? 'w-auto pl-[122px] justify-start' : 'w-[360px] justify-center'}`}>
               <h1
                 className="font-monument text-4xl leading-none select-none tracking-[0.3em] whitespace-nowrap"
                 onPointerDown={startTitleHold}
