@@ -1224,7 +1224,7 @@ export default function NewSchedulePlanner() {
 
       {contextMenu && (
         <div
-          className="fixed z-[100] w-[100px] rounded border-2 border-black bg-white shadow-lg"
+          className="fixed z-[100] w-max rounded border-2 border-black bg-white shadow-lg"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button
