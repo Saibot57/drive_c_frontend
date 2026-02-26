@@ -687,7 +687,7 @@ export default function NewSchedulePlanner() {
         <div className="fixed inset-0 z-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/image_60bb1e.png"
+            src="/bakgrund59.png"
             alt=""
             className="w-full h-full object-cover"
           />
