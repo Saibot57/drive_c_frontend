@@ -1228,7 +1228,7 @@ export default function NewSchedulePlanner() {
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button
-            className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+            className="block px-1.5 py-2 text-left text-sm hover:bg-gray-100"
             onClick={() => {
               setEditingEntry(contextMenu.entry);
               setIsEntryModalOpen(true);
@@ -1238,19 +1238,19 @@ export default function NewSchedulePlanner() {
             Redigera
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+            className="block px-1.5 py-2 text-left text-sm hover:bg-gray-100"
             onClick={() => handleDuplicateParallel(contextMenu.entry)}
           >
             Duplicera och lägg parallellt
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+            className="block px-1.5 py-2 text-left text-sm hover:bg-gray-100"
             onClick={() => handleDuplicateAndPlace(contextMenu.entry)}
           >
             Duplicera och placera
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
+            className="block px-1.5 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
             onClick={() => {
               commitSchedule(p => p.filter(e => e.instanceId !== contextMenu.entry.instanceId));
               setContextMenu(null);
