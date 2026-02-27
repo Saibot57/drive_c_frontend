@@ -64,23 +64,25 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
     fetchSection();
   }, [sectionId, initialData, API_URL]);
 
-  // Filter files based on search term
+  // Filter files based on search term and URL presence
   const filteredData = React.useMemo(() => {
-    if (!data || !searchTerm.trim()) return data;
+    if (!data) return data;
 
-    const term = searchTerm.toLowerCase();
-    
-    // Filter the files in the section
-    const filteredFiles = data.files.filter(file => 
-      file.name.toLowerCase().includes(term) ||
-      (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term)))
+    const term = searchTerm.toLowerCase().trim();
+
+    const filteredFiles = data.files.filter(file =>
+      file.url && file.url.trim() !== '' &&
+      (!term ||
+        file.name.toLowerCase().includes(term) ||
+        (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term))))
     );
 
-    // Filter subsections
     const filteredSubsections = Object.entries(data.subsections || {}).reduce((acc, [key, subsection]) => {
-      const filteredSubFiles = subsection.files.filter(file =>
-        file.name.toLowerCase().includes(term) ||
-        (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term)))
+      const filteredSubFiles = subsection.files.filter((file: any) =>
+        file.url && file.url.trim() !== '' &&
+        (!term ||
+          file.name.toLowerCase().includes(term) ||
+          (showTags && file.tags?.some((tag: string) => tag.toLowerCase().includes(term))))
       );
 
       if (filteredSubFiles.length > 0) {
@@ -93,7 +95,6 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
       return acc;
     }, {} as Record<string, any>);
 
-    // Return filtered section
     return {
       ...data,
       files: filteredFiles,

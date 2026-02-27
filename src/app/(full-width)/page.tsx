@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Section } from "@/components/FileList/Section";
-import { CollapsibleNotes } from "@/components/FileList/CollapsibleNotes";
 import { Search } from "@/components/search";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -13,7 +12,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
 import type { FileData, SubSection, SectionData } from '@/types/fileSections';
 
-const redHat = Red_Hat_Text({ 
+const redHat = Red_Hat_Text({
   subsets: ['latin'],
   weight: ['400', '500', '700']
 });
@@ -49,7 +48,7 @@ export default function Home() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setError(null);
-    
+
     try {
       // First trigger the backend update
       const updateResponse = await fetchWithAuth(`${API_URL}/update`, {
@@ -78,28 +77,31 @@ export default function Home() {
     }
   };
 
-  // Fixed the missing dependency warning by adding fetchData to the dependency array
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // We still want this to run only once on mount
+  }, []);
 
-  // Rest of the component remains the same...
   const filteredData = useMemo(() => {
-    if (!data?.data || !searchTerm.trim()) return data?.data;
+    if (!data?.data) return [];
 
-    const term = searchTerm.toLowerCase();
-    
+    const term = searchTerm.toLowerCase().trim();
+
     return data.data.map(section => {
-      const filteredFiles = section.files.filter(file => 
-        file.name.toLowerCase().includes(term) ||
-        (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term)))
+      // Only keep files that have a valid URL
+      const filteredFiles = section.files.filter(file =>
+        file.url && file.url.trim() !== '' &&
+        (!term ||
+          file.name.toLowerCase().includes(term) ||
+          (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term))))
       );
 
       const filteredSubsections = Object.entries(section.subsections || {}).reduce((acc, [key, subsection]) => {
         const filteredSubFiles = subsection.files.filter(file =>
-          file.name.toLowerCase().includes(term) ||
-          (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term)))
+          file.url && file.url.trim() !== '' &&
+          (!term ||
+            file.name.toLowerCase().includes(term) ||
+            (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term))))
         );
 
         if (filteredSubFiles.length > 0) {
@@ -122,52 +124,6 @@ export default function Home() {
       return null;
     }).filter((section): section is SectionData => section !== null);
   }, [data, searchTerm, showTags]);
-
-  // Separate drive folders from notes
-  const driveFolders = useMemo(() => {
-    if (!filteredData) return [];
-    return filteredData.filter(section => {
-      // Check if section is not a notes section (contains files with URL)
-      return section.files.some(file => file.url) || 
-             Object.values(section.subsections).some(subsection => 
-               subsection.files.some(file => file.url)
-             );
-    });
-  }, [filteredData]);
-
-  // Identify sections that contain notes (files without URL)
-  const noteSections = useMemo(() => {
-    if (!filteredData) return [];
-    return filteredData.filter(section => {
-      // Check if section contains notes (files without URL)
-      const hasNotes = section.files.some(file => !file.url || file.url === null || file.url.trim() === '');
-      const hasNoteSubsections = Object.values(section.subsections).some(subsection => 
-        subsection.files.some(file => !file.url || file.url === null || file.url.trim() === '')
-      );
-      return hasNotes || hasNoteSubsections;
-    }).map(section => {
-      // Filter out non-note files
-      const noteFiles = section.files.filter(file => !file.url || file.url === null || file.url.trim() === '');
-      
-      // Filter subsections to only include those with notes
-      const noteSubsections = Object.entries(section.subsections).reduce((acc, [key, subsection]) => {
-        const filteredFiles = subsection.files.filter(file => !file.url || file.url === null || file.url.trim() === '');
-        if (filteredFiles.length > 0) {
-          acc[key] = {
-            ...subsection,
-            files: filteredFiles
-          };
-        }
-        return acc;
-      }, {} as Record<string, SubSection>);
-
-      return {
-        ...section,
-        files: noteFiles,
-        subsections: noteSubsections
-      };
-    });
-  }, [filteredData]);
 
   return (
     <ProtectedRoute>
@@ -199,20 +155,14 @@ export default function Home() {
           <p>Loading...</p>
         ) : error ? (
           <p>Error: {error}</p>
-        ) : !data || !data.data ? (
+        ) : filteredData.length === 0 ? (
           <p>No data to display.</p>
         ) : (
-          <>
-            {/* Drive folders */}
-            <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
-              {driveFolders.map((section) => (
-                <Section key={section.name} section={section} showTags={showTags} />
-              ))}
-            </div>
-
-            {/* Notes section (collapsed by default) */}
-            <CollapsibleNotes notes={noteSections} showTags={showTags} />
-          </>
+          <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
+            {filteredData.map((section) => (
+              <Section key={section.name} section={section} showTags={showTags} />
+            ))}
+          </div>
         )}
       </div>
     </ProtectedRoute>
