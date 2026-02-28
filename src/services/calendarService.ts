@@ -168,12 +168,6 @@ export const calendarService = {
             const response = await fetchWithAuth(`${API_URL}/notes/${dateStr}`);
             
             if (!response.ok) {
-                // A 404 is expected if no note exists yet
-                if (response.status === 404) {
-                    console.log(`No note found for ${dateStr}`);
-                    return { date: dateStr, notes: '' };
-                }
-                
                 const errorText = await response.text();
                 console.error(`Note fetch error (${response.status}): ${errorText}`);
                 throw new Error(`Error fetching day note: ${response.statusText}`);

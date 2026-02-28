@@ -68,8 +68,12 @@ const authService = {
       },
       body: JSON.stringify({ username, password }),
     });
-    
-    return await response.json();
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Login failed');
+    }
+    return data;
   },
   
   register: async (username: string, password: string, email?: string) => {

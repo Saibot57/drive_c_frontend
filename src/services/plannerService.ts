@@ -89,6 +89,9 @@ export const plannerService = {
       throw new Error('Failed to save planner archive');
     }
     const payload = await response.json();
+    if (Array.isArray(payload?.data?.activities)) {
+      return payload.data.activities as PlannerActivity[];
+    }
     if (Array.isArray(payload?.data)) {
       return payload.data as PlannerActivity[];
     }
