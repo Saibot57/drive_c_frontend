@@ -40,8 +40,7 @@ export function NotesBasket({ refreshKey, onEditRequest }: Props) {
     <div className="flex flex-col h-full min-h-0">
 
       {/* Header row */}
-      <div className="flex items-center justify-between mb-2 shrink-0">
-        <h2 className="font-bold text-sm uppercase tracking-widest">Notes Basket</h2>
+      <div className="flex items-center justify-end mb-2 shrink-0">
         <span className="text-[10px] text-gray-500 font-mono tabular-nums">
           {notes.length} st
         </span>

@@ -108,10 +108,10 @@ export function TodoList({ refreshKey }: Props) {
   return (
     <div className="grid grid-cols-2 gap-3 h-full overflow-hidden">
 
-      {/* ── This Week ── */}
+      {/* ── Denna vecka ── */}
       <div className="border-2 border-black bg-white p-3 flex flex-col overflow-hidden">
         <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b-2 border-black">
-          This Week
+          Denna vecka
         </h3>
         <div className="flex-1 overflow-auto min-h-0">
           {isLoading && <p className="text-xs text-gray-400">Laddar…</p>}
@@ -128,10 +128,10 @@ export function TodoList({ refreshKey }: Props) {
         </div>
       </div>
 
-      {/* ── By Date ── */}
+      {/* ── Per datum ── */}
       <div className="border-2 border-black bg-white p-3 flex flex-col overflow-hidden">
         <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b-2 border-black">
-          By Date
+          Per datum
         </h3>
         <div className="flex-1 overflow-auto min-h-0">
           {isLoading && <p className="text-xs text-gray-400">Laddar…</p>}

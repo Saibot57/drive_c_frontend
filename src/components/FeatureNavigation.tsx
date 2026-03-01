@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, Users, Briefcase } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, Users, Briefcase, Terminal } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -12,10 +12,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const features = [
-  { label: 'Bibliotek',     href: '/',                     icon: Library   },
-  { label: 'Schema',        href: '/features/schedule',    icon: Calendar  },
-  { label: 'Familjeschema', href: '/features/familjeschema', icon: Users   },
-  { label: 'Workspace',     href: '/workspace',            icon: Briefcase },
+  { label: 'Bibliotek',       href: '/',                            icon: Library   },
+  { label: 'Schema',          href: '/features/schedule',           icon: Calendar  },
+  { label: 'Familjeschema',   href: '/features/familjeschema',      icon: Users     },
+  { label: 'Kommandocentral', href: '/features/command-center',     icon: Terminal  },
+  { label: 'Workspace',       href: '/workspace',                   icon: Briefcase },
 ] as const;
 
 export function FeatureNavigation() {

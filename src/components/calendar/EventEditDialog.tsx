@@ -100,7 +100,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
           className="flex items-center justify-between p-6 border-b-2 border-black"
           style={{ backgroundColor: editedEvent.color || '#ff6b6b' }}
         >
-          <h2 className="font-monument text-2xl text-white">Edit Event</h2>
+          <h2 className="font-monument text-2xl text-white">Redigera händelse</h2>
           <div className="flex gap-2">
             <Button
               onClick={handleSave}
@@ -121,7 +121,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
 
         <div className="p-6 space-y-4">
           <div>
-            <label className="block font-monument text-sm mb-2">Event Name</label>
+            <label className="block font-monument text-sm mb-2">Händelsenamn</label>
             <Input
               type="text"
               value={editedEvent.title}
@@ -135,7 +135,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
 
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="block font-monument text-sm mb-2">Start Time</label>
+              <label className="block font-monument text-sm mb-2">Starttid</label>
               <Input
                 type="time"
                 value={formatTime(editedEvent.start)}
@@ -155,7 +155,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
               />
             </div>
             <div className="flex-1">
-              <label className="block font-monument text-sm mb-2">End Time</label>
+              <label className="block font-monument text-sm mb-2">Sluttid</label>
               <Input
                 type="time"
                 value={formatTime(editedEvent.end)}
@@ -177,7 +177,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
           </div>
 
           <div>
-            <label className="block font-monument text-sm mb-2">Event Color</label>
+            <label className="block font-monument text-sm mb-2">Händelsefärg</label>
             <div className="space-y-3">
               {/* Predefined colors */}
               <div className="flex flex-wrap gap-2">
@@ -214,7 +214,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
                       </Button>
                     </div>
                     <span className="text-xs text-gray-600">
-                      Use color wheel to pick a custom color
+                      Använd färghjulet för att välja en anpassad färg
                     </span>
                   </div>
                 ) : (
@@ -223,7 +223,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
                     variant="neutral"
                     className="w-full border-2 border-black bg-white hover:bg-gray-50"
                   >
-                    Choose Custom Color
+                    Välj anpassad färg
                   </Button>
                 )}
               </div>
@@ -231,7 +231,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
           </div>
 
           <div>
-            <label className="block font-monument text-sm mb-2">Notes</label>
+            <label className="block font-monument text-sm mb-2">Anteckningar</label>
             <Textarea
               value={editedEvent.notes || ''}
               onChange={(e) => setEditedEvent({
@@ -239,7 +239,7 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
                 notes: e.target.value
               })}
               className="w-full min-h-[100px] border-2 border-black"
-              placeholder="Add any notes or details about this event..."
+              placeholder="Lägg till anteckningar om denna händelse…"
             />
           </div>
         </div>
@@ -251,14 +251,14 @@ export const EventEditDialog: React.FC<EventEditDialogProps> = ({
             className="border-2 border-black bg-white hover:bg-gray-50"
             type="button"
           >
-            Cancel
+            Avbryt
           </Button>
-          <Button 
+          <Button
             onClick={handleSave}
             className="border-2 border-black bg-[#ff6b6b] text-white hover:bg-[#ff6b6b]/90"
             type="button"
           >
-            Save Changes
+            Spara ändringar
           </Button>
         </div>
       </div>

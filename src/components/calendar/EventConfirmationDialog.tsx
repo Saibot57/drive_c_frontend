@@ -34,7 +34,7 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
   useEffect(() => {
     setStart(startTime);
     setEnd(endTime);
-    setTitle('New Event');
+    setTitle('Ny händelse');
     setNotes('');
   }, [startTime, endTime, isOpen]);
 
@@ -48,7 +48,7 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
     const eventEnd = new Date(end);
     
     onConfirm({
-      title: title || 'New Event',
+      title: title || 'Ny händelse',
       notes,
       start: eventStart,
       end: eventEnd,
@@ -106,7 +106,7 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b-2 border-black bg-[#ff6b6b]">
-          <h2 className="font-monument text-2xl text-white">New Event</h2>
+          <h2 className="font-monument text-2xl text-white">Ny händelse</h2>
           <Button
             onClick={onClose}
             variant="neutral"
@@ -118,12 +118,12 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block font-monument text-sm mb-2">Event Name</label>
+            <label className="block font-monument text-sm mb-2">Händelsenamn</label>
             <Input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter event name"
+              placeholder="Ange händelsenamn"
               className="w-full border-2 border-black"
               autoFocus
             />
@@ -131,7 +131,7 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
 
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="block font-monument text-sm mb-2">Start Time</label>
+              <label className="block font-monument text-sm mb-2">Starttid</label>
               <Input
                 type="time"
                 value={formatTime(start)}
@@ -140,7 +140,7 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
               />
             </div>
             <div className="flex-1">
-              <label className="block font-monument text-sm mb-2">End Time</label>
+              <label className="block font-monument text-sm mb-2">Sluttid</label>
               <Input
                 type="time"
                 value={formatTime(end)}
@@ -151,11 +151,11 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
           </div>
 
           <div>
-            <label className="block font-monument text-sm mb-2">Notes</label>
+            <label className="block font-monument text-sm mb-2">Anteckningar</label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add event notes..."
+              placeholder="Lägg till anteckningar…"
               className="w-full border-2 border-black"
             />
           </div>
@@ -167,13 +167,13 @@ const EventConfirmationDialog: React.FC<EventConfirmationDialogProps> = ({
               variant="neutral"
               className="border-2 border-black bg-white hover:bg-gray-50"
             >
-              Cancel
+              Avbryt
             </Button>
             <Button
               type="submit"
               className="border-2 border-black bg-[#ff6b6b] text-white hover:bg-[#ff6b6b]/90"
             >
-              Create Event
+              Skapa händelse
             </Button>
           </div>
         </form>

@@ -42,7 +42,7 @@ export const DayModal: React.FC<DayModalProps> = ({
       setNotes(dayNote.notes || '');
     } catch (error) {
       console.error("Error fetching day notes:", error);
-      setNotesError("Failed to load notes");
+      setNotesError("Kunde inte ladda anteckningar");
     } finally {
       setIsNotesLoading(false);
     }
@@ -76,7 +76,7 @@ export const DayModal: React.FC<DayModalProps> = ({
       }
     } catch (error) {
       console.error("Error saving notes:", error);
-      setNotesError("Failed to save notes");
+      setNotesError("Kunde inte spara anteckningar");
     } finally {
       setIsNotesSaving(false);
     }
@@ -94,7 +94,7 @@ export const DayModal: React.FC<DayModalProps> = ({
 
     console.log('Adding quick event');
     onEventAdd({
-      title: 'New Event',
+      title: 'Ny händelse',
       start: startTime,
       end: endTime,
       notes: ''
@@ -145,7 +145,7 @@ export const DayModal: React.FC<DayModalProps> = ({
         {/* Header with close button */}
         <div className="flex items-center justify-between p-6 border-b-2 border-black bg-[#ff6b6b]">
           <h2 className="font-monument text-2xl text-white">
-            {date.toLocaleDateString('en-US', { 
+            {date.toLocaleDateString('sv-SE', {
               weekday: 'long',
               month: 'long',
               day: 'numeric'
@@ -188,14 +188,14 @@ export const DayModal: React.FC<DayModalProps> = ({
                 >
                   <div className="h-full border-b-2 border-black p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-monument text-lg">Events</h3>
+                      <h3 className="font-monument text-lg">Händelser</h3>
                       <Button
                         onClick={handleQuickEventAdd}
                         variant="neutral"
                         className="h-8 px-2 border-2 border-black bg-white hover:bg-gray-50"
                       >
                         <Plus className="h-4 w-4 mr-1" />
-                        Add Event
+                        Lägg till
                       </Button>
                     </div>
                     
@@ -231,7 +231,7 @@ export const DayModal: React.FC<DayModalProps> = ({
                 <ResizablePanel defaultSize={60}>
                   <div className="p-6 h-full flex flex-col">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-monument text-lg">Notes</h3>
+                      <h3 className="font-monument text-lg">Anteckningar</h3>
                       <Button
                         onClick={handleSaveNotes}
                         disabled={isNotesSaving}
@@ -239,13 +239,13 @@ export const DayModal: React.FC<DayModalProps> = ({
                         className="h-8 px-2 border-2 border-black bg-white hover:bg-gray-50"
                       >
                         <Save className="h-4 w-4 mr-1" />
-                        Save
+                        Spara
                       </Button>
                     </div>
                     
                     {isNotesLoading ? (
                       <div className="flex items-center justify-center h-full">
-                        <p>Loading notes...</p>
+                        <p>Laddar anteckningar…</p>
                       </div>
                     ) : (
                       <>
@@ -255,7 +255,7 @@ export const DayModal: React.FC<DayModalProps> = ({
                         <Textarea
                           value={notes}
                           onChange={(e) => setNotes(e.target.value)}
-                          placeholder="Add notes for this day..."
+                          placeholder="Lägg till anteckningar för denna dag…"
                           className="w-full flex-1 rounded-lg border-2 border-black p-2 resize-none"
                         />
                       </>
@@ -283,9 +283,9 @@ export const DayModal: React.FC<DayModalProps> = ({
                 onClick={() => handleEditEvent(contextMenuEvent.id)}
               >
                 <Edit className="h-4 w-4 mr-2" />
-                Edit
+                Redigera
               </button>
-              <button 
+              <button
                 className="px-4 py-2 text-left hover:bg-gray-100 text-red-500 flex items-center"
                 onClick={() => {
                   if (onEventDelete) {
@@ -295,7 +295,7 @@ export const DayModal: React.FC<DayModalProps> = ({
                 }}
               >
                 <Trash className="h-4 w-4 mr-2" />
-                Delete
+                Ta bort
               </button>
             </div>
           </div>
@@ -325,7 +325,7 @@ export const DayModal: React.FC<DayModalProps> = ({
                       onEventUpdate(selectedEventData.id, { notes: e.target.value });
                     }
                   }}
-                  placeholder="Add event notes..."
+                  placeholder="Lägg till händelseanteckningar…"
                   className="w-full min-h-[200px] rounded-lg border-2 border-black p-2"
                 />
               </div>
@@ -336,14 +336,14 @@ export const DayModal: React.FC<DayModalProps> = ({
                   variant="neutral"
                   className="h-10 px-4 border-2 border-black bg-white hover:bg-gray-50"
                 >
-                  Close
+                  Stäng
                 </Button>
                 <Button
                   onClick={() => handleEditEvent(selectedEventData.id)}
                   variant="neutral"
                   className="h-10 px-4 ml-2 border-2 border-black bg-[#ff6b6b] text-white hover:bg-[#ff6b6b]/90"
                 >
-                  Edit Details
+                  Redigera detaljer
                 </Button>
               </div>
             </div>

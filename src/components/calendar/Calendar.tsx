@@ -73,7 +73,7 @@ export const Calendar = () => {
         setEvents(eventsByDate);
       } catch (error) {
         console.error("Failed to fetch events:", error);
-        setError("Failed to load events");
+        setError("Kunde inte ladda händelser");
       } finally {
         setIsLoading(false);
       }
@@ -114,7 +114,7 @@ export const Calendar = () => {
       
     } catch (error) {
       console.error("Failed to save event:", error);
-      setError("Failed to save event");
+      setError("Kunde inte spara händelse");
     }
   };
 
@@ -154,7 +154,7 @@ export const Calendar = () => {
       });
     } catch (error) {
       console.error("Failed to update event:", error);
-      setError("Failed to update event");
+      setError("Kunde inte uppdatera händelse");
     }
   };
 
@@ -179,7 +179,7 @@ export const Calendar = () => {
       console.log('Event deleted successfully');
     } catch (error) {
       console.error("Failed to delete event:", error);
-      setError("Failed to delete event");
+      setError("Kunde inte ta bort händelse");
     }
   };
 
@@ -277,7 +277,7 @@ export const Calendar = () => {
       }
     } catch (error) {
       console.error("Failed to save notes:", error);
-      setError("Failed to save notes");
+      setError("Kunde inte spara anteckningar");
     }
   };
 
@@ -288,7 +288,7 @@ export const Calendar = () => {
       <div className="relative p-2 bg-white rounded-xl border-2 border-black shadow-neo">
         {isLoading && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-            <p>Loading events...</p>
+            <p>Laddar händelser…</p>
           </div>
         )}
         
@@ -306,7 +306,7 @@ export const Calendar = () => {
         
         <div className="mb-4 flex items-center justify-between border-b-2 border-black pb-2">
           <h2 className="text-3xl font-monument uppercase">
-            {currentDate.toLocaleString('default', { month: 'long' })} {currentDate.getFullYear()}
+            {currentDate.toLocaleString('sv-SE', { month: 'long' })} {currentDate.getFullYear()}
           </h2>
           <div className="flex gap-2">
             <Button 
@@ -338,7 +338,7 @@ export const Calendar = () => {
         </div>
 
         <div className="grid grid-cols-7 gap-3 mb-3 ml-10">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+          {['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'].map(day => (
             <div key={day} className="text-center font-monument text-base">
               {day}
             </div>
