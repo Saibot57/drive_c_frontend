@@ -9,16 +9,16 @@ type Props = Pick<
 >;
 
 const LINE_STYLE: Record<string, string> = {
-  input:   'text-gray-200',
-  success: 'text-green-400',
-  error:   'text-red-400',
-  info:    'text-sky-300',
-  system:  'text-gray-500',
+  input:   'text-gray-400',
+  success: 'text-emerald-700',
+  error:   'text-red-600 font-medium',
+  info:    'text-blue-600',
+  system:  'text-gray-400 italic',
 };
 
 function Line({ line }: { line: TerminalLine }) {
   return (
-    <div className={`text-xs whitespace-pre-wrap leading-[1.6] ${LINE_STYLE[line.kind] ?? 'text-gray-200'}`}>
+    <div className={`text-xs font-mono whitespace-pre-wrap leading-relaxed ${LINE_STYLE[line.kind] ?? 'text-gray-700'}`}>
       {line.text}
     </div>
   );
@@ -30,34 +30,37 @@ export function TerminalPanel({
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom on new output
   useEffect(() => {
     const el = outputRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [lines]);
 
-  // Focus on mount
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   return (
     <div
-      className="h-full flex flex-col bg-black font-mono overflow-hidden cursor-text"
+      className="h-full flex flex-col bg-white overflow-hidden cursor-text"
       onClick={() => inputRef.current?.focus()}
     >
-      {/* Output */}
+      {/* Output history */}
       <div
         ref={outputRef}
-        className="flex-1 overflow-auto px-3 pt-3 pb-1 space-y-0.5 min-h-0"
+        className="flex-1 overflow-auto bg-gray-50 px-4 pt-3 pb-2 space-y-0.5 min-h-0 border-b-2 border-black"
       >
+        {lines.length === 0 && (
+          <p className="text-xs text-gray-300 font-mono italic">
+            Inga kommandon ännu. Prova &quot;help&quot;.
+          </p>
+        )}
         {lines.map(line => <Line key={line.id} line={line} />)}
         {isLoading && (
-          <div className="text-xs text-yellow-400 animate-pulse">…</div>
+          <div className="text-xs text-gray-400 font-mono animate-pulse">…</div>
         )}
       </div>
 
       {/* Input row */}
-      <div className="shrink-0 flex items-center gap-2 border-t border-gray-800 px-3 py-2">
-        <span className="text-green-400 text-xs select-none">$</span>
+      <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-white">
+        <span className="text-sm font-bold text-black select-none font-mono shrink-0">&gt;_</span>
         <input
           ref={inputRef}
           type="text"
@@ -69,8 +72,8 @@ export function TerminalPanel({
             if (e.key === 'ArrowDown') { e.preventDefault(); historyForward(); }
           }}
           disabled={isLoading}
-          placeholder='note "Titel"  |  todo "Text" --week  |  help'
-          className="flex-1 bg-transparent text-white text-xs outline-none caret-green-400 placeholder-gray-700"
+          placeholder='note "Titel"  ·  todo "Text" --week  ·  help'
+          className="flex-1 text-sm bg-transparent outline-none placeholder-gray-300 font-mono text-black"
           spellCheck={false}
           autoComplete="off"
           autoCapitalize="off"
