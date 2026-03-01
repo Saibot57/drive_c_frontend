@@ -55,6 +55,7 @@ import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlan
 import { useDragHandlers } from '@/hooks/useDragHandlers';
 import { useScheduleExport } from '@/hooks/useScheduleExport';
 import { useMobileNavigation } from '@/hooks/useMobileNavigation';
+import { FeatureNavigation } from '@/components/FeatureNavigation';
 
 // --- Helper: Conflict Check & Filtering ---
 
@@ -699,26 +700,12 @@ export default function NewSchedulePlanner() {
         {/* Toolbar & Filter */}
         <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-6 items-start lg:items-center">
            {/* Mobile title */}
-           <h1
-             className="font-monument text-xl leading-none select-none tracking-[0.2em] lg:hidden"
-             onPointerDown={startTitleHold}
-             onPointerUp={clearTitleHold}
-             onPointerLeave={clearTitleHold}
-             onPointerCancel={clearTitleHold}
-           >
-             SCHEMA
-           </h1>
+           <div className="lg:hidden">
+             <FeatureNavigation />
+           </div>
            {/* Desktop title wrapper – matches left sidebar width */}
            <div className={`flex-shrink-0 transition-all duration-300 hidden lg:flex items-center overflow-hidden lg:-ml-4 ${isSidebarCollapsed ? 'w-auto pl-[122px] justify-start' : 'w-[360px] justify-center'}`}>
-              <h1
-                className="font-monument text-4xl leading-none select-none tracking-[0.3em] whitespace-nowrap"
-                onPointerDown={startTitleHold}
-                onPointerUp={clearTitleHold}
-                onPointerLeave={clearTitleHold}
-                onPointerCancel={clearTitleHold}
-              >
-                SCHEMA
-              </h1>
+              <FeatureNavigation />
            </div>
            
            <div className="flex-1 max-w-md w-full relative mr-auto">

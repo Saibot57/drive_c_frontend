@@ -1,7 +1,19 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { AlertCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Plus,
+  ArrowRightLeft,
+  Printer,
+  Settings as SettingsIcon,
+  Grid3x3,
+  Layers,
+} from 'lucide-react';
+import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { scheduleService } from '@/services/scheduleService';
 import type {
   Activity,
@@ -603,66 +615,169 @@ export function FamilySchedule() {
   if (error) return <div className="text-center p-10 font-monument text-red-600">Fel: {error}</div>;
 
   return (
-    <div className="schedule-app-container">
-      <Sidebar
-        familyMembers={familyMembers}
-        selectedWeek={selectedWeek}
-        selectedYear={selectedYear}
-        isCurrentWeek={isCurrentWeek}
-        viewMode={viewMode}
-        isReorderingMembers={isReorderingMembers}
-        isSavingMemberOrder={isSavingMemberOrder}
-        onNewActivity={() => { setEditingActivity(null); setModalOpen(true); }}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onNavigateWeek={navigateWeek}
-        onGoToCurrentWeek={goToCurrentWeek}
-        onToggleWeekPicker={() => setShowWeekPicker(!showWeekPicker)}
-        onOpenDataModal={() => setDataModalOpen(true)}
-        onSetViewMode={setViewMode}
-        onMemberClick={handleMemberClick}
-        onStartReorder={handleStartMemberReorder}
-        onSubmitReorder={handleSubmitMemberReorder}
-        onReorderMembers={handleReorderMembers}
-        onSystemPrint={handleSystemPrint}
-        onQuickTextImport={handleTextImport}
-      />
+    <div className="flex flex-col h-[calc(100vh-2rem)] gap-4 bg-[var(--neo-bg)] p-4">
 
-      <div className="schedule-main-content">
-        {/* Notifications */}
-        {!isCurrentWeek && (
-          <div className="compact-notice" role="alert">
-            <AlertCircle size={18}/>
-            <span>Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka</span>
-          </div>
-        )}
-        {showConflict && (
-          <div className="compact-notice conflict" role="alert">
-            <AlertCircle size={18}/> 
-            <span>Tidskonflikt! En deltagare är redan upptagen.</span>
-          </div>
-        )}
+      {/* ── Top Toolbar ─────────────────────────────────────────────── */}
+      <div className="flex items-center gap-4 bg-white border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-xl px-4 py-2 flex-shrink-0">
 
-        {/* Main Schedule View */}
-        <div
-          className={`schedule-view-container printable-schedule-scope ${printSheetClass}`}
-          ref={scheduleRef}
-        >
-          {viewMode === 'grid' ? (
-            <ScheduleGrid
-              days={days} weekDates={weekDates} timeSlots={timeSlots}
-              activities={activities} familyMembers={familyMembers}
-              settings={settings} selectedWeek={selectedWeek}
-              selectedYear={selectedYear} onActivityClick={handleActivityClick}
-            />
-          ) : (
-            <LayerView
-              days={days} weekDates={weekDates} timeSlots={timeSlots}
-              activities={activities} familyMembers={familyMembers}
-              settings={settings} selectedWeek={selectedWeek}
-              selectedYear={selectedYear} onActivityClick={handleActivityClick}
-              highlightedMemberId={highlightedMemberId}
-            />
+        {/* LEFT – Feature switcher */}
+        <FeatureNavigation />
+
+        {/* CENTER – Week navigation */}
+        <div className="flex items-center gap-1 mx-auto">
+          <button
+            className="btn-compact btn-icon-small"
+            onClick={() => navigateWeek(-1)}
+            aria-label="Föregående vecka"
+            title="Föregående vecka"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            className="week-display px-3 py-1 font-monument text-sm tracking-widest hover:bg-black/5 rounded transition-colors"
+            onClick={() => setShowWeekPicker(!showWeekPicker)}
+            title="Välj vecka"
+            aria-label="Välj vecka"
+          >
+            Vecka {selectedWeek}
+          </button>
+          <button
+            className="btn-compact btn-icon-small"
+            onClick={() => navigateWeek(1)}
+            aria-label="Nästa vecka"
+            title="Nästa vecka"
+          >
+            <ChevronRight size={18} />
+          </button>
+          {!isCurrentWeek && (
+            <button
+              className="btn-compact ml-1 flex items-center gap-1"
+              onClick={goToCurrentWeek}
+              title="Gå till nuvarande vecka"
+              aria-label="Denna vecka"
+            >
+              <Home size={15} />
+              <span className="text-xs">Denna vecka</span>
+            </button>
           )}
+        </div>
+
+        {/* RIGHT – View mode + global actions */}
+        <div className="flex items-center gap-1 ml-auto">
+          {/* View mode toggles */}
+          <button
+            className={`btn-square ${viewMode === 'grid' ? 'active' : ''}`}
+            onClick={() => setViewMode('grid')}
+            title="Rutnätsvy"
+            aria-label="Rutnätsvy"
+            aria-pressed={viewMode === 'grid'}
+            type="button"
+          >
+            <Grid3x3 size={18} />
+          </button>
+          <button
+            className={`btn-square ${viewMode === 'layer' ? 'active' : ''}`}
+            onClick={() => setViewMode('layer')}
+            title="Lagervy"
+            aria-label="Lagervy"
+            aria-pressed={viewMode === 'layer'}
+            type="button"
+          >
+            <Layers size={18} />
+          </button>
+
+          <div className="w-px h-6 bg-black/20 mx-1" aria-hidden="true" />
+
+          {/* Global actions */}
+          <button
+            className="btn-square btn-square-large btn-primary"
+            onClick={() => { setEditingActivity(null); setModalOpen(true); }}
+            title="Ny aktivitet"
+            aria-label="Ny aktivitet"
+            type="button"
+          >
+            <Plus size={18} />
+          </button>
+          <button
+            className="btn-square btn-square-large"
+            onClick={() => setDataModalOpen(true)}
+            title="Import/Export"
+            aria-label="Import/Export"
+            type="button"
+          >
+            <ArrowRightLeft size={18} />
+          </button>
+          <button
+            className="btn-square btn-square-large"
+            onClick={handleSystemPrint}
+            title="Skriv ut"
+            aria-label="Skriv ut"
+            type="button"
+          >
+            <Printer size={18} />
+          </button>
+          <button
+            className="btn-square btn-square-large"
+            onClick={() => setSettingsOpen(true)}
+            title="Inställningar"
+            aria-label="Inställningar"
+            type="button"
+          >
+            <SettingsIcon size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Content Area ─────────────────────────────────────────────── */}
+      <div className="flex flex-1 min-h-0 gap-4">
+        <Sidebar
+          familyMembers={familyMembers}
+          isReorderingMembers={isReorderingMembers}
+          isSavingMemberOrder={isSavingMemberOrder}
+          onMemberClick={handleMemberClick}
+          onStartReorder={handleStartMemberReorder}
+          onSubmitReorder={handleSubmitMemberReorder}
+          onReorderMembers={handleReorderMembers}
+          onQuickTextImport={handleTextImport}
+        />
+
+        <div className="schedule-main-content flex-1 min-w-0">
+          {/* Notifications */}
+          {!isCurrentWeek && (
+            <div className="compact-notice" role="alert">
+              <AlertCircle size={18}/>
+              <span>Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka</span>
+            </div>
+          )}
+          {showConflict && (
+            <div className="compact-notice conflict" role="alert">
+              <AlertCircle size={18}/>
+              <span>Tidskonflikt! En deltagare är redan upptagen.</span>
+            </div>
+          )}
+
+          {/* Main Schedule View */}
+          <div
+            className={`schedule-view-container printable-schedule-scope ${printSheetClass}`}
+            ref={scheduleRef}
+          >
+            {viewMode === 'grid' ? (
+              <ScheduleGrid
+                days={days} weekDates={weekDates} timeSlots={timeSlots}
+                activities={activities} familyMembers={familyMembers}
+                settings={settings} selectedWeek={selectedWeek}
+                selectedYear={selectedYear} onActivityClick={handleActivityClick}
+              />
+            ) : (
+              <LayerView
+                days={days} weekDates={weekDates} timeSlots={timeSlots}
+                activities={activities} familyMembers={familyMembers}
+                settings={settings} selectedWeek={selectedWeek}
+                selectedYear={selectedYear} onActivityClick={handleActivityClick}
+                highlightedMemberId={highlightedMemberId}
+              />
+            )}
+          </div>
         </div>
       </div>
 

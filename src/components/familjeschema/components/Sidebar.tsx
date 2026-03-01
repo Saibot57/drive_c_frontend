@@ -2,17 +2,10 @@ import React, { useEffect, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  Home,
-  Plus,
-  Settings,
-  ArrowRightLeft,
   Menu,
-  Grid3x3,
-  Layers,
   GripVertical,
   Check,
   Loader2,
-  Printer,
   Sparkles
 } from 'lucide-react';
 import type { FamilyMember } from '../types';
@@ -20,48 +13,24 @@ import { Emoji } from '@/utils/Emoji';
 
 interface SidebarProps {
   familyMembers: FamilyMember[];
-  selectedWeek: number;
-  selectedYear: number;
-  isCurrentWeek: boolean;
-  viewMode: 'grid' | 'layer';
   isReorderingMembers: boolean;
   isSavingMemberOrder: boolean;
-  onNewActivity: () => void;
-  onOpenSettings: () => void;
-  onNavigateWeek: (direction: number) => void;
-  onGoToCurrentWeek: () => void;
-  onToggleWeekPicker: () => void;
-  onOpenDataModal: () => void;
-  onSetViewMode: (mode: 'grid' | 'layer') => void;
   onMemberClick: (memberId: string) => void;
   onStartReorder: () => void;
   onSubmitReorder: () => void;
   onReorderMembers: (sourceId: string, targetId: string | null) => void;
-  onSystemPrint?: () => void;
   onQuickTextImport: (jsonText: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   familyMembers,
-  selectedWeek,
-  selectedYear,
-  isCurrentWeek,
-  viewMode,
   isReorderingMembers,
   isSavingMemberOrder,
-  onNewActivity,
-  onOpenSettings,
-  onNavigateWeek,
-  onGoToCurrentWeek,
-  onToggleWeekPicker,
-  onOpenDataModal,
-  onSetViewMode,
   onMemberClick,
   onStartReorder,
   onSubmitReorder,
   onReorderMembers,
-  onSystemPrint,
-  onQuickTextImport
+  onQuickTextImport,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
@@ -151,75 +120,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
 
-        {/* Week Navigation & View Mode */}
-        <div className="sidebar-section sidebar-top-controls">
-          <div className="view-mode-inline">
-            {showLabels && (
-              <span className="sidebar-heading-inline" aria-hidden="true">VY</span>
-            )}
-            <div className="view-mode-buttons">
-              <button
-                className={`btn-square ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => onSetViewMode('grid')}
-                title="Rutnätsvy"
-                aria-label="Rutnätsvy"
-                aria-pressed={viewMode === 'grid'}
-                type="button"
-              >
-                <Grid3x3 size={20} />
-                <span className="sr-only">Rutnätsvy</span>
-              </button>
-              <button
-                className={`btn-square ${viewMode === 'layer' ? 'active' : ''}`}
-                onClick={() => onSetViewMode('layer')}
-                title="Lagervy"
-                aria-label="Lagervy"
-                aria-pressed={viewMode === 'layer'}
-                type="button"
-              >
-                <Layers size={20} />
-                <span className="sr-only">Lagervy</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="sidebar-week-nav">
-            <button
-              className="btn-compact btn-icon-small"
-              onClick={() => onNavigateWeek(-1)}
-              aria-label="Föregående vecka"
-              title="Föregående vecka"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <div className="week-display" onClick={onToggleWeekPicker} title="Välj vecka">
-              {isCollapsed ? (
-                <span className="week-number-only">V{selectedWeek}</span>
-              ) : (
-                <span className="week-number">Vecka {selectedWeek}</span>
-              )}
-            </div>
-            <button
-              className="btn-compact btn-icon-small"
-              onClick={() => onNavigateWeek(1)}
-              aria-label="Nästa vecka"
-              title="Nästa vecka"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-          {!isCurrentWeek && (
-            <button
-              className="btn-compact btn-full"
-              onClick={onGoToCurrentWeek}
-              title="Gå till nuvarande vecka"
-            >
-              <Home size={16} />
-              {!isCollapsed && <span>Denna vecka</span>}
-            </button>
-          )}
-        </div>
-
         {/* Scrollable content wrapper */}
         <div className="sidebar-scrollable-content">
           {/* Family Members */}
@@ -299,51 +199,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="sidebar-section sidebar-actions">
-          <div className="sidebar-action-buttons">
-            <button
-              className="btn-square btn-square-large btn-primary"
-              onClick={onNewActivity}
-              title="Ny aktivitet"
-              aria-label="Ny aktivitet"
-              type="button"
-            >
-              <Plus size={20} />
-              <span className="sr-only">Ny aktivitet</span>
-            </button>
-            <button
-              className="btn-square btn-square-large"
-              onClick={onOpenDataModal}
-              title="Import/Export"
-              aria-label="Import/Export"
-              type="button"
-            >
-              <ArrowRightLeft size={20} />
-              <span className="sr-only">Importera eller exportera</span>
-            </button>
-            <button
-              type="button"
-              className="btn-square btn-square-large"
-              onClick={() => onSystemPrint?.()}
-              title="Skriv ut"
-              aria-label="Skriv ut"
-            >
-              <Printer size={20} />
-              <span className="sr-only">Skriv ut</span>
-            </button>
-            <button
-              className="btn-square btn-square-large"
-              onClick={onOpenSettings}
-              title="Inställningar"
-              aria-label="Inställningar"
-              type="button"
-            >
-              <Settings size={20} />
-              <span className="sr-only">Inställningar</span>
-            </button>
-          </div>
-          {!isCollapsed && (
+        {/* Quick Import */}
+        {!isCollapsed && (
+          <div className="sidebar-section">
             <div className="sidebar-quick-import" role="region" aria-label="Snabbimport av JSON">
               <label htmlFor="sidebar-quick-import" className="sr-only">
                 Snabbimport av JSON-data
@@ -378,8 +236,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Sparkles size={16} aria-hidden="true" />
               </a>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </aside>
 
       {/* Mobile Menu Button */}
