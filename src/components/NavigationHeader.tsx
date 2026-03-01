@@ -2,7 +2,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 // NYTT: Importera Users-ikonen
-import { BookOpen, Calendar, Layout, FileText, LogOut, User, Layers, Users } from 'lucide-react'; 
+import { BookOpen, Calendar, Layout, FileText, LogOut, User, Layers, Users, Terminal } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
@@ -28,6 +28,8 @@ export function NavigationHeader() {
         return 'Anteckningar';
       case '/workspace':
         return 'Workspace';
+      case '/features/command-center':
+        return 'Command Center';
       default:
         // Extrahera sista delen av sökvägen för nya rutter
         const pathParts = pathname.split('/').filter(Boolean);
@@ -48,7 +50,8 @@ export function NavigationHeader() {
     { name: 'Familjeschema', path: '/features/familjeschema', icon: <Users className="h-5 w-5" /> },
     // ------------------
     { name: 'Anteckningar', path: '/features/notes', icon: <FileText className="h-5 w-5" /> },
-    { name: 'Workspace', path: '/workspace', icon: <Layers className="h-5 w-5" /> }
+    { name: 'Workspace', path: '/workspace', icon: <Layers className="h-5 w-5" /> },
+    { name: 'Command Center', path: '/features/command-center', icon: <Terminal className="h-5 w-5" /> }
   ];
 
   // Funktion för utloggning
