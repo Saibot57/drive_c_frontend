@@ -101,7 +101,7 @@ export function TodoList({ refreshKey }: Props) {
 
   const empty = (
     <p className="text-xs text-gray-400 mt-1">
-      Inga todos. Prova: todo "Text" --week
+      Inga todos. Prova: todo &quot;Text&quot; --week
     </p>
   );
 
@@ -138,7 +138,7 @@ export function TodoList({ refreshKey }: Props) {
           {error     && <p className="text-xs text-red-500">{error}</p>}
           {!isLoading && !error && dateTodos.length === 0 && (
             <p className="text-xs text-gray-400 mt-1">
-              Inga todos. Prova: todo "Text" --date 2025-03-15
+              Inga todos. Prova: todo &quot;Text&quot; --date 2025-03-15
             </p>
           )}
           {!isLoading && Object.entries(dateGroups).map(([date, items]) => (

@@ -88,7 +88,7 @@ export function TemplatesModal({ open, onClose }: Props) {
                   </p>
                 )}
                 <p className="text-[9px] text-gray-300 font-mono mt-1">
-                  Använd via: note "Titel" --mall {t.name}
+                  Använd via: note &quot;Titel&quot; --mall {t.name}
                 </p>
               </div>
               <button
