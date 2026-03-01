@@ -12,8 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const features = [
-  { label: 'Library',       href: '/',                     icon: Library   },
-  { label: 'Schedule',      href: '/features/schedule',    icon: Calendar  },
+  { label: 'Bibliotek',     href: '/',                     icon: Library   },
+  { label: 'Schema',        href: '/features/schedule',    icon: Calendar  },
   { label: 'Familjeschema', href: '/features/familjeschema', icon: Users   },
   { label: 'Workspace',     href: '/workspace',            icon: Briefcase },
 ] as const;
@@ -35,7 +35,7 @@ export function FeatureNavigation() {
         <button
           className={cn(
             'inline-flex items-center gap-2 font-monument text-xl leading-none tracking-[0.2em] select-none',
-            'bg-transparent border-none cursor-pointer rounded-md px-2 py-1.5',
+            'bg-white border-none cursor-pointer rounded-md px-2 py-1.5',
             'hover:bg-black/5 transition-colors outline-none',
             'focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2',
           )}
@@ -47,7 +47,7 @@ export function FeatureNavigation() {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-52">
+      <DropdownMenuContent align="start" className="w-52 bg-white">
         {features.map(feature => {
           const FeatureIcon = feature.icon;
           const isActive = feature.href === current.href;
