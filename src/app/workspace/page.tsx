@@ -10,6 +10,7 @@ import { ListTodo, Timer } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import FileSectionsDropdown from '@/components/FileList/FileSectionsDropdown';
 import dynamic from 'next/dynamic';
+import { FeatureNavigation } from '@/components/FeatureNavigation';
 
 const FileListWindowWrapper = dynamic(() => import('@/components/FileList/FileListWindowWrapper'), {
   loading: () => <p>Loading...</p>,
@@ -110,6 +111,9 @@ const WorkspacePage = () => {
         <WindowProvider>
           {/* Main content area where windows will be rendered */}
           <div className="relative w-full h-screen">
+            <div className="fixed top-4 left-4 z-50">
+              <FeatureNavigation />
+            </div>
             <GridOverlay size={10} visible={showGrid} />
             <WindowControlButtons />
             

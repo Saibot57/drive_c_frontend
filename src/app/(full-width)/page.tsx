@@ -11,6 +11,7 @@ import { Red_Hat_Text } from 'next/font/google';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
 import type { FileData, SubSection, SectionData } from '@/types/fileSections';
+import { FeatureNavigation } from '@/components/FeatureNavigation';
 
 const redHat = Red_Hat_Text({
   subsets: ['latin'],
@@ -128,6 +129,9 @@ export default function Home() {
   return (
     <ProtectedRoute>
       <div className="bg-white">
+        <div className="mb-3">
+          <FeatureNavigation />
+        </div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3 flex-1">
             <Search onSearch={setSearchTerm} />
