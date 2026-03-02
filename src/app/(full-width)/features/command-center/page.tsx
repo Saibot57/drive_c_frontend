@@ -100,8 +100,8 @@ export default function CommandCenterPage() {
 
           </div>
 
-          {/* ── Right Column (30%) — Dagens Överblick ──── */}
-          <div className="w-[30%] flex flex-col">
+          {/* ── Right Column (15%) — Dagens schema ──── */}
+          <div className="w-[15%] flex flex-col">
             <div className="flex-1 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col overflow-hidden min-h-0">
               <div className="h-[3px] bg-amber-500 shrink-0" />
               <DailySchedulePanel />

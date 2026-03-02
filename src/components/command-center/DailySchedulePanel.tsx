@@ -65,11 +65,8 @@ export function DailySchedulePanel() {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
-        <h2 className="font-bold text-xs uppercase tracking-widest">Dagens Överblick</h2>
-        <span className="text-[10px] text-gray-500 font-mono">
-          {todayName}, v.&nbsp;{week}
-        </span>
+      <div className="px-4 pt-3 pb-2 shrink-0">
+        <h2 className="font-bold text-xs uppercase tracking-widest">{todayName} v. {week}</h2>
       </div>
 
       {/* Content */}
