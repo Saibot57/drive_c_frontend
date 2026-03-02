@@ -15,7 +15,7 @@ const features = [
   { label: 'Bibliotek',       href: '/',                            icon: Library   },
   { label: 'Schema',          href: '/features/schedule',           icon: Calendar  },
   { label: 'Familjeschema',   href: '/features/familjeschema',      icon: Users     },
-  { label: 'Kommandocentral', href: '/features/command-center',     icon: Terminal  },
+  { label: 'Skrivbord',        href: '/features/command-center',     icon: Terminal  },
   { label: 'Workspace',       href: '/workspace',                   icon: Briefcase },
 ] as const;
 

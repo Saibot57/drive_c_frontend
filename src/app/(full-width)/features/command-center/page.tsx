@@ -3,19 +3,22 @@
 import { useState } from 'react';
 import { BookMarked } from 'lucide-react';
 
-import ProtectedRoute         from '@/components/ProtectedRoute';
-import { Calendar }           from '@/components/calendar/Calendar';
-import { NotesBasket }        from '@/components/command-center/NotesBasket';
-import { TerminalPanel }      from '@/components/command-center/TerminalPanel';
-import { TodoList }           from '@/components/command-center/TodoList';
-import { EditNoteModal }      from '@/components/command-center/EditNoteModal';
-import { TemplatesModal }     from '@/components/command-center/TemplatesModal';
-import { FeatureNavigation }  from '@/components/FeatureNavigation';
-import { useTerminalEngine }  from '@/hooks/useTerminalEngine';
+import ProtectedRoute            from '@/components/ProtectedRoute';
+import { Calendar }              from '@/components/calendar/Calendar';
+import { NotesBasket }           from '@/components/command-center/NotesBasket';
+import { TerminalPanel }         from '@/components/command-center/TerminalPanel';
+import { TodoList }              from '@/components/command-center/TodoList';
+import { EditNoteModal }         from '@/components/command-center/EditNoteModal';
+import { ViewNoteModal }         from '@/components/command-center/ViewNoteModal';
+import { TemplatesModal }        from '@/components/command-center/TemplatesModal';
+import { DailySchedulePanel }    from '@/components/command-center/DailySchedulePanel';
+import { FeatureNavigation }     from '@/components/FeatureNavigation';
+import { useTerminalEngine }     from '@/hooks/useTerminalEngine';
 
 export default function CommandCenterPage() {
   const engine = useTerminalEngine();
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [viewTarget, setViewTarget] = useState<string | null>(null);
 
   return (
     <ProtectedRoute>
@@ -27,18 +30,18 @@ export default function CommandCenterPage() {
           <FeatureNavigation />
         </div>
 
-        {/* ── Main Grid ──────────────────────────────────── */}
+        {/* ── Main Grid (3 columns) ────────────────────── */}
         <div className="flex flex-1 overflow-hidden gap-3 min-h-0">
 
-          {/* ── Left Column (35%) ─────────────────────────── */}
-          <div className="w-[35%] flex flex-col gap-3">
+          {/* ── Left Column (25%) — Notes + Terminal ──── */}
+          <div className="w-[25%] flex flex-col gap-3">
 
-            {/* Anteckningskorgen */}
+            {/* Anteckningar */}
             <div className="flex-1 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col overflow-hidden min-h-0">
               <div className="h-[3px] bg-green-500 shrink-0" />
 
               <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
-                <h2 className="font-bold text-xs uppercase tracking-widest">Anteckningskorgen</h2>
+                <h2 className="font-bold text-xs uppercase tracking-widest">Anteckningar</h2>
                 <button
                   onClick={() => setTemplatesOpen(true)}
                   className="flex items-center gap-1.5 text-[10px] border-2 border-black px-2 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold uppercase tracking-wide"
@@ -53,6 +56,7 @@ export default function CommandCenterPage() {
                 <NotesBasket
                   refreshKey={engine.noteRefreshKey}
                   onEditRequest={engine.setEditTarget}
+                  onViewRequest={(id) => setViewTarget(id)}
                 />
               </div>
             </div>
@@ -72,7 +76,7 @@ export default function CommandCenterPage() {
 
           </div>
 
-          {/* ── Right Column (65%) ─────────────────────────── */}
+          {/* ── Middle Column — Calendar + Todo ─────────── */}
           <div className="flex-1 flex flex-col gap-3">
 
             {/* Kalender */}
@@ -95,10 +99,25 @@ export default function CommandCenterPage() {
             </div>
 
           </div>
+
+          {/* ── Right Column (30%) — Dagens Överblick ──── */}
+          <div className="w-[30%] flex flex-col">
+            <div className="flex-1 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col overflow-hidden min-h-0">
+              <div className="h-[3px] bg-amber-500 shrink-0" />
+              <DailySchedulePanel />
+            </div>
+          </div>
+
         </div>
       </div>
 
       {/* ── Modals ─────────────────────────────────────── */}
+      <ViewNoteModal
+        noteId={viewTarget}
+        onClose={() => setViewTarget(null)}
+        onEditRequest={(id) => { setViewTarget(null); engine.setEditTarget(id); }}
+      />
+
       <EditNoteModal
         noteId={engine.editTarget}
         onClose={engine.clearEditTarget}

@@ -8,9 +8,10 @@ import type { CCNote } from '@/services/commandCenterService';
 interface Props {
   refreshKey:    number;
   onEditRequest: (id: string) => void;
+  onViewRequest: (id: string) => void;
 }
 
-export function NotesBasket({ refreshKey, onEditRequest }: Props) {
+export function NotesBasket({ refreshKey, onEditRequest, onViewRequest }: Props) {
   const [notes, setNotes]       = useState<CCNote[]>([]);
   const [search, setSearch]     = useState('');
   const [isLoading, setLoading] = useState(true);
@@ -74,14 +75,15 @@ export function NotesBasket({ refreshKey, onEditRequest }: Props) {
         {filtered.map(note => (
           <div
             key={note.id}
-            className="border-2 border-black bg-white p-2.5 shadow-[2px_2px_0px_0px_black] group"
+            onClick={() => onViewRequest(note.id)}
+            className="border-2 border-black bg-white p-2.5 shadow-[2px_2px_0px_0px_black] group cursor-pointer hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
           >
             <div className="flex items-start justify-between gap-2">
               <span className="text-xs font-bold leading-snug flex-1 min-w-0 truncate">
                 {note.title}
               </span>
               <button
-                onClick={() => onEditRequest(note.id)}
+                onClick={(e) => { e.stopPropagation(); onEditRequest(note.id); }}
                 className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-black hover:text-white"
                 title="Redigera"
               >
