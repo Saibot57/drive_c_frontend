@@ -414,7 +414,7 @@ export function FamilySchedule() {
     reader.readAsText(file);
     event.target.value = '';
   };
-  
+
   const handleExportJSON = () => {
     const jsonString = JSON.stringify(activities, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -490,7 +490,7 @@ export function FamilySchedule() {
     const originalWidth = scheduleElement.style.width;
     const originalHeight = scheduleElement.style.height;
 
-    const marginBuffer = 8; // small buffer to avoid rounding overflow
+    const marginBuffer = 8;
 
     let cachedPxPerMM: number | null = null;
 
@@ -604,7 +604,6 @@ export function FamilySchedule() {
 
     window.print();
 
-    // Fallback cleanup in case afterprint is not fired
     window.setTimeout(() => {
       cleanup();
       window.removeEventListener('afterprint', handlePrintEnd);
@@ -615,173 +614,184 @@ export function FamilySchedule() {
   if (error) return <div className="text-center p-10 font-monument text-red-600">Fel: {error}</div>;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] gap-4 bg-[var(--neo-bg)] p-4">
+    <div className="flex flex-col lg:flex-row gap-6">
 
-      {/* ── Top Toolbar ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-4 bg-white border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,1)] rounded-xl px-4 py-2 flex-shrink-0">
+      {/* ── Child A: Toolbar + Workspace ─────────────────────────────── */}
+      <div className="flex-1 min-w-0 space-y-6">
 
-        {/* LEFT – Feature switcher */}
-        <FeatureNavigation />
+        {/* ── Top Toolbar ──────────────────────────────────────────────── */}
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center gap-4">
 
-        {/* CENTER – Week navigation */}
-        <div className="flex items-center gap-1 mx-auto">
-          <button
-            className="btn-compact btn-icon-small"
-            onClick={() => navigateWeek(-1)}
-            aria-label="Föregående vecka"
-            title="Föregående vecka"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            className="week-display px-3 py-1 font-monument text-sm tracking-widest hover:bg-black/5 rounded transition-colors"
-            onClick={() => setShowWeekPicker(!showWeekPicker)}
-            title="Välj vecka"
-            aria-label="Välj vecka"
-          >
-            Vecka {selectedWeek}
-          </button>
-          <button
-            className="btn-compact btn-icon-small"
-            onClick={() => navigateWeek(1)}
-            aria-label="Nästa vecka"
-            title="Nästa vecka"
-          >
-            <ChevronRight size={18} />
-          </button>
-          {!isCurrentWeek && (
+          {/* LEFT – Feature switcher */}
+          <FeatureNavigation />
+
+          {/* CENTER – Week navigation */}
+          <div className="flex items-center gap-1 mx-auto relative">
             <button
-              className="btn-compact ml-1 flex items-center gap-1"
-              onClick={goToCurrentWeek}
-              title="Gå till nuvarande vecka"
-              aria-label="Denna vecka"
+              className="btn-compact btn-icon-small"
+              onClick={() => navigateWeek(-1)}
+              aria-label="Föregående vecka"
+              title="Föregående vecka"
             >
-              <Home size={15} />
-              <span className="text-xs">Denna vecka</span>
+              <ChevronLeft size={18} />
             </button>
-          )}
-        </div>
-
-        {/* RIGHT – View mode + global actions */}
-        <div className="flex items-center gap-1 ml-auto">
-          {/* View mode toggles */}
-          <button
-            className={`btn-square ${viewMode === 'grid' ? 'active' : ''}`}
-            onClick={() => setViewMode('grid')}
-            title="Rutnätsvy"
-            aria-label="Rutnätsvy"
-            aria-pressed={viewMode === 'grid'}
-            type="button"
-          >
-            <Grid3x3 size={18} />
-          </button>
-          <button
-            className={`btn-square ${viewMode === 'layer' ? 'active' : ''}`}
-            onClick={() => setViewMode('layer')}
-            title="Lagervy"
-            aria-label="Lagervy"
-            aria-pressed={viewMode === 'layer'}
-            type="button"
-          >
-            <Layers size={18} />
-          </button>
-
-          <div className="w-px h-6 bg-black/20 mx-1" aria-hidden="true" />
-
-          {/* Global actions */}
-          <button
-            className="btn-square btn-square-large btn-primary"
-            onClick={() => { setEditingActivity(null); setModalOpen(true); }}
-            title="Ny aktivitet"
-            aria-label="Ny aktivitet"
-            type="button"
-          >
-            <Plus size={18} />
-          </button>
-          <button
-            className="btn-square btn-square-large"
-            onClick={() => setDataModalOpen(true)}
-            title="Import/Export"
-            aria-label="Import/Export"
-            type="button"
-          >
-            <ArrowRightLeft size={18} />
-          </button>
-          <button
-            className="btn-square btn-square-large"
-            onClick={handleSystemPrint}
-            title="Skriv ut"
-            aria-label="Skriv ut"
-            type="button"
-          >
-            <Printer size={18} />
-          </button>
-          <button
-            className="btn-square btn-square-large"
-            onClick={() => setSettingsOpen(true)}
-            title="Inställningar"
-            aria-label="Inställningar"
-            type="button"
-          >
-            <SettingsIcon size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* ── Content Area ─────────────────────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 gap-4">
-        <Sidebar
-          familyMembers={familyMembers}
-          isReorderingMembers={isReorderingMembers}
-          isSavingMemberOrder={isSavingMemberOrder}
-          onMemberClick={handleMemberClick}
-          onStartReorder={handleStartMemberReorder}
-          onSubmitReorder={handleSubmitMemberReorder}
-          onReorderMembers={handleReorderMembers}
-          onQuickTextImport={handleTextImport}
-        />
-
-        <div className="schedule-main-content flex-1 min-w-0">
-          {/* Notifications */}
-          {!isCurrentWeek && (
-            <div className="compact-notice" role="alert">
-              <AlertCircle size={18}/>
-              <span>Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka</span>
-            </div>
-          )}
-          {showConflict && (
-            <div className="compact-notice conflict" role="alert">
-              <AlertCircle size={18}/>
-              <span>Tidskonflikt! En deltagare är redan upptagen.</span>
-            </div>
-          )}
-
-          {/* Main Schedule View */}
-          <div
-            className={`schedule-view-container printable-schedule-scope ${printSheetClass}`}
-            ref={scheduleRef}
-          >
-            {viewMode === 'grid' ? (
-              <ScheduleGrid
-                days={days} weekDates={weekDates} timeSlots={timeSlots}
-                activities={activities} familyMembers={familyMembers}
-                settings={settings} selectedWeek={selectedWeek}
-                selectedYear={selectedYear} onActivityClick={handleActivityClick}
-              />
-            ) : (
-              <LayerView
-                days={days} weekDates={weekDates} timeSlots={timeSlots}
-                activities={activities} familyMembers={familyMembers}
-                settings={settings} selectedWeek={selectedWeek}
-                selectedYear={selectedYear} onActivityClick={handleActivityClick}
-                highlightedMemberId={highlightedMemberId}
-              />
+            <button
+              className="week-display px-3 py-1 font-monument text-sm tracking-widest hover:bg-black/5 rounded transition-colors"
+              onClick={() => setShowWeekPicker(!showWeekPicker)}
+              title="Välj vecka"
+              aria-label="Välj vecka"
+            >
+              Vecka {selectedWeek}
+            </button>
+            <button
+              className="btn-compact btn-icon-small"
+              onClick={() => navigateWeek(1)}
+              aria-label="Nästa vecka"
+              title="Nästa vecka"
+            >
+              <ChevronRight size={18} />
+            </button>
+            {!isCurrentWeek && (
+              <button
+                className="btn-compact ml-1 flex items-center gap-1"
+                onClick={goToCurrentWeek}
+                title="Gå till nuvarande vecka"
+                aria-label="Denna vecka"
+              >
+                <Home size={15} />
+                <span className="text-xs">Denna vecka</span>
+              </button>
             )}
+          </div>
+
+          {/* RIGHT – View mode toggles */}
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              className={`btn-square ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Rutnätsvy"
+              aria-label="Rutnätsvy"
+              aria-pressed={viewMode === 'grid'}
+              type="button"
+            >
+              <Grid3x3 size={18} />
+            </button>
+            <button
+              className={`btn-square ${viewMode === 'layer' ? 'active' : ''}`}
+              onClick={() => setViewMode('layer')}
+              title="Lagervy"
+              aria-label="Lagervy"
+              aria-pressed={viewMode === 'layer'}
+              type="button"
+            >
+              <Layers size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Workspace row ─────────────────────────────────────────────── */}
+        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-10rem)]">
+
+          {/* Left Sidebar — family members */}
+          <Sidebar
+            familyMembers={familyMembers}
+            isReorderingMembers={isReorderingMembers}
+            isSavingMemberOrder={isSavingMemberOrder}
+            onMemberClick={handleMemberClick}
+            onStartReorder={handleStartMemberReorder}
+            onSubmitReorder={handleSubmitMemberReorder}
+            onReorderMembers={handleReorderMembers}
+            onQuickTextImport={handleTextImport}
+          />
+
+          {/* Center — schedule grid */}
+          <div className="flex-1 min-w-0 rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] overflow-auto flex flex-col">
+            {/* Notifications */}
+            {!isCurrentWeek && (
+              <div className="compact-notice" role="alert">
+                <AlertCircle size={18}/>
+                <span>Du tittar på {isWeekInPast(weekDates) ? 'en tidigare' : isWeekInFuture(weekDates) ? 'en kommande' : 'en annan'} vecka</span>
+              </div>
+            )}
+            {showConflict && (
+              <div className="compact-notice conflict" role="alert">
+                <AlertCircle size={18}/>
+                <span>Tidskonflikt! En deltagare är redan upptagen.</span>
+              </div>
+            )}
+
+            {/* Schedule view */}
+            <div
+              className={`schedule-view-container printable-schedule-scope ${printSheetClass} flex-1`}
+              ref={scheduleRef}
+            >
+              {viewMode === 'grid' ? (
+                <ScheduleGrid
+                  days={days} weekDates={weekDates} timeSlots={timeSlots}
+                  activities={activities} familyMembers={familyMembers}
+                  settings={settings} selectedWeek={selectedWeek}
+                  selectedYear={selectedYear} onActivityClick={handleActivityClick}
+                />
+              ) : (
+                <LayerView
+                  days={days} weekDates={weekDates} timeSlots={timeSlots}
+                  activities={activities} familyMembers={familyMembers}
+                  settings={settings} selectedWeek={selectedWeek}
+                  selectedYear={selectedYear} onActivityClick={handleActivityClick}
+                  highlightedMemberId={highlightedMemberId}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Modals */}
+      {/* ── Right Sidebar: Actions ────────────────────────────────────── */}
+      <div className="w-[200px] rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col shrink-0 p-4 gap-3">
+        <h3 className="font-bold text-xs uppercase tracking-widest mb-1">Åtgärder</h3>
+
+        <button
+          className="btn-compact btn-primary w-full flex items-center gap-2"
+          onClick={() => { setEditingActivity(null); setModalOpen(true); }}
+          title="Ny aktivitet"
+          type="button"
+        >
+          <Plus size={15} />
+          <span>Ny aktivitet</span>
+        </button>
+
+        <button
+          className="btn-compact w-full flex items-center gap-2"
+          onClick={() => setDataModalOpen(true)}
+          title="Import / Export"
+          type="button"
+        >
+          <ArrowRightLeft size={15} />
+          <span>Import / Export</span>
+        </button>
+
+        <button
+          className="btn-compact w-full flex items-center gap-2"
+          onClick={handleSystemPrint}
+          title="Skriv ut"
+          type="button"
+        >
+          <Printer size={15} />
+          <span>Skriv ut</span>
+        </button>
+
+        <button
+          className="btn-compact w-full flex items-center gap-2"
+          onClick={() => setSettingsOpen(true)}
+          title="Inställningar"
+          type="button"
+        >
+          <SettingsIcon size={15} />
+          <span>Inställningar</span>
+        </button>
+      </div>
+
+      {/* ── Modals ────────────────────────────────────────────────────── */}
       {showWeekPicker && (
         <WeekPicker
           selectedWeek={selectedWeek}

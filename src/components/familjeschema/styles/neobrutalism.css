@@ -1445,14 +1445,14 @@ button.member-badge:hover {
   background: var(--neo-white);
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
   transition: width 0.3s ease;
-  /* Keep the sidebar beneath the global navigation header while staying above
-     the schedule content */
   z-index: 10;
+  border-radius: 12px;
+  border: 2px solid var(--neo-black);
+  box-shadow: 4px 4px 0px rgba(0, 0, 0, 1);
+  flex-shrink: 0;
 }
 
 .sidebar-scrollable-content {
@@ -1898,7 +1898,7 @@ button.member-badge:hover {
 /* Family Members in Sidebar */
 .sidebar-members {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 6px;
   position: relative;
 }

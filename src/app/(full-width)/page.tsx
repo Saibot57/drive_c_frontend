@@ -7,16 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import { Red_Hat_Text } from 'next/font/google';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
 import type { FileData, SubSection, SectionData } from '@/types/fileSections';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
-
-const redHat = Red_Hat_Text({
-  subsets: ['latin'],
-  weight: ['400', '500', '700']
-});
 
 export default function Home() {
   const [data, setData] = useState<{ data: SectionData[] } | null>(null);
@@ -51,7 +45,6 @@ export default function Home() {
     setError(null);
 
     try {
-      // First trigger the backend update
       const updateResponse = await fetchWithAuth(`${API_URL}/update`, {
         method: 'POST',
         headers: {
@@ -65,10 +58,8 @@ export default function Home() {
         throw new Error(updateData.message || 'Failed to update data');
       }
 
-      // Add a small delay to ensure the database has completed its update
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Then fetch the updated data
       await fetchData();
     } catch (err) {
       console.error('Update error:', err);
@@ -89,7 +80,6 @@ export default function Home() {
     const term = searchTerm.toLowerCase().trim();
 
     return data.data.map(section => {
-      // Only keep files that have a valid URL
       const filteredFiles = section.files.filter(file =>
         file.url && file.url.trim() !== '' &&
         (!term ||
@@ -128,11 +118,10 @@ export default function Home() {
 
   return (
     <ProtectedRoute>
-      <div className="bg-white">
-        <div className="mb-3">
+      <div className="space-y-6">
+        {/* ── Toolbar ─────────────────────────────────────────────────── */}
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center gap-4 flex-wrap">
           <FeatureNavigation />
-        </div>
-        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3 flex-1">
             <Search onSearch={setSearchTerm} />
             <Button
@@ -144,7 +133,7 @@ export default function Home() {
               {isRefreshing ? '...' : 'Uppdatera'}
             </Button>
           </div>
-          <div className="flex items-center ml-3">
+          <div className="flex items-center">
             <Checkbox
               id="showTags"
               checked={showTags}
@@ -155,6 +144,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ── Content ─────────────────────────────────────────────────── */}
         {loading && !isRefreshing ? (
           <p>Loading...</p>
         ) : error ? (
