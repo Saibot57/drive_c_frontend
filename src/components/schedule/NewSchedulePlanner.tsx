@@ -168,6 +168,7 @@ export default function NewSchedulePlanner() {
   const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [copiedEntryContent, setCopiedEntryContent] = useState<{ teacher: string; room: string; notes?: string; category?: string } | null>(null);
   const [pendingPlacement, setPendingPlacement] = useState<ScheduledEntry | null>(null);
   const [placementGhost, setPlacementGhost] = useState<GhostPlacement | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -1236,6 +1237,35 @@ export default function NewSchedulePlanner() {
           >
             Duplicera och placera
           </button>
+          <button
+            className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+            onClick={() => {
+              const { teacher, room, notes, category } = contextMenu.entry;
+              setCopiedEntryContent({ teacher, room, notes, category });
+              showNotice('Innehåll kopierat', 'success');
+              setContextMenu(null);
+            }}
+          >
+            Kopiera innehåll
+          </button>
+          {copiedEntryContent && (
+            <button
+              className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+              onClick={() => {
+                commitSchedule(prev =>
+                  prev.map(e =>
+                    e.instanceId === contextMenu.entry.instanceId
+                      ? { ...e, ...copiedEntryContent }
+                      : e
+                  )
+                );
+                showNotice('Innehåll inklistrat', 'success');
+                setContextMenu(null);
+              }}
+            >
+              Klistra in innehåll
+            </button>
+          )}
           <button
             className="w-full px-1.5 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
             onClick={() => {
