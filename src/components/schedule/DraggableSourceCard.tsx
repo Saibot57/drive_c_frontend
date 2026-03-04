@@ -12,6 +12,7 @@ type DraggableSourceCardProps = {
   hidden?: boolean;
   isDerived?: boolean;
   dragDisabled?: boolean;
+  isSelected?: boolean;
 };
 
 export function DraggableSourceCard({
@@ -20,7 +21,8 @@ export function DraggableSourceCard({
   onDelete,
   hidden,
   isDerived,
-  dragDisabled = false
+  dragDisabled = false,
+  isSelected = false
 }: DraggableSourceCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `source-${course.id}`,
@@ -36,7 +38,7 @@ export function DraggableSourceCard({
       {...listeners}
       {...attributes}
       style={{ backgroundColor: course.color }}
-      className={`relative group p-2 mb-2 rounded border border-black/10 transition-all ${dragDisabled ? 'cursor-default' : 'cursor-grab hover:shadow-md'} ${isDragging ? 'opacity-50' : ''}`}
+      className={`relative group p-2 mb-2 rounded border border-black/10 transition-all ${dragDisabled ? 'cursor-default' : 'cursor-grab hover:shadow-md'} ${isDragging ? 'opacity-50' : ''} ${isSelected ? 'ring-2 ring-black ring-offset-2' : ''}`}
     >
       <div className="flex justify-between items-start">
         <div>

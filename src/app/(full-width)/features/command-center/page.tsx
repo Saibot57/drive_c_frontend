@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { BookMarked } from 'lucide-react';
 
 import ProtectedRoute            from '@/components/ProtectedRoute';
@@ -14,6 +14,7 @@ import { TemplatesModal }        from '@/components/command-center/TemplatesModa
 import { DailySchedulePanel }    from '@/components/command-center/DailySchedulePanel';
 import { FeatureNavigation }     from '@/components/FeatureNavigation';
 import { useTerminalEngine }     from '@/hooks/useTerminalEngine';
+import { useHotkeys }            from '@/hooks/useHotkeys';
 import { StandardDashboardLayout } from '@/components/layout/StandardDashboardLayout';
 import {
   ResizablePanelGroup,
@@ -21,12 +22,33 @@ import {
   ResizableHandle,
 } from '@/components/ui/resizable';
 
+type FocusedPanel = 'notes' | 'terminal' | 'calendar' | 'todos' | 'schedule' | null;
+
 const NEO = 'rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] overflow-hidden h-full';
 
 export default function CommandCenterPage() {
   const engine = useTerminalEngine();
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [viewTarget, setViewTarget] = useState<string | null>(null);
+  const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
+
+  const terminalInputRef = useRef<HTMLInputElement>(null);
+
+  useHotkeys(
+    [
+      { key: 'N', ctrl: true, shift: true, handler: () => setFocusedPanel('notes') },
+      { key: 'T', ctrl: true, shift: true, handler: () => {
+        setFocusedPanel('terminal');
+        // Also focus the terminal input
+        setTimeout(() => terminalInputRef.current?.focus(), 0);
+      }},
+      { key: 'C', ctrl: true, shift: true, handler: () => setFocusedPanel('calendar') },
+      { key: 'D', ctrl: true, shift: true, handler: () => setFocusedPanel('todos') },
+      { key: 'S', ctrl: true, shift: true, handler: () => setFocusedPanel('schedule') },
+      { key: 'Escape', handler: () => setFocusedPanel(null) },
+    ],
+    [],
+  );
 
   return (
     <ProtectedRoute>
@@ -38,9 +60,9 @@ export default function CommandCenterPage() {
           rightSidebarWidth="w-[15%]"
           topToolbar={<FeatureNavigation />}
           leftSidebar={
-            <div className={NEO}>
+            <div className={`${NEO} ${focusedPanel === 'notes' || focusedPanel === 'terminal' ? 'ring-2 ring-black' : ''}`}>
               <ResizablePanelGroup direction="vertical">
-                {/* ── Anteckningar ── */}
+                {/* Notes */}
                 <ResizablePanel defaultSize={62}>
                   <div className="flex flex-col h-full overflow-hidden">
                     <div className="h-[3px] bg-green-500 shrink-0" />
@@ -60,6 +82,7 @@ export default function CommandCenterPage() {
                         refreshKey={engine.noteRefreshKey}
                         onEditRequest={engine.setEditTarget}
                         onViewRequest={(id) => setViewTarget(id)}
+                        isFocused={focusedPanel === 'notes'}
                       />
                     </div>
                   </div>
@@ -67,7 +90,7 @@ export default function CommandCenterPage() {
 
                 <ResizableHandle withHandle />
 
-                {/* ── Terminal ── */}
+                {/* Terminal */}
                 <ResizablePanel defaultSize={38}>
                   <div className="h-full overflow-hidden">
                     <TerminalPanel
@@ -85,9 +108,9 @@ export default function CommandCenterPage() {
             </div>
           }
           centerContent={
-            <div className={NEO}>
+            <div className={`${NEO} ${focusedPanel === 'calendar' || focusedPanel === 'todos' ? 'ring-2 ring-black' : ''}`}>
               <ResizablePanelGroup direction="vertical">
-                {/* ── Kalender ── */}
+                {/* Calendar */}
                 <ResizablePanel defaultSize={65}>
                   <div className="flex flex-col h-full overflow-hidden min-h-0">
                     <div className="h-[3px] bg-pink-500 shrink-0" />
@@ -99,14 +122,17 @@ export default function CommandCenterPage() {
 
                 <ResizableHandle withHandle />
 
-                {/* ── Att-göra-lista ── */}
+                {/* Todos */}
                 <ResizablePanel defaultSize={35}>
                   <div className="flex flex-col h-full overflow-hidden min-h-0">
                     <div className="h-[3px] bg-blue-500 shrink-0" />
                     <div className="flex flex-col flex-1 overflow-hidden min-h-0 px-4 py-3">
                       <h2 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0">Att-göra-lista</h2>
                       <div className="flex-1 overflow-hidden min-h-0">
-                        <TodoList refreshKey={engine.todoRefreshKey} />
+                        <TodoList
+                          refreshKey={engine.todoRefreshKey}
+                          isFocused={focusedPanel === 'todos'}
+                        />
                       </div>
                     </div>
                   </div>
@@ -115,7 +141,7 @@ export default function CommandCenterPage() {
             </div>
           }
           rightSidebar={
-            <div className={NEO}>
+            <div className={`${NEO} ${focusedPanel === 'schedule' ? 'ring-2 ring-black' : ''}`}>
               <div className="flex flex-col h-full overflow-hidden min-h-0">
                 <div className="h-[3px] bg-amber-500 shrink-0" />
                 <DailySchedulePanel />
@@ -125,7 +151,7 @@ export default function CommandCenterPage() {
         />
       </div>
 
-      {/* ── Modals ─────────────────────────────────────── */}
+      {/* Modals */}
       <ViewNoteModal
         noteId={viewTarget}
         onClose={() => setViewTarget(null)}

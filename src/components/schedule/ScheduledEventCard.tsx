@@ -17,6 +17,7 @@ type ScheduledEventCardProps = {
   isLastOfDay: boolean;
   showLayoutDebug: boolean;
   dragDisabled?: boolean;
+  isSelected?: boolean;
 };
 
 const extractUrl = (value?: string) => {
@@ -35,7 +36,8 @@ export function ScheduledEventCard({
   columnCount,
   isLastOfDay,
   showLayoutDebug,
-  dragDisabled = false
+  dragDisabled = false,
+  isSelected = false
 }: ScheduledEventCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
@@ -71,7 +73,8 @@ export function ScheduledEventCard({
         backgroundColor: entry.color,
         zIndex: isDragging ? 50 : 10
       }}
-      className={`scheduled-event-card rounded border border-black/20 shadow-sm overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 ring-2 ring-black' : ''}`}
+      data-instance-id={entry.instanceId}
+      className={`scheduled-event-card rounded border border-black/20 shadow-sm overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 ring-2 ring-black' : ''} ${isSelected ? 'ring-2 ring-black ring-offset-2' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="flex flex-col h-full">
@@ -102,7 +105,7 @@ export function ScheduledEventCard({
                 <FileText size={10} />
               </a>
             )}
-            <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded">
+            <div className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded`}>
               <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-0.5 hover:bg-white rounded"><Edit2 size={8} /></button>
               <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8} /></button>
             </div>

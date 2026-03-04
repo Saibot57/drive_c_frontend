@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ScheduledEntry } from '@/types/schedule';
+import { useHotkeys } from '@/hooks/useHotkeys';
 
 type CommitOptions = {
   clearHistory?: boolean;
@@ -46,24 +47,10 @@ export const useScheduleHistory = () => {
     });
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const isEditable = target?.tagName === 'INPUT'
-        || target?.tagName === 'TEXTAREA'
-        || target?.isContentEditable;
-      if (isEditable) return;
-
-      const isUndoKey = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z';
-      if (!isUndoKey || event.shiftKey) return;
-
-      event.preventDefault();
-      handleUndo();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo]);
+  useHotkeys(
+    [{ key: 'z', ctrl: true, handler: handleUndo }],
+    [handleUndo],
+  );
 
   return {
     schedule,

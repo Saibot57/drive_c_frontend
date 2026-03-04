@@ -55,6 +55,9 @@ import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlan
 import { useDragHandlers } from '@/hooks/useDragHandlers';
 import { useScheduleExport } from '@/hooks/useScheduleExport';
 import { useMobileNavigation } from '@/hooks/useMobileNavigation';
+import { useScheduleKeyboardNav } from '@/hooks/useScheduleKeyboardNav';
+import { useKeyboardPlacement } from '@/hooks/useKeyboardPlacement';
+import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 
 // --- Helper: Conflict Check & Filtering ---
@@ -256,6 +259,13 @@ export default function NewSchedulePlanner() {
 
   const { handleExportPDF, handleExportImage } = useScheduleExport({ schedule });
 
+  // --- Keyboard Placement (hook must be at top level) ---
+  const {
+    kbPlacementGhost,
+    startPlacement: startKbPlacement,
+    isKbPlacementActive,
+  } = useKeyboardPlacement({ commitSchedule, showNotice });
+
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
 
@@ -299,16 +309,10 @@ export default function NewSchedulePlanner() {
     runLayoutFixtureValidation();
   }, []);
 
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== 'c') return;
-      if (!event.ctrlKey || !event.shiftKey) return;
-      event.preventDefault();
-      setIsCategoryDebugOpen(true);
-    };
-    window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
-  }, []);
+  useHotkeys(
+    [{ key: 'c', ctrl: true, shift: true, handler: () => setIsCategoryDebugOpen(true) }],
+    [],
+  );
 
   useEffect(() => {
     if (!loadedArchiveName) return;
@@ -674,6 +678,59 @@ export default function NewSchedulePlanner() {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [pendingPlacement]);
 
+  // --- Keyboard Navigation ---
+  const {
+    activeZone,
+    selectedCourseIndex,
+    selectedEventId,
+    selectedArchiveIndex,
+  } = useScheduleKeyboardNav({
+    courses,
+    schedule,
+    sortedWeekNames,
+    filterQuery,
+    isSidebarCollapsed,
+    isRightSidebarCollapsed,
+    onEditCourse: (c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); },
+    onDeleteCourse: handleDeleteCourse,
+    onNewCourse: () => {
+      setManualColor(false);
+      setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: DEFAULT_COURSE_COLOR, duration: 60 });
+      setIsCourseModalOpen(true);
+    },
+    onEditEntry: (e) => { setEditingEntry(e); setIsEntryModalOpen(true); },
+    onRemoveEntry: (id) => commitSchedule(p => p.filter(e => e.instanceId !== id)),
+    onDuplicateParallel: handleDuplicateParallel,
+    onDuplicateAndPlace: handleDuplicateAndPlace,
+    onCopyContent: (entry) => {
+      const { teacher, room, notes, category } = entry;
+      setCopiedEntryContent({ teacher, room, notes, category });
+      showNotice('Innehåll kopierat', 'success');
+    },
+    onPasteContent: (entry) => {
+      if (!copiedEntryContent) return;
+      commitSchedule(prev =>
+        prev.map(e => e.instanceId === entry.instanceId ? { ...e, ...copiedEntryContent } : e)
+      );
+      showNotice('Innehåll inklistrat', 'success');
+    },
+    onOpenContextMenu: (entry) => {
+      const el = document.querySelector(`[data-instance-id="${entry.instanceId}"]`);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        setContextMenu({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, entry });
+      } else {
+        setContextMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2, entry });
+      }
+    },
+    onLoadWeek: handleLoadWeek,
+    onDuplicateWeek: handleDuplicateWeek,
+    onDeleteWeek: handleDeleteWeek,
+    onStartPlacement: startKbPlacement,
+    hasCopiedContent: !!copiedEntryContent,
+    advancedFilterMatch,
+  });
+
   // --- Render ---
 
   return (
@@ -811,7 +868,7 @@ export default function NewSchedulePlanner() {
           >
              <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
                isSidebarCollapsed ? 'p-2' : 'p-4'
-             }`}>
+             } ${activeZone === 'courses' ? 'ring-2 ring-black' : ''}`}>
                 <div className={`flex items-center gap-3 mb-4 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
                   <h2 className={`font-bold flex items-center gap-2 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
                     <Hammer size={18}/> Byggstenar
@@ -866,17 +923,21 @@ export default function NewSchedulePlanner() {
                       </Button>
                     )}
                   <div className="overflow-y-auto pr-2 min-h-0">
-                     {courses.map(c => (
-                       <DraggableSourceCard 
-                         key={c.id}
-                         course={c}
-                         onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }}
-                         onDelete={handleDeleteCourse}
-                         isDerived={derivedCourseKeys.has(buildCourseDedupeKey(c)) && !manualCourseKeys.has(buildCourseDedupeKey(c))}
-                         dragDisabled={isMobileDragDisabled}
-                         hidden={!advancedFilterMatch(c, filterQuery)}
-                       />
-                     ))}
+                     {courses.map((c, idx) => {
+                       const visibleIdx = courses.filter((cc, ii) => ii < idx && advancedFilterMatch(cc, filterQuery)).length;
+                       return (
+                         <DraggableSourceCard
+                           key={c.id}
+                           course={c}
+                           onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }}
+                           onDelete={handleDeleteCourse}
+                           isDerived={derivedCourseKeys.has(buildCourseDedupeKey(c)) && !manualCourseKeys.has(buildCourseDedupeKey(c))}
+                           dragDisabled={isMobileDragDisabled}
+                           hidden={!advancedFilterMatch(c, filterQuery)}
+                           isSelected={activeZone === 'courses' && selectedCourseIndex === visibleIdx}
+                         />
+                       );
+                     })}
                   </div>
                   </>
                 )}
@@ -908,7 +969,7 @@ export default function NewSchedulePlanner() {
           </div>
 
           {/* Main Schedule Area */}
-          <div className="flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full">
+          <div className={`flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full ${activeZone === 'grid' ? 'ring-2 ring-black' : ''}`}>
              <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
                 <div className="schedule-desktop-header hidden lg:flex sticky top-0 z-[60] pl-[50px] border-b-2 border-black bg-white">
                    {PLANNER_DAYS.map(day => (
@@ -992,8 +1053,8 @@ export default function NewSchedulePlanner() {
                          <DayColumn
                            key={day} day={day}
                            ghost={ghostPlacement?.day === day ? ghostPlacement : null}
-                           placementGhost={placementGhost?.day === day ? placementGhost : null}
-                           isPlacementMode={!!pendingPlacement}
+                           placementGhost={(placementGhost?.day === day ? placementGhost : null) ?? (kbPlacementGhost?.day === day ? kbPlacementGhost : null)}
+                           isPlacementMode={!!pendingPlacement || isKbPlacementActive}
                            onPlacementMouseMove={pendingPlacement ? (relY) => handlePlacementMouseMove(day, relY) : undefined}
                            onPlacementClick={pendingPlacement ? (relY) => handlePlacementClick(day, relY) : undefined}
                          >
@@ -1028,6 +1089,7 @@ export default function NewSchedulePlanner() {
                                   columnCount={columnCount}
                                   isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
                                   showLayoutDebug={showLayoutDebug}
+                                  isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                />
                               );
                               });
@@ -1043,8 +1105,8 @@ export default function NewSchedulePlanner() {
                        <DayColumn
                          day={mobileSelectedDay}
                          ghost={ghostPlacement?.day === mobileSelectedDay ? ghostPlacement : null}
-                         placementGhost={placementGhost?.day === mobileSelectedDay ? placementGhost : null}
-                         isPlacementMode={!!pendingPlacement}
+                         placementGhost={(placementGhost?.day === mobileSelectedDay ? placementGhost : null) ?? (kbPlacementGhost?.day === mobileSelectedDay ? kbPlacementGhost : null)}
+                         isPlacementMode={!!pendingPlacement || isKbPlacementActive}
                          onPlacementMouseMove={pendingPlacement ? (relY) => handlePlacementMouseMove(mobileSelectedDay, relY) : undefined}
                          onPlacementClick={pendingPlacement ? (relY) => handlePlacementClick(mobileSelectedDay, relY) : undefined}
                          className="min-w-0"
@@ -1080,6 +1142,7 @@ export default function NewSchedulePlanner() {
                                  columnCount={columnCount}
                                  isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
                                  showLayoutDebug={showLayoutDebug}
+                                 isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                />
                              );
                            });
@@ -1102,7 +1165,7 @@ export default function NewSchedulePlanner() {
         >
            <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
              isRightSidebarCollapsed ? 'p-2' : 'p-4'
-           }`}>
+           } ${activeZone === 'archive' ? 'ring-2 ring-black' : ''}`}>
               <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
                 <h2 className={`font-bold flex items-center gap-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
                   <Archive size={18}/> Sparade Veckor
@@ -1149,10 +1212,10 @@ export default function NewSchedulePlanner() {
                     {sortedWeekNames.length === 0 ? (
                       <p className="text-sm text-gray-500 italic">Inga sparade veckor ännu.</p>
                     ) : (
-                      sortedWeekNames.map(name => (
+                      sortedWeekNames.map((name, idx) => (
                         <div
                           key={name}
-                          className="rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-2"
+                          className={`rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-2 ${activeZone === 'archive' && selectedArchiveIndex === idx ? 'ring-2 ring-black ring-offset-2' : ''}`}
                         >
                           <Button
                             type="button"
@@ -1278,9 +1341,15 @@ export default function NewSchedulePlanner() {
         </div>
       )}
 
-      {pendingPlacement && (
+      {pendingPlacement && !isKbPlacementActive && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
           Klicka i schemat för att placera <strong>&quot;{pendingPlacement.title}&quot;</strong> · Esc avbryter
+        </div>
+      )}
+
+      {isKbPlacementActive && kbPlacementGhost && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
+          Placera <strong>&quot;{kbPlacementGhost.title}&quot;</strong>: ←→ dag, ↑↓ tid, Enter bekräftar, Esc avbryter
         </div>
       )}
 

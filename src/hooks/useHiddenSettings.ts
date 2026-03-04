@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ROOMS_KEY, TEACHERS_KEY } from '@/components/schedule/constants';
+import { useHotkeys } from '@/hooks/useHotkeys';
 
 export const useHiddenSettings = () => {
   const [teachers, setTeachers] = useState<string[]>([]);
@@ -22,16 +23,10 @@ export const useHiddenSettings = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== 'k') return;
-      if (!event.ctrlKey || !event.shiftKey) return;
-      event.preventDefault();
-      setIsHiddenSettingsOpen(true);
-    };
-    window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
-  }, []);
+  useHotkeys(
+    [{ key: 'k', ctrl: true, shift: true, handler: () => setIsHiddenSettingsOpen(true) }],
+    [],
+  );
 
   const handleHiddenSettingsSave = useCallback((nextTeachers: string[], nextRooms: string[]) => {
     setTeachers(nextTeachers);
