@@ -172,9 +172,7 @@ export default function NewSchedulePlanner() {
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [copiedEntryContent, setCopiedEntryContent] = useState<{ teacher: string; room: string; notes?: string; category?: string } | null>(null);
-  const [pendingPlacement, setPendingPlacement] = useState<ScheduledEntry | null>(null);
-  const [placementGhost, setPlacementGhost] = useState<GhostPlacement | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
@@ -635,48 +633,12 @@ export default function NewSchedulePlanner() {
   }, [commitSchedule, showNotice]);
 
   const handleDuplicateAndPlace = useCallback((entry: ScheduledEntry) => {
-    setPendingPlacement({ ...entry, instanceId: uuidv4() });
+    const dayIndex = PLANNER_DAYS.indexOf(entry.day as typeof PLANNER_DAYS[number]);
+    const timeMinutes = timeToMinutes(entry.startTime);
+    startKbPlacement(entry, dayIndex >= 0 ? dayIndex : 0, timeMinutes);
     setContextMenu(null);
-  }, []);
+  }, [startKbPlacement]);
 
-  const handlePlacementMouseMove = useCallback((day: string, relativeY: number) => {
-    if (!pendingPlacement) return;
-    const rawMin = relativeY / PIXELS_PER_MINUTE + START_HOUR * 60;
-    const snapped = snapTime(Math.max(START_HOUR * 60, Math.min((END_HOUR * 60) - pendingPlacement.duration, rawMin)));
-    setPlacementGhost({
-      day,
-      startTime: minutesToTime(snapped),
-      endTime: minutesToTime(snapped + pendingPlacement.duration),
-      duration: pendingPlacement.duration,
-      color: pendingPlacement.color,
-      title: pendingPlacement.title,
-    });
-  }, [pendingPlacement]);
-
-  const handlePlacementClick = useCallback((day: string, relativeY: number) => {
-    if (!pendingPlacement) return;
-    const rawMin = relativeY / PIXELS_PER_MINUTE + START_HOUR * 60;
-    const snapped = snapTime(Math.max(START_HOUR * 60, Math.min((END_HOUR * 60) - pendingPlacement.duration, rawMin)));
-    const startTime = minutesToTime(snapped);
-    const endTime = minutesToTime(snapped + pendingPlacement.duration);
-    commitSchedule(prev => [...prev, { ...pendingPlacement, day, startTime, endTime }]);
-    setPendingPlacement(null);
-    setPlacementGhost(null);
-    showNotice('Post placerad', 'success');
-  }, [pendingPlacement, commitSchedule, showNotice]);
-
-  // Escape to cancel placement mode
-  useEffect(() => {
-    if (!pendingPlacement) return;
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setPendingPlacement(null);
-        setPlacementGhost(null);
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [pendingPlacement]);
 
   // --- Keyboard Navigation ---
   const {
@@ -1053,10 +1015,8 @@ export default function NewSchedulePlanner() {
                          <DayColumn
                            key={day} day={day}
                            ghost={ghostPlacement?.day === day ? ghostPlacement : null}
-                           placementGhost={(placementGhost?.day === day ? placementGhost : null) ?? (kbPlacementGhost?.day === day ? kbPlacementGhost : null)}
-                           isPlacementMode={!!pendingPlacement || isKbPlacementActive}
-                           onPlacementMouseMove={pendingPlacement ? (relY) => handlePlacementMouseMove(day, relY) : undefined}
-                           onPlacementClick={pendingPlacement ? (relY) => handlePlacementClick(day, relY) : undefined}
+                           placementGhost={kbPlacementGhost?.day === day ? kbPlacementGhost : null}
+                           isPlacementMode={isKbPlacementActive}
                          >
                             {(() => {
                               const dayEntries = schedule.filter(e => e.day === day);
@@ -1105,10 +1065,8 @@ export default function NewSchedulePlanner() {
                        <DayColumn
                          day={mobileSelectedDay}
                          ghost={ghostPlacement?.day === mobileSelectedDay ? ghostPlacement : null}
-                         placementGhost={(placementGhost?.day === mobileSelectedDay ? placementGhost : null) ?? (kbPlacementGhost?.day === mobileSelectedDay ? kbPlacementGhost : null)}
-                         isPlacementMode={!!pendingPlacement || isKbPlacementActive}
-                         onPlacementMouseMove={pendingPlacement ? (relY) => handlePlacementMouseMove(mobileSelectedDay, relY) : undefined}
-                         onPlacementClick={pendingPlacement ? (relY) => handlePlacementClick(mobileSelectedDay, relY) : undefined}
+                         placementGhost={kbPlacementGhost?.day === mobileSelectedDay ? kbPlacementGhost : null}
+                         isPlacementMode={isKbPlacementActive}
                          className="min-w-0"
                        >
                          {(() => {
@@ -1338,12 +1296,6 @@ export default function NewSchedulePlanner() {
           >
             Radera
           </button>
-        </div>
-      )}
-
-      {pendingPlacement && !isKbPlacementActive && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
-          Klicka i schemat för att placera <strong>&quot;{pendingPlacement.title}&quot;</strong> · Esc avbryter
         </div>
       )}
 

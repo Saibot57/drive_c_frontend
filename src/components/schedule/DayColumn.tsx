@@ -12,15 +12,11 @@ type DayColumnProps = {
   className?: string;
   placementGhost?: GhostPlacement | null;
   isPlacementMode?: boolean;
-  onPlacementMouseMove?: (relativeY: number) => void;
-  onPlacementClick?: (relativeY: number) => void;
-  onPlacementMouseLeave?: () => void;
 };
 
 export function DayColumn({
   day, ghost, children, className = '',
   placementGhost, isPlacementMode,
-  onPlacementMouseMove, onPlacementClick, onPlacementMouseLeave,
 }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: day,
@@ -31,19 +27,11 @@ export function DayColumn({
   const ghostStyles = ghost ? getPositionStyles(ghost.startTime, ghost.duration) : null;
   const placementGhostStyles = placementGhost ? getPositionStyles(placementGhost.startTime, placementGhost.duration) : null;
 
-  const getRelativeY = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    return e.clientY - rect.top;
-  };
-
   return (
     <div
       ref={setNodeRef}
       className={`relative flex-1 min-w-[140px] border-r border-gray-200 bg-white transition-colors ${isOver ? 'bg-blue-50' : ''} ${isPlacementMode ? 'cursor-crosshair' : ''} ${className}`}
       style={{ height: `${(END_HOUR - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
-      onMouseMove={isPlacementMode ? (e) => onPlacementMouseMove?.(getRelativeY(e)) : undefined}
-      onClick={isPlacementMode ? (e) => onPlacementClick?.(getRelativeY(e)) : undefined}
-      onMouseLeave={isPlacementMode ? onPlacementMouseLeave : undefined}
     >
       <div className={`absolute -top-4 left-0 right-0 h-4 border-r border-gray-200 ${isOver ? 'bg-blue-50' : 'bg-white'}`} />
       {hours.map(h => (

@@ -29,11 +29,11 @@ export function useKeyboardPlacement({
     timeMinutes: number;
   } | null>(null);
 
-  const startPlacement = useCallback((course: PlannerCourse) => {
+  const startPlacement = useCallback((course: PlannerCourse, initialDayIndex?: number, initialTimeMinutes?: number) => {
     setKbPlacement({
       course,
-      dayIndex: 0,
-      timeMinutes: START_HOUR * 60,
+      dayIndex: initialDayIndex ?? 0,
+      timeMinutes: initialTimeMinutes ?? START_HOUR * 60,
     });
   }, []);
 
