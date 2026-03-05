@@ -39,6 +39,7 @@ export function FeatureNavigation() {
       ctrl: true,
       shift: true,
       handler: () => router.push(f.href),
+      allowInInput: true,
     })),
     [router],
   );
