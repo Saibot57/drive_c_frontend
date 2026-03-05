@@ -27,7 +27,8 @@ export function useHotkeys(bindings: HotkeyBinding[], deps: unknown[] = []): voi
         const shiftMatch = binding.shift ? e.shiftKey : !e.shiftKey;
 
         if (
-          e.key === binding.key &&
+          (e.key.toLowerCase() === binding.key.toLowerCase() ||
+           (binding.key.length === 1 && /\d/.test(binding.key) && e.code === `Digit${binding.key}`)) &&
           ctrlMatch &&
           shiftMatch
         ) {
