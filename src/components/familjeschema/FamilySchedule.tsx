@@ -266,7 +266,6 @@ export function FamilySchedule() {
       try {
         const updated = await scheduleService.updateFamilyMember(editingMember.id, memberData);
         setFamilyMembers(prev => prev.map(m => m.id === editingMember.id ? updated : m));
-        await fetchActivities(selectedYear, selectedWeek);
       } catch (err) {
         setFamilyMembers(previous);
         setError(err instanceof Error ? err.message : 'Kunde inte uppdatera medlem.');
@@ -292,7 +291,11 @@ export function FamilySchedule() {
     setFamilyMembers(prev => prev.filter(m => m.id !== member.id));
     try {
       await scheduleService.deleteFamilyMember(member.id);
-      await fetchActivities(selectedYear, selectedWeek);
+      // Also remove this member from activities locally
+      setActivities(prev => prev.map(a => ({
+        ...a,
+        participants: a.participants?.filter(p => p !== member.id && p !== member.name) ?? a.participants
+      })));
     } catch (err) {
       setFamilyMembers(previous);
       setError(err instanceof Error ? err.message : 'Kunde inte ta bort medlem.');
@@ -329,39 +332,34 @@ export function FamilySchedule() {
     });
   };
 
-  const handleSubmitMemberReorder = async () => {
+  const handleSubmitMemberReorder = () => {
     if (!isReorderingMembers) return;
 
-    setIsSavingMemberOrder(true);
     const previousOrder = [...originalMemberOrderRef.current];
+    const newOrderIds = familyMembers.map(member => member.id);
+    const originalIds = previousOrder.map(member => member.id);
+    const hasChanges =
+      newOrderIds.length !== originalIds.length ||
+      newOrderIds.some((id, index) => id !== originalIds[index]);
 
-    try {
-      const newOrderIds = familyMembers.map(member => member.id);
-      const originalIds = previousOrder.map(member => member.id);
-      const hasChanges =
-        newOrderIds.length !== originalIds.length ||
-        newOrderIds.some((id, index) => id !== originalIds[index]);
+    // Optimistic: confirm immediately
+    setIsReorderingMembers(false);
+    originalMemberOrderRef.current = [];
 
-      if (!hasChanges) {
-        setIsReorderingMembers(false);
-        return;
-      }
+    if (!hasChanges) return;
 
-      const updatedMembers = await scheduleService.reorderFamilyMembers(newOrderIds);
-      if (Array.isArray(updatedMembers) && updatedMembers.length > 0) {
-        setFamilyMembers(updatedMembers);
-      }
-
-      setIsReorderingMembers(false);
-    } catch (err) {
-      console.error('Failed to reorder family members', err);
-      setFamilyMembers(previousOrder);
-      alert(err instanceof Error ? err.message : 'Kunde inte spara ordningen. Försök igen.');
-      setIsReorderingMembers(false);
-    } finally {
-      originalMemberOrderRef.current = [];
-      setIsSavingMemberOrder(false);
-    }
+    // Save in background
+    scheduleService.reorderFamilyMembers(newOrderIds)
+      .then(updatedMembers => {
+        if (Array.isArray(updatedMembers) && updatedMembers.length > 0) {
+          setFamilyMembers(updatedMembers);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to reorder family members', err);
+        setFamilyMembers(previousOrder);
+        setError(err instanceof Error ? err.message : 'Kunde inte spara ordningen. Försök igen.');
+      });
   };
 
   const handleTextImport = async (jsonText: string) => {

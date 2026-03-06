@@ -83,103 +83,108 @@ export const Calendar = () => {
   }, [currentDate]);
 
   const handleEventAdd = async (date: Date, event: Omit<Event, 'id'>) => {
+    const tempId = `temp-${Date.now()}`;
+    const dateKey = formatDateKey(date);
+    const optimisticEvent: Event = { ...event, id: tempId };
+
+    // Optimistic: show immediately
+    setEvents(prev => ({
+      ...prev,
+      [dateKey]: [...(prev[dateKey] || []), optimisticEvent]
+    }));
+
     try {
-      // Simply send the millisecond timestamp directly to the backend
       const backendEvent = {
         title: event.title,
-        start: event.start.getTime(), // Convert to millisecond timestamp
-        end: event.end.getTime(),     // Convert to millisecond timestamp
+        start: event.start.getTime(),
+        end: event.end.getTime(),
         notes: event.notes,
         color: event.color
       };
-      
-      // Save to backend
+
       const savedEvent = await calendarService.createEvent(backendEvent);
-      
-      // Create dates from millisecond timestamps
-      const newEvent: Event = {
+
+      // Replace temp with real event
+      const realEvent: Event = {
         id: savedEvent.id,
         title: savedEvent.title,
-        start: new Date(Number(savedEvent.start)), // Create Date from timestamp
-        end: new Date(Number(savedEvent.end)),     // Create Date from timestamp
+        start: new Date(Number(savedEvent.start)),
+        end: new Date(Number(savedEvent.end)),
         notes: savedEvent.notes,
         color: savedEvent.color
       };
-      
-      const dateKey = formatDateKey(date);
+
       setEvents(prev => ({
         ...prev,
-        [dateKey]: [...(prev[dateKey] || []), newEvent]
+        [dateKey]: prev[dateKey]?.map(e => e.id === tempId ? realEvent : e) || [realEvent]
       }));
-      
     } catch (error) {
+      // Rollback
+      setEvents(prev => ({
+        ...prev,
+        [dateKey]: prev[dateKey]?.filter(e => e.id !== tempId) || []
+      }));
       console.error("Failed to save event:", error);
-      setError("Kunde inte spara händelse");
+      setError("Kunde inte spara händelse. Försök igen.");
     }
   };
 
   const handleEventUpdate = async (date: Date, eventId: string, updates: Partial<Event>) => {
+    const dateKey = formatDateKey(date);
+    const existingEvent = events[dateKey]?.find(e => e.id === eventId);
+
+    if (!existingEvent) {
+      console.error(`Event with ID ${eventId} not found for date ${dateKey}`);
+      return;
+    }
+
+    // Optimistic: update immediately
+    setEvents(prev => ({
+      ...prev,
+      [dateKey]: prev[dateKey]?.map(event =>
+        event.id === eventId ? { ...event, ...updates } : event
+      ) || []
+    }));
+
     try {
-      const dateKey = formatDateKey(date);
-      const existingEvent = events[dateKey]?.find(e => e.id === eventId);
-      
-      if (!existingEvent) {
-        console.error(`Event with ID ${eventId} not found for date ${dateKey}`);
-        return;
-      }
-      
-      // Prepare updates for backend - convert Date objects to millisecond timestamps
       const backendUpdates: any = { ...updates };
-      
-      if (updates.start) {
-        backendUpdates.start = updates.start.getTime();
-      }
-      
-      if (updates.end) {
-        backendUpdates.end = updates.end.getTime();
-      }
-      
-      // Update on backend
+      if (updates.start) backendUpdates.start = updates.start.getTime();
+      if (updates.end) backendUpdates.end = updates.end.getTime();
+
       await calendarService.updateEvent(eventId, backendUpdates);
-      
-      // Update local state
-      setEvents(prev => {
-        const updatedEvents = { 
-          ...prev,
-          [dateKey]: prev[dateKey]?.map(event => 
-            event.id === eventId ? { ...event, ...updates } : event
-          ) || []
-        };
-        return updatedEvents;
-      });
     } catch (error) {
+      // Rollback
+      setEvents(prev => ({
+        ...prev,
+        [dateKey]: prev[dateKey]?.map(event =>
+          event.id === eventId ? existingEvent : event
+        ) || []
+      }));
       console.error("Failed to update event:", error);
-      setError("Kunde inte uppdatera händelse");
+      setError("Kunde inte uppdatera händelse. Försök igen.");
     }
   };
 
   const handleEventDelete = async (date: Date, eventId: string) => {
+    const dateKey = formatDateKey(date);
+    const previousEvents = events[dateKey] || [];
+
+    // Optimistic: remove immediately
+    setEvents(prev => ({
+      ...prev,
+      [dateKey]: prev[dateKey]?.filter(event => event.id !== eventId) || []
+    }));
+
     try {
-      console.log(`Deleting event ${eventId}`);
-      
-      // Delete from backend
       await calendarService.deleteEvent(eventId);
-      
-      // Update local state
-      const dateKey = formatDateKey(date);
-      setEvents(prev => {
-        const updated = {
-          ...prev,
-          [dateKey]: prev[dateKey]?.filter(event => event.id !== eventId) || []
-        };
-        console.log('Updated local state after deletion:', updated);
-        return updated;
-      });
-      
-      console.log('Event deleted successfully');
     } catch (error) {
+      // Rollback
+      setEvents(prev => ({
+        ...prev,
+        [dateKey]: previousEvents
+      }));
       console.error("Failed to delete event:", error);
-      setError("Kunde inte ta bort händelse");
+      setError("Kunde inte ta bort händelse. Försök igen.");
     }
   };
 

@@ -21,7 +21,6 @@ export function EditNoteModal({ noteId, onClose, onSaved }: Props) {
   const [content, setContent]   = useState('');
   const [tagsRaw, setTagsRaw]   = useState(''); // comma-separated string
   const [isLoading, setLoading] = useState(false);
-  const [isSaving, setSaving]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
   // Fetch note when modal opens
@@ -40,27 +39,25 @@ export function EditNoteModal({ noteId, onClose, onSaved }: Props) {
       .finally(() => setLoading(false));
   }, [noteId]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!noteId) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const tags = tagsRaw
-        .split(',')
-        .map(t => t.trim())
-        .filter(Boolean);
-      await commandCenterService.updateNote(noteId, {
-        title:   title.trim(),
-        content,
-        tags,
-      });
+    const tags = tagsRaw
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+
+    // Optimistic: close immediately, save in background
+    onSaved();
+    onClose();
+
+    commandCenterService.updateNote(noteId, {
+      title: title.trim(),
+      content,
+      tags,
+    }).catch(() => {
+      // Trigger a refresh so the UI reflects the actual state
       onSaved();
-      onClose();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Kunde inte spara.');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (
@@ -118,11 +115,11 @@ export function EditNoteModal({ noteId, onClose, onSaved }: Props) {
         )}
 
         <DialogFooter>
-          <Button variant="neutral" onClick={onClose} disabled={isSaving}>
+          <Button variant="neutral" onClick={onClose}>
             Avbryt
           </Button>
-          <Button onClick={handleSave} disabled={isSaving || isLoading || !note}>
-            {isSaving ? 'Sparar…' : 'Spara'}
+          <Button onClick={handleSave} disabled={isLoading || !note}>
+            Spara
           </Button>
         </DialogFooter>
       </DialogContent>
