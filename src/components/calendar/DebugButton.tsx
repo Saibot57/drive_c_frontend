@@ -58,7 +58,7 @@ export const DebugButton: React.FC<DebugButtonProps> = ({
                 {event.id === editingEvent && <span className="text-green-600 ml-1">(editing)</span>}
               </div>
               <button
-                className="bg-blue-500 text-white px-1 py-0.5 text-[10px] rounded"
+                className="bg-blue-500 text-white px-1 py-0.5 text-2xs rounded"
                 onClick={() => {
                   console.log("Debug panel: Force edit event", event.id);
                   onForceEdit(event.id);
@@ -71,7 +71,7 @@ export const DebugButton: React.FC<DebugButtonProps> = ({
         </div>
       </div>
       
-      <div className="bg-gray-100 p-2 rounded text-[10px]">
+      <div className="bg-gray-100 p-2 rounded text-2xs">
         <p>Click &ldquo;Force Edit&rdquo; to directly trigger the edit dialog for an event.</p>
       </div>
     </div>

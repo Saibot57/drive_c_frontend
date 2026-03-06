@@ -88,7 +88,7 @@ export function DailySchedulePanel() {
                 {hours.map(h => (
                   <div
                     key={h}
-                    className="absolute text-[9px] font-mono text-gray-400 -translate-y-1/2 text-right w-8"
+                    className="absolute text-2xs font-mono text-gray-400 -translate-y-1/2 text-right w-8"
                     style={{ top: `${(h - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
                   >
                     {String(h).padStart(2, '0')}:00

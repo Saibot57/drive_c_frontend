@@ -35,7 +35,7 @@ function TodoItem({
         <p className={`text-xs leading-snug ${done ? 'line-through text-gray-400' : ''}`}>
           {todo.content}
         </p>
-        <p className="text-[9px] text-gray-300 font-mono mt-0.5">{todo.id.slice(0, 8)}…</p>
+        <p className="text-2xs text-gray-300 font-mono mt-0.5">{todo.id.slice(0, 8)}…</p>
       </div>
     </label>
   );
@@ -49,7 +49,7 @@ function WeekGroup({ week, todos, onToggle, selectedId }: {
 }) {
   return (
     <div className="mb-3">
-      <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1 font-mono">
+      <p className="text-2xs font-bold uppercase tracking-widest text-gray-400 mb-1 font-mono">
         v.{week}
       </p>
       {todos.map(t => (
@@ -221,7 +221,7 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
           )}
           {!isLoading && Object.entries(dateGroups).map(([date, items]) => (
             <div key={date} className="mb-3">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1 font-mono">
+              <p className="text-2xs font-bold uppercase tracking-widest text-gray-400 mb-1 font-mono">
                 {date}
               </p>
               {items.map(t => (

@@ -83,11 +83,11 @@ export function TemplatesModal({ open, onClose }: Props) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold">{t.name}</p>
                 {t.skeleton && (
-                  <p className="text-[10px] text-gray-400 font-mono mt-0.5 truncate">
+                  <p className="text-2xs text-gray-400 font-mono mt-0.5 truncate">
                     {t.skeleton.slice(0, 70)}{t.skeleton.length > 70 ? '…' : ''}
                   </p>
                 )}
-                <p className="text-[9px] text-gray-300 font-mono mt-1">
+                <p className="text-2xs text-gray-300 font-mono mt-1">
                   Använd via: note &quot;Titel&quot; --mall {t.name}
                 </p>
               </div>

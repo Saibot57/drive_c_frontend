@@ -120,7 +120,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
 
       {/* Header row */}
       <div className="flex items-center justify-end mb-2 shrink-0">
-        <span className="text-[10px] text-gray-500 font-mono tabular-nums">
+        <span className="text-2xs text-gray-500 font-mono tabular-nums">
           {notes.length} st
         </span>
       </div>
@@ -166,7 +166,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
               </span>
               <button
                 onClick={(e) => { e.stopPropagation(); onEditRequest(note.id); }}
-                className={`shrink-0 ${isFocused && selectedIndex === idx ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 transition-opacity p-0.5 hover:bg-black hover:text-white`}
+                className={`shrink-0 ${isFocused && selectedIndex === idx ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 transition-opacity p-1 hover:bg-black hover:text-white`}
                 title="Redigera"
               >
                 <Pencil className="h-3 w-3" />
@@ -178,7 +178,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
                 {note.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-[9px] px-1.5 py-0.5 border border-black bg-[#fef9c3] font-mono leading-tight"
+                    className="text-2xs px-1.5 py-0.5 border border-black bg-[#fef9c3] font-mono leading-tight"
                   >
                     {tag}
                   </span>
@@ -187,12 +187,12 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
             )}
 
             {note.content && (
-              <p className="text-[10px] text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
+              <p className="text-2xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
                 {note.content}
               </p>
             )}
 
-            <p className="text-[9px] text-gray-300 mt-1.5 font-mono">{note.id.slice(0, 8)}…</p>
+            <p className="text-2xs text-gray-300 mt-1.5 font-mono">{note.id.slice(0, 8)}…</p>
           </div>
         ))}
       </div>

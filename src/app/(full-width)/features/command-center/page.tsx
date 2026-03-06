@@ -70,7 +70,7 @@ export default function CommandCenterPage() {
                       <h2 className="font-bold text-xs uppercase tracking-widest">Anteckningar</h2>
                       <button
                         onClick={() => setTemplatesOpen(true)}
-                        className="flex items-center gap-1.5 text-[10px] border-2 border-black px-2 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold uppercase tracking-wide"
+                        className="flex items-center gap-1.5 text-2xs border-2 border-black px-2 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold uppercase tracking-wide"
                         title="Hantera mallar"
                       >
                         <BookMarked className="h-3 w-3" />

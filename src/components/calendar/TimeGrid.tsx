@@ -257,7 +257,7 @@ export const TimeGrid: React.FC<TimeGridProps> = ({
               }}
             >
               <div className="h-full w-full overflow-hidden p-1">
-                <div className="text-[10px] font-bold text-white truncate">
+                <div className="text-2xs font-bold text-white truncate">
                   {event.title}
                 </div>
               </div>

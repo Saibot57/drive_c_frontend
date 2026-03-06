@@ -37,13 +37,13 @@ export const EventCard: React.FC<EventCardProps> = ({
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="flex items-start text-white w-full">
-          <span className="whitespace-normal break-words max-w-full text-[10px] font-medium">
+          <span className="whitespace-normal break-words max-w-full text-2xs font-medium">
             {event.title}
           </span>
         </div>
         
         {isHovered && (
-          <div className="flex items-center text-white text-[9px] mt-0.5">
+          <div className="flex items-center text-white text-2xs mt-0.5">
             <Clock className="h-2.5 w-2.5 mr-0.5 flex-shrink-0" />
             <span className="whitespace-nowrap">{formatTime(event.start)}</span>
           </div>
@@ -76,7 +76,7 @@ export const EventCard: React.FC<EventCardProps> = ({
     >
       <div className="flex items-center justify-between text-white">
         <span className="whitespace-normal break-words">{event.title}</span>
-        <span className="text-[10px] opacity-80 whitespace-nowrap ml-1 flex-shrink-0">
+        <span className="text-2xs opacity-80 whitespace-nowrap ml-1 flex-shrink-0">
           {formatTime(event.start)} - {formatTime(event.end)}
         </span>
       </div>

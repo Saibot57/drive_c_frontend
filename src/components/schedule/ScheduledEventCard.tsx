@@ -79,18 +79,18 @@ export function ScheduledEventCard({
     >
       <div className="flex flex-col h-full">
         <div className="flex justify-between items-start">
-          <span className="text-[10px] font-mono font-bold opacity-70 leading-tight">
+          <span className="text-2xs font-mono font-bold opacity-70 leading-tight">
             {timeLabel}
             {isShortDuration && (
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
             )}
           </span>
           {showLayoutDebug && (
-            <span className="rounded bg-white/70 px-1 text-[9px] font-mono font-bold text-gray-700">
+            <span className="rounded bg-white/70 px-1 text-2xs font-mono font-bold text-gray-700">
               {columnIndex}/{columnCount}
             </span>
           )}
-          <div className="flex items-start gap-0.5">
+          <div className="flex items-start gap-1">
             {assignmentUrl && (
               <a
                 href={assignmentUrl}
@@ -98,16 +98,16 @@ export function ScheduledEventCard({
                 rel="noreferrer"
                 onPointerDown={e => e.stopPropagation()}
                 onClick={e => e.stopPropagation()}
-                className="p-0.5 bg-white/70 hover:bg-white rounded text-gray-700"
+                className="p-1 bg-white/70 hover:bg-white rounded text-gray-700"
                 aria-label="Öppna uppgift"
                 title="Öppna uppgift"
               >
                 <FileText size={10} />
               </a>
             )}
-            <div className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-0.5 bg-white/60 rounded`}>
-              <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-0.5 hover:bg-white rounded"><Edit2 size={8} /></button>
-              <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-0.5 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8} /></button>
+            <div className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-1 bg-white/60 rounded`}>
+              <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-1 hover:bg-white rounded"><Edit2 size={8} /></button>
+              <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-1 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8} /></button>
             </div>
           </div>
         </div>
@@ -115,14 +115,14 @@ export function ScheduledEventCard({
           <p className={`font-bold leading-tight truncate ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>{entry.title}</p>
         )}
         {adjustedHeight > 30 && (
-          <p className={`text-gray-700 truncate ${isCompactHeight ? 'text-[10px]' : 'text-xs'}`}>
+          <p className={`text-gray-700 truncate ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
             {entry.teacher && <span className="font-semibold">{entry.teacher}</span>}
             {entry.teacher && entry.room ? ' ' : ''}
             {entry.room}
           </p>
         )}
         {entry.notes && adjustedHeight > 46 && (
-          <p className={`text-gray-600 line-clamp-4 ${isCompactHeight ? 'text-[10px]' : 'text-xs'}`}>{entry.notes}</p>
+          <p className={`text-gray-600 line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
         )}
       </div>
     </div>

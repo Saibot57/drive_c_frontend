@@ -113,7 +113,7 @@ export function EditNoteModal({ noteId, onClose, onSaved }: Props) {
               />
             </div>
 
-            <p className="text-[10px] text-gray-300 font-mono">id: {note.id}</p>
+            <p className="text-2xs text-gray-300 font-mono">id: {note.id}</p>
           </div>
         )}
 

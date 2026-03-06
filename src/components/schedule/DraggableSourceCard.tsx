@@ -43,8 +43,8 @@ export function DraggableSourceCard({
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm font-bold">{course.title}</p>
-          <p className="text-[10px] text-gray-600">{course.teacher} {course.room && `(${course.room})`}</p>
-          <p className="text-[10px] text-gray-500">{course.duration} min</p>
+          <p className="text-2xs text-gray-600">{course.teacher} {course.room && `(${course.room})`}</p>
+          <p className="text-2xs text-gray-500">{course.duration} min</p>
         </div>
       </div>
       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
