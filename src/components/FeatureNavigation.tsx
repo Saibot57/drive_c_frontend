@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, Users, Briefcase, Terminal } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, Users, Briefcase, Terminal, LogOut, LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -8,10 +8,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { ShortcutHelpOverlay } from '@/components/ShortcutHelpOverlay';
+import { useAuth } from '@/contexts/AuthContext';
 
 const features = [
   { label: 'Bibliotek',       href: '/',                            icon: Library   },
@@ -24,6 +26,7 @@ const features = [
 export function FeatureNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isAuthenticated, user, logout } = useAuth();
 
   const current =
     features.find(f => {
@@ -85,6 +88,28 @@ export function FeatureNavigation() {
               </DropdownMenuItem>
             );
           })}
+          <DropdownMenuSeparator />
+          {isAuthenticated ? (
+            <DropdownMenuItem
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() => { logout(); window.location.href = '/login'; }}
+            >
+              <LogOut size={15} />
+              <span>Logga ut</span>
+              {user && (
+                <span className="ml-auto text-xs text-gray-400 truncate max-w-[80px]">
+                  {user.username}
+                </span>
+              )}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem asChild>
+              <Link href="/login" className="flex items-center gap-2 cursor-pointer">
+                <LogIn size={15} />
+                <span>Logga in</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>
