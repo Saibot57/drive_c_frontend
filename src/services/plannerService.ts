@@ -47,7 +47,7 @@ export const plannerService = {
   async getPlannerActivities(): Promise<PlannerActivity[]> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`);
     if (!response.ok) {
-      throw new Error('Failed to fetch planner activities');
+      throw new Error('Kunde inte hämta planeringsaktiviteter.');
     }
     const payload = await response.json();
     if (Array.isArray(payload?.data)) {
@@ -65,7 +65,7 @@ export const plannerService = {
       body: JSON.stringify({ activities }),
     });
     if (!response.ok) {
-      throw new Error('Failed to sync planner activities');
+      throw new Error('Kunde inte synka planeringsaktiviteter.');
     }
     const payload = await response.json();
     return normalizePlannerSyncResponse(payload);
@@ -76,7 +76,7 @@ export const plannerService = {
       method: 'DELETE',
     });
     if (!response.ok) {
-      throw new Error('Failed to delete planner activity');
+      throw new Error('Kunde inte ta bort planeringsaktivitet.');
     }
   },
 
@@ -86,7 +86,7 @@ export const plannerService = {
       body: JSON.stringify({ archiveName: name, activities }),
     });
     if (!response.ok) {
-      throw new Error('Failed to save planner archive');
+      throw new Error('Kunde inte spara planeringsarkiv.');
     }
     const payload = await response.json();
     if (Array.isArray(payload?.data?.activities)) {
@@ -106,7 +106,7 @@ export const plannerService = {
       `${PLANNER_API_URL}/activities?archive_name=${encodeURIComponent(name)}`,
     );
     if (!response.ok) {
-      throw new Error('Failed to fetch planner archive');
+      throw new Error('Kunde inte hämta planeringsarkiv.');
     }
     const payload = await response.json();
     if (Array.isArray(payload?.data)) {
@@ -124,14 +124,14 @@ export const plannerService = {
       { method: 'DELETE' },
     );
     if (!response.ok) {
-      throw new Error('Failed to delete planner archive');
+      throw new Error('Kunde inte ta bort planeringsarkiv.');
     }
   },
 
   async getPlannerArchiveNames(): Promise<string[]> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives`);
     if (!response.ok) {
-      throw new Error('Failed to fetch planner archives');
+      throw new Error('Kunde inte hämta planeringsarkiv.');
     }
     const payload = await response.json();
     if (Array.isArray(payload?.data)) {

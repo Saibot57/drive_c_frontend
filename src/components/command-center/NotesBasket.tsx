@@ -146,7 +146,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
         {!isLoading && !error && filtered.length === 0 && (
           <p className="text-xs text-gray-400 pt-1">
             {search
-              ? 'Inga träffar.'
+              ? 'Inga träffar. Prova ett annat sökord.'
               : 'Inga anteckningar. Prova: note "Min titel"'}
           </p>
         )}

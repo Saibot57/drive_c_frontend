@@ -55,7 +55,7 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
         setData(json.data);
       } catch (e: any) {
         console.error("Fetch error:", e);
-        setError('Failed to load section data.');
+        setError('Kunde inte ladda sektionsdata.');
       } finally {
         setLoading(false);
       }
@@ -103,15 +103,15 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
   }, [data, searchTerm, showTags]);
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <div className="p-4 text-sm text-gray-500">Laddar…</div>;
   }
 
   if (error) {
-    return <div className="p-4 text-red-500">Error: {error}</div>;
+    return <div className="p-4 text-sm text-red-500">{error}</div>;
   }
 
   if (!data) {
-    return <div className="p-4">No section selected or data available.</div>;
+    return <div className="p-4 text-sm text-gray-500">Ingen sektion vald.</div>;
   }
 
   return (
@@ -127,7 +127,7 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search..."
+                    placeholder="Sök…"
                     className="w-full pl-8 py-1 pr-2 border-2 border-black rounded-lg text-sm"
                   />
                   <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />

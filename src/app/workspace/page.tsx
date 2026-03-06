@@ -13,7 +13,7 @@ import dynamic from 'next/dynamic';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 
 const FileListWindowWrapper = dynamic(() => import('@/components/FileList/FileListWindowWrapper'), {
-  loading: () => <p>Loading...</p>,
+  loading: () => <p className="text-sm text-gray-500 p-4">Laddar…</p>,
 });
 
 const WindowControlButtons = () => {
@@ -122,7 +122,7 @@ const WorkspacePage = () => {
               className="fixed bottom-4 right-4 bg-white border-2 border-border"
               onClick={() => setShowGrid(!showGrid)}
             >
-              {showGrid ? 'Hide Grid' : 'Show Grid'}
+              {showGrid ? 'Dölj rutnät' : 'Visa rutnät'}
             </Button>
           </div>
         </WindowProvider>

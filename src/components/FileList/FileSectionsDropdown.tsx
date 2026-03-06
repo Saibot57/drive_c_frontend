@@ -47,7 +47,7 @@ const FileSectionsDropdown: React.FC<FileSectionsDropdownProps> = ({ onSectionSe
         setSections(sectionsData);
       } catch (e: any) {
         console.error("Fetch error:", e);
-        setError('Failed to load sections.');
+        setError('Kunde inte ladda sektioner.');
       } finally {
         setLoading(false);
       }
@@ -93,7 +93,7 @@ const FileSectionsDropdown: React.FC<FileSectionsDropdownProps> = ({ onSectionSe
         <div className="absolute bottom-full left-0 mb-1 w-56 bg-white border-2 border-black rounded-lg shadow-lg z-30">
           <div className="py-1">
             {loading && (
-              <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
+              <div className="px-4 py-2 text-sm text-gray-500">Laddar…</div>
             )}
             
             {error && (
@@ -101,7 +101,7 @@ const FileSectionsDropdown: React.FC<FileSectionsDropdownProps> = ({ onSectionSe
             )}
             
             {!loading && !error && sections.length === 0 && (
-              <div className="px-4 py-2 text-sm text-gray-500">No sections found</div>
+              <div className="px-4 py-2 text-sm text-gray-500">Inga sektioner hittades</div>
             )}
 
             {sections.map((section) => (
@@ -121,7 +121,7 @@ const FileSectionsDropdown: React.FC<FileSectionsDropdownProps> = ({ onSectionSe
                 onClick={() => setIsOpen(false)}
               >
                 <X className="h-4 w-4 mr-2" />
-                Close
+                Stäng
               </button>
             </div>
           </div>
