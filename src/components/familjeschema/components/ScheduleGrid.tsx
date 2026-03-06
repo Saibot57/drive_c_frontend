@@ -17,6 +17,7 @@ interface ScheduleGridProps {
   selectedWeek: number;
   selectedYear: number;
   onActivityClick: (activity: Activity) => void;
+  mobileSelectedDay?: string;
 }
 
 export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
@@ -28,9 +29,18 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   settings,
   selectedWeek,
   selectedYear,
-  onActivityClick
+  onActivityClick,
+  mobileSelectedDay,
 }) => {
   const monthAbbr = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
+
+  // Filter to single day on mobile
+  const visibleDayIndices = mobileSelectedDay
+    ? days.map((d, i) => ({ day: d, index: i })).filter(({ day }) => day === mobileSelectedDay)
+    : days.map((d, i) => ({ day: d, index: i }));
+  const visibleDays = visibleDayIndices.map(({ day }) => day);
+  const visibleWeekDates = visibleDayIndices.map(({ index }) => weekDates[index]);
+
   const getActivitiesForDay = (day: string) => {
     return activities
       .filter(a => a.day === day && a.week === selectedWeek && a.year === selectedYear)
@@ -47,11 +57,11 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
 
   // Dynamically adjust column width based on overlap intensity
-  const columnWidths = days.map(day => {
+  const columnWidths = visibleDays.map(day => {
     const dayActivities = getActivitiesForDay(day);
     const overlapGroups = calculateOverlapGroups(dayActivities);
     const intensity = getOverlapIntensity(overlapGroups);
-    
+
     switch(intensity) {
       case 'high': return '2fr';
       case 'medium': return '1.75fr';
@@ -60,7 +70,8 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     }
   });
 
-  const gridTemplateColumns = `80px ${columnWidths.join(' ')}`;
+  const timeColumnWidth = mobileSelectedDay ? '50px' : '80px';
+  const gridTemplateColumns = `${timeColumnWidth} ${columnWidths.join(' ')}`;
 
   // Helper function to get visual indicator for busy days
   const getDayIntensityClass = (day: string) => {
@@ -85,18 +96,20 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
         </div>
 
         {/* Day columns */}
-        {days.map((day, index) => {
-          const date = weekDates[index];
+        {visibleDays.map((day, vi) => {
+          const date = visibleWeekDates[vi];
           const dayActivities = getActivitiesForDay(day);
           const overlapGroups = calculateOverlapGroups(dayActivities);
           const layout = buildActivityColumnLayout(dayActivities);
 
           return (
-            <div key={day} className={`day-column ${getDayIntensityClass(day)}`}>
-              <div className={`day-header ${isToday(date) ? 'today' : ''}`}>
-                <span className="day-name">{day}</span>
-                <span className="day-date">{date.getDate()} {monthAbbr[date.getMonth()]}</span>
-              </div>
+            <div key={day} className={`day-column ${getDayIntensityClass(day)}${mobileSelectedDay ? ' mobile-single-day' : ''}`}>
+              {!mobileSelectedDay && (
+                <div className={`day-header ${isToday(date) ? 'today' : ''}`}>
+                  <span className="day-name">{day}</span>
+                  <span className="day-date">{date.getDate()} {monthAbbr[date.getMonth()]}</span>
+                </div>
+              )}
               <div className="day-content" style={{ height: `${timeSlots.length * 60}px` }}>
                 {overlapGroups.map((group, groupIndex) =>
                   group.map(activity => {
@@ -137,8 +150,8 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                         width,
                       },
                       onClick: () => onActivityClick(activity),
-                      dayIndex: index,
-                      totalDays: days.length,
+                      dayIndex: vi,
+                      totalDays: visibleDays.length,
                     };
                     
                     // Spread the props into the component

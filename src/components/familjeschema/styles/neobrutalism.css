@@ -795,9 +795,37 @@ h1 {
 }
 
 /* Responsive */
+@media (max-width: 1023px) {
+  .schedule-grid {
+    /* Override inline grid-template-columns for mobile single-day */
+    min-width: 0 !important;
+  }
+
+  .day-column.mobile-single-day {
+    min-width: 0;
+  }
+
+  .day-column.mobile-single-day .day-content {
+    min-width: 0;
+  }
+
+  /* Hide sidebar toggle & mobile-menu-btn on mobile — handled by parent */
+  .sidebar { display: none; }
+  .mobile-menu-btn { display: none; }
+
+  /* Layer view: single-day adjustments */
+  .member-info {
+    min-width: 80px;
+    max-width: 80px;
+  }
+
+  .member-details .member-name { font-size: 0.75rem; }
+  .member-details .activity-count { display: none; }
+  .mini-time-slot { font-size: 0.6rem; }
+}
+
 @media (max-width: 768px) {
   h1 { font-size: 1.8rem; }
-  .schedule-grid { grid-template-columns: 60px repeat(5, 150px); }
   .day-name { font-size: .9rem; }
   .btn { padding: 10px 16px; font-size: .9rem; }
   .day-selector { grid-template-columns: repeat(2, 1fr); }

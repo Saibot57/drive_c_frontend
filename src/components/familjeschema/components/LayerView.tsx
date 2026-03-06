@@ -16,6 +16,7 @@ interface LayerViewProps {
   selectedYear: number;
   onActivityClick: (activity: Activity) => void;
   highlightedMemberId: string | null;
+  mobileSelectedDay?: string;
 }
 
 export const LayerView: React.FC<LayerViewProps> = ({
@@ -29,10 +30,18 @@ export const LayerView: React.FC<LayerViewProps> = ({
   selectedYear,
   onActivityClick,
   highlightedMemberId,
+  mobileSelectedDay,
 }) => {
   const memberRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const monthAbbr = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun',
                      'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+  // Filter to single day on mobile
+  const visibleDayIndices = mobileSelectedDay
+    ? days.map((d, i) => ({ day: d, index: i })).filter(({ day }) => day === mobileSelectedDay)
+    : days.map((d, i) => ({ day: d, index: i }));
+  const visibleDays = visibleDayIndices.map(({ day }) => day);
+  const visibleWeekDates = visibleDayIndices.map(({ index }) => weekDates[index]);
   
   useEffect(() => {
     if (highlightedMemberId && memberRefs.current[highlightedMemberId]) {
@@ -74,14 +83,17 @@ export const LayerView: React.FC<LayerViewProps> = ({
         <div className="layer-time-header">
           <div className="corner-cell">MEDLEM / TID</div>
         </div>
-        {days.map((day, index) => {
-          const date = weekDates[index];
+        {visibleDays.map((day, vi) => {
+          const date = visibleWeekDates[vi];
           return (
             <div key={day} className={`layer-day-header ${isToday(date) ? 'today' : ''}`}>
-              <span className="day-name">{day}</span>
-              <span className="day-date">
-                {date.getDate()} {monthAbbr[date.getMonth()]}
-              </span>
+              {!mobileSelectedDay && <span className="day-name">{day}</span>}
+              {!mobileSelectedDay && (
+                <span className="day-date">
+                  {date.getDate()} {monthAbbr[date.getMonth()]}
+                </span>
+              )}
+              {mobileSelectedDay && <span className="day-name">&nbsp;</span>}
             </div>
           );
         })}
@@ -119,14 +131,14 @@ export const LayerView: React.FC<LayerViewProps> = ({
               </div>
 
               {/* Days columns for this member */}
-              <div className="member-schedule" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
-                {days.map((day, dayIndex) => {
-                  const date = weekDates[dayIndex];
+              <div className="member-schedule" style={{ gridTemplateColumns: `repeat(${visibleDays.length}, 1fr)` }}>
+                {visibleDays.map((day, vi) => {
+                  const date = visibleWeekDates[vi];
                   const dayActivities = getActivitiesForMemberAndDay(member.id, day);
-                  
+
                   return (
-                    <div 
-                      key={day} 
+                    <div
+                      key={day}
                       className={`member-day-column ${isToday(date) ? 'today' : ''}`}
                     >
                       <div className="day-activities" style={{ height: `${timeSlots.length * 60}px` }}>
@@ -139,7 +151,7 @@ export const LayerView: React.FC<LayerViewProps> = ({
                           );
 
                           const isShared = activity.participants.length > 1;
-                          
+
                           const activityBlockProps = {
                             activity: activity,
                             day: day,
@@ -153,10 +165,10 @@ export const LayerView: React.FC<LayerViewProps> = ({
                               opacity: isShared ? 0.95 : 1,
                             },
                             onClick: () => onActivityClick(activity),
-                            dayIndex: dayIndex,
-                            totalDays: days.length,
+                            dayIndex: vi,
+                            totalDays: visibleDays.length,
                           };
-                          
+
                           return (
                             <div key={activity.id} className="layer-activity-wrapper">
                               <ActivityBlock {...activityBlockProps} />

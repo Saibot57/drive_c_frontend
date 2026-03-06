@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   AlertCircle,
   ChevronLeft,
@@ -12,6 +12,8 @@ import {
   Settings as SettingsIcon,
   Grid3x3,
   Layers,
+  Users,
+  MoreVertical,
 } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { scheduleService } from '@/services/scheduleService';
@@ -37,6 +39,7 @@ import { LayerView } from './components/LayerView';
 import { ActivityModal } from './components/ActivityModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DataModal } from './components/DataModal';
+import { Emoji } from '@/utils/Emoji';
 
 const BLANK_FORM: FormData = {
   name: '', icon: '🎯', days: [], participants: [], startTime: '09:00',
@@ -73,6 +76,9 @@ export function FamilySchedule() {
   const [highlightedMemberId, setHighlightedMemberId] = useState<string | null>(null);
   const [showConflict, setShowConflict] = useState(false);
   const [memberFormOpen, setMemberFormOpen] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [mobileSelectedDayIndex, setMobileSelectedDayIndex] = useState(0);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const [aiPreviewActivities, setAiPreviewActivities] = useState<ActivityImportItem[]>([]);
   const [aiImporting, setAiImporting] = useState(false);
@@ -87,6 +93,15 @@ export function FamilySchedule() {
       printPageSize,
     };
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 1023px)');
+    setIsMobileView(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobileView(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -477,6 +492,12 @@ export function FamilySchedule() {
     setHighlightedMemberId(memberId);
   };
 
+  // Mobile day navigation
+  const mobileSelectedDay = days[mobileSelectedDayIndex] ?? days[0];
+  const isAtFirstMobileDay = mobileSelectedDayIndex === 0;
+  const isAtLastMobileDay = mobileSelectedDayIndex === days.length - 1;
+  const mobileDayDate = weekDates[mobileSelectedDayIndex];
+
   const handleSystemPrint = () => {
     const scheduleElement = scheduleRef.current;
 
@@ -614,13 +635,13 @@ export function FamilySchedule() {
   if (error) return <div className="text-center p-10 font-monument text-red-600">Fel: {error}</div>;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
 
       {/* ── Child A: Toolbar + Workspace ─────────────────────────────── */}
-      <div className="flex-1 min-w-0 space-y-6">
+      <div className="flex-1 min-w-0 space-y-4 lg:space-y-6">
 
-        {/* ── Top Toolbar ──────────────────────────────────────────────── */}
-        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center gap-4">
+        {/* ── Desktop Top Toolbar ──────────────────────────────────────── */}
+        <div className="hidden lg:flex rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] items-center gap-4">
 
           {/* LEFT – Feature switcher */}
           <FeatureNavigation />
@@ -689,20 +710,153 @@ export function FamilySchedule() {
           </div>
         </div>
 
-        {/* ── Workspace row ─────────────────────────────────────────────── */}
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-10rem)]">
+        {/* ── Mobile Top Toolbar ───────────────────────────────────────── */}
+        <div className="lg:hidden rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] overflow-hidden">
+          {/* Row 1: Feature nav + Week nav + Actions */}
+          <div className="flex items-center gap-2 px-3 py-2">
+            <FeatureNavigation />
+            <div className="flex items-center gap-1 mx-auto">
+              <button
+                className="btn-compact btn-icon-small"
+                onClick={() => navigateWeek(-1)}
+                aria-label="Föregående vecka"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                className="week-display px-2 py-0.5 font-monument text-xs tracking-widest hover:bg-black/5 rounded transition-colors"
+                onClick={() => setShowWeekPicker(!showWeekPicker)}
+                aria-label="Välj vecka"
+              >
+                V{selectedWeek}
+              </button>
+              <button
+                className="btn-compact btn-icon-small"
+                onClick={() => navigateWeek(1)}
+                aria-label="Nästa vecka"
+              >
+                <ChevronRight size={16} />
+              </button>
+              {!isCurrentWeek && (
+                <button
+                  className="btn-compact btn-icon-small ml-1"
+                  onClick={goToCurrentWeek}
+                  aria-label="Denna vecka"
+                >
+                  <Home size={14} />
+                </button>
+              )}
+            </div>
+            {/* Mobile actions menu */}
+            <div className="relative">
+              <button
+                className="btn-compact btn-icon-small"
+                onClick={() => setMobileActionsOpen(!mobileActionsOpen)}
+                aria-label="Åtgärder"
+                type="button"
+              >
+                <MoreVertical size={18} />
+              </button>
+              {mobileActionsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMobileActionsOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] py-1">
+                    <button
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/5"
+                      onClick={() => { setEditingActivity(null); setModalOpen(true); setMobileActionsOpen(false); }}
+                      type="button"
+                    >
+                      <Plus size={15} /> Ny aktivitet
+                    </button>
+                    <button
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/5"
+                      onClick={() => { setDataModalOpen(true); setMobileActionsOpen(false); }}
+                      type="button"
+                    >
+                      <ArrowRightLeft size={15} /> Import / Export
+                    </button>
+                    <button
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/5"
+                      onClick={() => { setSettingsOpen(true); setMobileActionsOpen(false); }}
+                      type="button"
+                    >
+                      <SettingsIcon size={15} /> Inställningar
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
-          {/* Left Sidebar — family members */}
-          <Sidebar
-            familyMembers={familyMembers}
-            isReorderingMembers={isReorderingMembers}
-            isSavingMemberOrder={isSavingMemberOrder}
-            onMemberClick={handleMemberClick}
-            onStartReorder={handleStartMemberReorder}
-            onSubmitReorder={handleSubmitMemberReorder}
-            onReorderMembers={handleReorderMembers}
-            onQuickTextImport={handleTextImport}
-          />
+          {/* Row 2: Family members horizontal strip */}
+          {familyMembers.length > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 border-t border-gray-200 overflow-x-auto">
+              {familyMembers.map(member => (
+                <button
+                  key={member.id}
+                  type="button"
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border-2 text-xs font-bold whitespace-nowrap transition-colors ${
+                    highlightedMemberId === member.id
+                      ? 'border-black bg-black/10'
+                      : 'border-transparent hover:bg-black/5'
+                  }`}
+                  style={{ borderLeftColor: member.color, borderLeftWidth: 3 }}
+                  onClick={() => handleMemberClick(member.id)}
+                >
+                  <Emoji emoji={member.icon} />
+                  <span>{member.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Row 3: Day navigation */}
+          <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-3 py-1.5">
+            <button
+              className="btn-compact btn-icon-small"
+              onClick={() => setMobileSelectedDayIndex(prev => Math.max(0, prev - 1))}
+              disabled={isAtFirstMobileDay}
+              aria-label="Föregående dag"
+              type="button"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-sm font-bold">
+              {mobileSelectedDay}
+              {mobileDayDate && (
+                <span className="text-gray-500 font-normal ml-1">
+                  {mobileDayDate.getDate()}/{mobileDayDate.getMonth() + 1}
+                </span>
+              )}
+            </span>
+            <button
+              className="btn-compact btn-icon-small"
+              onClick={() => setMobileSelectedDayIndex(prev => Math.min(days.length - 1, prev + 1))}
+              disabled={isAtLastMobileDay}
+              aria-label="Nästa dag"
+              type="button"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Workspace row ─────────────────────────────────────────────── */}
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-14rem)] lg:h-[calc(100vh-10rem)]">
+
+          {/* Left Sidebar — family members (desktop only) */}
+          <div className="hidden lg:block">
+            <Sidebar
+              familyMembers={familyMembers}
+              isReorderingMembers={isReorderingMembers}
+              isSavingMemberOrder={isSavingMemberOrder}
+              onMemberClick={handleMemberClick}
+              onStartReorder={handleStartMemberReorder}
+              onSubmitReorder={handleSubmitMemberReorder}
+              onReorderMembers={handleReorderMembers}
+              onQuickTextImport={handleTextImport}
+            />
+          </div>
 
           {/* Center — schedule grid */}
           <div className="flex-1 min-w-0 rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] overflow-auto flex flex-col">
@@ -731,6 +885,7 @@ export function FamilySchedule() {
                   activities={activities} familyMembers={familyMembers}
                   settings={settings} selectedWeek={selectedWeek}
                   selectedYear={selectedYear} onActivityClick={handleActivityClick}
+                  mobileSelectedDay={isMobileView ? mobileSelectedDay : undefined}
                 />
               ) : (
                 <LayerView
@@ -739,6 +894,7 @@ export function FamilySchedule() {
                   settings={settings} selectedWeek={selectedWeek}
                   selectedYear={selectedYear} onActivityClick={handleActivityClick}
                   highlightedMemberId={highlightedMemberId}
+                  mobileSelectedDay={isMobileView ? mobileSelectedDay : undefined}
                 />
               )}
             </div>
@@ -746,8 +902,8 @@ export function FamilySchedule() {
         </div>
       </div>
 
-      {/* ── Right Sidebar: Actions ────────────────────────────────────── */}
-      <div className="w-[200px] rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col shrink-0 p-4 gap-3">
+      {/* ── Right Sidebar: Actions (desktop only) ─────────────────────── */}
+      <div className="hidden lg:flex w-[200px] rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-col shrink-0 p-4 gap-3">
         <h3 className="font-bold text-xs uppercase tracking-widest mb-1">Åtgärder</h3>
 
         <button
@@ -790,6 +946,16 @@ export function FamilySchedule() {
           <span>Inställningar</span>
         </button>
       </div>
+
+      {/* ── Mobile FAB: New activity ──────────────────────────────────── */}
+      <button
+        className="lg:hidden fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full border-2 border-black bg-[#FFD93D] shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center justify-center active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all"
+        onClick={() => { setEditingActivity(null); setModalOpen(true); }}
+        aria-label="Ny aktivitet"
+        type="button"
+      >
+        <Plus size={24} strokeWidth={3} />
+      </button>
 
       {/* ── Modals ────────────────────────────────────────────────────── */}
       {showWeekPicker && (
