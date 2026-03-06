@@ -46,7 +46,7 @@ export function ViewNoteModal({ noteId, onClose, onEditRequest }: Props) {
                 {note.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-[10px] px-2 py-0.5 border border-black bg-[#fef9c3] font-mono leading-none"
+                    className="text-[10px] px-2 py-0.5 border border-black bg-[#fef9c3] font-mono leading-tight"
                   >
                     {tag}
                   </span>

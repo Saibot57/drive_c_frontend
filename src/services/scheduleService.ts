@@ -53,7 +53,7 @@ export const scheduleService = {
   async getActivities(year: number, week: number): Promise<Activity[]> {
     const url = `${SCHEDULE_API_URL}/activities?year=${year}&week=${week}`;
     const response = await fetchWithAuth(url);
-    if (!response.ok) throw new Error('Failed to fetch activities');
+    if (!response.ok) throw new Error('Kunde inte hämta aktiviteter.');
     const data = await response.json();
     return data.data || [];
   },
@@ -67,7 +67,7 @@ export const scheduleService = {
       method: 'POST',
       body: JSON.stringify(body),
     });
-    if (!response.ok) throw new Error('Failed to create activity');
+    if (!response.ok) throw new Error('Kunde inte skapa aktivitet.');
     const data = await response.json();
     return Array.isArray(data.data) ? data.data : data.data ? [data.data] : [];
   },
@@ -77,7 +77,7 @@ export const scheduleService = {
       method: 'PUT',
       body: JSON.stringify(activityData),
     });
-    if (!response.ok) throw new Error('Failed to update activity');
+    if (!response.ok) throw new Error('Kunde inte uppdatera aktivitet.');
     const data = await response.json();
     return data.data;
   },
@@ -87,7 +87,7 @@ export const scheduleService = {
       method: 'PUT',
       body: JSON.stringify(activityData),
     });
-    if (!response.ok) throw new Error('Failed to update activity series');
+    if (!response.ok) throw new Error('Kunde inte uppdatera aktivitetsserien.');
     const data = await response.json();
     return data.data || [];
   },
@@ -96,14 +96,14 @@ export const scheduleService = {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities/${id}`, {
       method: 'DELETE',
     });
-    if (!response.ok) throw new Error('Failed to delete activity');
+    if (!response.ok) throw new Error('Kunde inte ta bort aktivitet.');
   },
 
   async deleteActivitySeries(seriesId: string): Promise<void> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/activities/series/${seriesId}`, {
       method: 'DELETE',
     });
-    if (!response.ok) throw new Error('Failed to delete activity series');
+    if (!response.ok) throw new Error('Kunde inte ta bort aktivitetsserien.');
   },
 
   // --- LLM/JSON Import ---
@@ -126,7 +126,7 @@ export const scheduleService = {
   // --- Familjemedlemmar ---
   async getFamilyMembers(): Promise<FamilyMember[]> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/family-members`);
-    if (!response.ok) throw new Error('Failed to fetch family members');
+    if (!response.ok) throw new Error('Kunde inte hämta familjemedlemmar.');
     const data = await response.json();
     return data.data || [];
   },
@@ -136,7 +136,7 @@ export const scheduleService = {
       method: 'POST',
       body: JSON.stringify(member),
     });
-    if (!response.ok) throw new Error('Failed to create family member');
+    if (!response.ok) throw new Error('Kunde inte skapa familjemedlem.');
     const data = await response.json();
     return data.data;
   },
@@ -149,7 +149,7 @@ export const scheduleService = {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
-    if (!response.ok) throw new Error('Failed to update family member');
+    if (!response.ok) throw new Error('Kunde inte uppdatera familjemedlem.');
     const data = await response.json();
     return data.data;
   },
@@ -175,7 +175,7 @@ export const scheduleService = {
       method: 'POST',
       body: JSON.stringify({ order: memberIds }),
     });
-    if (!response.ok) throw new Error('Failed to reorder family members');
+    if (!response.ok) throw new Error('Kunde inte ändra ordningen på familjemedlemmar.');
     const data = await response.json();
     return data.data || [];
   },
@@ -183,7 +183,7 @@ export const scheduleService = {
   // --- Inställningar ---
   async getSettings(): Promise<Settings> {
     const response = await fetchWithAuth(`${SCHEDULE_API_URL}/settings`);
-    if (!response.ok) throw new Error('Failed to fetch settings');
+    if (!response.ok) throw new Error('Kunde inte hämta inställningar.');
     const data = await response.json();
     return normalizeSettings(data.data);
   },
@@ -193,7 +193,7 @@ export const scheduleService = {
         method: 'PUT',
         body: JSON.stringify(normalizeSettings(settings))
     });
-    if (!response.ok) throw new Error('Failed to update settings');
+    if (!response.ok) throw new Error('Kunde inte spara inställningar.');
     const data = await response.json();
     return normalizeSettings(data.data);
   }

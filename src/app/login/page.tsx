@@ -39,7 +39,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <CardHeader className="bg-[#ff6b6b] border-b-2 border-black">
           <CardTitle className="text-white font-monument text-2xl">
-            {isRegister ? 'Create an Account' : 'Login to Bibliotek'}
+            {isRegister ? 'Skapa konto' : 'Logga in'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -51,7 +51,7 @@ export default function LoginPage() {
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Användarnamn</Label>
               <Input
                 id="username"
                 type="text"
@@ -64,7 +64,7 @@ export default function LoginPage() {
             
             {isRegister && (
               <div className="space-y-2">
-                <Label htmlFor="email">Email (Optional)</Label>
+                <Label htmlFor="email">E-post (valfritt)</Label>
                 <Input
                   id="email"
                   type="email"
@@ -76,7 +76,7 @@ export default function LoginPage() {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Lösenord</Label>
               <Input
                 id="password"
                 type="password"
@@ -92,7 +92,7 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full bg-[#ff6b6b] text-white hover:bg-[#ff5252] border-2 border-black"
             >
-              {isLoading ? 'Loading...' : isRegister ? 'Register' : 'Login'}
+              {isLoading ? 'Laddar…' : isRegister ? 'Registrera' : 'Logga in'}
             </Button>
           </form>
           
@@ -102,7 +102,7 @@ export default function LoginPage() {
               className="text-[#ff6b6b] hover:underline"
               type="button"
             >
-              {isRegister ? 'Already have an account? Log in' : 'Need an account? Sign up'}
+              {isRegister ? 'Har du redan ett konto? Logga in' : 'Inget konto? Registrera dig'}
             </button>
           </div>
         </CardContent>

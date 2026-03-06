@@ -58,7 +58,7 @@ export function DayColumn({
               backgroundColor: ghost.color
             }}
           >
-            <div className="text-[10px] font-mono font-bold opacity-70 leading-none">{ghost.startTime}–{ghost.endTime}</div>
+            <div className="text-[10px] font-mono font-bold opacity-70 leading-tight">{ghost.startTime}–{ghost.endTime}</div>
             <div className="text-xs font-bold truncate">{ghost.title}</div>
           </div>
         </>
@@ -75,7 +75,7 @@ export function DayColumn({
             backgroundColor: placementGhost.color
           }}
         >
-          <div className="text-[10px] font-mono font-bold opacity-70 leading-none">{placementGhost.startTime}–{placementGhost.endTime}</div>
+          <div className="text-[10px] font-mono font-bold opacity-70 leading-tight">{placementGhost.startTime}–{placementGhost.endTime}</div>
           <div className="text-xs font-bold truncate">{placementGhost.title}</div>
         </div>
       )}

@@ -178,7 +178,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
                 {note.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-[9px] px-1.5 py-0.5 border border-black bg-[#fef9c3] font-mono leading-none"
+                    className="text-[9px] px-1.5 py-0.5 border border-black bg-[#fef9c3] font-mono leading-tight"
                   >
                     {tag}
                   </span>

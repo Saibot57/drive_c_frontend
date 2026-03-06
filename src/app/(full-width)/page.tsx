@@ -34,7 +34,7 @@ export default function Home() {
       setData(json);
     } catch (e: any) {
       console.error("Fetch error:", e);
-      setError('Failed to load data.');
+      setError('Kunde inte ladda data. Försök uppdatera sidan.');
     } finally {
       setLoading(false);
     }
@@ -55,15 +55,13 @@ export default function Home() {
       const updateData = await updateResponse.json();
 
       if (!updateResponse.ok) {
-        throw new Error(updateData.message || 'Failed to update data');
+        throw new Error(updateData.message || 'Kunde inte uppdatera data.');
       }
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
       await fetchData();
     } catch (err) {
       console.error('Update error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred during update');
+      setError(err instanceof Error ? err.message : 'Något gick fel vid uppdateringen.');
     } finally {
       setIsRefreshing(false);
     }
@@ -146,11 +144,11 @@ export default function Home() {
 
         {/* ── Content ─────────────────────────────────────────────────── */}
         {loading && !isRefreshing ? (
-          <p>Loading...</p>
+          <p className="text-sm text-gray-500">Laddar filer…</p>
         ) : error ? (
-          <p>Error: {error}</p>
+          <p className="text-sm text-red-500">{error}</p>
         ) : filteredData.length === 0 ? (
-          <p>No data to display.</p>
+          <p className="text-sm text-gray-500">Inget att visa. Prova att bredda din sökning.</p>
         ) : (
           <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
             {filteredData.map((section) => (

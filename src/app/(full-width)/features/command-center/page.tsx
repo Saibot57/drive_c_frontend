@@ -65,7 +65,7 @@ export default function CommandCenterPage() {
                 {/* Notes */}
                 <ResizablePanel defaultSize={62}>
                   <div className="flex flex-col h-full overflow-hidden">
-                    <div className="h-[3px] bg-green-500 shrink-0" />
+                    <div className="h-[6px] bg-green-500 shrink-0" />
                     <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
                       <h2 className="font-bold text-xs uppercase tracking-widest">Anteckningar</h2>
                       <button
@@ -113,7 +113,7 @@ export default function CommandCenterPage() {
                 {/* Calendar */}
                 <ResizablePanel defaultSize={65}>
                   <div className="flex flex-col h-full overflow-hidden min-h-0">
-                    <div className="h-[3px] bg-pink-500 shrink-0" />
+                    <div className="h-[6px] bg-pink-500 shrink-0" />
                     <div className="flex-1 overflow-auto min-h-0">
                       <Calendar />
                     </div>
@@ -125,7 +125,7 @@ export default function CommandCenterPage() {
                 {/* Todos */}
                 <ResizablePanel defaultSize={35}>
                   <div className="flex flex-col h-full overflow-hidden min-h-0">
-                    <div className="h-[3px] bg-blue-500 shrink-0" />
+                    <div className="h-[6px] bg-blue-500 shrink-0" />
                     <div className="flex flex-col flex-1 overflow-hidden min-h-0 px-4 py-3">
                       <h2 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0">Att-göra-lista</h2>
                       <div className="flex-1 overflow-hidden min-h-0">
@@ -143,7 +143,7 @@ export default function CommandCenterPage() {
           rightSidebar={
             <div className={`${NEO} ${focusedPanel === 'schedule' ? 'ring-2 ring-black' : ''}`}>
               <div className="flex flex-col h-full overflow-hidden min-h-0">
-                <div className="h-[3px] bg-amber-500 shrink-0" />
+                <div className="h-[6px] bg-amber-500 shrink-0" />
                 <DailySchedulePanel />
               </div>
             </div>

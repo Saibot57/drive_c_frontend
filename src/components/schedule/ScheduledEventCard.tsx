@@ -79,7 +79,7 @@ export function ScheduledEventCard({
     >
       <div className="flex flex-col h-full">
         <div className="flex justify-between items-start">
-          <span className="text-[10px] font-mono font-bold opacity-70 leading-none">
+          <span className="text-[10px] font-mono font-bold opacity-70 leading-tight">
             {timeLabel}
             {isShortDuration && (
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
