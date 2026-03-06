@@ -93,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleGeminiLinkClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    const url = 'https://gemini.google.com/u/1/gem/52527d352450';
+    const url = process.env.NEXT_PUBLIC_GEMINI_GEM_URL || '';
     const newWindow = window.open(url, 'familyscheduleGemini', 'width=720,height=640,noopener');
     if (newWindow) {
       newWindow.focus();
@@ -226,7 +226,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </div>
               <a
-                href="https://gemini.google.com/u/1/gem/52527d352450"
+                href={process.env.NEXT_PUBLIC_GEMINI_GEM_URL || '#'}
                 className="sidebar-quick-import-link"
                 target="_blank"
                 rel="noopener noreferrer"

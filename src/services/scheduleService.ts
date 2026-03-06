@@ -5,7 +5,7 @@ import type { Activity, FamilyMember, Settings, CreateActivityPayload } from '@/
 import { DEFAULT_SETTINGS } from '@/components/familjeschema/constants';
 import type { ActivityImportItem } from '@/types/schedule';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
+import { API_URL } from '@/config/api';
 const SCHEDULE_API_URL =
   process.env.NEXT_PUBLIC_SCHEDULE_API_URL || `${API_URL}/schedule`;
 

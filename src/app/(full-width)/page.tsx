@@ -10,6 +10,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
 import type { FileData, SubSection, SectionData } from '@/types/fileSections';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
+import { API_URL } from '@/config/api';
 
 export default function Home() {
   const [data, setData] = useState<{ data: SectionData[] } | null>(null);
@@ -18,8 +19,6 @@ export default function Home() {
   const [showTags, setShowTags] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 
   const fetchData = async () => {
     setLoading(true);

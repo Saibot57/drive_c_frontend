@@ -11,6 +11,7 @@ import type { SectionData } from "@/types/fileSections";
 import { FileCard } from "@/components/FileList/FileCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search as SearchIcon, Tags } from "lucide-react";
+import { API_URL } from '@/config/api';
 
 interface FileListWindowWrapperProps {
   sectionId?: string;
@@ -27,8 +28,6 @@ const FileListWindowWrapper: React.FC<FileListWindowWrapperProps> = ({
   const [showTags, setShowTags] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showSearch, setShowSearch] = useState<boolean>(false);
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 
   // Fetch a specific section if sectionId is provided
   useEffect(() => {

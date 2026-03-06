@@ -31,7 +31,7 @@ export interface DayNote {
     notes: string;
 }
   
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
+import { API_URL } from '@/config/api';
   
 export const calendarService = {
     async getEvents(startDate?: Date, endDate?: Date): Promise<CalendarEvent[]> {

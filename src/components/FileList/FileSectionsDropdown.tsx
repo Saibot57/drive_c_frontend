@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, FolderOpen, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { fetchWithAuth } from '@/services/authService';
+import { API_URL } from '@/config/api';
 
 interface SectionItem {
   name: string;
@@ -22,8 +23,6 @@ const FileSectionsDropdown: React.FC<FileSectionsDropdownProps> = ({ onSectionSe
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
 
   // Fetch available sections
   useEffect(() => {

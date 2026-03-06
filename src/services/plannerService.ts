@@ -1,7 +1,7 @@
 import { fetchWithAuth } from './authService';
 import type { PlannerActivity } from '@/types/schedule';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
+import { API_URL } from '@/config/api';
 const PLANNER_API_URL = `${API_URL}/planner`;
 
 type PlannerSyncResponse = {

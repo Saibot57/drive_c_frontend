@@ -7,7 +7,7 @@
 
 import { fetchWithAuth } from '@/services/authService';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://tobiaslundh1.pythonanywhere.com/api';
+import { API_URL } from '@/config/api';
 const BASE    = `${API_URL}/command-center`;
 
 // ─── Domain types (mirror backend models) ────────────────────────────────────

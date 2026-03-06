@@ -1,7 +1,6 @@
 // src/services/authService.ts
 
-// API URL from environment variable
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
+import { API_URL } from '@/config/api';
 
 // Helper function to get auth token from local storage
 export const getToken = (): string | null => {

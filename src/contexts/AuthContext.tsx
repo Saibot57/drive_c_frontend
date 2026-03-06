@@ -26,8 +26,7 @@ interface AuthContextType {
 // Create the auth context
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// API URL from environment variable
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://tobiaslundh1.pythonanywhere.com/api';
+import { API_URL } from '@/config/api';
 
 // Props for AuthProvider
 interface AuthProviderProps {
