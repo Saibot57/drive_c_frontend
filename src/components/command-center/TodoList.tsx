@@ -186,8 +186,8 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
     <div ref={containerRef} className="grid grid-cols-2 gap-3 h-full overflow-hidden">
 
       {/* Week todos */}
-      <div className="border-2 border-black bg-white p-3 flex flex-col overflow-hidden">
-        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b-2 border-black">
+      <div className="border border-black/60 bg-white p-3 flex flex-col overflow-hidden">
+        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-200">
           Denna vecka
         </h3>
         <div className="flex-1 overflow-auto min-h-0">
@@ -207,8 +207,8 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
       </div>
 
       {/* Date todos */}
-      <div className="border-2 border-black bg-white p-3 flex flex-col overflow-hidden">
-        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b-2 border-black">
+      <div className="border border-black/60 bg-white p-3 flex flex-col overflow-hidden">
+        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-200">
           Per datum
         </h3>
         <div className="flex-1 overflow-auto min-h-0">

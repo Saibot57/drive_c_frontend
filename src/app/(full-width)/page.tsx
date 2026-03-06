@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Section } from "@/components/FileList/Section";
 import { Search } from "@/components/search";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -131,15 +130,15 @@ export default function Home() {
               {isRefreshing ? '...' : 'Uppdatera'}
             </Button>
           </div>
-          <div className="flex items-center">
+          <label htmlFor="showTags" className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
             <Checkbox
               id="showTags"
               checked={showTags}
               onCheckedChange={(checked) => setShowTags(checked === true)}
-              className="border-2 border-black data-[state=checked]:bg-[#8ecc93] data-[state=checked]:border-black"
+              className="border border-black/60 data-[state=checked]:bg-[#8ecc93] data-[state=checked]:border-black"
             />
-            <Label htmlFor="showTags" className="ml-2">Visa Taggar</Label>
-          </div>
+            Visa Taggar
+          </label>
         </div>
 
         {/* ── Content ─────────────────────────────────────────────────── */}

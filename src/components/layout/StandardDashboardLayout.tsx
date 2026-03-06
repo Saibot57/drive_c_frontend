@@ -7,7 +7,8 @@ import {
   ResizableHandle,
 } from '@/components/ui/resizable';
 
-const NEO = 'rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)]';
+const NEO_PRIMARY = 'rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)]';
+const NEO_SECONDARY = 'rounded-xl border border-black/80 bg-white shadow-[2px_2px_0px_rgba(0,0,0,0.6)]';
 
 interface StandardDashboardLayoutProps {
   topToolbar: ReactNode;
@@ -83,8 +84,8 @@ export function StandardDashboardLayout({
           {/* Panel A: Toolbar + inner horizontal panels */}
           <ResizablePanel className="overflow-hidden">
             <div className="flex flex-col h-full gap-3">
-              {/* Toolbar — still gets NEO wrapper */}
-              <div className={`${NEO} p-4 flex items-center gap-4 flex-wrap shrink-0`}>
+              {/* Toolbar — primary NEO wrapper */}
+              <div className={`${NEO_PRIMARY} p-4 flex items-center gap-4 flex-wrap shrink-0`}>
                 {topToolbar}
               </div>
 
@@ -135,19 +136,19 @@ export function StandardDashboardLayout({
     <div className={`flex flex-col lg:flex-row gap-6 ${className ?? ''}`}>
       {/* ── Child A: Toolbar + Workspace ─────────────────────────── */}
       <div className="flex-1 min-w-0 space-y-6">
-        {/* Toolbar */}
-        <div className={`${NEO} p-4 flex items-center gap-4 flex-wrap`}>
+        {/* Toolbar — primary */}
+        <div className={`${NEO_PRIMARY} p-4 flex items-center gap-4 flex-wrap`}>
           {topToolbar}
         </div>
 
-        {/* Workspace row */}
+        {/* Workspace row — secondary */}
         <div className={`flex flex-col lg:flex-row gap-6 ${workspaceHeight}`}>
           {leftSidebar && (
-            <div className={`${leftSidebarWidth} ${NEO} overflow-hidden flex flex-col shrink-0`}>
+            <div className={`${leftSidebarWidth} ${NEO_SECONDARY} overflow-hidden flex flex-col shrink-0`}>
               {leftSidebar}
             </div>
           )}
-          <div className={`flex-1 min-w-0 ${NEO} overflow-hidden flex flex-col`}>
+          <div className={`flex-1 min-w-0 ${NEO_SECONDARY} overflow-hidden flex flex-col`}>
             {centerContent}
           </div>
         </div>
@@ -155,7 +156,7 @@ export function StandardDashboardLayout({
 
       {/* ── Right Sidebar: full height alongside Child A ─────────── */}
       {rightSidebar && (
-        <div className={`${rightSidebarWidth} ${NEO} overflow-hidden flex flex-col shrink-0`}>
+        <div className={`${rightSidebarWidth} ${NEO_SECONDARY} overflow-hidden flex flex-col shrink-0`}>
           {rightSidebar}
         </div>
       )}
