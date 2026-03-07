@@ -40,6 +40,8 @@ import { ActivityModal } from './components/ActivityModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DataModal } from './components/DataModal';
 import { Emoji } from '@/utils/Emoji';
+import { useToast } from './hooks/useToast';
+import { ToastContainer } from './components/Toast';
 
 const BLANK_FORM: FormData = {
   name: '', icon: '🎯', days: [], participants: [], startTime: '09:00',
@@ -83,6 +85,7 @@ export function FamilySchedule() {
   const [aiPreviewActivities, setAiPreviewActivities] = useState<ActivityImportItem[]>([]);
   const [aiImporting, setAiImporting] = useState(false);
   const [aiImportError, setAiImportError] = useState<string | null>(null);
+  const { toasts, addToast, removeToast } = useToast();
 
   const normalizeSettings = (incoming?: Partial<Settings> | null): Settings => {
     const candidate: Partial<Settings> = incoming ?? {};
@@ -378,17 +381,18 @@ export function FamilySchedule() {
       await fetchActivities(selectedYear, selectedWeek);
       handleCloseDataModal();
 
-      const errorSummary = errors.length
-        ? `\n\nHoppar över ${errors.length} rader:\n${errors
+      const errorDetail = errors.length
+        ? `Hoppar över ${errors.length} rader:\n${errors
             .map(error => `Rad ${error.index + 1}: ${error.message}`)
             .join('\n')}`
-        : '';
-      alert(`${prepared.length} aktiviteter importerades!${errorSummary}`);
+        : undefined;
+      addToast('success', `${prepared.length} aktiviteter importerades!`, errorDetail);
     } catch (err: any) {
-      const errorMessage = err?.details
-        ? `${err.message}\n\nKonflikter:\n${JSON.stringify(err.details, null, 2)}`
-        : err?.message || 'Okänt fel';
-      alert(`Import misslyckades: ${errorMessage}`);
+      const detail = err?.details
+        ? `Konflikter:\n${JSON.stringify(err.details, null, 2)}`
+        : undefined;
+      const message = err?.message || 'Okänt fel';
+      addToast('error', `Import misslyckades: ${message}`, detail);
     }
   };
 
@@ -405,7 +409,7 @@ export function FamilySchedule() {
       await scheduleService.addActivitiesFromJson(prepared);
       await fetchActivities(selectedYear, selectedWeek);
       handleCloseDataModal();
-      alert(`${prepared.length} aktiviteter importerades!`);
+      addToast('success', `${prepared.length} aktiviteter importerades!`);
     } catch (err: any) {
       const errorMessage = err?.details
         ? `${err.message}\n\nKonflikter:\n${JSON.stringify(err.details, null, 2)}`
@@ -1021,6 +1025,8 @@ export function FamilySchedule() {
         aiImporting={aiImporting}
         aiImportError={aiImportError}
       />
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

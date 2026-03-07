@@ -2120,6 +2120,102 @@ button.member-badge:hover {
   color: var(--neo-white);
 }
 
+/* Toast Notifications */
+.neo-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.neo-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  min-width: 300px;
+  max-width: 440px;
+  border: 2px solid var(--neo-black);
+  box-shadow: var(--shadow-md);
+  font-family: 'Space Grotesk', monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  animation: neo-toast-in 0.25s ease-out;
+}
+
+@keyframes neo-toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.neo-toast--success {
+  background: var(--neo-green);
+  color: var(--neo-black);
+}
+
+.neo-toast--error {
+  background: var(--neo-red);
+  color: var(--neo-white);
+}
+
+.neo-toast--warning {
+  background: var(--neo-yellow);
+  color: var(--neo-black);
+}
+
+.neo-toast__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.neo-toast__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.neo-toast__message {
+  display: block;
+}
+
+.neo-toast__detail {
+  display: block;
+  margin-top: 6px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.neo-toast__close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.1s;
+}
+
+.neo-toast__close:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
 /* Schedule View Container - Wrapper for print functionality only, no visible styling in normal view */
 .schedule-view-container {
   flex: 1;
