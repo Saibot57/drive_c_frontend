@@ -271,7 +271,7 @@ export function FamilySchedule() {
         setFamilyMembers(prev => prev.map(m => m.id === editingMember.id ? updated : m));
       } catch (err) {
         setFamilyMembers(previous);
-        setError(err instanceof Error ? err.message : 'Kunde inte uppdatera medlem.');
+        throw err;
       }
     } else {
       const tempId = `temp-${Date.now()}`;
@@ -282,9 +282,10 @@ export function FamilySchedule() {
         setFamilyMembers(prev => prev.map(m => m.id === tempId ? created : m));
       } catch (err) {
         setFamilyMembers(prev => prev.filter(m => m.id !== tempId));
-        setError(err instanceof Error ? err.message : 'Kunde inte skapa medlem.');
+        throw err;
       }
     }
+    // Only reached on success:
     setEditingMember(null);
     setMemberFormOpen(false);
   };

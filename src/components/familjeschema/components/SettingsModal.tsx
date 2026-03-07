@@ -184,8 +184,9 @@ export const SettingsModal = forwardRef<HTMLDivElement, SettingsModalProps>(
             <>
               {memberFormOpen ? (
                 <FamilyMemberEditor
+                  key={editingMember?.id ?? 'new'}
                   member={editingMember || undefined}
-                  existingNames={familyMembers.map((m) => m.name)}
+                  existingNames={familyMembers.filter(m => m.id !== editingMember?.id).map(m => m.name)}
                   onSave={onSaveMember}
                   onCancel={onCloseMemberForm}
                 />
