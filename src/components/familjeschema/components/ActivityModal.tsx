@@ -5,13 +5,7 @@ import { SizableModal } from './SizableModal';
 import { ACTIVITY_COLORS } from '../constants';
 import { IconPicker } from './IconPicker';
 import { Emoji } from '@/utils/Emoji';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -29,9 +23,10 @@ interface ActivityModalProps {
 export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
   ({ isOpen, isEditing, formData, familyMembers, days, activity, onClose, onSave, onDelete, onFormChange }, ref) => {
     const [showIconPicker, setShowIconPicker] = useState(false);
-    const [showConfirmation, setShowConfirmation] = useState(false);
-    const [actionType, setActionType] = useState<'save' | 'delete' | null>(null);
+    const [applyToSeries, setApplyToSeries] = useState(false);
     const [error, setError] = useState('');
+
+    const isSeries = isEditing && !!activity?.seriesId;
 
     const handleSaveClick = () => {
       if (formData.recurring && !formData.recurringEndDate) {
@@ -39,31 +34,11 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
         return;
       }
       setError('');
-      if (activity?.seriesId) {
-        setActionType('save');
-        setShowConfirmation(true);
-      } else {
-        onSave(false);
-      }
+      onSave(isSeries && applyToSeries);
     };
 
     const handleDeleteClick = () => {
-      if (activity?.seriesId) {
-        setActionType('delete');
-        setShowConfirmation(true);
-      } else {
-        onDelete(false);
-      }
-    };
-
-    const handleConfirmation = (applyToSeries: boolean) => {
-      if (actionType === 'save') {
-        onSave(applyToSeries);
-      } else if (actionType === 'delete') {
-        onDelete(applyToSeries);
-      }
-      setShowConfirmation(false);
-      setActionType(null);
+      onDelete(isSeries && applyToSeries);
     };
 
     const handleDayToggle = (day: string) => {
@@ -82,7 +57,6 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
     };
 
     return (
-      <>
       <SizableModal
         isOpen={isOpen}
         onClose={onClose}
@@ -94,13 +68,26 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
           <h2 id="modal-title" className="modal-title">
             {isEditing ? 'Redigera Aktivitet' : 'Ny Aktivitet'}
           </h2>
-          <button
-            className="modal-close"
-            onClick={onClose}
-            aria-label="Stäng modal"
-          >
-            <X size={24}/>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
+            {isSeries && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                <span style={{ opacity: applyToSeries ? 0.5 : 1 }}>Denna</span>
+                <Switch
+                  checked={applyToSeries}
+                  onCheckedChange={setApplyToSeries}
+                  aria-label="Växla mellan att redigera enskild aktivitet eller hela serien"
+                />
+                <span style={{ opacity: applyToSeries ? 1 : 0.5 }}>Hela serien</span>
+              </label>
+            )}
+            <button
+              className="modal-close"
+              onClick={onClose}
+              aria-label="Stäng modal"
+            >
+              <X size={24}/>
+            </button>
+          </div>
         </div>
 
         <div className="modal-body">
@@ -350,18 +337,6 @@ export const ActivityModal = forwardRef<HTMLDivElement, ActivityModalProps>(
           </div>
         </div>
       </SizableModal>
-      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Vill du utföra åtgärden för hela serien?</DialogTitle>
-          </DialogHeader>
-          <DialogFooter>
-            <button className="btn" onClick={() => handleConfirmation(false)}>Endast denna</button>
-            <button className="btn btn-success" onClick={() => handleConfirmation(true)}>Hela serien</button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
     );
   }
 );
