@@ -163,18 +163,6 @@ export function ScheduleModals({
                       style={{ backgroundColor: c }}
                     />
                   ))}
-                  {recentColors.map(c => (
-                    <div
-                      key={`recent-${c}`}
-                      onClick={() => {
-                        setManualColor(true);
-                        setEditingCourse({ ...editingCourse, color: c });
-                      }}
-                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingCourse.color === c ? 'ring-2 ring-black' : ''}`}
-                      style={{ backgroundColor: c }}
-                      title="Senast använda"
-                    />
-                  ))}
                 </div>
                 <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
                   <span
@@ -195,6 +183,23 @@ export function ScheduleModals({
                   />
                 </label>
               </div>
+              {recentColors.length > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-gray-500">Senaste:</span>
+                  {recentColors.map(c => (
+                    <div
+                      key={`recent-${c}`}
+                      onClick={() => {
+                        setManualColor(true);
+                        setEditingCourse({ ...editingCourse, color: c });
+                      }}
+                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingCourse.color === c ? 'ring-2 ring-black' : ''}`}
+                      style={{ backgroundColor: c }}
+                      title="Senast använda"
+                    />
+                  ))}
+                </div>
+              )}
               <DialogFooter><Button type="submit">Spara</Button></DialogFooter>
             </form>
           )}
@@ -255,15 +260,6 @@ export function ScheduleModals({
                       style={{ backgroundColor: c }}
                     />
                   ))}
-                  {recentColors.map(c => (
-                    <div
-                      key={`recent-${c}`}
-                      onClick={() => setEditingEntry({ ...editingEntry, color: c })}
-                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingEntry.color === c ? 'ring-2 ring-black' : ''}`}
-                      style={{ backgroundColor: c }}
-                      title="Senast använda"
-                    />
-                  ))}
                 </div>
                 <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
                   <span
@@ -283,6 +279,20 @@ export function ScheduleModals({
                   />
                 </label>
               </div>
+              {recentColors.length > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-gray-500">Senaste:</span>
+                  {recentColors.map(c => (
+                    <div
+                      key={`recent-${c}`}
+                      onClick={() => setEditingEntry({ ...editingEntry, color: c })}
+                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingEntry.color === c ? 'ring-2 ring-black' : ''}`}
+                      style={{ backgroundColor: c }}
+                      title="Senast använda"
+                    />
+                  ))}
+                </div>
+              )}
               <DialogFooter><Button type="submit">Uppdatera</Button></DialogFooter>
             </form>
           )}
