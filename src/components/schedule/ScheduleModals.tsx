@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { X } from 'lucide-react';
-import { COURSE_COLOR_PALETTE, DEFAULT_COURSE_COLOR } from '@/components/schedule/constants';
+import { COURSE_COLOR_PALETTE, DEFAULT_COURSE_COLOR, MAX_RECENT_CUSTOM_COLORS, RECENT_CUSTOM_COLORS_KEY } from '@/components/schedule/constants';
 import { SmartTextInput } from '@/components/ui/SmartTextInput';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -99,6 +99,26 @@ export function ScheduleModals({
       }
     };
 
+  const loadRecentColors = (): string[] => {
+    try {
+      const raw = localStorage.getItem(RECENT_CUSTOM_COLORS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  };
+
+  const [recentColors, setRecentColors] = useState<string[]>(loadRecentColors);
+
+  const saveRecentColor = useCallback((color: string) => {
+    const paletteSet = new Set(COURSE_COLOR_PALETTE as readonly string[]);
+    if (paletteSet.has(color)) return;
+    setRecentColors(prev => {
+      const filtered = prev.filter(c => c !== color);
+      const updated = [color, ...filtered].slice(0, MAX_RECENT_CUSTOM_COLORS);
+      localStorage.setItem(RECENT_CUSTOM_COLORS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   return (
     <>
       <Dialog open={isCourseModalOpen} onOpenChange={onCourseModalOpenChange}>
@@ -143,6 +163,18 @@ export function ScheduleModals({
                       style={{ backgroundColor: c }}
                     />
                   ))}
+                  {recentColors.map(c => (
+                    <div
+                      key={`recent-${c}`}
+                      onClick={() => {
+                        setManualColor(true);
+                        setEditingCourse({ ...editingCourse, color: c });
+                      }}
+                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingCourse.color === c ? 'ring-2 ring-black' : ''}`}
+                      style={{ backgroundColor: c }}
+                      title="Senast använda"
+                    />
+                  ))}
                 </div>
                 <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
                   <span
@@ -158,6 +190,7 @@ export function ScheduleModals({
                     onChange={e => {
                       setManualColor(true);
                       setEditingCourse({ ...editingCourse, color: e.target.value });
+                      saveRecentColor(e.target.value);
                     }}
                   />
                 </label>
@@ -222,6 +255,15 @@ export function ScheduleModals({
                       style={{ backgroundColor: c }}
                     />
                   ))}
+                  {recentColors.map(c => (
+                    <div
+                      key={`recent-${c}`}
+                      onClick={() => setEditingEntry({ ...editingEntry, color: c })}
+                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingEntry.color === c ? 'ring-2 ring-black' : ''}`}
+                      style={{ backgroundColor: c }}
+                      title="Senast använda"
+                    />
+                  ))}
                 </div>
                 <label className="inline-flex items-center gap-2 text-xs text-gray-700 border border-black/20 rounded px-2 py-1 bg-white/70 hover:bg-white cursor-pointer">
                   <span
@@ -234,7 +276,10 @@ export function ScheduleModals({
                     className="sr-only"
                     aria-label="Välj egen färg"
                     value={editingEntry.color || DEFAULT_COURSE_COLOR}
-                    onChange={e => setEditingEntry({ ...editingEntry, color: e.target.value })}
+                    onChange={e => {
+                      setEditingEntry({ ...editingEntry, color: e.target.value });
+                      saveRecentColor(e.target.value);
+                    }}
                   />
                 </label>
               </div>

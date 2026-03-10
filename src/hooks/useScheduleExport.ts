@@ -47,7 +47,8 @@ export const useScheduleExport = ({ schedule }: UseScheduleExportParams) => {
     }, Number.NEGATIVE_INFINITY);
 
     if (!Number.isFinite(maxEndMinutes)) return undefined;
-    const contentHeightPx = (maxEndMinutes - START_HOUR * 60) * PIXELS_PER_MINUTE;
+    const nextFullHour = Math.ceil(maxEndMinutes / 60) * 60;
+    const contentHeightPx = (nextFullHour - START_HOUR * 60) * PIXELS_PER_MINUTE;
     if (!Number.isFinite(contentHeightPx) || contentHeightPx <= 0) return undefined;
     const topOffsetPx = 16;
     const safetyMarginPx = 8;

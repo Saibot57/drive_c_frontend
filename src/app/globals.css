@@ -144,6 +144,12 @@
   flex: 1 1 auto;
 }
 
+.pdf-export .scheduled-event-card [class*="line-clamp"] {
+  -webkit-line-clamp: unset;
+  display: block;
+  overflow: visible;
+}
+
 .pdf-export .schedule-desktop-header {
   display: flex !important;
 }

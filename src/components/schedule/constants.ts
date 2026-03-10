@@ -14,6 +14,8 @@ export const COURSE_COLOR_PALETTE = [
 
 export const DEFAULT_COURSE_COLOR = '#ffffff';
 
+export const RECENT_CUSTOM_COLORS_KEY = 'planner_recent_custom_colors';
+export const MAX_RECENT_CUSTOM_COLORS = 3;
 export const MANUAL_COURSES_KEY = 'planner_manual_courses_v1';
 export const DERIVED_COURSE_PREFIX = 'gen_';
 export const TEACHERS_KEY = 'app.teachers.v1';
