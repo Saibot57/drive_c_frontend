@@ -114,15 +114,18 @@ export function ScheduledEventCard({
         {!isShortDuration && (
           <p className={`font-bold leading-tight truncate ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>{entry.title}</p>
         )}
-        {adjustedHeight > 30 && (
-          <p className={`text-gray-700 truncate ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
-            {entry.teacher && <span className="font-semibold">{entry.teacher}</span>}
-            {entry.teacher && entry.room ? ' ' : ''}
+        {adjustedHeight > 30 && entry.teacher && (
+          <p className={`text-gray-700 truncate leading-tight font-semibold ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
+            {entry.teacher}
+          </p>
+        )}
+        {adjustedHeight > 30 && entry.room && (
+          <p className={`text-gray-700 truncate leading-tight ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
             {entry.room}
           </p>
         )}
         {entry.notes && adjustedHeight > 46 && (
-          <p className={`text-gray-600 line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
+          <p className={`text-gray-600 whitespace-pre-line line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
         )}
       </div>
     </div>
