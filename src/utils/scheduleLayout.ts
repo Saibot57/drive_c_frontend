@@ -4,6 +4,8 @@ type EntryWithTime = {
   startTime: string;
   endTime: string;
   instanceId: string;
+  title: string;
+  color: string;
 };
 
 export type DayLayoutEntry = {
@@ -48,7 +50,13 @@ export const buildDayLayout = <T extends EntryWithTime>(entries: T[]) => {
     const sorted = [...group].sort((a, b) => {
       const startDiff = timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
       if (startDiff !== 0) return startDiff;
-      return timeToMinutes(a.endTime) - timeToMinutes(b.endTime);
+      const endDiff = timeToMinutes(a.endTime) - timeToMinutes(b.endTime);
+      if (endDiff !== 0) return endDiff;
+      const titleDiff = a.title.localeCompare(b.title);
+      if (titleDiff !== 0) return titleDiff;
+      const colorDiff = a.color.localeCompare(b.color);
+      if (colorDiff !== 0) return colorDiff;
+      return a.instanceId.localeCompare(b.instanceId);
     });
 
     const columns: T[][] = [];
