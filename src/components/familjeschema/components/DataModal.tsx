@@ -5,7 +5,7 @@ import { X, Upload, FileText, Download, Sparkles } from 'lucide-react';
 
 import type { ActivityImportItem } from '@/types/schedule';
 
-import { AIAssistantTab } from './AIAssistantTab';
+import { AIChatPanel } from '@/components/ai-chat/AIChatPanel';
 
 interface DataModalProps {
   isOpen: boolean;
@@ -53,15 +53,13 @@ export const DataModal: React.FC<DataModalProps> = ({
   };
 
   const renderAIPreview = () => {
-    const hasPreview = aiPreviewActivities.length > 0;
     return (
-      <div className="space-y-3">
-        <AIAssistantTab
+      <div>
+        <AIChatPanel
           selectedWeek={selectedWeek}
           selectedYear={selectedYear}
-          onPreview={onAIPreview}
+          onActivitiesReady={onAIPreview}
         />
-
         {aiImportError && (
           <pre
             className="text-sm"
@@ -71,51 +69,11 @@ export const DataModal: React.FC<DataModalProps> = ({
               borderRadius: '8px',
               padding: '8px',
               whiteSpace: 'pre-wrap',
+              marginTop: '8px',
             }}
           >
             {aiImportError}
           </pre>
-        )}
-
-        {hasPreview && (
-          <div className="ai-preview-table" style={{ maxHeight: '220px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '6px' }}>Namn</th>
-                  <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '6px' }}>Tid</th>
-                  <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '6px' }}>Dag(ar)</th>
-                  <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '6px' }}>Vecka</th>
-                  <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '6px' }}>År</th>
-                  <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '6px' }}>Deltagare</th>
-                </tr>
-              </thead>
-              <tbody>
-                {aiPreviewActivities.map((activity, idx) => (
-                  <tr key={idx}>
-                    <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{activity.name}</td>
-                    <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>
-                      {activity.startTime} – {activity.endTime}
-                    </td>
-                    <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>
-                      {activity.days.join(', ')}
-                    </td>
-                    <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{activity.week}</td>
-                    <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>{activity.year}</td>
-                    <td style={{ padding: '6px', borderBottom: '1px solid #eee' }}>
-                      {activity.participants.join(', ')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {!hasPreview && !aiImportError && (
-          <p className="text-sm text-gray-600">
-            Tolka en beskrivning för att förhandsgranska aktiviteter innan import.
-          </p>
         )}
       </div>
     );
