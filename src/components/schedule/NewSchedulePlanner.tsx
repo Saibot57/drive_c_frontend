@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
+  Search,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -736,10 +737,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 className="border-2 border-black shadow-sm pl-10 rounded-xl"
               />
               <div
-                className="absolute left-3 top-2.5 text-gray-400 cursor-help"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-help"
                 title={"Sökguide:\n+ = Kräver båda (ex: matte+hanna)\n; = ELLER-sökning (ex: idrott;musik)\n- = Exkludera (ex: -engelska)"}
               >
-                🔍
+                <Search className="h-5 w-5" />
               </div>
            </div>
 
