@@ -152,7 +152,9 @@ export const usePlannerSync = ({
         const response = await plannerService.syncActivities(payload);
         syncedActivities = response.activities;
       }
-      reconcileSyncedActivities(syncedActivities);
+      if (!activeArchiveName) {
+        reconcileSyncedActivities(syncedActivities);
+      }
       setSaveStatus('saved');
       showNotice(
         activeArchiveName
@@ -190,7 +192,9 @@ export const usePlannerSync = ({
         const response = await plannerService.syncActivities(payload);
         syncedActivities = response.activities;
       }
-      reconcileSyncedActivities(syncedActivities);
+      if (!activeArchiveName) {
+        reconcileSyncedActivities(syncedActivities);
+      }
       setSaveStatus('saved');
     } catch (error) {
       console.error('Autosave failed', error);
