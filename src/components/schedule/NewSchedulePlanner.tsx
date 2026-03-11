@@ -733,7 +733,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
                 placeholder="Filter: 'Lärare'+'ämne'; -Ämne"
-                className="border-2 border-black shadow-sm pl-10"
+                className="border-2 border-black shadow-sm pl-10 rounded-xl"
               />
               <div
                 className="absolute left-3 top-2.5 text-gray-400 cursor-help"
