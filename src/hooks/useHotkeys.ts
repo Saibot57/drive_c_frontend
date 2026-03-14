@@ -4,7 +4,6 @@ export type HotkeyBinding = {
   key: string;              // e.g. 'k', 'Escape', 'ArrowDown', '1'
   ctrl?: boolean;
   shift?: boolean;
-  alt?: boolean;
   handler: (e: KeyboardEvent) => void;
   allowInInput?: boolean;   // default false — suppresses in input/textarea/contentEditable
 };
@@ -26,14 +25,12 @@ export function useHotkeys(bindings: HotkeyBinding[], deps: unknown[] = []): voi
       for (const binding of bindingsRef.current) {
         const ctrlMatch = binding.ctrl ? (e.ctrlKey || e.metaKey) : !(e.ctrlKey || e.metaKey);
         const shiftMatch = binding.shift ? e.shiftKey : !e.shiftKey;
-        const altMatch = binding.alt ? e.altKey : !e.altKey;
 
         if (
           (e.key.toLowerCase() === binding.key.toLowerCase() ||
            (binding.key.length === 1 && /\d/.test(binding.key) && e.code === `Digit${binding.key}`)) &&
           ctrlMatch &&
-          shiftMatch &&
-          altMatch
+          shiftMatch
         ) {
           if (!binding.allowInInput && isEditableElement(e.target)) {
             continue;

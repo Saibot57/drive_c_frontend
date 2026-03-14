@@ -116,14 +116,14 @@ export default function Home() {
     <ProtectedRoute>
       <div className="space-y-6">
         {/* ── Toolbar ─────────────────────────────────────────────────── */}
-        <div className="rounded-xl border-2 border-t-border bg-t-card p-4 shadow-neo flex items-center gap-4 flex-wrap">
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center gap-4 flex-wrap">
           <FeatureNavigation />
           <div className="flex items-center gap-3 flex-1">
             <Search onSearch={setSearchTerm} />
             <Button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="h-10 px-3 flex items-center gap-2 border-2 border-t-border bg-t-accent-btn hover:bg-t-accent-btn-hover transition-colors"
+              className="h-10 px-3 flex items-center gap-2 border-2 border-black bg-[#aee8fe] hover:bg-[#59cffd] transition-colors"
             >
               <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
               {isRefreshing ? '...' : 'Uppdatera'}
@@ -134,7 +134,7 @@ export default function Home() {
               id="showTags"
               checked={showTags}
               onCheckedChange={(checked) => setShowTags(checked === true)}
-              className="border border-t-border-sub data-[state=checked]:bg-t-accent-check data-[state=checked]:border-t-border"
+              className="border border-black/60 data-[state=checked]:bg-[#8ecc93] data-[state=checked]:border-black"
             />
             Visa Taggar
           </label>
@@ -142,11 +142,11 @@ export default function Home() {
 
         {/* ── Content ─────────────────────────────────────────────────── */}
         {loading && !isRefreshing ? (
-          <p className="text-sm text-t-text-sec">Laddar filer…</p>
+          <p className="text-sm text-gray-500">Laddar filer…</p>
         ) : error ? (
           <p className="text-sm text-red-500">{error}</p>
         ) : filteredData.length === 0 ? (
-          <p className="text-sm text-t-text-sec">Inget att visa. Prova att bredda din sökning.</p>
+          <p className="text-sm text-gray-500">Inget att visa. Prova att bredda din sökning.</p>
         ) : (
           <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
             {filteredData.map((section) => (

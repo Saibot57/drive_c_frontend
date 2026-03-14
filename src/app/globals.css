@@ -4,68 +4,11 @@
 
 /* Globala CSS Variabler */
 :root {
-  /* Legacy aliases */
-  --main: var(--theme-accent-primary);
-  --overlay: var(--theme-overlay-bg);
-  --bg: var(--theme-page-bg);
-  --text: var(--theme-text-primary);
-  --border: var(--theme-border-color);
-
-  /* ── Bakgrund ── */
-  --theme-page-bg: #ffffff;
-  --theme-page-bg-alt: #f3f4f6;
-  --theme-card-bg: #ffffff;
-  --theme-panel-bg: #ffffff;
-  --theme-input-bg: #ffffff;
-  --theme-sidebar-bg: #fcd7d7;
-  --theme-overlay-bg: rgba(0,0,0,0.8);
-  --theme-login-bg: #fcd7d7;
-  --theme-hover-bg: #f9fafb;
-  --theme-taskbar-bg: #fcd7d7;
-  --theme-taskbar-item-bg: #ffffff;
-
-  /* ── Accent ── */
-  --theme-accent-primary: #ff6b6b;
-  --theme-accent-primary-hover: #ff5252;
-  --theme-accent-secondary: #88cc19;
-  --theme-accent-soft: #fcd7d7;
-  --theme-accent-button: #aee8fe;
-  --theme-accent-button-hover: #59cffd;
-  --theme-accent-checkbox: #8ecc93;
-
-  /* ── Text ── */
-  --theme-text-primary: #000000;
-  --theme-text-secondary: #6b7280;
-  --theme-text-muted: #9ca3af;
-  --theme-text-on-accent: #ffffff;
-
-  /* ── Border & Shadow (Advanced) ── */
-  --theme-border-color: #000000;
-  --theme-border-subtle: rgba(0,0,0,0.2);
-  --theme-shadow-color: rgba(0,0,0,1);
-  --theme-ring-color: #000000;
-
-  /* ── Command Center ── */
-  --theme-cc-notes-bg: rgba(240,253,244,0.4);
-  --theme-cc-notes-stripe: #22c55e;
-  --theme-cc-calendar-bg: rgba(253,242,248,0.4);
-  --theme-cc-calendar-stripe: #ec4899;
-  --theme-cc-todo-bg: rgba(239,246,255,0.4);
-  --theme-cc-todo-stripe: #3b82f6;
-  --theme-cc-schedule-bg: rgba(255,251,235,0.4);
-  --theme-cc-schedule-stripe: #f59e0b;
-
-  /* ── Tags & Misc ── */
-  --theme-tag-bg: #fef9c3;
-  --theme-tag-border: #000000;
-  --theme-focus-ring: #000000;
-  --theme-divider: #e5e7eb;
-
-  /* ── Planner ── */
-  --theme-planner-card-bg: #ffffff;
-  --theme-planner-btn-bg: #a7f3d0;
-  --theme-planner-chip-bg: #ffffff;
-  --theme-planner-btn-shadow: rgba(0,0,0,1);
+  --main: #ff6b6b;
+  --overlay: rgba(0, 0, 0, 0.8);
+  --bg: #ffffff;
+  --text: #000;
+  --border: #000;
 }
 
 /* Tailwind Base Layer */
@@ -79,27 +22,18 @@
 @layer components {
   /* Generella Komponenter */
   .neo-brutalist-card {
-    @apply rounded-xl border-4 overflow-hidden;
-    border-color: var(--theme-border-color);
-    background-color: var(--theme-accent-primary);
-    box-shadow: 4px 4px 0px 0px var(--theme-shadow-color);
+    @apply rounded-xl border-4 border-black bg-[#ff6b6b] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden;
   }
   .neo-brutalist-content {
-    @apply w-full h-full p-4;
-    background-color: var(--theme-card-bg);
+    @apply bg-white w-full h-full p-4;
   }
 
   /* Kalender-specifika Komponenter */
   .calendar-container {
-    @apply relative isolate rounded-xl py-2;
-    background-color: var(--theme-card-bg);
-    border: 2px solid var(--theme-border-color);
-    box-shadow: 4px 4px 0px 0px var(--theme-shadow-color);
+    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] py-2;
   }
   .calendar-day-card {
-    @apply h-full transition-transform duration-300 overflow-visible;
-    border: 2px solid var(--theme-border-color);
-    background-color: var(--theme-card-bg);
+    @apply h-full border-2 border-black bg-white transition-transform duration-300 overflow-visible; /* overflow: visible för text */
   }
   .calendar-day-card .scroll-area-viewport { /* Säkerställ korrekt ScrollArea beteende */
     width: 100% !important;
@@ -109,56 +43,32 @@
     width: 100% !important;
   }
   .calendar-event-card {
-    @apply rounded p-1 text-xs transition-all w-full flex flex-col;
-    border: 2px solid var(--theme-border-color);
+    @apply rounded border-2 border-black p-1 text-xs transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] w-full flex flex-col;
     word-break: break-word;
     overflow-wrap: break-word;
     white-space: normal;
   }
-  .calendar-event-card:hover {
-    box-shadow: 2px 2px 0px 0px var(--theme-shadow-color);
-  }
   .calendar-time-grid {
-    @apply h-full;
-    border-right: 2px solid var(--theme-border-color);
-    background-color: var(--theme-card-bg);
+    @apply h-full border-r-2 border-black bg-white;
   }
   .calendar-time-slot {
-    @apply absolute w-full transition-colors;
-    border-top: 1px solid var(--theme-divider);
-  }
-  .calendar-time-slot:hover {
-    background-color: var(--theme-hover-bg);
+    @apply absolute w-full border-t border-gray-200 transition-colors hover:bg-gray-50;
   }
 
   /* Planner specifika komponenter */
   .planner-card {
-    @apply rounded-xl p-3 transition-transform;
-    border: 2px solid var(--theme-border-color);
-    background-color: var(--theme-planner-card-bg);
-    box-shadow: 3px 3px 0px var(--theme-shadow-color);
+    @apply rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_rgba(0,0,0,1)] transition-transform;
   }
   .planner-btn {
-    @apply inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition hover:-translate-y-0.5 hover:translate-x-0.5;
-    border: 2px solid var(--theme-border-color);
-    background-color: var(--theme-planner-btn-bg);
-    color: var(--theme-text-primary);
-    box-shadow: 3px 3px 0px var(--theme-planner-btn-shadow);
+    @apply inline-flex items-center gap-2 rounded-xl border-2 border-black bg-emerald-200 px-3 py-2 text-sm font-semibold text-gray-900 shadow-[3px_3px_0px_rgba(0,0,0,1)] transition hover:-translate-y-0.5 hover:translate-x-0.5;
   }
   .planner-chip {
-    @apply rounded-full px-3 py-1 text-xs font-semibold transition hover:-translate-y-0.5 hover:translate-x-0.5;
-    border: 2px solid var(--theme-border-color);
-    background-color: var(--theme-planner-chip-bg);
-    color: var(--theme-text-primary);
-    box-shadow: 2px 2px 0px var(--theme-shadow-color);
+    @apply rounded-full border-2 border-black bg-white px-3 py-1 text-xs font-semibold text-gray-800 shadow-[2px_2px_0px_rgba(0,0,0,1)] transition hover:-translate-y-0.5 hover:translate-x-0.5;
   }
 
   /* Anteckningar-specifika Komponenter */
   .notes-container {
-    @apply relative isolate rounded-xl p-6 w-full max-w-[1500px] mx-auto;
-    background-color: var(--theme-card-bg);
-    border: 2px solid var(--theme-border-color);
-    box-shadow: 4px 4px 0px 0px var(--theme-shadow-color);
+    @apply relative isolate bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 w-full max-w-[1500px] mx-auto;
   }
   .terminal-output {
     @apply font-mono text-sm whitespace-pre-wrap;
@@ -286,15 +196,11 @@
 
 /* Navigationsstilar */
 .nav-toggle-button {
-  @apply fixed z-40 flex items-center justify-center rounded-full transition-all;
-  border: 2px solid var(--theme-border-color);
-  background-color: var(--theme-card-bg);
+  @apply fixed z-40 flex items-center justify-center rounded-full border-2 border-black bg-white transition-all;
 }
 
 .nav-drawer {
-  @apply fixed left-0 top-0 h-full w-64 z-30 transition-transform duration-300 ease-in-out;
-  border-right: 2px solid var(--theme-border-color);
-  background-color: var(--theme-sidebar-bg);
+  @apply fixed left-0 top-0 h-full w-64 border-r-2 border-black bg-[#fcd7d7] z-30 transition-transform duration-300 ease-in-out;
 }
 
 .nav-drawer-open {
@@ -310,12 +216,11 @@
 }
 
 .nav-item-active {
-  @apply border-b-2 font-medium;
-  border-color: var(--theme-border-color);
+  @apply border-b-2 border-black font-medium;
 }
 
-.nav-item-inactive:hover {
-  border-bottom: 2px solid var(--theme-border-color);
+.nav-item-inactive {
+  @apply hover:border-b-2 hover:border-black;
 }
 
 /* Horisontella navigationsstilar */
@@ -328,12 +233,11 @@
 }
 
 .horizontal-nav-item-active {
-  @apply border-b-2 font-medium;
-  border-color: var(--theme-border-color);
+  @apply border-b-2 border-black font-medium;
 }
 
-.horizontal-nav-item-inactive:hover {
-  border-bottom: 2px solid var(--theme-border-color);
+.horizontal-nav-item-inactive {
+  @apply hover:border-b-2 hover:border-black;
 }
 
 /* Layout Hjälpklasser */
@@ -348,7 +252,7 @@
 }
 
 .window-container:hover {
-  box-shadow: 6px 6px 0px 0px var(--theme-shadow-color);
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
 }
 
 .window-drag-handle {
@@ -377,8 +281,8 @@
   left: 0;
   right: 0;
   height: 48px;
-  background-color: var(--theme-taskbar-bg);
-  border-top: 2px solid var(--theme-border-color);
+  background-color: #fcd7d7; /* --bg var(--bg) om du vill använda variabel */
+  border-top: 2px solid black; /* --border var(--border) */
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -390,8 +294,8 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border: 2px solid var(--theme-border-color);
-  background-color: var(--theme-taskbar-item-bg);
+  border: 2px solid black; /* --border var(--border) */
+  background-color: white;
   margin-right: 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -403,8 +307,8 @@
 }
 
 .taskbar-item-active {
-  background-color: var(--theme-accent-primary);
-  color: var(--theme-text-on-accent);
+  background-color: #ff6b6b; /* --main var(--main) */
+  color: white;
 }
 
 .window-maximizing { /* Används med animation */
@@ -472,8 +376,8 @@
 }
 
 @keyframes windowFocus { /* Fönster fokus animation */
-  0% { box-shadow: 4px 4px 0px 0px var(--theme-shadow-color); }
-  100% { box-shadow: 6px 6px 0px 0px var(--theme-shadow-color); }
+  0% { box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.8); }
+  100% { box-shadow: 6px 6px 0px 0px rgba(0,0,0,1); }
 }
 
 @keyframes maximizeWindow { /* Maximera/minimera animationer */

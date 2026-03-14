@@ -295,7 +295,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
       {/* Window header - UPDATED with slimmer design */}
       <div
         className={cn(
-          'window-drag-handle flex items-center justify-between px-2 py-1 bg-t-accent border-b-2 border-t-border h-8 text-t-text-on-accent',
+          'window-drag-handle flex items-center justify-between px-2 py-1 bg-[#ff6b6b] border-b-2 border-black h-8 text-white',
           headerClassName
         )}
         onMouseDown={handleMouseDown}

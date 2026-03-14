@@ -719,7 +719,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         <div className="flex-1 min-w-0 space-y-6">
 
         {/* Toolbar & Filter */}
-        <div className="rounded-xl border-2 border-t-border bg-t-card p-4 shadow-neo flex flex-col lg:flex-row gap-6 items-start lg:items-center">
+        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-6 items-start lg:items-center">
            {/* Mobile title */}
            <div className="lg:hidden">
              <FeatureNavigation />
@@ -756,7 +756,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <MoreVertical size={16} />
                 </Button>
                 {isImageExportMenuOpen && (
-                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 rounded-lg border-2 border-t-border bg-t-card p-1 shadow-neo">
+                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                     <button
                       type="button"
                       className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
@@ -792,7 +792,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <MoreVertical size={16} />
                 </Button>
                 {isJsonMenuOpen && (
-                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 rounded-lg border-2 border-t-border bg-t-card p-1 shadow-neo">
+                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
                     <button
                       type="button"
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
@@ -829,9 +829,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[360px]'
             } hidden lg:flex`}
           >
-             <div className={`rounded-xl border-2 border-t-border bg-t-card shadow-neo flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
+             <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
                isSidebarCollapsed ? 'p-2' : 'p-4'
-             } ${activeZone === 'courses' ? 'ring-2 ring-t-ring' : ''}`}>
+             } ${activeZone === 'courses' ? 'ring-2 ring-black' : ''}`}>
                 <div className={`flex items-center gap-3 mb-4 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
                   <h2 className={`font-bold flex items-center gap-2 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
                     <Hammer size={18}/> Byggstenar
@@ -932,7 +932,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           </div>
 
           {/* Main Schedule Area */}
-          <div className={`flex-1 rounded-xl border-2 border-t-border bg-t-hover overflow-hidden shadow-neo flex flex-col h-full ${activeZone === 'grid' ? 'ring-2 ring-t-ring' : ''}`}>
+          <div className={`flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full ${activeZone === 'grid' ? 'ring-2 ring-black' : ''}`}>
              <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
                 <div className="schedule-desktop-header hidden lg:flex sticky top-0 z-[60] pl-[50px] border-b-2 border-black bg-white">
                    {PLANNER_DAYS.map(day => (
@@ -1122,9 +1122,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             isRightSidebarCollapsed ? 'w-[72px]' : 'w-[320px]'
           }`}
         >
-           <div className={`rounded-xl border-2 border-t-border bg-t-card shadow-neo flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
+           <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
              isRightSidebarCollapsed ? 'p-2' : 'p-4'
-           } ${activeZone === 'archive' ? 'ring-2 ring-t-ring' : ''}`}>
+           } ${activeZone === 'archive' ? 'ring-2 ring-black' : ''}`}>
               <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
                 <h2 className={`font-bold flex items-center gap-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
                   <Archive size={18}/> Sparade Veckor
@@ -1174,7 +1174,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       sortedWeekNames.map((name, idx) => (
                         <div
                           key={name}
-                          className={`rounded-xl border-2 border-t-border bg-t-card shadow-neo-sm p-3 flex items-center gap-2 ${activeZone === 'archive' && selectedArchiveIndex === idx ? 'ring-2 ring-t-ring ring-offset-2' : ''}`}
+                          className={`rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-2 ${activeZone === 'archive' && selectedArchiveIndex === idx ? 'ring-2 ring-black ring-offset-2' : ''}`}
                         >
                           <Button
                             type="button"
@@ -1234,7 +1234,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
       {contextMenu && (
         <div
-          className="fixed z-[100] w-max rounded border-2 border-t-border bg-t-card shadow-lg"
+          className="fixed z-[100] w-max rounded border-2 border-black bg-white shadow-lg"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button
@@ -1368,7 +1368,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       />
 
       {plannerNotice && (
-        <div className={`fixed bottom-4 right-4 z-[80] rounded-xl border-2 border-black px-4 py-3 text-sm font-semibold shadow-neo ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
+        <div className={`fixed bottom-4 right-4 z-[80] rounded-xl border-2 border-black px-4 py-3 text-sm font-semibold shadow-[4px_4px_0px_rgba(0,0,0,1)] ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
           {plannerNotice.message}
         </div>
       )}

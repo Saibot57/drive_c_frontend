@@ -71,19 +71,19 @@ export function TemplatesModal({ open, onClose }: Props) {
 
         {/* Existing templates */}
         <div className="space-y-2 max-h-52 overflow-auto pr-1">
-          {isLoading && <p className="text-xs text-t-text-muted">Laddar…</p>}
+          {isLoading && <p className="text-xs text-gray-400">Laddar…</p>}
           {!isLoading && templates.length === 0 && (
-            <p className="text-xs text-t-text-muted">Inga mallar än. Skapa en nedan.</p>
+            <p className="text-xs text-gray-400">Inga mallar än. Skapa en nedan.</p>
           )}
           {templates.map(t => (
             <div
               key={t.id}
-              className="flex items-start justify-between border-2 border-t-border p-2.5 shadow-neo-sm gap-3"
+              className="flex items-start justify-between border-2 border-black p-2.5 shadow-[2px_2px_0px_0px_black] gap-3"
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold">{t.name}</p>
                 {t.skeleton && (
-                  <p className="text-2xs text-t-text-muted font-mono mt-0.5 truncate">
+                  <p className="text-2xs text-gray-400 font-mono mt-0.5 truncate">
                     {t.skeleton.slice(0, 70)}{t.skeleton.length > 70 ? '…' : ''}
                   </p>
                 )}
@@ -103,7 +103,7 @@ export function TemplatesModal({ open, onClose }: Props) {
         </div>
 
         {/* Create form */}
-        <div className="border-t-2 border-t-border pt-4 space-y-3">
+        <div className="border-t-2 border-black pt-4 space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-widest">Ny mall</h3>
 
           <div>
@@ -116,14 +116,14 @@ export function TemplatesModal({ open, onClose }: Props) {
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
               placeholder="t.ex. mötesanteckning"
-              className="w-full border-2 border-t-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-t-ring"
+              className="w-full border-2 border-black px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest mb-1">
               Skelett{' '}
-              <span className="text-t-text-muted normal-case font-normal">(Markdown, valfritt)</span>
+              <span className="text-gray-400 normal-case font-normal">(Markdown, valfritt)</span>
             </label>
             <textarea
               value={skeleton}

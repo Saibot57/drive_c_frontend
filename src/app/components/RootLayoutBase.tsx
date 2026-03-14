@@ -4,8 +4,6 @@ import React from 'react';
 import { Red_Hat_Text } from 'next/font/google';
 import localFont from 'next/font/local';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-import ThemeInspectorPanel from '@/components/theme-inspector/ThemeInspectorPanel';
 
 const redHat = Red_Hat_Text({
   subsets: ['latin'],
@@ -37,12 +35,9 @@ export default function RootLayoutBase({
         <meta charSet="UTF-8" />
         <title>Drive C</title>
       </head>
-      <body className={`${redHat.className} ${monument.variable} min-h-screen`} style={{ backgroundColor: 'var(--theme-page-bg)' }}>
+      <body className={`${redHat.className} ${monument.variable} min-h-screen bg-white`}>
         <AuthProvider>
-          <ThemeProvider>
-            <main className="pt-8 px-8">{children}</main>
-            <ThemeInspectorPanel />
-          </ThemeProvider>
+          <main className="pt-8 px-8">{children}</main>
         </AuthProvider>
       </body>
     </html>

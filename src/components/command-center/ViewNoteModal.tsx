@@ -36,7 +36,7 @@ export function ViewNoteModal({ noteId, onClose, onEditRequest }: Props) {
           <DialogTitle>{note?.title ?? 'Anteckning'}</DialogTitle>
         </DialogHeader>
 
-        {isLoading && <p className="text-sm text-t-text-sec">Laddar…</p>}
+        {isLoading && <p className="text-sm text-gray-500">Laddar…</p>}
         {error && <p className="text-sm text-red-500">{error}</p>}
 
         {!isLoading && note && (
@@ -46,7 +46,7 @@ export function ViewNoteModal({ noteId, onClose, onEditRequest }: Props) {
                 {note.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-2xs px-2 py-0.5 border border-t-tag-border bg-t-tag font-mono leading-tight"
+                    className="text-2xs px-2 py-0.5 border border-black bg-[#fef9c3] font-mono leading-tight"
                   >
                     {tag}
                   </span>
@@ -55,11 +55,11 @@ export function ViewNoteModal({ noteId, onClose, onEditRequest }: Props) {
             )}
 
             {note.content ? (
-              <div className="border-2 border-t-border p-4 bg-t-card font-mono text-sm whitespace-pre-wrap leading-relaxed min-h-[120px]">
+              <div className="border-2 border-black p-4 bg-white font-mono text-sm whitespace-pre-wrap leading-relaxed min-h-[120px]">
                 {note.content}
               </div>
             ) : (
-              <p className="text-sm text-t-text-muted italic">Inget innehåll.</p>
+              <p className="text-sm text-gray-400 italic">Inget innehåll.</p>
             )}
 
             <p className="text-2xs text-gray-300 font-mono">id: {note.id}</p>

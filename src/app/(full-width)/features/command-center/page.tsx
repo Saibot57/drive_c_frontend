@@ -24,7 +24,7 @@ import {
 
 type FocusedPanel = 'notes' | 'terminal' | 'calendar' | 'todos' | 'schedule' | null;
 
-const NEO = 'rounded-xl border-2 border-t-border bg-t-card shadow-neo overflow-hidden h-full';
+const NEO = 'rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] overflow-hidden h-full';
 
 export default function CommandCenterPage() {
   const engine = useTerminalEngine();
@@ -53,24 +53,24 @@ export default function CommandCenterPage() {
   return (
     <ProtectedRoute>
       {/* Break out of root layout's pt-8 px-8 to go truly full-bleed */}
-      <div className="-mx-8 -mt-8 min-h-screen bg-t-page-alt p-4">
+      <div className="-mx-8 -mt-8 min-h-screen bg-gray-100 p-4">
         <StandardDashboardLayout
           mode="resizable"
           defaultRightSize={15}
           rightSidebarWidth="w-[15%]"
           topToolbar={<FeatureNavigation />}
           leftSidebar={
-            <div className={`${NEO} ${focusedPanel === 'notes' || focusedPanel === 'terminal' ? 'ring-2 ring-t-ring' : ''}`}>
+            <div className={`${NEO} ${focusedPanel === 'notes' || focusedPanel === 'terminal' ? 'ring-2 ring-black' : ''}`}>
               <ResizablePanelGroup direction="vertical">
                 {/* Notes */}
                 <ResizablePanel defaultSize={62}>
-                  <div className="flex flex-col h-full overflow-hidden bg-t-cc-notes">
-                    <div className="h-[6px] bg-t-cc-notes-s shrink-0" />
+                  <div className="flex flex-col h-full overflow-hidden bg-green-50/40">
+                    <div className="h-[6px] bg-green-500 shrink-0" />
                     <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
                       <h2 className="font-bold text-xs uppercase tracking-widest">Anteckningar</h2>
                       <button
                         onClick={() => setTemplatesOpen(true)}
-                        className="flex items-center gap-1.5 text-2xs border-2 border-t-border px-2 py-1 shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold uppercase tracking-wide"
+                        className="flex items-center gap-1.5 text-2xs border-2 border-black px-2 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold uppercase tracking-wide"
                         title="Hantera mallar"
                       >
                         <BookMarked className="h-3 w-3" />
@@ -108,12 +108,12 @@ export default function CommandCenterPage() {
             </div>
           }
           centerContent={
-            <div className={`${NEO} ${focusedPanel === 'calendar' || focusedPanel === 'todos' ? 'ring-2 ring-t-ring' : ''}`}>
+            <div className={`${NEO} ${focusedPanel === 'calendar' || focusedPanel === 'todos' ? 'ring-2 ring-black' : ''}`}>
               <ResizablePanelGroup direction="vertical">
                 {/* Calendar */}
                 <ResizablePanel defaultSize={65}>
-                  <div className="flex flex-col h-full overflow-hidden min-h-0 bg-t-cc-cal">
-                    <div className="h-[6px] bg-t-cc-cal-s shrink-0" />
+                  <div className="flex flex-col h-full overflow-hidden min-h-0 bg-pink-50/40">
+                    <div className="h-[6px] bg-pink-500 shrink-0" />
                     <div className="flex-1 overflow-auto min-h-0">
                       <Calendar />
                     </div>
@@ -124,8 +124,8 @@ export default function CommandCenterPage() {
 
                 {/* Todos */}
                 <ResizablePanel defaultSize={35}>
-                  <div className="flex flex-col h-full overflow-hidden min-h-0 bg-t-cc-todo">
-                    <div className="h-[6px] bg-t-cc-todo-s shrink-0" />
+                  <div className="flex flex-col h-full overflow-hidden min-h-0 bg-blue-50/40">
+                    <div className="h-[6px] bg-blue-500 shrink-0" />
                     <div className="flex flex-col flex-1 overflow-hidden min-h-0 px-4 py-3">
                       <h2 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0">Att-göra-lista</h2>
                       <div className="flex-1 overflow-hidden min-h-0">
@@ -141,9 +141,9 @@ export default function CommandCenterPage() {
             </div>
           }
           rightSidebar={
-            <div className={`${NEO} ${focusedPanel === 'schedule' ? 'ring-2 ring-t-ring' : ''}`}>
-              <div className="flex flex-col h-full overflow-hidden min-h-0 bg-t-cc-sched">
-                <div className="h-[6px] bg-t-cc-sched-s shrink-0" />
+            <div className={`${NEO} ${focusedPanel === 'schedule' ? 'ring-2 ring-black' : ''}`}>
+              <div className="flex flex-col h-full overflow-hidden min-h-0 bg-amber-50/40">
+                <div className="h-[6px] bg-amber-500 shrink-0" />
                 <DailySchedulePanel />
               </div>
             </div>
