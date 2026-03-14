@@ -119,26 +119,13 @@ export const usePlannerSync = ({
     const loadPlannerActivities = async () => {
       try {
         const storedArchiveName = window.localStorage.getItem(ACTIVE_ARCHIVE_NAME_KEY);
-        let activities: PlannerActivity[];
-        let resolvedArchiveName: string | null = storedArchiveName;
-
-        if (storedArchiveName) {
-          activities = await plannerService.getPlannerArchive(storedArchiveName);
-          // If stored archive is empty/missing, fall back to main schedule
-          if (activities.length === 0) {
-            console.warn(`Archive "${storedArchiveName}" returned 0 activities, falling back to main schedule`);
-            window.localStorage.removeItem(ACTIVE_ARCHIVE_NAME_KEY);
-            activities = await plannerService.getPlannerActivities();
-            resolvedArchiveName = null;
-          }
-        } else {
-          activities = await plannerService.getPlannerActivities();
-        }
-
+        const activities = storedArchiveName
+          ? await plannerService.getPlannerArchive(storedArchiveName)
+          : await plannerService.getPlannerActivities();
         const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
         commitSchedule(() => mappedSchedule, { clearHistory: true });
-        if (resolvedArchiveName) {
-          setLoadedArchiveName(resolvedArchiveName);
+        if (storedArchiveName) {
+          setLoadedArchiveName(storedArchiveName);
         }
         setLoadStatus('loaded');
       } catch (error) {
