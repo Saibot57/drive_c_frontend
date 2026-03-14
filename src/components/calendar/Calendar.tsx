@@ -201,7 +201,7 @@ export const Calendar = () => {
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < firstDay; i++) {
       days.push(
-        <div key={`empty-${i}`} className="h-28 rounded-lg border-2 border-black/10 bg-gray-50" />
+        <div key={`empty-${i}`} className="h-28 rounded-lg border-2 border-t-border-sub bg-t-hover" />
       );
       currentWeek.push(null);
     }
@@ -290,7 +290,7 @@ export const Calendar = () => {
 
   return (
     <>
-      <div className="relative p-2 bg-white rounded-xl border-2 border-black shadow-neo">
+      <div className="relative p-2 bg-t-card rounded-xl border-2 border-t-border shadow-neo">
         {isLoading && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
             <p>Laddar händelser…</p>
@@ -309,17 +309,17 @@ export const Calendar = () => {
           </div>
         )}
         
-        <div className="mb-4 flex items-center justify-between border-b-2 border-black pb-2">
+        <div className="mb-4 flex items-center justify-between border-b-2 border-t-border pb-2">
           <h2 className="text-3xl font-monument uppercase">
             {currentDate.toLocaleString('sv-SE', { month: 'long' })} {currentDate.getFullYear()}
           </h2>
           <div className="flex gap-2">
             <Button 
               onClick={goToToday} 
-              className={`border-2 border-black transition-colors h-8 text-sm ${
-                isCurrentMonth(currentDate) 
-                  ? 'bg-white text-black hover:bg-[#ff6b6b]/90'
-                  : 'bg-white hover:bg-gray-50'
+              className={`border-2 border-t-border transition-colors h-8 text-sm ${
+                isCurrentMonth(currentDate)
+                  ? 'bg-t-card text-t-text hover:bg-t-accent/90'
+                  : 'bg-t-card hover:bg-t-hover'
               }`}
               variant="default"
             >
@@ -328,14 +328,14 @@ export const Calendar = () => {
             <Button 
               onClick={prevMonth} 
               variant="neutral"
-              className="border-2 border-black bg-white hover:bg-gray-50 h-8 w-8 p-0"
+              className="border-2 border-t-border bg-t-card hover:bg-t-hover h-8 w-8 p-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button 
               onClick={nextMonth}
               variant="neutral" 
-              className="border-2 border-black bg-white hover:bg-gray-50 h-8 w-8 p-0"
+              className="border-2 border-t-border bg-t-card hover:bg-t-hover h-8 w-8 p-0"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

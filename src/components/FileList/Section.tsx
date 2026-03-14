@@ -28,10 +28,10 @@ export const Section: React.FC<SectionProps> = ({ section, showTags }) => {
         {section.name}
       </h2>
       <div
-        className="rounded-2xl border-2 border-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+        className="rounded-2xl border-2 border-t-border overflow-hidden shadow-neo"
         style={{ backgroundColor: sectionColor }}
       >
-        <div className="bg-white">
+        <div className="bg-t-card">
           <ScrollArea className="h-[350px]">
             <div className="p-3">
               {section.files.map((file, idx) => (

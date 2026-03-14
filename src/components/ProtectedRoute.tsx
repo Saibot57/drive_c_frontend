@@ -23,8 +23,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Show nothing while loading
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#fcd7d7]">
-        <div className="bg-white p-6 rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <div className="flex items-center justify-center min-h-screen bg-t-accent-soft">
+        <div className="bg-t-card p-6 rounded-xl border-2 border-t-border shadow-neo">
           <p className="text-xl font-monument">Laddar…</p>
         </div>
       </div>

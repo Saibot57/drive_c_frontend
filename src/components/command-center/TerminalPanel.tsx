@@ -39,13 +39,13 @@ export function TerminalPanel({
 
   return (
     <div
-      className="h-full flex flex-col bg-white overflow-hidden cursor-text"
+      className="h-full flex flex-col bg-t-card overflow-hidden cursor-text"
       onClick={() => inputRef.current?.focus()}
     >
       {/* Output history */}
       <div
         ref={outputRef}
-        className="flex-1 overflow-auto bg-gray-50 px-4 pt-3 pb-2 space-y-1 min-h-0 border-b-2 border-black"
+        className="flex-1 overflow-auto bg-t-hover px-4 pt-3 pb-2 space-y-1 min-h-0 border-b-2 border-t-border"
       >
         {lines.length === 0 && (
           <p className="text-xs text-gray-300 font-mono italic">
@@ -59,7 +59,7 @@ export function TerminalPanel({
       </div>
 
       {/* Input row */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-white">
+      <div className="shrink-0 flex items-center gap-3 px-4 py-3 bg-t-card">
         <span className="text-sm font-bold text-black select-none font-mono shrink-0">&gt;_</span>
         <input
           ref={inputRef}

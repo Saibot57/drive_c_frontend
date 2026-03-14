@@ -120,31 +120,31 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
 
       {/* Header row */}
       <div className="flex items-center justify-end mb-2 shrink-0">
-        <span className="text-2xs text-gray-500 font-mono tabular-nums">
+        <span className="text-2xs text-t-text-sec font-mono tabular-nums">
           {notes.length} st
         </span>
       </div>
 
       {/* Search */}
       <div className="relative mb-2 shrink-0">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-t-text-muted pointer-events-none" />
         <input
           ref={searchRef}
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Sök titel eller tagg…"
-          className="w-full pl-7 pr-3 py-1.5 text-xs border-2 border-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black"
+          className="w-full pl-7 pr-3 py-1.5 text-xs border-2 border-t-border bg-t-input placeholder-t-text-muted focus:outline-none focus:ring-2 focus:ring-t-ring"
         />
       </div>
 
       {/* List */}
       <div ref={listRef} className="flex-1 overflow-auto space-y-2 pr-0.5 min-h-0">
-        {isLoading && <p className="text-xs text-gray-400 pt-1">Laddar…</p>}
+        {isLoading && <p className="text-xs text-t-text-muted pt-1">Laddar…</p>}
         {error     && <p className="text-xs text-red-500  pt-1">{error}</p>}
 
         {!isLoading && !error && filtered.length === 0 && (
-          <p className="text-xs text-gray-400 pt-1">
+          <p className="text-xs text-t-text-muted pt-1">
             {search
               ? 'Inga träffar. Prova ett annat sökord.'
               : 'Inga anteckningar. Prova: note "Min titel"'}
@@ -156,8 +156,8 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
             key={note.id}
             data-note-item
             onClick={() => onViewRequest(note.id)}
-            className={`border-2 border-black bg-white p-2.5 shadow-[2px_2px_0px_0px_black] group cursor-pointer hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all ${
-              isFocused && selectedIndex === idx ? 'ring-2 ring-black ring-offset-2' : ''
+            className={`border-2 border-t-border bg-t-card p-2.5 shadow-neo-sm group cursor-pointer hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all ${
+              isFocused && selectedIndex === idx ? 'ring-2 ring-t-ring ring-offset-2' : ''
             }`}
           >
             <div className="flex items-start justify-between gap-2">
@@ -178,7 +178,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
                 {note.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-2xs px-1.5 py-0.5 border border-black bg-[#fef9c3] font-mono leading-tight"
+                    className="text-2xs px-1.5 py-0.5 border border-t-tag-border bg-t-tag font-mono leading-tight"
                   >
                     {tag}
                   </span>
@@ -187,7 +187,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
             )}
 
             {note.content && (
-              <p className="text-2xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
+              <p className="text-2xs text-t-text-sec mt-1.5 line-clamp-2 leading-relaxed">
                 {note.content}
               </p>
             )}

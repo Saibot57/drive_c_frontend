@@ -35,10 +35,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#fcd7d7]">
-      <Card className="w-full max-w-md border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-        <CardHeader className="bg-[#ff6b6b] border-b-2 border-black">
-          <CardTitle className="text-white font-monument text-2xl">
+    <div className="flex items-center justify-center min-h-screen bg-t-login">
+      <Card className="w-full max-w-md border-2 border-t-border shadow-neo">
+        <CardHeader className="bg-t-accent border-b-2 border-t-border">
+          <CardTitle className="text-t-text-on-accent font-monument text-2xl">
             {isRegister ? 'Skapa konto' : 'Logga in'}
           </CardTitle>
         </CardHeader>
@@ -58,10 +58,10 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="border-2 border-black"
+                className="border-2 border-t-border"
               />
             </div>
-            
+
             {isRegister && (
               <div className="space-y-2">
                 <Label htmlFor="email">E-post (valfritt)</Label>
@@ -70,11 +70,11 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="border-2 border-black"
+                  className="border-2 border-t-border"
                 />
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Lösenord</Label>
               <Input
@@ -83,14 +83,14 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="border-2 border-black"
+                className="border-2 border-t-border"
               />
             </div>
             
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#ff6b6b] text-white hover:bg-[#ff5252] border-2 border-black"
+              className="w-full bg-t-accent text-t-text-on-accent hover:bg-t-accent-hover border-2 border-t-border"
             >
               {isLoading ? 'Laddar…' : isRegister ? 'Registrera' : 'Logga in'}
             </Button>
@@ -99,7 +99,7 @@ export default function LoginPage() {
           <div className="mt-4 text-center">
             <button
               onClick={() => setIsRegister(!isRegister)}
-              className="text-[#ff6b6b] hover:underline"
+              className="text-t-accent hover:underline"
               type="button"
             >
               {isRegister ? 'Har du redan ett konto? Logga in' : 'Inget konto? Registrera dig'}

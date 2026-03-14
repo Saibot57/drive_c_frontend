@@ -55,9 +55,9 @@ export function FeatureNavigation() {
           <button
             className={cn(
               'inline-flex items-center gap-2 font-monument text-xl leading-none tracking-[0.2em] select-none',
-              'bg-white border-none cursor-pointer rounded-md px-2 py-1.5',
+              'bg-t-card border-none cursor-pointer rounded-md px-2 py-1.5',
               'hover:bg-black/5 transition-colors outline-none',
-              'focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2',
+              'focus-visible:ring-2 focus-visible:ring-t-ring focus-visible:ring-offset-2',
             )}
             aria-label="Switch feature"
           >
@@ -67,7 +67,7 @@ export function FeatureNavigation() {
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="start" className="w-52 bg-white">
+        <DropdownMenuContent align="start" className="w-52 bg-t-card">
           {features.map(feature => {
             const FeatureIcon = feature.icon;
             const isActive = feature.href === current.href;
@@ -97,7 +97,7 @@ export function FeatureNavigation() {
               <LogOut size={15} />
               <span>Logga ut</span>
               {user && (
-                <span className="ml-auto text-xs text-gray-400 truncate max-w-[80px]">
+                <span className="ml-auto text-xs text-t-text-muted truncate max-w-[80px]">
                   {user.username}
                 </span>
               )}

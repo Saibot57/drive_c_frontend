@@ -23,7 +23,7 @@ function TodoItem({
   return (
     <label
       data-todo-item
-      className={`flex items-start gap-2 py-1.5 border-b border-gray-100 last:border-0 cursor-pointer group ${done ? 'opacity-50' : ''} ${isSelected ? 'ring-2 ring-black ring-offset-1 rounded' : ''}`}
+      className={`flex items-start gap-2 py-1.5 border-b border-t-divider last:border-0 cursor-pointer group ${done ? 'opacity-50' : ''} ${isSelected ? 'ring-2 ring-t-ring ring-offset-1 rounded' : ''}`}
     >
       <input
         type="checkbox"
@@ -32,7 +32,7 @@ function TodoItem({
         className="mt-0.5 shrink-0 cursor-pointer accent-black border-2 border-black"
       />
       <div className="flex-1 min-w-0">
-        <p className={`text-xs leading-snug ${done ? 'line-through text-gray-400' : ''}`}>
+        <p className={`text-xs leading-snug ${done ? 'line-through text-t-text-muted' : ''}`}>
           {todo.content}
         </p>
         <p className="text-2xs text-gray-300 font-mono mt-0.5">{todo.id.slice(0, 8)}…</p>
@@ -49,7 +49,7 @@ function WeekGroup({ week, todos, onToggle, selectedId }: {
 }) {
   return (
     <div className="mb-3">
-      <p className="text-2xs font-bold uppercase tracking-widest text-gray-400 mb-1 font-mono">
+      <p className="text-2xs font-bold uppercase tracking-widest text-t-text-muted mb-1 font-mono">
         v.{week}
       </p>
       {todos.map(t => (
@@ -177,7 +177,7 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
   }, {});
 
   const empty = (
-    <p className="text-xs text-gray-400 mt-1">
+    <p className="text-xs text-t-text-muted mt-1">
       Inga todos. Prova: todo &quot;Text&quot; --week
     </p>
   );
@@ -186,12 +186,12 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
     <div ref={containerRef} className="grid grid-cols-2 gap-3 h-full overflow-hidden">
 
       {/* Week todos */}
-      <div className="border border-black/60 bg-white p-3 flex flex-col overflow-hidden">
-        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-200">
+      <div className="border border-t-border-sub bg-t-card p-3 flex flex-col overflow-hidden">
+        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-t-divider">
           Denna vecka
         </h3>
         <div className="flex-1 overflow-auto min-h-0">
-          {isLoading && <p className="text-xs text-gray-400">Laddar…</p>}
+          {isLoading && <p className="text-xs text-t-text-muted">Laddar…</p>}
           {error     && <p className="text-xs text-red-500">{error}</p>}
           {!isLoading && !error && weekTodos.length === 0 && empty}
           {!isLoading && Object.entries(weekGroups).map(([week, items]) => (
@@ -207,21 +207,21 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
       </div>
 
       {/* Date todos */}
-      <div className="border border-black/60 bg-white p-3 flex flex-col overflow-hidden">
-        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-200">
+      <div className="border border-t-border-sub bg-t-card p-3 flex flex-col overflow-hidden">
+        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-t-divider">
           Per datum
         </h3>
         <div className="flex-1 overflow-auto min-h-0">
-          {isLoading && <p className="text-xs text-gray-400">Laddar…</p>}
+          {isLoading && <p className="text-xs text-t-text-muted">Laddar…</p>}
           {error     && <p className="text-xs text-red-500">{error}</p>}
           {!isLoading && !error && dateTodos.length === 0 && (
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-t-text-muted mt-1">
               Inga todos. Prova: todo &quot;Text&quot; --date 2025-03-15
             </p>
           )}
           {!isLoading && Object.entries(dateGroups).map(([date, items]) => (
             <div key={date} className="mb-3">
-              <p className="text-2xs font-bold uppercase tracking-widest text-gray-400 mb-1 font-mono">
+              <p className="text-2xs font-bold uppercase tracking-widest text-t-text-muted mb-1 font-mono">
                 {date}
               </p>
               {items.map(t => (

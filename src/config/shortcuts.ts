@@ -67,4 +67,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Escape'], description: 'Rensa / Avmarkera' },
     ],
   },
+  {
+    label: 'Tema',
+    shortcuts: [
+      { keys: ['Ctrl', 'Shift', 'Alt', 'T'], description: 'Theme Inspector' },
+    ],
+  },
 ];

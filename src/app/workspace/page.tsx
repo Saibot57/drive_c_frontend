@@ -13,7 +13,7 @@ import dynamic from 'next/dynamic';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 
 const FileListWindowWrapper = dynamic(() => import('@/components/FileList/FileListWindowWrapper'), {
-  loading: () => <p className="text-sm text-gray-500 p-4">Laddar…</p>,
+  loading: () => <p className="text-sm text-t-text-sec p-4">Laddar…</p>,
 });
 
 const WindowControlButtons = () => {
@@ -107,7 +107,7 @@ const WorkspacePage = () => {
   
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#fcd7d7] overflow-hidden">
+      <div className="min-h-screen bg-t-accent-soft overflow-hidden">
         <WindowProvider>
           {/* Main content area where windows will be rendered */}
           <div className="relative w-full h-screen">
@@ -119,7 +119,7 @@ const WorkspacePage = () => {
             
             {/* Grid toggle button */}
             <Button
-              className="fixed bottom-4 right-4 bg-white border-2 border-border"
+              className="fixed bottom-4 right-4 bg-t-card border-2 border-border"
               onClick={() => setShowGrid(!showGrid)}
             >
               {showGrid ? 'Dölj rutnät' : 'Visa rutnät'}
