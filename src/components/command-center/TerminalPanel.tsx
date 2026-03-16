@@ -5,7 +5,8 @@ import type { TerminalLine, UseTerminalEngine } from '@/hooks/useTerminalEngine'
 
 type Props = Pick<
   UseTerminalEngine,
-  'lines' | 'input' | 'setInput' | 'isLoading' | 'submit' | 'historyBack' | 'historyForward'
+  'lines' | 'input' | 'setInput' | 'isLoading' | 'submit'
+  | 'historyBack' | 'historyForward' | 'tabComplete' | 'suggestions'
 >;
 
 const LINE_STYLE: Record<string, string> = {
@@ -25,7 +26,8 @@ function Line({ line }: { line: TerminalLine }) {
 }
 
 export function TerminalPanel({
-  lines, input, setInput, isLoading, submit, historyBack, historyForward,
+  lines, input, setInput, isLoading, submit,
+  historyBack, historyForward, tabComplete, suggestions,
 }: Props) {
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
@@ -70,15 +72,25 @@ export function TerminalPanel({
             if (e.key === 'Enter')     { e.preventDefault(); submit(); }
             if (e.key === 'ArrowUp')   { e.preventDefault(); historyBack(); }
             if (e.key === 'ArrowDown') { e.preventDefault(); historyForward(); }
+            if (e.key === 'Tab')       { e.preventDefault(); tabComplete(); }
           }}
           disabled={isLoading}
-          placeholder='note "Titel"  ·  todo "Text" --week  ·  help'
+          placeholder='note "Titel" · todo "Text" --week · help · Tab ⇥'
           className="flex-1 text-sm bg-transparent outline-none placeholder-gray-300 font-mono text-black"
           spellCheck={false}
           autoComplete="off"
           autoCapitalize="off"
         />
       </div>
+
+      {/* Suggestions hint */}
+      {suggestions.length > 0 && (
+        <div className="shrink-0 px-4 pb-2 -mt-1">
+          <p className="text-2xs text-gray-400 font-mono truncate">
+            ⇥ {suggestions.join('  ·  ')}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

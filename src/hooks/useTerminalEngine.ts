@@ -10,9 +10,10 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { parseCommand }              from '@/lib/terminalParser';
+import { parseCommand, COMMAND_NAMES, ALIASES, TODO_FLAGS, SMART_DATES }
+  from '@/lib/terminalParser';
 import { commandCenterService }      from '@/services/commandCenterService';
-import type { CCNote, CCTodo }       from '@/services/commandCenterService';
+import type { CCNote, CCTodo, CCTemplate } from '@/services/commandCenterService';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -36,6 +37,9 @@ export interface UseTerminalEngine {
   clear:          () => void;
   historyBack:    () => void;
   historyForward: () => void;
+  // Tab-completion
+  tabComplete:    () => void;
+  suggestions:    string[];
   // Cross-panel refresh signals (increment on data change)
   noteRefreshKey: number;
   todoRefreshKey: number;
@@ -50,15 +54,25 @@ export interface UseTerminalEngine {
 
 const MAX_HISTORY = 50;
 
-const HELP_TEXT = `Kommandon:
-  note "Titel" [--mall <mallnamn>]   Skapa anteckning (valfri mall)
-  todo "Text" --week                  Skapa todo (aktuell vecka)
-  todo "Text" --week <N>              Skapa todo (vecka N)
-  todo "Text" --date YYYY-MM-DD       Skapa todo (specifikt datum)
-  edit <id>                           Öppna redigerare för anteckning
-  rm <id>                             Ta bort anteckning eller todo
-  clear                               Rensa terminalen
-  help                                Visa den här hjälptexten`.trim();
+const HELP_TEXT = `
+  SKAPANDE
+  note "Titel" [--mall <namn>]     Skapa anteckning
+  todo "Text" --week [N]           Todo (vecka N, standard: denna)
+  todo "Text" --date <datum>       Todo (datum: YYYY-MM-DD, idag, imorgon, fredag…)
+  todo "Text" --denna              Todo (denna vecka, snabbkommando)
+
+  HANTERING
+  done <id>                        Markera todo som klar
+  edit <id>                        Redigera anteckning
+  rm <id>                          Ta bort anteckning eller todo
+
+  SYSTEM
+  help                             Visa denna hjälptext
+  clear                            Rensa terminalen
+
+  ALIAS: n=note  t=todo  d=done  e=edit  r=rm  h=help  c=clear
+  DATUM: idag, imorgon, igår, måndag–söndag
+  TAB:   Tryck Tab för autocompletions`.trim();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,20 +105,65 @@ function todoCreatedLine(todo: CCTodo): TerminalLine {
   );
 }
 
+// ─── Tab-completion helpers ─────────────────────────────────────────────────
+
+/** All command names + their aliases for first-word completion */
+const ALL_FIRST_WORDS = [
+  ...COMMAND_NAMES,
+  ...Object.keys(ALIASES),
+];
+
+interface TabState {
+  /** The input text when Tab was first pressed */
+  prefix: string;
+  /** Matching options */
+  options: string[];
+  /** Current cycle index */
+  index: number;
+}
+
+function getCommandCompletions(partial: string): string[] {
+  const lower = partial.toLowerCase();
+  if (!lower) return COMMAND_NAMES; // show all commands when empty
+  return ALL_FIRST_WORDS.filter(c => c.startsWith(lower) && c !== lower);
+}
+
+function getFlagCompletions(command: string, partial: string): string[] {
+  if (command === 'todo') {
+    const flags = TODO_FLAGS;
+    if (!partial) return flags;
+    return flags.filter(f => f.startsWith(partial));
+  }
+  if (command === 'note') {
+    if (!partial || '--mall'.startsWith(partial)) return ['--mall'];
+    return [];
+  }
+  return [];
+}
+
+function getDateCompletions(partial: string): string[] {
+  if (!partial) return SMART_DATES;
+  const lower = partial.toLowerCase();
+  return SMART_DATES.filter(d => d.startsWith(lower));
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useTerminalEngine(): UseTerminalEngine {
   const [lines, setLines]           = useState<TerminalLine[]>(() => [
-    makeLine('system', 'Command Center v1.0 — skriv help för kommandon.'),
+    makeLine('system', 'Command Center v2.0 — skriv help för kommandon. Tab för autocomplete.'),
   ]);
   const [input, setInput]           = useState('');
   const [isLoading, setLoading]     = useState(false);
   const [noteRefreshKey, setNoteRefreshKey] = useState(0);
   const [todoRefreshKey, setTodoRefreshKey] = useState(0);
   const [editTarget, setEditTargetState]    = useState<string | null>(null);
+  const [suggestions, setSuggestions]       = useState<string[]>([]);
 
-  const cmdHistory = useRef<string[]>([]);
-  const historyIdx = useRef<number>(-1);
+  const cmdHistory  = useRef<string[]>([]);
+  const historyIdx  = useRef<number>(-1);
+  const tabRef      = useRef<TabState | null>(null);
+  const templateCacheRef = useRef<CCTemplate[] | null>(null);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -121,6 +180,13 @@ export function useTerminalEngine(): UseTerminalEngine {
   const setEditTarget   = useCallback((id: string)  => setEditTargetState(id),   []);
   const clearEditTarget = useCallback(()             => setEditTargetState(null), []);
 
+  // Reset tab state on any input change
+  const setInputAndResetTab = useCallback((v: string) => {
+    setInput(v);
+    tabRef.current = null;
+    setSuggestions([]);
+  }, []);
+
   // ── History navigation ─────────────────────────────────────────────────────
 
   const historyBack = useCallback(() => {
@@ -128,15 +194,134 @@ export function useTerminalEngine(): UseTerminalEngine {
     if (!hist.length) return;
     const next = Math.min(historyIdx.current + 1, hist.length - 1);
     historyIdx.current = next;
-    setInput(hist[next]);
-  }, []);
+    setInputAndResetTab(hist[next]);
+  }, [setInputAndResetTab]);
 
   const historyForward = useCallback(() => {
     const next = historyIdx.current - 1;
-    if (next < 0) { historyIdx.current = -1; setInput(''); return; }
+    if (next < 0) { historyIdx.current = -1; setInputAndResetTab(''); return; }
     historyIdx.current = next;
-    setInput(cmdHistory.current[next]);
-  }, []);
+    setInputAndResetTab(cmdHistory.current[next]);
+  }, [setInputAndResetTab]);
+
+  // ── Tab-completion ────────────────────────────────────────────────────────
+
+  const tabComplete = useCallback(() => {
+    const raw = input;
+
+    // If we're already cycling, advance to next option
+    if (tabRef.current && tabRef.current.prefix === raw) {
+      const st = tabRef.current;
+      if (st.options.length === 0) return;
+      st.index = (st.index + 1) % st.options.length;
+      const completed = st.options[st.index];
+      setInput(completed);
+      tabRef.current = { ...st, prefix: completed };
+      return;
+    }
+
+    // Determine context
+    const trimmed = raw.trimStart();
+    const firstSpace = trimmed.indexOf(' ');
+
+    // Case 1: completing the command name
+    if (firstSpace === -1) {
+      const matches = getCommandCompletions(trimmed);
+      if (matches.length === 0) { setSuggestions([]); return; }
+      setSuggestions(matches);
+      const completed = matches[0] + ' ';
+      tabRef.current = {
+        prefix: completed,
+        options: matches.map(m => m + ' '),
+        index: 0,
+      };
+      setInput(completed);
+      return;
+    }
+
+    const command = (ALIASES[trimmed.slice(0, firstSpace).toLowerCase()] ?? trimmed.slice(0, firstSpace)).toLowerCase();
+    const afterCmd = trimmed.slice(firstSpace + 1);
+
+    // Case 2: after todo/note "text" — complete flags
+    if ((command === 'todo' || command === 'note') && afterCmd.includes('"')) {
+      // Find end of quoted string
+      const quoteStart = afterCmd.indexOf('"');
+      const afterQuoteStart = afterCmd.slice(quoteStart + 1);
+      const quoteEnd = afterQuoteStart.indexOf('"');
+
+      if (quoteEnd !== -1) {
+        // We're past the quoted string — complete flags
+        const flagPart = afterQuoteStart.slice(quoteEnd + 1).trim();
+        const prefix = trimmed.slice(0, trimmed.length - flagPart.length);
+
+        // Case 2a: after --date — complete smart dates
+        const dateMatch = flagPart.match(/^--date\s+(.*)/);
+        if (dateMatch && command === 'todo') {
+          const datePart = dateMatch[1];
+          const matches = getDateCompletions(datePart);
+          if (matches.length === 0) { setSuggestions([]); return; }
+          setSuggestions(matches);
+          const base = prefix.replace(/--date\s+.*$/, '--date ');
+          const completed = base + matches[0];
+          tabRef.current = {
+            prefix: completed,
+            options: matches.map(m => base + m),
+            index: 0,
+          };
+          setInput(completed);
+          return;
+        }
+
+        // Case 2b: after --mall — complete template names
+        const mallMatch = flagPart.match(/^--mall\s+(.*)/);
+        if (mallMatch && command === 'note') {
+          const partial = mallMatch[1];
+          const templates = templateCacheRef.current;
+          if (!templates) {
+            // Fetch templates async, then retry
+            commandCenterService.getTemplates().then(t => {
+              templateCacheRef.current = t;
+              // Show hint that templates are loaded
+              const names = t.map(tp => tp.name);
+              setSuggestions(names.length > 0 ? names : ['(inga mallar)']);
+            }).catch(() => { /* ignore */ });
+            setSuggestions(['Laddar mallar...']);
+            return;
+          }
+          const names = templates.map(t => t.name);
+          const matches = partial
+            ? names.filter(n => n.toLowerCase().startsWith(partial.toLowerCase()))
+            : names;
+          if (matches.length === 0) { setSuggestions([]); return; }
+          setSuggestions(matches);
+          const base = prefix.replace(/--mall\s+.*$/, '--mall ');
+          const completed = base + matches[0];
+          tabRef.current = {
+            prefix: completed,
+            options: matches.map(m => base + m),
+            index: 0,
+          };
+          setInput(completed);
+          return;
+        }
+
+        // Case 2c: completing the flag itself (--week, --date, --denna, --mall)
+        const matches = getFlagCompletions(command, flagPart);
+        if (matches.length === 0) { setSuggestions([]); return; }
+        setSuggestions(matches);
+        const completed = prefix + matches[0] + (matches[0] === '--denna' ? '' : ' ');
+        tabRef.current = {
+          prefix: completed,
+          options: matches.map(m => prefix + m + (m === '--denna' ? '' : ' ')),
+          index: 0,
+        };
+        setInput(completed);
+        return;
+      }
+    }
+
+    setSuggestions([]);
+  }, [input]);
 
   // ── Command dispatch ───────────────────────────────────────────────────────
 
@@ -146,6 +331,8 @@ export function useTerminalEngine(): UseTerminalEngine {
 
     pushLines(makeLine('input', `$ ${raw}`));
     setInput('');
+    setSuggestions([]);
+    tabRef.current = null;
 
     if (cmdHistory.current[0] !== raw) {
       cmdHistory.current = [raw, ...cmdHistory.current].slice(0, MAX_HISTORY);
@@ -189,6 +376,8 @@ export function useTerminalEngine(): UseTerminalEngine {
               pushLines(makeLine('error', `✗ Kunde inte hämta mallar: ${msg}`));
               break;
             }
+            // Update cache for tab-completion
+            templateCacheRef.current = templates;
             const found = templates.find(
               t => t.name.toLowerCase() === cmd.template!.toLowerCase(),
             );
@@ -224,6 +413,17 @@ export function useTerminalEngine(): UseTerminalEngine {
           break;
         }
 
+        case 'done': {
+          await commandCenterService.updateTodo(cmd.id, { status: 'done' });
+          pushLines(makeLine(
+            'success',
+            `✓ Todo markerad som klar [id: ${cmd.id}]`,
+            { resourceType: 'todo', id: cmd.id },
+          ));
+          setTodoRefreshKey(k => k + 1);
+          break;
+        }
+
         case 'rm': {
           const resourceType = await commandCenterService.deleteAny(cmd.id);
           const label = resourceType === 'note' ? 'Anteckning' : 'Todo';
@@ -246,8 +446,9 @@ export function useTerminalEngine(): UseTerminalEngine {
   }, [input, isLoading, pushLines, clear]);
 
   return {
-    lines, input, setInput, isLoading,
+    lines, input, setInput: setInputAndResetTab, isLoading,
     submit, clear, historyBack, historyForward,
+    tabComplete, suggestions,
     noteRefreshKey, todoRefreshKey, refreshNotes,
     editTarget, setEditTarget, clearEditTarget,
   };

@@ -101,6 +101,8 @@ export default function CommandCenterPage() {
                       submit={engine.submit}
                       historyBack={engine.historyBack}
                       historyForward={engine.historyForward}
+                      tabComplete={engine.tabComplete}
+                      suggestions={engine.suggestions}
                     />
                   </div>
                 </ResizablePanel>

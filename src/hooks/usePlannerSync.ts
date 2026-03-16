@@ -131,7 +131,16 @@ export const usePlannerSync = ({
       } catch (error) {
         console.error('Planner load failed', error);
         window.localStorage.removeItem(ACTIVE_ARCHIVE_NAME_KEY);
-        setLoadStatus('error');
+        // Fallback: try loading main schedule instead of showing error
+        try {
+          const activities = await plannerService.getPlannerActivities();
+          const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
+          commitSchedule(() => mappedSchedule, { clearHistory: true });
+          setLoadStatus('loaded');
+        } catch (fallbackError) {
+          console.error('Planner fallback load failed', fallbackError);
+          setLoadStatus('error');
+        }
       }
     };
 
@@ -174,6 +183,7 @@ export const usePlannerSync = ({
 
   const performAutosave = useCallback(async () => {
     if (loadStatus !== 'loaded') return;
+    if (schedule.length === 0) return;
     if (isSavingRef.current) {
       pendingSaveRef.current = true;
       return;
