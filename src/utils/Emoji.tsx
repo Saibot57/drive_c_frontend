@@ -18,6 +18,7 @@ function shouldUseTwemoji(s: string): boolean {
   for (const ch of Array.from(s)) {
     const cp = ch.codePointAt(0)!;
     if (cp >= 0x1f3fb && cp <= 0x1f3ff) return true; // hudtoner
+    if (cp >= 0x1f000) return true; // alla emoji i supplementary-planet
   }
   return Array.from(s).length > 1; // kombination?
 }
