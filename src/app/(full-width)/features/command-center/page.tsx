@@ -116,7 +116,7 @@ export default function CommandCenterPage() {
                 <ResizablePanel defaultSize={65}>
                   <div className="flex flex-col h-full overflow-hidden min-h-0 bg-pink-50/40">
                     <div className="h-[6px] bg-pink-500 shrink-0" />
-                    <div className="flex-1 overflow-auto min-h-0">
+                    <div className="flex-1 overflow-hidden min-h-0">
                       <Calendar />
                     </div>
                   </div>

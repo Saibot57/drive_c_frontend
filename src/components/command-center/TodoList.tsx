@@ -5,18 +5,82 @@ import { X } from 'lucide-react';
 import { commandCenterService } from '@/services/commandCenterService';
 import type { CCTodo } from '@/services/commandCenterService';
 import { useHotkeys } from '@/hooks/useHotkeys';
+import { isoWeekYear } from '@/utils/dateSv';
 
 interface Props {
   refreshKey: number;
   isFocused?: boolean;
 }
 
-// ─── Progress indicator per group ────────────────────────────────────────────
+// ─── Effective date for sorting ──────────────────────────────────────────────
 
-function GroupProgress({ total, done }: { total: number; done: number }) {
+function getEffectiveDate(todo: CCTodo): Date {
+  if (todo.type === 'date' && todo.target_date) {
+    return new Date(todo.target_date + 'T00:00:00');
+  }
+  if (todo.type === 'week' && todo.week_number != null) {
+    // Monday of that ISO week (approximate, same year)
+    const year = new Date().getFullYear();
+    const jan4 = new Date(year, 0, 4);
+    const dow = jan4.getDay() || 7;
+    const monday = new Date(jan4);
+    monday.setDate(jan4.getDate() - dow + 1 + (todo.week_number - 1) * 7);
+    return monday;
+  }
+  return new Date();
+}
+
+// ─── Sort: open first → soonest first ────────────────────────────────────────
+
+function sortTodos(list: CCTodo[]): CCTodo[] {
+  return [...list].sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'open' ? -1 : 1;
+    return getEffectiveDate(a).getTime() - getEffectiveDate(b).getTime();
+  });
+}
+
+// ─── Classify: this-week-or-earlier vs forward ──────────────────────────────
+
+function classifyTodos(todos: CCTodo[]): { thisWeek: CCTodo[]; forward: CCTodo[] } {
+  const { week: currentWeek, year: currentYear } = isoWeekYear(new Date());
+
+  const isThisWeekOrEarlier = (todo: CCTodo): boolean => {
+    if (todo.type === 'week' && todo.week_number != null) {
+      return todo.week_number <= currentWeek;
+    }
+    if (todo.type === 'date' && todo.target_date) {
+      const { week, year } = isoWeekYear(todo.target_date);
+      if (year !== currentYear) return year < currentYear;
+      return week <= currentWeek;
+    }
+    return true; // fallback: show in this week
+  };
+
+  return {
+    thisWeek: sortTodos(todos.filter(isThisWeekOrEarlier)),
+    forward: sortTodos(todos.filter(t => !isThisWeekOrEarlier(t))),
+  };
+}
+
+// ─── Date label for context ─────────────────────────────────────────────────
+
+function getLabel(todo: CCTodo): string {
+  if (todo.type === 'date' && todo.target_date) {
+    const d = new Date(todo.target_date + 'T00:00:00');
+    return d.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+  if (todo.type === 'week' && todo.week_number != null) {
+    return `v.${todo.week_number}`;
+  }
+  return '';
+}
+
+// ─── Progress indicator ─────────────────────────────────────────────────────
+
+function ColumnProgress({ total, done }: { total: number; done: number }) {
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
   return (
-    <div className="flex items-center gap-2 mt-1">
+    <div className="flex items-center gap-2">
       <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
         <div
           className="h-full bg-emerald-500 rounded-full transition-all duration-300"
@@ -30,7 +94,7 @@ function GroupProgress({ total, done }: { total: number; done: number }) {
   );
 }
 
-// ─── Single todo item ────────────────────────────────────────────────────────
+// ─── Single todo item ───────────────────────────────────────────────────────
 
 function TodoItem({
   todo,
@@ -44,6 +108,7 @@ function TodoItem({
   isSelected: boolean;
 }) {
   const done = todo.status === 'done';
+  const label = getLabel(todo);
   return (
     <div
       data-todo-item
@@ -62,13 +127,18 @@ function TodoItem({
         onChange={() => onToggle(todo.id, done ? 'open' : 'done')}
         className="mt-0.5 shrink-0 cursor-pointer accent-emerald-600 h-3.5 w-3.5"
       />
-      <p
-        className={`flex-1 min-w-0 text-xs leading-snug ${
-          done ? 'line-through text-gray-400' : 'text-gray-800'
-        }`}
-      >
-        {todo.content}
-      </p>
+      <div className="flex-1 min-w-0">
+        <p
+          className={`text-xs leading-snug ${
+            done ? 'line-through text-gray-400' : 'text-gray-800'
+          }`}
+        >
+          {todo.content}
+        </p>
+        {label && (
+          <span className="text-2xs text-gray-400 font-mono">{label}</span>
+        )}
+      </div>
       <button
         onClick={() => onDelete(todo.id)}
         className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity shrink-0 p-0.5"
@@ -80,72 +150,7 @@ function TodoItem({
   );
 }
 
-// ─── Week group with progress ────────────────────────────────────────────────
-
-function WeekGroup({ week, todos, onToggle, onDelete, selectedId }: {
-  week:       number;
-  todos:      CCTodo[];
-  onToggle:   (id: string, next: 'open' | 'done') => void;
-  onDelete:   (id: string) => void;
-  selectedId: string | null;
-}) {
-  const sorted = sortOpenFirst(todos);
-  const doneCount = todos.filter(t => t.status === 'done').length;
-  return (
-    <div className="mb-4">
-      <div className="mb-1.5">
-        <p className="text-2xs font-bold uppercase tracking-widest text-gray-400 font-mono">
-          v.{week}
-        </p>
-        <GroupProgress total={todos.length} done={doneCount} />
-      </div>
-      <div className="space-y-1">
-        {sorted.map(t => (
-          <TodoItem key={t.id} todo={t} onToggle={onToggle} onDelete={onDelete} isSelected={t.id === selectedId} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Date group with progress ────────────────────────────────────────────────
-
-function DateGroup({ date, todos, onToggle, onDelete, selectedId }: {
-  date:       string;
-  todos:      CCTodo[];
-  onToggle:   (id: string, next: 'open' | 'done') => void;
-  onDelete:   (id: string) => void;
-  selectedId: string | null;
-}) {
-  const sorted = sortOpenFirst(todos);
-  const doneCount = todos.filter(t => t.status === 'done').length;
-  return (
-    <div className="mb-4">
-      <div className="mb-1.5">
-        <p className="text-2xs font-bold uppercase tracking-widest text-gray-400 font-mono">
-          {date}
-        </p>
-        <GroupProgress total={todos.length} done={doneCount} />
-      </div>
-      <div className="space-y-1">
-        {sorted.map(t => (
-          <TodoItem key={t.id} todo={t} onToggle={onToggle} onDelete={onDelete} isSelected={selectedId === t.id} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Sort helper: open items first ───────────────────────────────────────────
-
-function sortOpenFirst(todos: CCTodo[]): CCTodo[] {
-  return [...todos].sort((a, b) => {
-    if (a.status !== b.status) return a.status === 'open' ? -1 : 1;
-    return 0;
-  });
-}
-
-// ─── Main component ──────────────────────────────────────────────────────────
+// ─── Main component ─────────────────────────────────────────────────────────
 
 export function TodoList({ refreshKey, isFocused = false }: Props) {
   const [todos, setTodos]       = useState<CCTodo[]>([]);
@@ -160,7 +165,7 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
     setError(null);
     commandCenterService.getTodos()
       .then(data  => { if (!cancelled) setTodos(data); })
-      .catch(e    => { if (!cancelled) setError(e.message ?? 'Kunde inte hämta todos.'); })
+      .catch(e    => { if (!cancelled) setError(e.message ?? 'Kunde inte hamta todos.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [refreshKey]);
@@ -188,13 +193,13 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
     }
   };
 
+  // ── Classify & sort ─────────────────────────────────────────────────────
+
+  const { thisWeek, forward } = classifyTodos(todos);
+
   // ── Flat list for keyboard navigation ───────────────────────────────────
 
-  const allTodos = [...todos].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'week' ? -1 : 1;
-    if (a.type === 'week') return (a.week_number ?? 0) - (b.week_number ?? 0);
-    return (a.target_date ?? '').localeCompare(b.target_date ?? '');
-  });
+  const allTodos = [...thisWeek, ...forward];
 
   const selectedTodoId = selectedIndex !== null && allTodos[selectedIndex]
     ? allTodos[selectedIndex].id
@@ -257,76 +262,58 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
     [isFocused, selectedIndex, allTodos, selectedTodoId],
   );
 
-  // ── Split & group ──────────────────────────────────────────────────────
-
-  const weekTodos = todos
-    .filter(t => t.type === 'week')
-    .sort((a, b) => (a.week_number ?? 0) - (b.week_number ?? 0));
-
-  const dateTodos = todos
-    .filter(t => t.type === 'date')
-    .sort((a, b) => (a.target_date ?? '').localeCompare(b.target_date ?? ''));
-
-  const weekGroups = weekTodos.reduce<Record<number, CCTodo[]>>((acc, t) => {
-    const w = t.week_number ?? 0;
-    (acc[w] ??= []).push(t);
-    return acc;
-  }, {});
-
-  const dateGroups = dateTodos.reduce<Record<string, CCTodo[]>>((acc, t) => {
-    const d = t.target_date ?? '?';
-    (acc[d] ??= []).push(t);
-    return acc;
-  }, {});
+  const { week: currentWeek } = isoWeekYear(new Date());
 
   const emptyHint = (text: string) => (
     <p className="text-xs text-gray-300 italic mt-2 text-center">{text}</p>
   );
 
-  return (
-    <div ref={containerRef} className="grid grid-cols-2 gap-3 h-full overflow-hidden">
-
-      {/* Week todos */}
-      <div className="border border-black/20 rounded-lg bg-white/60 p-3 flex flex-col overflow-hidden">
-        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-100">
-          Denna vecka
-        </h3>
-        <div className="flex-1 overflow-auto min-h-0">
-          {isLoading && <p className="text-xs text-gray-400">Laddar…</p>}
-          {error     && <p className="text-xs text-red-500">{error}</p>}
-          {!isLoading && !error && weekTodos.length === 0 && emptyHint('t "Text" --week')}
-          {!isLoading && Object.entries(weekGroups).map(([week, items]) => (
-            <WeekGroup
-              key={week}
-              week={Number(week)}
-              todos={items}
+  const renderColumn = (columnTodos: CCTodo[]) => {
+    const done = columnTodos.filter(t => t.status === 'done').length;
+    return (
+      <>
+        <ColumnProgress total={columnTodos.length} done={done} />
+        <div className="space-y-1 mt-2">
+          {columnTodos.map(t => (
+            <TodoItem
+              key={t.id}
+              todo={t}
               onToggle={handleToggle}
               onDelete={handleDelete}
-              selectedId={isFocused ? selectedTodoId : null}
+              isSelected={isFocused && t.id === selectedTodoId}
             />
           ))}
         </div>
-      </div>
+      </>
+    );
+  };
 
-      {/* Date todos */}
+  return (
+    <div ref={containerRef} className="grid grid-cols-2 gap-3 h-full overflow-hidden">
+
+      {/* This week (+ overdue) */}
       <div className="border border-black/20 rounded-lg bg-white/60 p-3 flex flex-col overflow-hidden">
         <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-100">
-          Per datum
+          Denna vecka <span className="font-normal text-gray-400">(v.{currentWeek})</span>
         </h3>
         <div className="flex-1 overflow-auto min-h-0">
-          {isLoading && <p className="text-xs text-gray-400">Laddar…</p>}
+          {isLoading && <p className="text-xs text-gray-400">Laddar...</p>}
           {error     && <p className="text-xs text-red-500">{error}</p>}
-          {!isLoading && !error && dateTodos.length === 0 && emptyHint('t "Text" --date idag')}
-          {!isLoading && Object.entries(dateGroups).map(([date, items]) => (
-            <DateGroup
-              key={date}
-              date={date}
-              todos={items}
-              onToggle={handleToggle}
-              onDelete={handleDelete}
-              selectedId={isFocused ? selectedTodoId : null}
-            />
-          ))}
+          {!isLoading && !error && thisWeek.length === 0 && emptyHint('Inga todos denna vecka')}
+          {!isLoading && !error && thisWeek.length > 0 && renderColumn(thisWeek)}
+        </div>
+      </div>
+
+      {/* Forward */}
+      <div className="border border-black/20 rounded-lg bg-white/60 p-3 flex flex-col overflow-hidden">
+        <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-100">
+          Framåt
+        </h3>
+        <div className="flex-1 overflow-auto min-h-0">
+          {isLoading && <p className="text-xs text-gray-400">Laddar...</p>}
+          {error     && <p className="text-xs text-red-500">{error}</p>}
+          {!isLoading && !error && forward.length === 0 && emptyHint('Inga kommande todos')}
+          {!isLoading && !error && forward.length > 0 && renderColumn(forward)}
         </div>
       </div>
 
