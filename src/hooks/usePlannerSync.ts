@@ -88,6 +88,11 @@ export const usePlannerSync = ({
   const [loadedArchiveName, setLoadedArchiveName] = useState<string | null>(null);
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
+  // Gate: block autosave until archive context is consistent after page load.
+  // If no archive in localStorage, starts true (no blocking needed).
+  const initialArchiveResolvedRef = useRef(
+    typeof window === 'undefined' || !window.localStorage.getItem(ACTIVE_ARCHIVE_NAME_KEY)
+  );
 
   const areEntriesEquivalent = useCallback((a: ScheduledEntry, b: ScheduledEntry) => (
     a.instanceId === b.instanceId
@@ -130,7 +135,9 @@ export const usePlannerSync = ({
         setLoadStatus('loaded');
       } catch (error) {
         console.error('Planner load failed', error);
-        window.localStorage.removeItem(ACTIVE_ARCHIVE_NAME_KEY);
+        // Don't clear localStorage — the archive likely still exists in DB.
+        // Next page load will retry. User can manually switch if needed.
+        showNotice('Kunde inte ladda arkivet. Visar huvudschemat istället.', 'warning');
         // Fallback: try loading main schedule instead of showing error
         try {
           const activities = await plannerService.getPlannerActivities();
@@ -145,7 +152,19 @@ export const usePlannerSync = ({
     };
 
     loadPlannerActivities();
-  }, [commitSchedule]);
+  }, [commitSchedule, showNotice]);
+
+  // Resolve the autosave gate once archive context is consistent
+  useEffect(() => {
+    if (initialArchiveResolvedRef.current) return;
+    if (loadStatus !== 'loaded') return;
+    if (loadedArchiveName && activeArchiveName === loadedArchiveName) {
+      initialArchiveResolvedRef.current = true;
+    }
+    if (!loadedArchiveName) {
+      initialArchiveResolvedRef.current = true;
+    }
+  }, [activeArchiveName, loadStatus, loadedArchiveName]);
 
   const handleSyncToCloud = useCallback(async () => {
     if (isSavingRef.current) return;
@@ -184,6 +203,7 @@ export const usePlannerSync = ({
   const performAutosave = useCallback(async () => {
     if (loadStatus !== 'loaded') return;
     if (schedule.length === 0) return;
+    if (!initialArchiveResolvedRef.current) return;
     if (isSavingRef.current) {
       pendingSaveRef.current = true;
       return;
