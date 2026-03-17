@@ -187,10 +187,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   } | null>(null);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [isClearScheduleConfirmOpen, setIsClearScheduleConfirmOpen] = useState(false);
+  const [isPdfMenuOpen, setIsPdfMenuOpen] = useState(false);
   const [isImageExportMenuOpen, setIsImageExportMenuOpen] = useState(false);
   const [isJsonMenuOpen, setIsJsonMenuOpen] = useState(false);
   const titleHoldTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfMenuRef = useRef<HTMLDivElement>(null);
   const imageExportMenuRef = useRef<HTMLDivElement>(null);
   const jsonMenuRef = useRef<HTMLDivElement>(null);
 
@@ -319,10 +321,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   }, [loadedArchiveName, setActiveArchiveName]);
 
   useEffect(() => {
-    if (!isImageExportMenuOpen && !isJsonMenuOpen) return;
+    if (!isPdfMenuOpen && !isImageExportMenuOpen && !isJsonMenuOpen) return;
 
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
+      if (pdfMenuRef.current && !pdfMenuRef.current.contains(target)) {
+        setIsPdfMenuOpen(false);
+      }
       if (imageExportMenuRef.current && !imageExportMenuRef.current.contains(target)) {
         setIsImageExportMenuOpen(false);
       }
@@ -333,7 +338,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     window.addEventListener('mousedown', handleOutsideClick);
     return () => window.removeEventListener('mousedown', handleOutsideClick);
-  }, [isImageExportMenuOpen, isJsonMenuOpen]);
+  }, [isPdfMenuOpen, isImageExportMenuOpen, isJsonMenuOpen]);
 
   const startTitleHold = () => {
     if (titleHoldTimerRef.current) {
@@ -745,7 +750,39 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
            </div>
 
            <div className="flex gap-2 flex-wrap">
-              <Button variant="neutral" onClick={handleExportPDF} className="border-2 border-black"><Download size={16} className="mr-2"/> PDF</Button>
+              <div className="relative" ref={pdfMenuRef}>
+                <Button
+                  variant="neutral"
+                  onClick={() => setIsPdfMenuOpen(open => !open)}
+                  className="border-2 border-black"
+                >
+                  <Download size={16} className="mr-2"/> PDF
+                </Button>
+                {isPdfMenuOpen && (
+                  <div className="absolute left-0 z-[100] mt-2 w-44 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                    <button
+                      type="button"
+                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      onClick={() => {
+                        handleExportPDF('a4');
+                        setIsPdfMenuOpen(false);
+                      }}
+                    >
+                      Exportera PDF (A4)
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      onClick={() => {
+                        handleExportPDF('a3');
+                        setIsPdfMenuOpen(false);
+                      }}
+                    >
+                      Exportera PDF (A3)
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="relative" ref={imageExportMenuRef}>
                 <Button
                   variant="neutral"

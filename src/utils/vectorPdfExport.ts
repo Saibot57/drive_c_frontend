@@ -1,8 +1,16 @@
+type PageSize = 'a4' | 'a3';
+
+const PAGE_CONFIG: Record<PageSize, { widthPx: number; cssPageRule: string; marginMm: number }> = {
+  a4: { widthPx: 1050, cssPageRule: 'size: A4 landscape;', marginMm: 10 },
+  a3: { widthPx: 1500, cssPageRule: 'size: A3 landscape;', marginMm: 12 },
+};
+
 type VectorPdfExportOptions = {
   filename?: string;
   title?: string;
   extraClassNames?: string[];
   clipHeightPx?: number;
+  pageSize?: PageSize;
 };
 
 const collectStyles = () => {
@@ -53,7 +61,8 @@ export const exportElementToVectorPdf = async (
   const title = options.title ?? filename.replace(/\.pdf$/i, '');
 
   const clonedElement = element.cloneNode(true) as HTMLElement;
-  const targetWidth = Math.max(element.scrollWidth, element.clientWidth);
+  const config = PAGE_CONFIG[options.pageSize ?? 'a4'];
+  const targetWidth = config.widthPx;
   const targetHeight = Math.max(element.scrollHeight, element.clientHeight);
   const clippedHeight = Number.isFinite(options.clipHeightPx)
     ? Math.min(targetHeight, options.clipHeightPx as number)
@@ -92,6 +101,17 @@ export const exportElementToVectorPdf = async (
     <style>
       body { margin: 0; background: #fff; }
       ${styles}
+      /* Schedule print overrides — after collected styles */
+      @page { ${config.cssPageRule} margin: ${config.marginMm}mm; }
+      @media print {
+        html, body {
+          width: ${config.widthPx}px;
+          margin: 0; padding: 0;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+      .schedule-desktop-header { position: static !important; }
     </style>
   </head>
   <body></body>

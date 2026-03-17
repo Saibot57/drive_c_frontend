@@ -55,22 +55,24 @@ export const useScheduleExport = ({ schedule }: UseScheduleExportParams) => {
     return contentHeightPx + topOffsetPx + safetyMarginPx;
   }, [schedule]);
 
-  const handleExportPDF = useCallback(async () => {
+  const handleExportPDF = useCallback(async (pageSize?: 'a4' | 'a3') => {
     const exportElement = document.getElementById('schedule-canvas');
     const clipHeightPx = computeClipHeightPx();
+    const size = pageSize ?? 'a4';
 
     if (isVectorPdfExportEnabled && exportElement) {
       await exportElementToVectorPdf(exportElement, {
         filename: 'schema.pdf',
         extraClassNames: ['pdf-export'],
-        clipHeightPx
+        clipHeightPx,
+        pageSize: size,
       });
       return;
     }
 
     const canvas = await captureScheduleCanvas();
     if (!canvas) return;
-    const pdf = new jsPDF('l', 'pt', 'a4');
+    const pdf = new jsPDF('l', 'pt', size);
     const imageData = canvas.toDataURL('image/png');
     const imgProps = pdf.getImageProperties(imageData);
     const margin = 20;

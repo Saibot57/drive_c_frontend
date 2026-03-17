@@ -152,6 +152,14 @@
 
 .pdf-export .schedule-desktop-header {
   display: flex !important;
+  position: static !important;
+  top: auto !important;
+}
+
+.pdf-export,
+.pdf-export * {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .pdf-export .schedule-mobile-header,
