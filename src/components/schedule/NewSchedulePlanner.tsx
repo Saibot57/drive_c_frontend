@@ -172,7 +172,7 @@ export default function NewSchedulePlanner() {
   const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [copiedEntryContent, setCopiedEntryContent] = useState<{ teacher: string; room: string; notes?: string; category?: string } | null>(null);
+  const [copiedEntryContent, setCopiedEntryContent] = useState<{ teacher: string; room: string; notes?: string; category?: string; color?: string } | null>(null);
 const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
@@ -671,8 +671,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     onDuplicateParallel: handleDuplicateParallel,
     onDuplicateAndPlace: handleDuplicateAndPlace,
     onCopyContent: (entry) => {
-      const { teacher, room, notes, category } = entry;
-      setCopiedEntryContent({ teacher, room, notes, category });
+      const { teacher, room, notes, category, color } = entry;
+      setCopiedEntryContent({ teacher, room, notes, category, color });
       showNotice('Innehåll kopierat', 'success');
     },
     onPasteContent: (entry) => {
@@ -1299,8 +1299,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           <button
             className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
             onClick={() => {
-              const { teacher, room, notes, category } = contextMenu.entry;
-              setCopiedEntryContent({ teacher, room, notes, category });
+              const { teacher, room, notes, category, color } = contextMenu.entry;
+              setCopiedEntryContent({ teacher, room, notes, category, color });
               showNotice('Innehåll kopierat', 'success');
               setContextMenu(null);
             }}

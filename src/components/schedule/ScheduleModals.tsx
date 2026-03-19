@@ -211,6 +211,10 @@ export function ScheduleModals({
           <DialogHeader><DialogTitle>Redigera</DialogTitle></DialogHeader>
           {editingEntry && (
             <form onSubmit={onSaveEntry} onKeyDown={ctrlEnter(onSaveEntry)} className="space-y-3">
+              <div>
+                <Label>Titel</Label>
+                <Input value={editingEntry.title} onChange={e => setEditingEntry({ ...editingEntry, title: e.target.value })} autoFocus />
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>Start</Label><Input type="time" value={editingEntry.startTime} onChange={e => setEditingEntry({ ...editingEntry, startTime: e.target.value })} /></div>
                 <div><Label>Slut</Label><Input type="time" value={editingEntry.endTime} onChange={e => setEditingEntry({ ...editingEntry, endTime: e.target.value })} /></div>
