@@ -54,7 +54,7 @@ export function ScheduledEventCard({
 
   if (hidden) return null;
 
-  const isShortDuration = entry.duration < 50;
+  const isShortDuration = entry.duration < 45;
   const isCompactHeight = adjustedHeight < 38;
   const timeLabel = isLastOfDay ? `${entry.startTime}–${entry.endTime}` : entry.startTime;
 
