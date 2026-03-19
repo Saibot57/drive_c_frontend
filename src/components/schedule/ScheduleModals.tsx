@@ -50,6 +50,12 @@ type ScheduleModalsProps = {
   isClearScheduleConfirmOpen: boolean;
   onClearScheduleConfirmOpenChange: (open: boolean) => void;
   onConfirmClearSchedule: () => void;
+  isNewScheduleDialogOpen: boolean;
+  onNewScheduleDialogOpenChange: (open: boolean) => void;
+  newScheduleName: string;
+  onNewScheduleNameChange: (value: string) => void;
+  onConfirmCreateNewSchedule: () => void;
+  newScheduleNameExists: boolean;
 };
 
 export function ScheduleModals({
@@ -89,7 +95,13 @@ export function ScheduleModals({
   onConfirmDeleteCourse,
   isClearScheduleConfirmOpen,
   onClearScheduleConfirmOpenChange,
-  onConfirmClearSchedule
+  onConfirmClearSchedule,
+  isNewScheduleDialogOpen,
+  onNewScheduleDialogOpenChange,
+  newScheduleName,
+  onNewScheduleNameChange,
+  onConfirmCreateNewSchedule,
+  newScheduleNameExists
 }: ScheduleModalsProps) {
   const ctrlEnter = (submit: (e: React.FormEvent) => void) =>
     (e: React.KeyboardEvent<HTMLFormElement>) => {
@@ -379,6 +391,35 @@ export function ScheduleModals({
             <Button variant="neutral" onClick={() => onClearScheduleConfirmOpenChange(false)}>Avbryt</Button>
             <Button className="bg-rose-200 hover:bg-rose-300" onClick={onConfirmClearSchedule}>Rensa</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isNewScheduleDialogOpen} onOpenChange={onNewScheduleDialogOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Skapa nytt schema</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); onConfirmCreateNewSchedule(); }} className="space-y-3">
+            <div>
+              <Label>Namn</Label>
+              <Input
+                value={newScheduleName}
+                onChange={(e) => onNewScheduleNameChange(e.target.value)}
+                placeholder="t.ex. v.45 eller Höstlov"
+                autoFocus
+              />
+              {newScheduleNameExists && (
+                <p className="text-xs text-rose-600 mt-1">Det finns redan ett schema med det namnet.</p>
+              )}
+            </div>
+            <p className="text-sm text-gray-700">
+              Det aktiva schemat ersätts med ett tomt schema. Spara det aktiva schemat först om du vill behålla det.
+            </p>
+            <DialogFooter>
+              <Button variant="neutral" type="button" onClick={() => onNewScheduleDialogOpenChange(false)}>Avbryt</Button>
+              <Button type="submit" disabled={!newScheduleName.trim() || newScheduleNameExists}>Skapa</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>

@@ -211,7 +211,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleDeleteWeek,
     handleConfirmDeleteWeek,
     handleDuplicateWeek,
-    handleConfirmOverwriteWeek
+    handleConfirmOverwriteWeek,
+    newScheduleName,
+    setNewScheduleName,
+    isNewScheduleDialogOpen,
+    setIsNewScheduleDialogOpen,
+    handleCreateNewSchedule
   } = useArchiveManager({
     schedule,
     commitSchedule,
@@ -1184,6 +1189,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
               {!isRightSidebarCollapsed && (
                 <div className="flex flex-col gap-4 flex-1">
+                  <Button
+                    variant="neutral"
+                    onClick={() => setIsNewScheduleDialogOpen(true)}
+                    className="w-full border-2 border-black bg-emerald-100 hover:bg-emerald-200"
+                  >
+                    <Plus size={14} className="mr-2"/> Nytt schema
+                  </Button>
+
                   <div className="space-y-2">
                     <Label className="text-xs font-bold uppercase text-gray-500">Spara vecka</Label>
                     <div className="flex gap-2">
@@ -1402,6 +1415,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           commitSchedule(() => []);
           setIsClearScheduleConfirmOpen(false);
         }}
+        isNewScheduleDialogOpen={isNewScheduleDialogOpen}
+        onNewScheduleDialogOpenChange={setIsNewScheduleDialogOpen}
+        newScheduleName={newScheduleName}
+        onNewScheduleNameChange={setNewScheduleName}
+        onConfirmCreateNewSchedule={handleCreateNewSchedule}
+        newScheduleNameExists={sortedWeekNames.includes(newScheduleName.trim())}
       />
 
       {plannerNotice && (

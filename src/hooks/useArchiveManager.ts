@@ -167,6 +167,27 @@ export const useArchiveManager = ({
     setOverwriteWeekName(null);
   }, [overwriteWeekName, saveWeekArchive]);
 
+  const [newScheduleName, setNewScheduleName] = useState('');
+  const [isNewScheduleDialogOpen, setIsNewScheduleDialogOpen] = useState(false);
+
+  const handleCreateNewSchedule = useCallback(() => {
+    const trimmed = newScheduleName.trim();
+    if (!trimmed) {
+      showNotice('Ange ett namn för det nya schemat.', 'warning');
+      return;
+    }
+    if (savedWeekNames.includes(trimmed)) {
+      showNotice('Det finns redan ett schema med det namnet.', 'warning');
+      return;
+    }
+    commitSchedule(() => [], { clearHistory: true });
+    setActiveArchiveName(trimmed);
+    setSavedWeekNames(prev => [...prev, trimmed]);
+    setNewScheduleName('');
+    setIsNewScheduleDialogOpen(false);
+    showNotice(`Nytt schema "${trimmed}" skapat. Lägg till poster för att spara.`, 'success');
+  }, [commitSchedule, newScheduleName, savedWeekNames, showNotice]);
+
   return {
     savedWeekNames,
     sortedWeekNames,
@@ -184,6 +205,11 @@ export const useArchiveManager = ({
     handleDeleteWeek,
     handleConfirmDeleteWeek,
     handleDuplicateWeek,
-    handleConfirmOverwriteWeek
+    handleConfirmOverwriteWeek,
+    newScheduleName,
+    setNewScheduleName,
+    isNewScheduleDialogOpen,
+    setIsNewScheduleDialogOpen,
+    handleCreateNewSchedule
   };
 };
