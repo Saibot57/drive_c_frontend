@@ -1,7 +1,3 @@
-import DefaultContainer from '../components/DefaultContainer';
-
-export default function WorkspaceLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return <DefaultContainer>{children}</DefaultContainer>;
+export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
