@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2 } from 'lucide-react';
+import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
@@ -33,6 +33,7 @@ function WorkspaceInner() {
     createSurface,
     createAndPlaceElement,
     updateElementContent,
+    updateElementTitle,
     movePlacement,
     resizePlacement,
     toggleLock,
@@ -51,6 +52,22 @@ function WorkspaceInner() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ElementContextState | null>(null);
   const [mirrorCopy, setMirrorCopy] = useState<{ elementId: string; mode: 'mirror' | 'copy' } | null>(null);
+  const [renameEl, setRenameEl] = useState<{ elementId: string; x: number; y: number; value: string } | null>(null);
+  const renameElRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renameEl && renameElRef.current) {
+      renameElRef.current.focus();
+      renameElRef.current.select();
+    }
+  }, [renameEl]);
+
+  const commitElementRename = useCallback(() => {
+    if (renameEl && renameEl.value.trim()) {
+      updateElementTitle(renameEl.elementId, renameEl.value.trim());
+    }
+    setRenameEl(null);
+  }, [renameEl, updateElementTitle]);
 
   const handleSearchNavigate = useCallback(
     async (surfaceId: string, elementId: string) => {
@@ -98,6 +115,20 @@ function WorkspaceInner() {
 
   const contextMenuItems: ContextMenuItem[] = contextMenu
     ? [
+        {
+          label: 'Byt namn',
+          icon: <Pencil size={13} />,
+          onClick: () => {
+            const el = state.elements[contextMenu.elementId];
+            setRenameEl({
+              elementId: contextMenu.elementId,
+              x: contextMenu.x,
+              y: contextMenu.y,
+              value: el?.title ?? '',
+            });
+          },
+        },
+        { label: '', onClick: () => {}, divider: true },
         {
           label: 'Spegla till...',
           icon: <Link2 size={13} />,
@@ -237,6 +268,40 @@ function WorkspaceInner() {
           items={contextMenuItems}
           onClose={() => setContextMenu(null)}
         />
+      )}
+
+      {/* Element rename input */}
+      {renameEl && (
+        <div
+          style={{
+            position: 'fixed',
+            left: renameEl.x,
+            top: renameEl.y,
+            zIndex: 200,
+          }}
+        >
+          <input
+            ref={renameElRef}
+            value={renameEl.value}
+            onChange={(e) => setRenameEl({ ...renameEl, value: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitElementRename();
+              if (e.key === 'Escape') setRenameEl(null);
+            }}
+            onBlur={commitElementRename}
+            style={{
+              fontSize: '0.8125rem',
+              padding: '0.375rem 0.5rem',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.375rem',
+              background: '#ffffff',
+              color: '#111827',
+              outline: 'none',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+              minWidth: '10rem',
+            }}
+          />
+        </div>
       )}
 
       {/* Mirror / Copy modal */}
