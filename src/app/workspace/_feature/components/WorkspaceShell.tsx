@@ -55,12 +55,13 @@ function WorkspaceInner() {
   const [renameEl, setRenameEl] = useState<{ elementId: string; x: number; y: number; value: string } | null>(null);
   const renameElRef = useRef<HTMLInputElement>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (renameEl && renameElRef.current) {
       renameElRef.current.focus();
       renameElRef.current.select();
     }
-  }, [renameEl]);
+  }, [renameEl?.elementId]);
 
   const commitElementRename = useCallback(() => {
     if (renameEl && renameEl.value.trim()) {
@@ -87,7 +88,10 @@ function WorkspaceInner() {
   );
 
   const handleSelectElement = useCallback(
-    (elementId: string | null) => dispatch({ type: 'SELECT_ELEMENT', elementId }),
+    (elementId: string | null) => {
+      dispatch({ type: 'SELECT_ELEMENT', elementId });
+      setContextMenu(null);
+    },
     [dispatch],
   );
 
