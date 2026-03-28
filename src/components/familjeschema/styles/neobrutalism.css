@@ -308,11 +308,13 @@ h1 {
   box-shadow: var(--shadow-xl);
   overflow: auto;
   border-radius: 0 !important; /* Ensure square corners, override global styles */
+  min-height: 100%;
 }
 
 .schedule-grid {
   display: grid;
   min-width: 1200px;
+  min-height: 100%;
   border-radius: 0 !important; /* Ensure square corners, override global styles */
 }
 
