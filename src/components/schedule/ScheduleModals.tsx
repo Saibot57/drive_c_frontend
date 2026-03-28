@@ -171,7 +171,7 @@ export function ScheduleModals({
                         setManualColor(true);
                         setEditingCourse({ ...editingCourse, color: c });
                       }}
-                      className={`w-6 h-6 rounded-full cursor-pointer border ${editingCourse.color === c ? 'ring-2 ring-black' : ''}`}
+                      className={`w-6 h-6 rounded-full cursor-pointer border ${editingCourse.color === c ? 'sp-swatch-ring' : ''}`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
@@ -205,7 +205,7 @@ export function ScheduleModals({
                         setManualColor(true);
                         setEditingCourse({ ...editingCourse, color: c });
                       }}
-                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingCourse.color === c ? 'ring-2 ring-black' : ''}`}
+                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingCourse.color === c ? 'sp-swatch-ring' : ''}`}
                       style={{ backgroundColor: c }}
                       title="Senast använda"
                     />
@@ -272,7 +272,7 @@ export function ScheduleModals({
                     <div
                       key={c}
                       onClick={() => setEditingEntry({ ...editingEntry, color: c })}
-                      className={`w-6 h-6 rounded-full cursor-pointer border ${editingEntry.color === c ? 'ring-2 ring-black' : ''}`}
+                      className={`w-6 h-6 rounded-full cursor-pointer border ${editingEntry.color === c ? 'sp-swatch-ring' : ''}`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
@@ -302,7 +302,7 @@ export function ScheduleModals({
                     <div
                       key={`recent-${c}`}
                       onClick={() => setEditingEntry({ ...editingEntry, color: c })}
-                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingEntry.color === c ? 'ring-2 ring-black' : ''}`}
+                      className={`w-6 h-6 rounded-full cursor-pointer border border-dashed border-black/40 ${editingEntry.color === c ? 'sp-swatch-ring' : ''}`}
                       style={{ backgroundColor: c }}
                       title="Senast använda"
                     />

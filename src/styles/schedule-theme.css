@@ -1,0 +1,226 @@
+/* ── Schedule Planner Theme System ── */
+
+/* ── Neo (default) — neobrutalist ── */
+.sp-root[data-theme="neo"] {
+  --sp-border: 2px solid #000;
+  --sp-border-light: 1px solid rgba(0,0,0,0.2);
+  --sp-border-thin: 1px solid rgba(0,0,0,0.1);
+  --sp-border-divider: 2px solid #000;
+  --sp-shadow: 4px 4px 0px rgba(0,0,0,1);
+  --sp-shadow-sm: 2px 2px 0px rgba(0,0,0,1);
+  --sp-shadow-lg: 4px 4px 0px rgba(0,0,0,1);
+  --sp-radius: 0.75rem;
+  --sp-radius-sm: 0.25rem;
+  --sp-bg: #ffffff;
+  --sp-bg-grid: #f9fafb;
+  --sp-bg-muted: #f3f4f6;
+  --sp-bg-time-axis: #f3f4f6;
+  --sp-text: #000;
+  --sp-text-muted: #6b7280;
+  --sp-text-subtle: #9ca3af;
+  --sp-ring: 2px solid #000;
+  --sp-ring-offset: 2px;
+  --sp-input-border: 2px solid #000;
+  --sp-input-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --sp-grid-line: 1px solid #f3f4f6;
+  --sp-grid-border: 1px solid #e5e7eb;
+  --sp-day-hover-bg: #eff6ff;
+  --sp-menu-hover: #f3f4f6;
+  --sp-btn-border: 2px solid #000;
+  --sp-event-border: 1px solid rgba(0,0,0,0.2);
+  --sp-event-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --sp-event-ring: 2px solid #000;
+  --sp-drag-border: 2px solid #000;
+  --sp-drag-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+}
+
+/* ── Clean — workspace-like flat minimalist ── */
+.sp-root[data-theme="clean"] {
+  --sp-border: 1px solid #e5e7eb;
+  --sp-border-light: 1px solid #f3f4f6;
+  --sp-border-thin: 1px solid #f3f4f6;
+  --sp-border-divider: 1px solid #e5e7eb;
+  --sp-shadow: none;
+  --sp-shadow-sm: none;
+  --sp-shadow-lg: 0 1px 3px rgba(0,0,0,0.1);
+  --sp-radius: 0.5rem;
+  --sp-radius-sm: 0.25rem;
+  --sp-bg: #ffffff;
+  --sp-bg-grid: #ffffff;
+  --sp-bg-muted: #fafafa;
+  --sp-bg-time-axis: #fafafa;
+  --sp-text: #111827;
+  --sp-text-muted: #6b7280;
+  --sp-text-subtle: #9ca3af;
+  --sp-ring: 2px solid #3b82f6;
+  --sp-ring-offset: 2px;
+  --sp-input-border: 1px solid #e5e7eb;
+  --sp-input-shadow: none;
+  --sp-grid-line: 1px solid #f9fafb;
+  --sp-grid-border: 1px solid #f3f4f6;
+  --sp-day-hover-bg: #f9fafb;
+  --sp-menu-hover: #f9fafb;
+  --sp-btn-border: 1px solid #e5e7eb;
+  --sp-event-border: 1px solid rgba(0,0,0,0.08);
+  --sp-event-shadow: none;
+  --sp-event-ring: 2px solid #3b82f6;
+  --sp-drag-border: 1px solid #d1d5db;
+  --sp-drag-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+/* ── Utility classes ── */
+
+.sp-card {
+  border: var(--sp-border);
+  border-radius: var(--sp-radius);
+  background: var(--sp-bg);
+  box-shadow: var(--sp-shadow);
+  overflow: hidden;
+}
+
+.sp-card-sm {
+  border: var(--sp-border);
+  border-radius: var(--sp-radius);
+  background: var(--sp-bg);
+  box-shadow: var(--sp-shadow-sm);
+}
+
+.sp-toolbar {
+  border: var(--sp-border);
+  border-radius: var(--sp-radius);
+  background: var(--sp-bg);
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-grid {
+  border: var(--sp-border);
+  border-radius: var(--sp-radius);
+  background: var(--sp-bg-grid);
+  box-shadow: var(--sp-shadow);
+  overflow: hidden;
+}
+
+.sp-input {
+  border: var(--sp-input-border) !important;
+  box-shadow: var(--sp-input-shadow) !important;
+}
+
+.sp-btn {
+  border: var(--sp-btn-border) !important;
+}
+
+.sp-day-header {
+  border-bottom: var(--sp-border-divider);
+  background: var(--sp-bg);
+}
+
+.sp-day-column {
+  border-right: var(--sp-grid-border);
+  background: var(--sp-bg);
+}
+
+.sp-day-column-active {
+  background: var(--sp-day-hover-bg);
+}
+
+.sp-time-axis {
+  background: var(--sp-bg-time-axis);
+}
+
+.sp-grid-line {
+  border-top: var(--sp-grid-line);
+}
+
+.sp-context-menu {
+  border: var(--sp-border);
+  background: var(--sp-bg);
+  box-shadow: var(--sp-shadow-lg);
+  border-radius: var(--sp-radius-sm);
+}
+
+.sp-menu-item:hover {
+  background: var(--sp-menu-hover);
+}
+
+.sp-toast {
+  border: var(--sp-border);
+  border-radius: var(--sp-radius);
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-ring {
+  outline: var(--sp-ring);
+  outline-offset: var(--sp-ring-offset);
+}
+
+.sp-event-card {
+  border: var(--sp-event-border);
+  box-shadow: var(--sp-event-shadow);
+}
+
+.sp-source-card {
+  border: var(--sp-border-thin);
+}
+
+.sp-dropdown {
+  border: var(--sp-border);
+  border-radius: var(--sp-radius-sm);
+  background: var(--sp-bg);
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-drag-overlay {
+  border: var(--sp-drag-border);
+  box-shadow: var(--sp-drag-shadow);
+}
+
+.sp-archive-card {
+  border: var(--sp-border);
+  border-radius: var(--sp-radius);
+  background: var(--sp-bg);
+  box-shadow: var(--sp-shadow-sm);
+}
+
+.sp-swatch-ring {
+  outline: var(--sp-ring);
+  outline-offset: var(--sp-ring-offset);
+}
+
+.sp-divider {
+  border-top: var(--sp-border-divider);
+}
+
+/* ── Clean theme: deep overrides ── */
+
+/* Toolbar: flat, bottom-border only */
+.sp-root[data-theme="clean"] .sp-toolbar {
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Buttons: softer radius */
+.sp-root[data-theme="clean"] .sp-btn {
+  border-radius: 0.375rem;
+}
+
+/* Archive cards: subtle */
+.sp-root[data-theme="clean"] .sp-archive-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+
+/* Context menu: subtle shadow */
+.sp-root[data-theme="clean"] .sp-context-menu {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+}
+
+/* Input fields: subtle focus ring */
+.sp-root[data-theme="clean"] .sp-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #93c5fd !important;
+}

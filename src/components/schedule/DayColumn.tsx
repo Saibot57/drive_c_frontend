@@ -30,14 +30,14 @@ export function DayColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`relative flex-1 min-w-[140px] border-r border-gray-200 bg-white transition-colors ${isOver ? 'bg-blue-50' : ''} ${isPlacementMode ? 'cursor-crosshair' : ''} ${className}`}
+      className={`relative flex-1 min-w-[140px] sp-day-column transition-colors ${isOver ? 'sp-day-column-active' : ''} ${isPlacementMode ? 'cursor-crosshair' : ''} ${className}`}
       style={{ height: `${(END_HOUR - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
     >
-      <div className={`absolute -top-4 left-0 right-0 h-4 border-r border-gray-200 ${isOver ? 'bg-blue-50' : 'bg-white'}`} />
+      <div className={`absolute -top-4 left-0 right-0 h-4 sp-day-column ${isOver ? 'sp-day-column-active' : ''}`} />
       {hours.map(h => (
         <div
           key={h}
-          className="absolute w-full border-t border-gray-100"
+          className="absolute w-full sp-grid-line"
           style={{ top: `${(h - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
         />
       ))}

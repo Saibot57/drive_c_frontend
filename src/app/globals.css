@@ -55,15 +55,25 @@
     @apply absolute w-full border-t border-gray-200 transition-colors hover:bg-gray-50;
   }
 
-  /* Planner specifika komponenter */
+  /* Planner specifika komponenter — uses sp-theme CSS vars with fallbacks */
   .planner-card {
-    @apply rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_rgba(0,0,0,1)] transition-transform;
+    @apply p-3 transition-transform;
+    border: var(--sp-border, 2px solid #000);
+    border-radius: var(--sp-radius, 0.75rem);
+    background: var(--sp-bg, #ffffff);
+    box-shadow: var(--sp-shadow-sm, 3px 3px 0px rgba(0,0,0,1));
   }
   .planner-btn {
-    @apply inline-flex items-center gap-2 rounded-xl border-2 border-black bg-emerald-200 px-3 py-2 text-sm font-semibold text-gray-900 shadow-[3px_3px_0px_rgba(0,0,0,1)] transition hover:-translate-y-0.5 hover:translate-x-0.5;
+    @apply inline-flex items-center gap-2 bg-emerald-200 px-3 py-2 text-sm font-semibold text-gray-900 transition hover:-translate-y-0.5 hover:translate-x-0.5;
+    border: var(--sp-btn-border, 2px solid #000);
+    border-radius: var(--sp-radius, 0.75rem);
+    box-shadow: var(--sp-shadow-sm, 3px 3px 0px rgba(0,0,0,1));
   }
   .planner-chip {
-    @apply rounded-full border-2 border-black bg-white px-3 py-1 text-xs font-semibold text-gray-800 shadow-[2px_2px_0px_rgba(0,0,0,1)] transition hover:-translate-y-0.5 hover:translate-x-0.5;
+    @apply bg-white px-3 py-1 text-xs font-semibold text-gray-800 transition hover:-translate-y-0.5 hover:translate-x-0.5;
+    border: var(--sp-btn-border, 2px solid #000);
+    border-radius: 9999px;
+    box-shadow: var(--sp-shadow-sm, 2px 2px 0px rgba(0,0,0,1));
   }
 
   /* Anteckningar-specifika Komponenter */

@@ -22,6 +22,7 @@ import {
   ChevronRight,
   MoreVertical,
   Search,
+  Paintbrush,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,8 @@ import { useScheduleKeyboardNav } from '@/hooks/useScheduleKeyboardNav';
 import { useKeyboardPlacement } from '@/hooks/useKeyboardPlacement';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
+import { useScheduleTheme } from '@/hooks/useScheduleTheme';
+import '@/styles/schedule-theme.css';
 
 // --- Helper: Conflict Check & Filtering ---
 
@@ -143,6 +146,7 @@ const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
 // --- Main Component ---
 
 export default function NewSchedulePlanner() {
+  const { theme, toggleTheme } = useScheduleTheme();
   const { plannerNotice, showNotice } = usePlannerNotice();
   const { schedule, commitSchedule } = useScheduleHistory();
   const {
@@ -714,7 +718,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div>
+      <div className="sp-root" data-theme={theme}>
         {/* Background image */}
         <div className="fixed inset-0 z-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -729,7 +733,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         <div className="flex-1 min-w-0 space-y-6">
 
         {/* Toolbar & Filter */}
-        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col lg:flex-row gap-6 items-start lg:items-center">
+        <div className="sp-toolbar p-4 flex flex-col lg:flex-row gap-6 items-start lg:items-center">
            {/* Mobile title */}
            <div className="lg:hidden">
              <FeatureNavigation />
@@ -744,7 +748,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
                 placeholder="Filter: 'Lärare'+'ämne'; -Ämne"
-                className="border-2 border-black shadow-sm pl-10 rounded-xl"
+                className="sp-input pl-10 rounded-xl"
               />
               <div
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-help"
@@ -755,19 +759,27 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
            </div>
 
            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={toggleTheme}
+                className="sp-btn flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors"
+                title={`Byt till ${theme === 'neo' ? 'Clean' : 'Neo'}-tema`}
+              >
+                <Paintbrush className="h-3.5 w-3.5" />
+                {theme === 'neo' ? 'Clean' : 'Neo'}
+              </button>
               <div className="relative" ref={pdfMenuRef}>
                 <Button
                   variant="neutral"
                   onClick={() => setIsPdfMenuOpen(open => !open)}
-                  className="border-2 border-black"
+                  className="sp-btn"
                 >
                   <Download size={16} className="mr-2"/> PDF
                 </Button>
                 {isPdfMenuOpen && (
-                  <div className="absolute left-0 z-[100] mt-2 w-44 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                  <div className="absolute left-0 z-[100] mt-2 w-44 sp-dropdown p-1">
                     <button
                       type="button"
-                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
                       onClick={() => {
                         handleExportPDF('a4');
                         setIsPdfMenuOpen(false);
@@ -777,7 +789,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     </button>
                     <button
                       type="button"
-                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
                       onClick={() => {
                         handleExportPDF('a3');
                         setIsPdfMenuOpen(false);
@@ -792,16 +804,16 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 <Button
                   variant="neutral"
                   onClick={() => setIsImageExportMenuOpen(open => !open)}
-                  className="h-10 w-10 p-0 border-2 border-black"
+                  className="h-10 w-10 p-0 sp-btn"
                   aria-label="Bildexport meny"
                 >
                   <MoreVertical size={16} />
                 </Button>
                 {isImageExportMenuOpen && (
-                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 sp-dropdown p-1">
                     <button
                       type="button"
-                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
                       onClick={() => {
                         handleExportImage('png');
                         setIsImageExportMenuOpen(false);
@@ -811,7 +823,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     </button>
                     <button
                       type="button"
-                      className="w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
                       onClick={() => {
                         handleExportImage('jpeg');
                         setIsImageExportMenuOpen(false);
@@ -823,21 +835,21 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 )}
               </div>
               <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
-              <Button variant="neutral" onClick={() => setIsClearScheduleConfirmOpen(true)} className="border-2 border-black bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
+              <Button variant="neutral" onClick={() => setIsClearScheduleConfirmOpen(true)} className="sp-btn bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
               <div className="relative ml-auto" ref={jsonMenuRef}>
                 <Button
                   variant="neutral"
                   onClick={() => setIsJsonMenuOpen(open => !open)}
-                  className="h-10 w-10 p-0 border-2 border-black"
+                  className="h-10 w-10 p-0 sp-btn"
                   aria-label="JSON meny"
                 >
                   <MoreVertical size={16} />
                 </Button>
                 {isJsonMenuOpen && (
-                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 rounded-lg border-2 border-black bg-white p-1 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 sp-dropdown p-1">
                     <button
                       type="button"
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm sp-menu-item"
                       onClick={() => {
                         handleExportJSON();
                         setIsJsonMenuOpen(false);
@@ -848,7 +860,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     </button>
                     <button
                       type="button"
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm sp-menu-item"
                       onClick={() => {
                         fileInputRef.current?.click();
                         setIsJsonMenuOpen(false);
@@ -871,9 +883,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               isSidebarCollapsed ? 'lg:w-[72px]' : 'lg:w-[360px]'
             } hidden lg:flex`}
           >
-             <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
+             <div className={`sp-card flex-1 flex flex-col transition-all duration-300 ${
                isSidebarCollapsed ? 'p-2' : 'p-4'
-             } ${activeZone === 'courses' ? 'ring-2 ring-black' : ''}`}>
+             } ${activeZone === 'courses' ? 'sp-ring' : ''}`}>
                 <div className={`flex items-center gap-3 mb-4 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
                   <h2 className={`font-bold flex items-center gap-2 ${isSidebarCollapsed ? 'sr-only' : ''}`}>
                     <Hammer size={18}/> Byggstenar
@@ -883,7 +895,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       size="sm"
                       variant="neutral"
                       onClick={() => setIsRestrictionsModalOpen(true)}
-                      className="h-8 border-2 border-black bg-amber-100 hover:bg-amber-200 text-xs"
+                      className="h-8 sp-btn bg-amber-100 hover:bg-amber-200 text-xs"
                     >
                       <ShieldAlert size={14} className="mr-1" /> Regler
                     </Button>
@@ -893,13 +905,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       setManualColor(false);
                       setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: DEFAULT_COURSE_COLOR, duration: 60 });
                       setIsCourseModalOpen(true);
-                    }} className="h-8 w-8 p-0 rounded-full border-2 border-black bg-[#aee8fe]"><Plus size={16}/></Button>
+                    }} className="h-8 w-8 p-0 rounded-full sp-btn bg-[#aee8fe]"><Plus size={16}/></Button>
                   )}
                   <Button
                     size="sm"
                     variant="neutral"
                     onClick={() => setIsSidebarCollapsed(prev => !prev)}
-                    className="h-8 w-8 p-0 border-2 border-black"
+                    className="h-8 w-8 p-0 sp-btn"
                     aria-label={isSidebarCollapsed ? 'Visa byggstenar' : 'Dölj byggstenar'}
                   >
                     {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -922,7 +934,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                           recomputeCourses(schedule, manualCourses);
                           showNotice('Byggstenar uppdaterade.', 'success');
                         }}
-                        className="mb-3 border-2 border-black bg-emerald-100 hover:bg-emerald-200"
+                        className="mb-3 sp-btn bg-emerald-100 hover:bg-emerald-200"
                       >
                         <RefreshCcw size={16} className="mr-2"/> Uppdatera byggstenar från schema
                       </Button>
@@ -974,9 +986,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           </div>
 
           {/* Main Schedule Area */}
-          <div className={`flex-1 rounded-xl border-2 border-black bg-gray-50 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,1)] flex flex-col h-full ${activeZone === 'grid' ? 'ring-2 ring-black' : ''}`}>
+          <div className={`sp-grid flex-1 flex flex-col h-full ${activeZone === 'grid' ? 'sp-ring' : ''}`}>
              <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
-                <div className="schedule-desktop-header hidden lg:flex sticky top-0 z-[60] pl-[50px] border-b-2 border-black bg-white">
+                <div className="schedule-desktop-header hidden lg:flex sticky top-0 z-[60] pl-[50px] sp-day-header">
                    {PLANNER_DAYS.map(day => (
                      <div
                        key={day}
@@ -988,12 +1000,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                    ))}
                 </div>
 
-                <div className="schedule-mobile-header lg:hidden sticky top-0 z-[60] border-b-2 border-black bg-white">
+                <div className="schedule-mobile-header lg:hidden sticky top-0 z-[60] sp-day-header">
                   <div className="flex items-center justify-between gap-2 px-2 py-1">
                     <Button
                       size="sm"
                       variant="neutral"
-                      className="h-8 w-8 p-0 border-2 border-black"
+                      className="h-8 w-8 p-0 sp-btn"
                       aria-label="Föregående schema"
                       onClick={() => { void handleMobileArchiveStep('prev'); }}
                       disabled={isAtFirstMobileArchive}
@@ -1006,7 +1018,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     <Button
                       size="sm"
                       variant="neutral"
-                      className="h-8 w-8 p-0 border-2 border-black"
+                      className="h-8 w-8 p-0 sp-btn"
                       aria-label="Nästa schema"
                       onClick={() => { void handleMobileArchiveStep('next'); }}
                       disabled={isAtLastMobileArchive}
@@ -1018,7 +1030,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     <Button
                       size="sm"
                       variant="neutral"
-                      className="h-8 w-8 p-0 border-2 border-black"
+                      className="h-8 w-8 p-0 sp-btn"
                       aria-label="Föregående dag"
                       onClick={() => setMobileActiveDayIndex(prev => Math.max(0, prev - 1))}
                       disabled={isAtFirstMobileDay}
@@ -1029,7 +1041,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     <Button
                       size="sm"
                       variant="neutral"
-                      className="h-8 w-8 p-0 border-2 border-black"
+                      className="h-8 w-8 p-0 sp-btn"
                       aria-label="Nästa dag"
                       onClick={() => setMobileActiveDayIndex(prev => Math.min(PLANNER_DAYS.length - 1, prev + 1))}
                       disabled={isAtLastMobileDay}
@@ -1041,8 +1053,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
                 {/* VIKTIGT: pt-4 HÄR gör att 08:00 texten syns! */}
                 <div className="flex min-h-full pt-4">
-                   <div className="w-[50px] flex-shrink-0 bg-gray-100 relative">
-                      <div className="absolute -top-4 left-0 right-0 h-4 bg-gray-100" />
+                   <div className="w-[50px] flex-shrink-0 sp-time-axis relative">
+                      <div className="absolute -top-4 left-0 right-0 h-4 sp-time-axis" />
                       {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
                         <div key={h} className="absolute w-full text-right pr-1 text-xs font-bold text-gray-500 -mt-2"
                              style={{ top: `${(h - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}>
@@ -1164,9 +1176,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             isRightSidebarCollapsed ? 'w-[72px]' : 'w-[320px]'
           }`}
         >
-           <div className={`rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] flex-1 overflow-hidden flex flex-col transition-all duration-300 ${
+           <div className={`sp-card flex-1 flex flex-col transition-all duration-300 ${
              isRightSidebarCollapsed ? 'p-2' : 'p-4'
-           } ${activeZone === 'archive' ? 'ring-2 ring-black' : ''}`}>
+           } ${activeZone === 'archive' ? 'sp-ring' : ''}`}>
               <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
                 <h2 className={`font-bold flex items-center gap-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
                   <Archive size={18}/> Sparade Veckor
@@ -1175,7 +1187,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   size="sm"
                   variant="neutral"
                   onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                  className="h-8 w-8 p-0 border-2 border-black"
+                  className="h-8 w-8 p-0 sp-btn"
                   aria-label={isRightSidebarCollapsed ? 'Visa arkiv' : 'Dölj arkiv'}
                 >
                   {isRightSidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
@@ -1192,7 +1204,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <Button
                     variant="neutral"
                     onClick={() => setIsNewScheduleDialogOpen(true)}
-                    className="w-full border-2 border-black bg-emerald-100 hover:bg-emerald-200"
+                    className="w-full sp-btn bg-emerald-100 hover:bg-emerald-200"
                   >
                     <Plus size={14} className="mr-2"/> Nytt schema
                   </Button>
@@ -1204,13 +1216,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                         value={weekName}
                         onChange={(e) => setWeekName(e.target.value)}
                         placeholder="Vecka 42 eller Höstlov"
-                        className="border-2 border-black shadow-sm"
+                        className="sp-input"
                       />
                       <Button
                         variant="neutral"
                         onClick={handleSaveWeek}
                         disabled={!weekName.trim()}
-                        className="border-2 border-black bg-amber-100 hover:bg-amber-200"
+                        className="sp-btn bg-amber-100 hover:bg-amber-200"
                       >
                         <Save size={14} className="mr-2"/> Spara
                       </Button>
@@ -1224,7 +1236,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       sortedWeekNames.map((name, idx) => (
                         <div
                           key={name}
-                          className={`rounded-xl border-2 border-black bg-white shadow-[2px_2px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-2 ${activeZone === 'archive' && selectedArchiveIndex === idx ? 'ring-2 ring-black ring-offset-2' : ''}`}
+                          className={`sp-archive-card p-3 flex items-center gap-2 ${activeZone === 'archive' && selectedArchiveIndex === idx ? 'sp-ring' : ''}`}
                         >
                           <Button
                             type="button"
@@ -1239,7 +1251,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                               size="sm"
                               variant="neutral"
                               onClick={() => handleDuplicateWeek(name)}
-                              className="h-8 w-8 p-0 border-2 border-black bg-indigo-100 hover:bg-indigo-200"
+                              className="h-8 w-8 p-0 sp-btn bg-indigo-100 hover:bg-indigo-200"
                               aria-label={`Duplicera ${name}`}
                               title={`Duplicera ${name}`}
                             >
@@ -1249,7 +1261,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                               size="sm"
                               variant="neutral"
                               onClick={() => handleDeleteWeek(name)}
-                              className="h-8 w-8 p-0 border-2 border-black bg-rose-100 hover:bg-rose-200 text-rose-800"
+                              className="h-8 w-8 p-0 sp-btn bg-rose-100 hover:bg-rose-200 text-rose-800"
                               aria-label={`Ta bort ${name}`}
                               title={`Ta bort ${name}`}
                             >
@@ -1270,12 +1282,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
       <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.5' } } }) }}>
         {activeDragItem?.type === 'course' && (
-          <div className="w-[120px] h-[60px] bg-white border-2 border-black p-2 rounded shadow-xl opacity-80" style={{backgroundColor: activeDragItem.course.color}}>
+          <div className="w-[120px] h-[60px] sp-drag-overlay p-2 rounded opacity-80" style={{backgroundColor: activeDragItem.course.color}}>
              {activeDragItem.course.title}
           </div>
         )}
         {activeDragItem?.type === 'scheduled' && (
-           <div className="w-[120px] bg-white border-2 border-black p-1 rounded shadow-xl opacity-80" 
+           <div className="w-[120px] sp-drag-overlay p-1 rounded opacity-80" 
              style={{ height: `${Math.max(activeDragItem.entry.duration * PIXELS_PER_MINUTE - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`, backgroundColor: activeDragItem.entry.color }}>
               {activeDragItem.entry.title}
            </div>
@@ -1284,11 +1296,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
       {contextMenu && (
         <div
-          className="fixed z-[100] w-max rounded border-2 border-black bg-white shadow-lg"
+          className="fixed z-[100] w-max sp-context-menu"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button
-            className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+            className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
             onClick={() => {
               setEditingEntry(contextMenu.entry);
               setIsEntryModalOpen(true);
@@ -1298,19 +1310,19 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             Redigera
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+            className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
             onClick={() => handleDuplicateParallel(contextMenu.entry)}
           >
             Duplicera och lägg parallellt
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+            className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
             onClick={() => handleDuplicateAndPlace(contextMenu.entry)}
           >
             Duplicera och placera
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+            className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
             onClick={() => {
               const { teacher, room, notes, category, color } = contextMenu.entry;
               setCopiedEntryContent({ teacher, room, notes, category, color });
@@ -1322,7 +1334,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           </button>
           {copiedEntryContent && (
             <button
-              className="w-full px-1.5 py-2 text-left text-sm hover:bg-gray-100"
+              className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
               onClick={() => {
                 commitSchedule(prev =>
                   prev.map(e =>
@@ -1339,7 +1351,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             </button>
           )}
           <button
-            className="w-full px-1.5 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
+            className="w-full px-1.5 py-2 text-left text-sm text-rose-700 sp-menu-item"
             onClick={() => {
               commitSchedule(p => p.filter(e => e.instanceId !== contextMenu.entry.instanceId));
               setContextMenu(null);
@@ -1424,7 +1436,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       />
 
       {plannerNotice && (
-        <div className={`fixed bottom-4 right-4 z-[80] rounded-xl border-2 border-black px-4 py-3 text-sm font-semibold shadow-[4px_4px_0px_rgba(0,0,0,1)] ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
+        <div className={`fixed bottom-4 right-4 z-[80] sp-toast px-4 py-3 text-sm font-semibold ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
           {plannerNotice.message}
         </div>
       )}

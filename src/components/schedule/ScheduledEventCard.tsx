@@ -74,7 +74,7 @@ export function ScheduledEventCard({
         zIndex: isDragging ? 50 : 10
       }}
       data-instance-id={entry.instanceId}
-      className={`scheduled-event-card rounded border border-black/20 shadow-sm overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 ring-2 ring-black' : ''} ${isSelected ? 'ring-2 ring-black ring-offset-2' : ''}`}
+      className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="flex flex-col h-full">
