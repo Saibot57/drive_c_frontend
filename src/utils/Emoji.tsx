@@ -34,10 +34,17 @@ export const Emoji: React.FC<EmojiProps> = ({
   // Toggle vinner alltid: om NATIVE_ONLY eller prop nativeOnly är sanna → hoppa över Twemoji helt
   const disableTwemoji = NATIVE_ONLY || !!nativeOnly;
   const useTw = !disableTwemoji && (forceTwemoji || shouldUseTwemoji(clean));
-  const code = useMemo(
-    () => (useTw ? Array.from(clean).map((c) => c.codePointAt(0)!.toString(16)).join("-") : ""),
-    [useTw, clean]
-  );
+  const code = useMemo(() => {
+    if (!useTw) return "";
+    // Twemoji convention: strip FE0F (VS-16) when there's no ZWJ (U+200D),
+    // but keep it in ZWJ sequences where it's part of the filename.
+    const raw = clean.indexOf('\u200D') < 0
+      ? clean.replace(/\uFE0F/g, '')
+      : clean;
+    return Array.from(raw)
+      .map((c) => c.codePointAt(0)!.toString(16))
+      .join("-");
+  }, [useTw, clean]);
   const [failed, setFailed] = useState(false);
 
   if (!clean) return null;
