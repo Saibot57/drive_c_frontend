@@ -126,3 +126,47 @@
 .cc-terminal-divider {
   border-bottom: var(--cc-border-divider);
 }
+
+/* ── Clean theme: override hardcoded neo styles ── */
+
+/* Resize handles: black bar → subtle gray */
+.cc-root[data-theme="clean"] [data-panel-resize-handle-id] {
+  background: #e5e7eb !important;
+}
+
+.cc-root[data-theme="clean"] [data-panel-resize-handle-id] > div {
+  border-color: #d1d5db !important;
+  background: #f9fafb !important;
+}
+
+/* Calendar: override globals.css neo styles */
+.cc-root[data-theme="clean"] .calendar-container {
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+.cc-root[data-theme="clean"] .calendar-day-card {
+  border: 1px solid #e5e7eb !important;
+}
+
+.cc-root[data-theme="clean"] .calendar-event-card {
+  border: 1px solid #e5e7eb !important;
+}
+
+.cc-root[data-theme="clean"] .calendar-event-card:hover {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+.cc-root[data-theme="clean"] .calendar-time-grid {
+  border-right: 1px solid #e5e7eb !important;
+}
+
+/* Accent bars: 6px → 2px in clean */
+.cc-root[data-theme="clean"] .cc-accent-bar {
+  height: 2px !important;
+}
+
+/* Muted section backgrounds in clean */
+.cc-root[data-theme="clean"] .cc-section-bg {
+  background: transparent !important;
+}

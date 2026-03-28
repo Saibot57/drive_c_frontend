@@ -80,8 +80,8 @@ export default function CommandCenterPage() {
               <ResizablePanelGroup direction="vertical">
                 {/* Notes */}
                 <ResizablePanel defaultSize={62}>
-                  <div className="flex flex-col h-full overflow-hidden bg-green-50/40">
-                    <div className="h-[6px] bg-green-500 shrink-0" />
+                  <div className="cc-section-bg flex flex-col h-full overflow-hidden bg-green-50/40">
+                    <div className="cc-accent-bar h-[6px] bg-green-500 shrink-0" />
                     <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
                       <h2 className="font-bold text-xs uppercase tracking-widest">Anteckningar</h2>
                       <button
@@ -130,8 +130,8 @@ export default function CommandCenterPage() {
               <ResizablePanelGroup direction="vertical">
                 {/* Calendar */}
                 <ResizablePanel defaultSize={65}>
-                  <div className="flex flex-col h-full overflow-hidden min-h-0 bg-pink-50/40">
-                    <div className="h-[6px] bg-pink-500 shrink-0" />
+                  <div className="cc-section-bg flex flex-col h-full overflow-hidden min-h-0 bg-pink-50/40">
+                    <div className="cc-accent-bar h-[6px] bg-pink-500 shrink-0" />
                     <div className="flex-1 overflow-hidden min-h-0">
                       <Calendar />
                     </div>
@@ -142,8 +142,8 @@ export default function CommandCenterPage() {
 
                 {/* Todos */}
                 <ResizablePanel defaultSize={35}>
-                  <div className="flex flex-col h-full overflow-hidden min-h-0 bg-blue-50/40">
-                    <div className="h-[6px] bg-blue-500 shrink-0" />
+                  <div className="cc-section-bg flex flex-col h-full overflow-hidden min-h-0 bg-blue-50/40">
+                    <div className="cc-accent-bar h-[6px] bg-blue-500 shrink-0" />
                     <div className="flex flex-col flex-1 overflow-hidden min-h-0 px-4 py-3">
                       <h2 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0">Att-göra-lista</h2>
                       <div className="flex-1 overflow-hidden min-h-0">
@@ -160,8 +160,8 @@ export default function CommandCenterPage() {
           }
           rightSidebar={
             <div className={`cc-card h-full ${focusedPanel === 'schedule' ? 'cc-ring' : ''}`}>
-              <div className="flex flex-col h-full overflow-hidden min-h-0 bg-amber-50/40">
-                <div className="h-[6px] bg-amber-500 shrink-0" />
+              <div className="cc-section-bg flex flex-col h-full overflow-hidden min-h-0 bg-amber-50/40">
+                <div className="cc-accent-bar h-[6px] bg-amber-500 shrink-0" />
                 <DailySchedulePanel />
               </div>
             </div>
