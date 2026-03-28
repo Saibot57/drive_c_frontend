@@ -43,6 +43,7 @@ function WorkspaceInner() {
     copyElement,
     archiveSurface,
     unarchiveSurface,
+    renameSurface,
     deleteSurface,
   } = useWorkspaceData();
 
@@ -144,6 +145,7 @@ function WorkspaceInner() {
         onArchiveSurface={archiveSurface}
         onUnarchiveSurface={unarchiveSurface}
         onDeleteSurface={deleteSurface}
+        onRenameSurface={renameSurface}
       />
 
       {/* Main area */}

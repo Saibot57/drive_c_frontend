@@ -239,6 +239,16 @@ export function useWorkspaceData() {
     }
   }, [state.activeSurfaceId, dispatch]);
 
+  // ── Rename surface ──
+  const renameSurface = useCallback(async (surfaceId: string, name: string) => {
+    dispatch({ type: 'UPDATE_SURFACE', surfaceId, changes: { name } });
+    try {
+      await workspaceService.updateSurface(surfaceId, { name });
+    } catch (err) {
+      console.error('Failed to rename surface:', err);
+    }
+  }, [dispatch]);
+
   // ── Archive / unarchive surface ──
   const archiveSurface = useCallback(async (surfaceId: string) => {
     dispatch({ type: 'UPDATE_SURFACE', surfaceId, changes: { is_archived: true } });
@@ -296,6 +306,7 @@ export function useWorkspaceData() {
     createAndPlaceElement,
     updateElementContent,
     updateElementTitle,
+    renameSurface,
     movePlacement,
     resizePlacement,
     toggleLock,

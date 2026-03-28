@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Archive, Search, ArchiveRestore, Trash2 } from 'lucide-react';
+import { Plus, Archive, Search, ArchiveRestore, Trash2, Pencil } from 'lucide-react';
 import type { Surface } from '../types/workspace.types';
 
 interface TopToolbarProps {
@@ -13,6 +13,7 @@ interface TopToolbarProps {
   onArchiveSurface?: (id: string) => void;
   onUnarchiveSurface?: (id: string) => void;
   onDeleteSurface?: (id: string) => void;
+  onRenameSurface?: (id: string, name: string) => void;
 }
 
 export default function TopToolbar({
@@ -24,14 +25,32 @@ export default function TopToolbar({
   onArchiveSurface,
   onUnarchiveSurface,
   onDeleteSurface,
+  onRenameSurface,
 }: TopToolbarProps) {
   const activeSurfaces = surfaces.filter((s) => !s.is_archived);
   const archivedSurfaces = surfaces.filter((s) => s.is_archived);
 
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [tabContextMenu, setTabContextMenu] = useState<{ surfaceId: string; x: number; y: number } | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const archiveRef = useRef<HTMLDivElement>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  const commitRename = () => {
+    if (renamingId && renameValue.trim()) {
+      onRenameSurface?.(renamingId, renameValue.trim());
+    }
+    setRenamingId(null);
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -52,17 +71,37 @@ export default function TopToolbar({
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
         <div className="ws-surface-pill">
           {activeSurfaces.map((surface) => (
-            <button
-              key={surface.id}
-              className={`ws-surface-pill__tab ${surface.id === activeSurfaceId ? 'ws-surface-pill__tab--active' : ''}`}
-              onClick={() => onSurfaceSelect(surface.id)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setTabContextMenu({ surfaceId: surface.id, x: e.clientX, y: e.clientY });
-              }}
-            >
-              {surface.name}
-            </button>
+            renamingId === surface.id ? (
+              <input
+                key={surface.id}
+                ref={renameInputRef}
+                className={`ws-surface-pill__tab ${surface.id === activeSurfaceId ? 'ws-surface-pill__tab--active' : ''}`}
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRename();
+                  if (e.key === 'Escape') setRenamingId(null);
+                }}
+                onBlur={commitRename}
+                style={{
+                  outline: 'none',
+                  width: `${Math.max(renameValue.length, 3)}ch`,
+                  minWidth: '3ch',
+                }}
+              />
+            ) : (
+              <button
+                key={surface.id}
+                className={`ws-surface-pill__tab ${surface.id === activeSurfaceId ? 'ws-surface-pill__tab--active' : ''}`}
+                onClick={() => onSurfaceSelect(surface.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setTabContextMenu({ surfaceId: surface.id, x: e.clientX, y: e.clientY });
+                }}
+              >
+                {surface.name}
+              </button>
+            )
           ))}
         </div>
         <button
@@ -92,6 +131,24 @@ export default function TopToolbar({
             fontSize: '0.8125rem',
           }}
         >
+          <button
+            onClick={() => {
+              const surface = surfaces.find((s) => s.id === tabContextMenu.surfaceId);
+              setRenameValue(surface?.name ?? '');
+              setRenamingId(tabContextMenu.surfaceId);
+              setTabContextMenu(null);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              width: '100%', padding: '0.375rem 0.75rem', border: 'none',
+              background: 'transparent', cursor: 'pointer', fontSize: 'inherit', color: '#374151',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#f9fafb'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <Pencil size={13} style={{ color: '#9ca3af' }} />
+            Byt namn
+          </button>
           <button
             onClick={() => {
               onArchiveSurface?.(tabContextMenu.surfaceId);
