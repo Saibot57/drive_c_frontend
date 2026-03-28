@@ -5,7 +5,6 @@ import { snapToGrid } from '../types/utils';
 
 interface UseElementDragParams {
   placementId: string;
-  isLocked: boolean;
   zoom: number;
   gridSize: number;
   startX: number;
@@ -15,7 +14,6 @@ interface UseElementDragParams {
 
 export function useElementDrag({
   placementId,
-  isLocked,
   zoom,
   gridSize,
   startX,
@@ -27,7 +25,7 @@ export function useElementDrag({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (isLocked || e.button !== 0) return;
+      if (e.button !== 0) return;
       e.stopPropagation();
       dragging.current = true;
       origin.current = {
@@ -55,7 +53,7 @@ export function useElementDrag({
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
     },
-    [isLocked, zoom, gridSize, startX, startY, onMove, placementId],
+    [zoom, gridSize, startX, startY, onMove, placementId],
   );
 
   return { handleMouseDown };

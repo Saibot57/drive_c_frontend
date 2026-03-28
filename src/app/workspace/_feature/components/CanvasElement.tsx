@@ -36,7 +36,6 @@ export default function CanvasElement({
 }: CanvasElementProps) {
   const { handleMouseDown: handleDragDown } = useElementDrag({
     placementId: placement.id,
-    isLocked: placement.is_locked,
     zoom,
     gridSize: GRID_SIZE,
     startX: placement.position_x,
