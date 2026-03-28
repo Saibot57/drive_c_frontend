@@ -33,7 +33,6 @@ export default function TopToolbar({
   const archiveRef = useRef<HTMLDivElement>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (archiveRef.current && !archiveRef.current.contains(e.target as Node)) {
@@ -49,22 +48,28 @@ export default function TopToolbar({
 
   return (
     <div className="ws-toolbar">
-      {/* Surface tabs */}
-      <div className="ws-toolbar-tabs">
-        {activeSurfaces.map((surface) => (
-          <button
-            key={surface.id}
-            className={`ws-tab ${surface.id === activeSurfaceId ? 'ws-tab--active' : ''}`}
-            onClick={() => onSurfaceSelect(surface.id)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setTabContextMenu({ surfaceId: surface.id, x: e.clientX, y: e.clientY });
-            }}
-          >
-            {surface.name}
-          </button>
-        ))}
-        <button className="ws-tab" onClick={onSurfaceCreate} title="Ny yta">
+      {/* Centered pill selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+        <div className="ws-surface-pill">
+          {activeSurfaces.map((surface) => (
+            <button
+              key={surface.id}
+              className={`ws-surface-pill__tab ${surface.id === activeSurfaceId ? 'ws-surface-pill__tab--active' : ''}`}
+              onClick={() => onSurfaceSelect(surface.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setTabContextMenu({ surfaceId: surface.id, x: e.clientX, y: e.clientY });
+              }}
+            >
+              {surface.name}
+            </button>
+          ))}
+        </div>
+        <button
+          className="ws-surface-pill__add"
+          onClick={onSurfaceCreate}
+          title="Ny yta"
+        >
           <Plus size={14} />
         </button>
       </div>
@@ -122,9 +127,8 @@ export default function TopToolbar({
         </div>
       )}
 
-      {/* Right side */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-        {/* Archive dropdown */}
+      {/* Right side: archive + search */}
+      <div className="ws-toolbar-right">
         <div style={{ position: 'relative' }} ref={archiveRef}>
           <button
             className="ws-toggle-btn"
