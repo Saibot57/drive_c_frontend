@@ -47,7 +47,7 @@ export function TerminalPanel({
       {/* Output history */}
       <div
         ref={outputRef}
-        className="flex-1 overflow-auto bg-gray-50 px-4 pt-3 pb-2 space-y-1 min-h-0 border-b-2 border-black"
+        className="cc-terminal-divider flex-1 overflow-auto bg-gray-50 px-4 pt-3 pb-2 space-y-1 min-h-0"
       >
         {lines.length === 0 && (
           <p className="text-xs text-gray-300 font-mono italic">

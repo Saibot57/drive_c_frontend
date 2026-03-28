@@ -1,0 +1,128 @@
+/* ── Command Center Theme System ── */
+
+/* ── Neo (default) — neobrutalist ── */
+.cc-root[data-theme="neo"] {
+  --cc-border: 2px solid #000;
+  --cc-border-light: 1px solid rgba(0,0,0,0.2);
+  --cc-border-divider: 2px solid #000;
+  --cc-shadow: 4px 4px 0px rgba(0,0,0,1);
+  --cc-shadow-sm: 2px 2px 0px rgba(0,0,0,1);
+  --cc-radius: 0.75rem;
+  --cc-bg: #ffffff;
+  --cc-bg-page: #f3f4f6;
+  --cc-bg-muted: #f9fafb;
+  --cc-text: #000;
+  --cc-text-muted: #6b7280;
+  --cc-tag-bg: #fef9c3;
+  --cc-tag-border: 1px solid #000;
+  --cc-hover-translate: 1px;
+  --cc-hover-shadow: none;
+  --cc-ring: 2px solid #000;
+  --cc-ring-offset: 2px;
+  --cc-input-border: 2px solid #000;
+  --cc-input-focus-ring: 2px solid #000;
+  --cc-toolbar-border: 2px solid #000;
+  --cc-toolbar-shadow: 4px 4px 0px rgba(0,0,0,1);
+  --cc-toolbar-shadow-sm: 2px 2px 0px rgba(0,0,0,0.6);
+}
+
+/* ── Clean — workspace-like minimalist ── */
+.cc-root[data-theme="clean"] {
+  --cc-border: 1px solid #e5e7eb;
+  --cc-border-light: 1px solid #f3f4f6;
+  --cc-border-divider: 1px solid #e5e7eb;
+  --cc-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  --cc-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --cc-radius: 0.75rem;
+  --cc-bg: #ffffff;
+  --cc-bg-page: #f9fafb;
+  --cc-bg-muted: #f9fafb;
+  --cc-text: #111827;
+  --cc-text-muted: #6b7280;
+  --cc-tag-bg: #f3f4f6;
+  --cc-tag-border: 1px solid #e5e7eb;
+  --cc-hover-translate: 0px;
+  --cc-hover-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --cc-ring: 2px solid #3b82f6;
+  --cc-ring-offset: 2px;
+  --cc-input-border: 1px solid #e5e7eb;
+  --cc-input-focus-ring: 2px solid #93c5fd;
+  --cc-toolbar-border: 1px solid #e5e7eb;
+  --cc-toolbar-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  --cc-toolbar-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* ── Utility classes ── */
+
+.cc-card {
+  border: var(--cc-border);
+  border-radius: var(--cc-radius);
+  background: var(--cc-bg);
+  box-shadow: var(--cc-shadow);
+  overflow: hidden;
+}
+
+.cc-card-sm {
+  border: var(--cc-border);
+  border-radius: var(--cc-radius);
+  background: var(--cc-bg);
+  box-shadow: var(--cc-shadow-sm);
+}
+
+.cc-input {
+  border: var(--cc-input-border);
+}
+
+.cc-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 var(--cc-input-focus-ring);
+}
+
+.cc-tag {
+  background: var(--cc-tag-bg);
+  border: var(--cc-tag-border);
+}
+
+.cc-divider {
+  border-top: var(--cc-border-divider);
+}
+
+.cc-hover-lift {
+  transition: translate 150ms, box-shadow 150ms;
+}
+
+.cc-hover-lift:hover {
+  translate: var(--cc-hover-translate) var(--cc-hover-translate);
+  box-shadow: var(--cc-hover-shadow);
+}
+
+.cc-section {
+  border: var(--cc-border-light);
+  border-radius: 0.5rem;
+  background: rgba(255,255,255,0.6);
+}
+
+.cc-ring {
+  outline: var(--cc-ring);
+  outline-offset: var(--cc-ring-offset);
+}
+
+/* Toolbar wrappers */
+.cc-toolbar {
+  border: var(--cc-toolbar-border);
+  border-radius: var(--cc-radius);
+  background: var(--cc-bg);
+  box-shadow: var(--cc-toolbar-shadow);
+}
+
+.cc-toolbar-sm {
+  border: var(--cc-toolbar-border);
+  border-radius: var(--cc-radius);
+  background: var(--cc-bg);
+  box-shadow: var(--cc-toolbar-shadow-sm);
+}
+
+/* Terminal border */
+.cc-terminal-divider {
+  border-bottom: var(--cc-border-divider);
+}

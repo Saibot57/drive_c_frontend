@@ -134,7 +134,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Sök titel eller tagg…"
-          className="w-full pl-7 pr-3 py-1.5 text-xs border-2 border-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black"
+          className="cc-input w-full pl-7 pr-3 py-1.5 text-xs bg-white placeholder-gray-400 focus:outline-none"
         />
       </div>
 
@@ -156,8 +156,8 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
             key={note.id}
             data-note-item
             onClick={() => onViewRequest(note.id)}
-            className={`border-2 border-black bg-white p-2.5 shadow-[2px_2px_0px_0px_black] group cursor-pointer hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all ${
-              isFocused && selectedIndex === idx ? 'ring-2 ring-black ring-offset-2' : ''
+            className={`cc-card-sm cc-hover-lift p-2.5 group cursor-pointer transition-all ${
+              isFocused && selectedIndex === idx ? 'cc-ring' : ''
             }`}
           >
             <div className="flex items-start justify-between gap-2">
@@ -178,7 +178,7 @@ export function NotesBasket({ refreshKey, onEditRequest, onViewRequest, isFocuse
                 {note.tags.map(tag => (
                   <span
                     key={tag}
-                    className="text-2xs px-1.5 py-0.5 border border-black bg-[#fef9c3] font-mono leading-tight"
+                    className="cc-tag text-2xs px-1.5 py-0.5 font-mono leading-tight"
                   >
                     {tag}
                   </span>

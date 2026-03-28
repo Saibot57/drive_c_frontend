@@ -118,7 +118,7 @@ function TodoItem({
           ? 'bg-gray-50 opacity-60'
           : 'bg-white border-l-2 border-blue-500'
         }
-        ${isSelected ? 'ring-2 ring-black ring-offset-1' : ''}
+        ${isSelected ? 'cc-ring' : ''}
       `}
     >
       <input
@@ -292,7 +292,7 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
     <div ref={containerRef} className="grid grid-cols-2 gap-3 h-full overflow-hidden">
 
       {/* This week (+ overdue) */}
-      <div className="border border-black/20 rounded-lg bg-white/60 p-3 flex flex-col overflow-hidden">
+      <div className="cc-section p-3 flex flex-col overflow-hidden">
         <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-100">
           Denna vecka <span className="font-normal text-gray-400">(v.{currentWeek})</span>
         </h3>
@@ -305,7 +305,7 @@ export function TodoList({ refreshKey, isFocused = false }: Props) {
       </div>
 
       {/* Forward */}
-      <div className="border border-black/20 rounded-lg bg-white/60 p-3 flex flex-col overflow-hidden">
+      <div className="cc-section p-3 flex flex-col overflow-hidden">
         <h3 className="font-bold text-xs uppercase tracking-widest mb-2 shrink-0 pb-2 border-b border-gray-100">
           Framåt
         </h3>

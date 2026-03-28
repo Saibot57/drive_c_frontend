@@ -1,7 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { BookMarked } from 'lucide-react';
+import { BookMarked, Paintbrush } from 'lucide-react';
+import { useCCTheme } from '@/hooks/useCCTheme';
+import '@/styles/command-center-theme.css';
 
 import ProtectedRoute            from '@/components/ProtectedRoute';
 import { Calendar }              from '@/components/calendar/Calendar';
@@ -24,10 +26,9 @@ import {
 
 type FocusedPanel = 'notes' | 'terminal' | 'calendar' | 'todos' | 'schedule' | null;
 
-const NEO = 'rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] overflow-hidden h-full';
-
 export default function CommandCenterPage() {
   const engine = useTerminalEngine();
+  const { theme, toggleTheme } = useCCTheme();
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [viewTarget, setViewTarget] = useState<string | null>(null);
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanel>(null);
@@ -53,14 +54,29 @@ export default function CommandCenterPage() {
   return (
     <ProtectedRoute>
       {/* Break out of root layout's pt-8 px-8 to go truly full-bleed */}
-      <div className="-mx-8 -mt-8 min-h-screen bg-gray-100 p-4">
+      <div className="cc-root -mx-8 -mt-8 min-h-screen p-4" data-theme={theme} style={{ background: 'var(--cc-bg-page)' }}>
         <StandardDashboardLayout
           mode="resizable"
           defaultRightSize={15}
           rightSidebarWidth="w-[15%]"
-          topToolbar={<FeatureNavigation />}
+          topToolbar={
+            <div className="flex items-center gap-4 w-full">
+              <FeatureNavigation />
+              <div className="ml-auto">
+                <button
+                  onClick={toggleTheme}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors"
+                  style={{ border: 'var(--cc-border-light)', color: 'var(--cc-text-muted)' }}
+                  title={`Byt till ${theme === 'neo' ? 'Clean' : 'Neo'}-tema`}
+                >
+                  <Paintbrush className="h-3.5 w-3.5" />
+                  {theme === 'neo' ? 'Clean' : 'Neo'}
+                </button>
+              </div>
+            </div>
+          }
           leftSidebar={
-            <div className={`${NEO} ${focusedPanel === 'notes' || focusedPanel === 'terminal' ? 'ring-2 ring-black' : ''}`}>
+            <div className={`cc-card h-full ${focusedPanel === 'notes' || focusedPanel === 'terminal' ? 'cc-ring' : ''}`}>
               <ResizablePanelGroup direction="vertical">
                 {/* Notes */}
                 <ResizablePanel defaultSize={62}>
@@ -70,7 +86,7 @@ export default function CommandCenterPage() {
                       <h2 className="font-bold text-xs uppercase tracking-widest">Anteckningar</h2>
                       <button
                         onClick={() => setTemplatesOpen(true)}
-                        className="flex items-center gap-1.5 text-2xs border-2 border-black px-2 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold uppercase tracking-wide"
+                        className="cc-card-sm cc-hover-lift flex items-center gap-1.5 text-2xs px-2 py-1 font-bold uppercase tracking-wide transition-all"
                         title="Hantera mallar"
                       >
                         <BookMarked className="h-3 w-3" />
@@ -110,7 +126,7 @@ export default function CommandCenterPage() {
             </div>
           }
           centerContent={
-            <div className={`${NEO} ${focusedPanel === 'calendar' || focusedPanel === 'todos' ? 'ring-2 ring-black' : ''}`}>
+            <div className={`cc-card h-full ${focusedPanel === 'calendar' || focusedPanel === 'todos' ? 'cc-ring' : ''}`}>
               <ResizablePanelGroup direction="vertical">
                 {/* Calendar */}
                 <ResizablePanel defaultSize={65}>
@@ -143,7 +159,7 @@ export default function CommandCenterPage() {
             </div>
           }
           rightSidebar={
-            <div className={`${NEO} ${focusedPanel === 'schedule' ? 'ring-2 ring-black' : ''}`}>
+            <div className={`cc-card h-full ${focusedPanel === 'schedule' ? 'cc-ring' : ''}`}>
               <div className="flex flex-col h-full overflow-hidden min-h-0 bg-amber-50/40">
                 <div className="h-[6px] bg-amber-500 shrink-0" />
                 <DailySchedulePanel />

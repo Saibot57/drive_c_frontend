@@ -81,7 +81,7 @@ export function EditNoteModal({ noteId, onClose, onSaved }: Props) {
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className="w-full border-2 border-black px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                className="cc-input w-full px-3 py-2 text-sm focus:outline-none"
               />
             </div>
 
@@ -93,7 +93,7 @@ export function EditNoteModal({ noteId, onClose, onSaved }: Props) {
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 rows={10}
-                className="w-full border-2 border-black px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black resize-none"
+                className="cc-input w-full px-3 py-2 text-sm font-mono focus:outline-none resize-none"
               />
             </div>
 
@@ -106,7 +106,7 @@ export function EditNoteModal({ noteId, onClose, onSaved }: Props) {
                 value={tagsRaw}
                 onChange={e => setTagsRaw(e.target.value)}
                 placeholder="t.ex. arbete, idé, projekt"
-                className="w-full border-2 border-black px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                className="cc-input w-full px-3 py-2 text-sm focus:outline-none"
               />
             </div>
 

@@ -7,8 +7,8 @@ import {
   ResizableHandle,
 } from '@/components/ui/resizable';
 
-const NEO_PRIMARY = 'rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)]';
-const NEO_SECONDARY = 'rounded-xl border border-black/80 bg-white shadow-[2px_2px_0px_rgba(0,0,0,0.6)]';
+const NEO_PRIMARY = 'cc-toolbar';
+const NEO_SECONDARY = 'cc-toolbar-sm';
 
 interface StandardDashboardLayoutProps {
   topToolbar: ReactNode;

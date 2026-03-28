@@ -78,7 +78,7 @@ export function TemplatesModal({ open, onClose }: Props) {
           {templates.map(t => (
             <div
               key={t.id}
-              className="flex items-start justify-between border-2 border-black p-2.5 shadow-[2px_2px_0px_0px_black] gap-3"
+              className="cc-card-sm flex items-start justify-between p-2.5 gap-3"
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold">{t.name}</p>
@@ -103,7 +103,7 @@ export function TemplatesModal({ open, onClose }: Props) {
         </div>
 
         {/* Create form */}
-        <div className="border-t-2 border-black pt-4 space-y-3">
+        <div className="cc-divider pt-4 space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-widest">Ny mall</h3>
 
           <div>
@@ -116,7 +116,7 @@ export function TemplatesModal({ open, onClose }: Props) {
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
               placeholder="t.ex. mötesanteckning"
-              className="w-full border-2 border-black px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              className="cc-input w-full px-3 py-2 text-sm focus:outline-none"
             />
           </div>
 
@@ -130,7 +130,7 @@ export function TemplatesModal({ open, onClose }: Props) {
               onChange={e => setSkeleton(e.target.value)}
               rows={6}
               placeholder={'## Agenda\n\n## Beslut\n\n## Nästa steg'}
-              className="w-full border-2 border-black px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-black resize-none"
+              className="cc-input w-full px-3 py-2 text-sm font-mono focus:outline-none resize-none"
             />
           </div>
 
