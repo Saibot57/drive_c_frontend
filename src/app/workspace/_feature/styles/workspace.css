@@ -395,3 +395,8 @@
   background: #e5e7eb;
   margin: 0.5rem 0.75rem;
 }
+
+/* ── Kanban card delete button ── */
+div:hover > .kanban-card-delete {
+  opacity: 1 !important;
+}

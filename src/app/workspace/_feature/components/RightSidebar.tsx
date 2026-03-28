@@ -5,6 +5,8 @@ import {
   Table2,
   GitBranchPlus,
   List,
+  Kanban,
+  StickyNote,
   ArrowRightToLine,
   ArrowLeftToLine,
   PanelRightClose,
@@ -31,6 +33,8 @@ const typeIcons: Record<ElementType, React.ReactNode> = {
   table: <Table2 size={14} />,
   mindmap: <GitBranchPlus size={14} />,
   list: <List size={14} />,
+  kanban: <Kanban size={14} />,
+  sticky: <StickyNote size={14} />,
 };
 
 export default function RightSidebar({

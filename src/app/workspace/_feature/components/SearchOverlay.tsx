@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Search, X, Type, Table2, GitBranchPlus, List } from 'lucide-react';
+import { Search, X, Type, Table2, GitBranchPlus, List, Kanban, StickyNote } from 'lucide-react';
 import { workspaceService } from '../services/workspaceService';
 import type { WorkspaceElement, ElementType } from '../types/workspace.types';
 
@@ -20,6 +20,8 @@ const typeIcons: Record<ElementType, React.ReactNode> = {
   table: <Table2 size={14} />,
   mindmap: <GitBranchPlus size={14} />,
   list: <List size={14} />,
+  kanban: <Kanban size={14} />,
+  sticky: <StickyNote size={14} />,
 };
 
 export default function SearchOverlay({

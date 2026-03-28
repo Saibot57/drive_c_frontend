@@ -5,6 +5,8 @@ import TextEditor from './editors/TextEditor';
 import TableEditor, { type TableContent } from './editors/TableEditor';
 import MindmapEditor, { type MindmapContent } from './editors/MindmapEditor';
 import ListEditor, { type ListContent } from './editors/ListEditor';
+import KanbanEditor, { type KanbanContent } from './editors/KanbanEditor';
+import StickyEditor, { type StickyContent } from './editors/StickyEditor';
 
 interface ElementRendererProps {
   element: WorkspaceElement;
@@ -49,6 +51,24 @@ export default function ElementRenderer({
       return (
         <ListEditor
           content={element.content as ListContent}
+          isLocked={isLocked}
+          onChange={onChange}
+        />
+      );
+
+    case 'kanban':
+      return (
+        <KanbanEditor
+          content={element.content as KanbanContent}
+          isLocked={isLocked}
+          onChange={onChange}
+        />
+      );
+
+    case 'sticky':
+      return (
+        <StickyEditor
+          content={element.content as StickyContent}
           isLocked={isLocked}
           onChange={onChange}
         />

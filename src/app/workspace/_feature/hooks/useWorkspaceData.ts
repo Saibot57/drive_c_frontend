@@ -82,6 +82,8 @@ export function useWorkspaceData() {
     if (!state.activeSurfaceId) return;
 
     const defaultContent = getDefaultContent(type);
+    const elWidth = type === 'sticky' ? 200 : type === 'kanban' ? 480 : DEFAULT_ELEMENT_WIDTH;
+    const elHeight = type === 'sticky' ? 200 : type === 'kanban' ? 320 : DEFAULT_ELEMENT_HEIGHT;
     try {
       const element = await workspaceService.createElement(type, 'Untitled', defaultContent);
       dispatch({ type: 'SET_ELEMENT', element });
@@ -96,10 +98,10 @@ export function useWorkspaceData() {
 
       const placement = await workspaceService.placeElement(state.activeSurfaceId, {
         element_id: element.id,
-        position_x: snapToGrid(center.x - DEFAULT_ELEMENT_WIDTH / 2, GRID_SIZE),
-        position_y: snapToGrid(center.y - DEFAULT_ELEMENT_HEIGHT / 2, GRID_SIZE),
-        width: DEFAULT_ELEMENT_WIDTH,
-        height: DEFAULT_ELEMENT_HEIGHT,
+        position_x: snapToGrid(center.x - elWidth / 2, GRID_SIZE),
+        position_y: snapToGrid(center.y - elHeight / 2, GRID_SIZE),
+        width: elWidth,
+        height: elHeight,
         is_locked: false,
       });
       dispatch({ type: 'ADD_PLACEMENT', placement });
@@ -331,6 +333,16 @@ function getDefaultContent(type: ElementType): unknown {
       return { root: { id: '1', label: 'Central nod', children: [] } };
     case 'list':
       return { items: [{ id: '1', text: '', done: false }] };
+    case 'kanban':
+      return {
+        columns: [
+          { id: '1', title: 'Att göra', cards: [] },
+          { id: '2', title: 'Pågår', cards: [] },
+          { id: '3', title: 'Klart', cards: [] },
+        ],
+      };
+    case 'sticky':
+      return { text: '', color: '#fef9c3' };
     default:
       return null;
   }

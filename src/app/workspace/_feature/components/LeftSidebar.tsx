@@ -5,6 +5,8 @@ import {
   Table2,
   GitBranchPlus,
   List,
+  Kanban,
+  StickyNote,
   Layers,
   PanelLeftClose,
 } from 'lucide-react';
@@ -22,6 +24,8 @@ const elementButtons: { type: ElementType; label: string; icon: React.ReactNode 
   { type: 'table', label: 'Tabell', icon: <Table2 size={16} /> },
   { type: 'mindmap', label: 'Mindmap', icon: <GitBranchPlus size={16} /> },
   { type: 'list', label: 'Lista', icon: <List size={16} /> },
+  { type: 'kanban', label: 'Kanban', icon: <Kanban size={16} /> },
+  { type: 'sticky', label: 'Notislapp', icon: <StickyNote size={16} /> },
 ];
 
 export default function LeftSidebar({
