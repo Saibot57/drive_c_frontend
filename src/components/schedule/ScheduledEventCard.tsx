@@ -18,6 +18,7 @@ type ScheduledEventCardProps = {
   showLayoutDebug: boolean;
   dragDisabled?: boolean;
   isSelected?: boolean;
+  isHighlighted?: boolean;
 };
 
 const extractUrl = (value?: string) => {
@@ -37,7 +38,8 @@ export function ScheduledEventCard({
   isLastOfDay,
   showLayoutDebug,
   dragDisabled = false,
-  isSelected = false
+  isSelected = false,
+  isHighlighted = false
 }: ScheduledEventCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
@@ -74,7 +76,7 @@ export function ScheduledEventCard({
         zIndex: isDragging ? 50 : 10
       }}
       data-instance-id={entry.instanceId}
-      className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''}`}
+      className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="flex flex-col h-full">

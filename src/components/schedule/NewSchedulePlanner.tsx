@@ -47,6 +47,13 @@ import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
 import { DayColumn } from '@/components/schedule/DayColumn';
 import { CategoryDebugPanel, HiddenSettingsPanel } from '@/components/schedule/DebugPanels';
 import { ScheduleModals } from '@/components/schedule/ScheduleModals';
+import { FindReplacePanel } from '@/components/schedule/FindReplacePanel';
+import {
+  FindReplaceField,
+  FindReplaceOptions,
+  findMatchingEntryIds,
+  replaceInSchedule,
+} from '@/utils/findReplaceSchedule';
 import { usePlannerNotice } from '@/hooks/usePlannerNotice';
 import { useScheduleHistory } from '@/hooks/useScheduleHistory';
 import { useHiddenSettings } from '@/hooks/useHiddenSettings';
@@ -194,6 +201,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isPdfMenuOpen, setIsPdfMenuOpen] = useState(false);
   const [isImageExportMenuOpen, setIsImageExportMenuOpen] = useState(false);
   const [isJsonMenuOpen, setIsJsonMenuOpen] = useState(false);
+  const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
+  const [findReplaceField, setFindReplaceField] = useState<FindReplaceField>('all');
+  const [findText, setFindText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [findReplaceOptions, setFindReplaceOptions] = useState<FindReplaceOptions>({});
   const titleHoldTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
@@ -594,6 +606,72 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       window.removeEventListener('keydown', handleEsc);
     };
   }, [contextMenu]);
+
+  // --- Find & Replace ---
+
+  useEffect(() => {
+    const handleFindReplaceShortcut = (event: KeyboardEvent) => {
+      const isFindCombo = (event.metaKey || event.ctrlKey) && (event.key === 'f' || event.key === 'F');
+      if (!isFindCombo) return;
+
+      // Allow native Cmd+F in actual text inputs (excluding our own find field,
+      // which handles Escape internally and benefits from the dedicated UI).
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        const editable = target.isContentEditable;
+        const insidePanel = !!target.closest('[role="dialog"][aria-label="Hitta och ersätt i schema"]');
+        if (!insidePanel && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || editable)) {
+          return;
+        }
+      }
+
+      event.preventDefault();
+      setIsFindReplaceOpen(true);
+    };
+
+    const handleFindReplaceEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isFindReplaceOpen) {
+        setIsFindReplaceOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleFindReplaceShortcut);
+    window.addEventListener('keydown', handleFindReplaceEsc);
+    return () => {
+      window.removeEventListener('keydown', handleFindReplaceShortcut);
+      window.removeEventListener('keydown', handleFindReplaceEsc);
+    };
+  }, [isFindReplaceOpen]);
+
+  const highlightedIds = useMemo(() => {
+    if (!isFindReplaceOpen || !findText.trim()) return new Set<string>();
+    return findMatchingEntryIds(schedule, findReplaceField, findText, findReplaceOptions);
+  }, [isFindReplaceOpen, schedule, findReplaceField, findText, findReplaceOptions]);
+
+  const handleReplaceAll = useCallback(() => {
+    if (!findText.trim()) return;
+    let summary: { replacedOccurrences: number; affectedEntryCount: number } = {
+      replacedOccurrences: 0,
+      affectedEntryCount: 0,
+    };
+    commitSchedule(prev => {
+      const result = replaceInSchedule(prev, findReplaceField, findText, replaceText, findReplaceOptions);
+      summary = {
+        replacedOccurrences: result.replacedOccurrences,
+        affectedEntryCount: result.affectedEntryCount,
+      };
+      return result.replacedOccurrences > 0 ? result.entries : prev;
+    });
+    if (summary.replacedOccurrences === 0) {
+      showNotice('Inga träffar att ersätta', 'warning');
+    } else {
+      showNotice(
+        `Ersatte ${summary.replacedOccurrences} förekomst${summary.replacedOccurrences === 1 ? '' : 'er'} i ${summary.affectedEntryCount} post${summary.affectedEntryCount === 1 ? '' : 'er'}`,
+        'success'
+      );
+    }
+  }, [commitSchedule, findReplaceField, findReplaceOptions, findText, replaceText, showNotice]);
 
   // --- CRUD Handlers ---
 
@@ -1105,6 +1183,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
                                   showLayoutDebug={showLayoutDebug}
                                   isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
+                                  isHighlighted={highlightedIds.has(entry.instanceId)}
                                />
                               );
                               });
@@ -1156,6 +1235,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                  isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
                                  showLayoutDebug={showLayoutDebug}
                                  isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
+                                 isHighlighted={highlightedIds.has(entry.instanceId)}
                                />
                              );
                            });
@@ -1433,6 +1513,21 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onNewScheduleNameChange={setNewScheduleName}
         onConfirmCreateNewSchedule={handleCreateNewSchedule}
         newScheduleNameExists={sortedWeekNames.includes(newScheduleName.trim())}
+      />
+
+      <FindReplacePanel
+        open={isFindReplaceOpen}
+        onClose={() => setIsFindReplaceOpen(false)}
+        schedule={schedule}
+        field={findReplaceField}
+        onFieldChange={setFindReplaceField}
+        findText={findText}
+        onFindTextChange={setFindText}
+        replaceText={replaceText}
+        onReplaceTextChange={setReplaceText}
+        options={findReplaceOptions}
+        onOptionsChange={setFindReplaceOptions}
+        onReplaceAll={handleReplaceAll}
       />
 
       {plannerNotice && (
