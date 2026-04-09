@@ -224,7 +224,7 @@ export default function PdfViewer({ content, isLocked, isSelected, onChange }: P
     setError(null);
     setPageNumber(1);
     onChange({ source: parsed, fileName: undefined, page: 1 });
-  }, [urlInput, content, onChange]);
+  }, [urlInput, onChange]);
 
   const handleClearSource = useCallback(() => {
     setUrlInput('');

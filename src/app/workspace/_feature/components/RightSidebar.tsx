@@ -7,6 +7,7 @@ import {
   List,
   Kanban,
   StickyNote,
+  FileText,
   ArrowRightToLine,
   ArrowLeftToLine,
   PanelRightClose,
@@ -35,6 +36,7 @@ const typeIcons: Record<ElementType, React.ReactNode> = {
   list: <List size={14} />,
   kanban: <Kanban size={14} />,
   sticky: <StickyNote size={14} />,
+  pdf: <FileText size={14} />,
 };
 
 export default function RightSidebar({
