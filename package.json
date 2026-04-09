@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "node scripts/copy-twemoji.cjs"
+    "postinstall": "node scripts/copy-twemoji.cjs && node scripts/copy-pdfjs-worker.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -38,6 +38,7 @@
     "lucide-react": "^0.424.0",
     "next": "14.2.35",
     "next-themes": "^0.3.0",
+    "pdfjs-dist": "^4.7.76",
     "react": "^18",
     "react-dom": "^18",
     "react-fast-marquee": "^1.6.4",

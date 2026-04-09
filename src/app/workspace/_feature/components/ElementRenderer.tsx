@@ -1,22 +1,27 @@
 'use client';
 
 import type { WorkspaceElement } from '../types/workspace.types';
+import type { PdfContent } from '../types/pdf.types';
 import TextEditor from './editors/TextEditor';
 import TableEditor, { type TableContent } from './editors/TableEditor';
 import MindmapEditor, { type MindmapContent } from './editors/MindmapEditor';
 import ListEditor, { type ListContent } from './editors/ListEditor';
 import KanbanEditor, { type KanbanContent } from './editors/KanbanEditor';
 import StickyEditor, { type StickyContent } from './editors/StickyEditor';
+import PdfViewer from './editors/PdfViewer';
 
 interface ElementRendererProps {
   element: WorkspaceElement;
   isLocked: boolean;
+  /** Passed through to PdfViewer for click-to-focus pointer-events handling. */
+  isSelected: boolean;
   onChange: (content: unknown) => void;
 }
 
 export default function ElementRenderer({
   element,
   isLocked,
+  isSelected,
   onChange,
 }: ElementRendererProps) {
   switch (element.type) {
@@ -70,6 +75,16 @@ export default function ElementRenderer({
         <StickyEditor
           content={element.content as StickyContent}
           isLocked={isLocked}
+          onChange={onChange}
+        />
+      );
+
+    case 'pdf':
+      return (
+        <PdfViewer
+          content={element.content as PdfContent}
+          isLocked={isLocked}
+          isSelected={isSelected}
           onChange={onChange}
         />
       );

@@ -100,12 +100,13 @@ export default function CanvasElement({
       <div style={{
         width: '100%',
         height: '100%',
-        overflow: 'auto',
-        padding: element.type === 'sticky' ? 0 : '0.5rem',
+        overflow: element.type === 'pdf' ? 'hidden' : 'auto',
+        padding: element.type === 'sticky' || element.type === 'pdf' ? 0 : '0.5rem',
       }}>
         <ElementRenderer
           element={element}
           isLocked={placement.is_locked}
+          isSelected={isSelected}
           onChange={(content) => onContentChange(element.id, content)}
         />
       </div>

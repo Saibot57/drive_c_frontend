@@ -7,6 +7,7 @@ import {
   List,
   Kanban,
   StickyNote,
+  FileText,
   Layers,
   PanelLeftClose,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ const elementButtons: { type: ElementType; label: string; icon: React.ReactNode 
   { type: 'list', label: 'Lista', icon: <List size={16} /> },
   { type: 'kanban', label: 'Kanban', icon: <Kanban size={16} /> },
   { type: 'sticky', label: 'Notislapp', icon: <StickyNote size={16} /> },
+  { type: 'pdf', label: 'PDF', icon: <FileText size={16} /> },
 ];
 
 export default function LeftSidebar({

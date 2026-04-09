@@ -82,8 +82,16 @@ export function useWorkspaceData() {
     if (!state.activeSurfaceId) return;
 
     const defaultContent = getDefaultContent(type);
-    const elWidth = type === 'sticky' ? 200 : type === 'kanban' ? 480 : DEFAULT_ELEMENT_WIDTH;
-    const elHeight = type === 'sticky' ? 200 : type === 'kanban' ? 320 : DEFAULT_ELEMENT_HEIGHT;
+    const elWidth =
+      type === 'sticky' ? 200 :
+      type === 'kanban' ? 480 :
+      type === 'pdf' ? 480 :
+      DEFAULT_ELEMENT_WIDTH;
+    const elHeight =
+      type === 'sticky' ? 200 :
+      type === 'kanban' ? 320 :
+      type === 'pdf' ? 600 :
+      DEFAULT_ELEMENT_HEIGHT;
     try {
       const element = await workspaceService.createElement(type, 'Untitled', defaultContent);
       dispatch({ type: 'SET_ELEMENT', element });
@@ -343,6 +351,8 @@ function getDefaultContent(type: ElementType): unknown {
       };
     case 'sticky':
       return { text: '', color: '#fef9c3' };
+    case 'pdf':
+      return { source: null };
     default:
       return null;
   }

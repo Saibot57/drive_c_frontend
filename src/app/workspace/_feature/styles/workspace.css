@@ -1,3 +1,11 @@
+/* ── PDF viewer loading spinner ── */
+@keyframes ws-spin-kf {
+  to { transform: rotate(360deg); }
+}
+.ws-spin {
+  animation: ws-spin-kf 1s linear infinite;
+}
+
 /* ── Workspace root: negates RootLayoutBase pt-8 px-8, applies Inter ── */
 .ws-root {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
