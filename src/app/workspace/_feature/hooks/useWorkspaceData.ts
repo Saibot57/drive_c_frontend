@@ -86,11 +86,13 @@ export function useWorkspaceData() {
       type === 'sticky' ? 200 :
       type === 'kanban' ? 480 :
       type === 'pdf' ? 480 :
+      type === 'image' ? 320 :
       DEFAULT_ELEMENT_WIDTH;
     const elHeight =
       type === 'sticky' ? 200 :
       type === 'kanban' ? 320 :
       type === 'pdf' ? 600 :
+      type === 'image' ? 240 :
       DEFAULT_ELEMENT_HEIGHT;
     try {
       const element = await workspaceService.createElement(type, 'Untitled', defaultContent);
@@ -352,6 +354,8 @@ function getDefaultContent(type: ElementType): unknown {
     case 'sticky':
       return { text: '', color: '#fef9c3' };
     case 'pdf':
+      return { source: null };
+    case 'image':
       return { source: null };
     default:
       return null;

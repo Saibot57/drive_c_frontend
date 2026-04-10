@@ -1,5 +1,5 @@
 // ── Element types ──
-export type ElementType = 'text' | 'table' | 'mindmap' | 'list' | 'kanban' | 'sticky' | 'pdf';
+export type ElementType = 'text' | 'table' | 'mindmap' | 'list' | 'kanban' | 'sticky' | 'pdf' | 'image';
 
 // ── Backend mirrors ──
 export interface Surface {

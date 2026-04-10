@@ -2,6 +2,7 @@
 
 import type { WorkspaceElement } from '../types/workspace.types';
 import type { PdfContent } from '../types/pdf.types';
+import type { ImageContent } from '../types/image.types';
 import TextEditor from './editors/TextEditor';
 import TableEditor, { type TableContent } from './editors/TableEditor';
 import MindmapEditor, { type MindmapContent } from './editors/MindmapEditor';
@@ -9,6 +10,7 @@ import ListEditor, { type ListContent } from './editors/ListEditor';
 import KanbanEditor, { type KanbanContent } from './editors/KanbanEditor';
 import StickyEditor, { type StickyContent } from './editors/StickyEditor';
 import PdfViewer from './editors/PdfViewer';
+import ImageViewer from './editors/ImageViewer';
 
 interface ElementRendererProps {
   element: WorkspaceElement;
@@ -83,6 +85,16 @@ export default function ElementRenderer({
       return (
         <PdfViewer
           content={element.content as PdfContent}
+          isLocked={isLocked}
+          isSelected={isSelected}
+          onChange={onChange}
+        />
+      );
+
+    case 'image':
+      return (
+        <ImageViewer
+          content={element.content as ImageContent}
           isLocked={isLocked}
           isSelected={isSelected}
           onChange={onChange}

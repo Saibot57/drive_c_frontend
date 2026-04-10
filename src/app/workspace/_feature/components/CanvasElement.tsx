@@ -100,8 +100,8 @@ export default function CanvasElement({
       <div style={{
         width: '100%',
         height: '100%',
-        overflow: element.type === 'pdf' ? 'hidden' : 'auto',
-        padding: element.type === 'sticky' || element.type === 'pdf' ? 0 : '0.5rem',
+        overflow: element.type === 'pdf' || element.type === 'image' ? 'hidden' : 'auto',
+        padding: element.type === 'sticky' || element.type === 'pdf' || element.type === 'image' ? 0 : '0.5rem',
       }}>
         <ElementRenderer
           element={element}
