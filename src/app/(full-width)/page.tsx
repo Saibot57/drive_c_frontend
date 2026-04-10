@@ -19,6 +19,8 @@ export default function Home() {
   const [showTags, setShowTags] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+  const dotTimestamps = React.useRef<number[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -70,47 +72,66 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== '.') return;
+      const now = Date.now();
+      dotTimestamps.current.push(now);
+      dotTimestamps.current = dotTimestamps.current.filter(t => now - t < 1000);
+      if (dotTimestamps.current.length >= 3) {
+        setShowHidden(prev => !prev);
+        dotTimestamps.current = [];
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const filteredData = useMemo(() => {
     if (!data?.data) return [];
 
     const term = searchTerm.toLowerCase().trim();
 
-    return data.data.map(section => {
-      const filteredFiles = section.files.filter(file =>
-        file.url && file.url.trim() !== '' &&
-        (!term ||
-          file.name.toLowerCase().includes(term) ||
-          (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term))))
-      );
-
-      const filteredSubsections = Object.entries(section.subsections || {}).reduce((acc, [key, subsection]) => {
-        const filteredSubFiles = subsection.files.filter(file =>
+    return data.data
+      .filter(section => showHidden || !section.name.startsWith('_'))
+      .map(section => {
+        const filteredFiles = section.files.filter(file =>
           file.url && file.url.trim() !== '' &&
           (!term ||
             file.name.toLowerCase().includes(term) ||
             (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term))))
         );
 
-        if (filteredSubFiles.length > 0) {
-          acc[key] = {
-            ...subsection,
-            files: filteredSubFiles
+        const filteredSubsections = Object.entries(section.subsections || {}).reduce((acc, [key, subsection]) => {
+          if (!showHidden && subsection.name.startsWith('_')) return acc;
+
+          const filteredSubFiles = subsection.files.filter(file =>
+            file.url && file.url.trim() !== '' &&
+            (!term ||
+              file.name.toLowerCase().includes(term) ||
+              (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term))))
+          );
+
+          if (filteredSubFiles.length > 0) {
+            acc[key] = {
+              ...subsection,
+              files: filteredSubFiles
+            };
+          }
+
+          return acc;
+        }, {} as Record<string, SubSection>);
+
+        if (filteredFiles.length > 0 || Object.keys(filteredSubsections).length > 0) {
+          return {
+            ...section,
+            files: filteredFiles,
+            subsections: filteredSubsections
           };
         }
-
-        return acc;
-      }, {} as Record<string, SubSection>);
-
-      if (filteredFiles.length > 0 || Object.keys(filteredSubsections).length > 0) {
-        return {
-          ...section,
-          files: filteredFiles,
-          subsections: filteredSubsections
-        };
-      }
-      return null;
-    }).filter((section): section is SectionData => section !== null);
-  }, [data, searchTerm, showTags]);
+        return null;
+      }).filter((section): section is SectionData => section !== null);
+  }, [data, searchTerm, showTags, showHidden]);
 
   return (
     <ProtectedRoute>
