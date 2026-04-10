@@ -245,6 +245,10 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
             src={blobUrl}
             alt={content.fileName || 'Bild'}
             draggable={false}
+            onError={() => {
+              setError('Bilden kunde inte visas. Kontrollera att länken pekar direkt till en bildfil.');
+              setBlobUrl(null);
+            }}
             style={{
               maxWidth: '100%',
               maxHeight: '100%',
