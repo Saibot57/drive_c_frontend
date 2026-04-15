@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Search, X, Type, Table2, GitBranchPlus, List, Kanban, StickyNote, FileText, ImageIcon } from 'lucide-react';
+import { Search, X, Type, Table2, GitBranchPlus, List, Kanban, StickyNote, FileText, ImageIcon, Link as LinkIcon } from 'lucide-react';
 import { workspaceService } from '../services/workspaceService';
 import type { WorkspaceElement, ElementType } from '../types/workspace.types';
 
@@ -24,6 +24,7 @@ const typeIcons: Record<ElementType, React.ReactNode> = {
   sticky: <StickyNote size={14} />,
   pdf: <FileText size={14} />,
   image: <ImageIcon size={14} />,
+  link: <LinkIcon size={14} />,
 };
 
 export default function SearchOverlay({

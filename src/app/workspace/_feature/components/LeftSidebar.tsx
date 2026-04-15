@@ -9,6 +9,7 @@ import {
   StickyNote,
   FileText,
   ImageIcon,
+  Link as LinkIcon,
   Layers,
   PanelLeftClose,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ const elementButtons: { type: ElementType; label: string; icon: React.ReactNode 
   { type: 'sticky', label: 'Notislapp', icon: <StickyNote size={16} /> },
   { type: 'pdf', label: 'PDF', icon: <FileText size={16} /> },
   { type: 'image', label: 'Bild', icon: <ImageIcon size={16} /> },
+  { type: 'link', label: 'Länk', icon: <LinkIcon size={16} /> },
 ];
 
 export default function LeftSidebar({

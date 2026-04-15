@@ -87,12 +87,14 @@ export function useWorkspaceData() {
       type === 'kanban' ? 480 :
       type === 'pdf' ? 480 :
       type === 'image' ? 320 :
+      type === 'link' ? 280 :
       DEFAULT_ELEMENT_WIDTH;
     const elHeight =
       type === 'sticky' ? 200 :
       type === 'kanban' ? 320 :
       type === 'pdf' ? 600 :
       type === 'image' ? 240 :
+      type === 'link' ? 220 :
       DEFAULT_ELEMENT_HEIGHT;
     try {
       const element = await workspaceService.createElement(type, 'Untitled', defaultContent);
@@ -357,6 +359,8 @@ function getDefaultContent(type: ElementType): unknown {
       return { source: null };
     case 'image':
       return { source: null };
+    case 'link':
+      return { url: '' };
     default:
       return null;
   }
