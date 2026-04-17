@@ -11,3 +11,9 @@ export const MIN_ELEMENT_HEIGHT = 80;
 
 export const DEBOUNCE_POSITION_MS = 300;
 export const DEBOUNCE_CONTENT_MS = 500;
+
+// Ctrl-assisted resize: screen-pixel distance from an edge that counts as "near".
+export const CTRL_RESIZE_THRESHOLD_PX = 24;
+// Fraction of the element's smaller dimension kept as a center "drag" zone,
+// so very small elements can still be dragged with Ctrl held.
+export const CTRL_RESIZE_CENTER_FRACTION = 0.3;

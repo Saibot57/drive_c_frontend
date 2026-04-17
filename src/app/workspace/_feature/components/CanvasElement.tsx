@@ -2,10 +2,43 @@
 
 import { Lock, Unlock } from 'lucide-react';
 import type { SurfaceElement, WorkspaceElement } from '../types/workspace.types';
-import { GRID_SIZE } from '../types/constants';
+import { GRID_SIZE, CTRL_RESIZE_THRESHOLD_PX, CTRL_RESIZE_CENTER_FRACTION } from '../types/constants';
 import { useElementDrag } from '../hooks/useElementDrag';
 import { useElementResize } from '../hooks/useElementResize';
 import ElementRenderer from './ElementRenderer';
+
+type ResizeDir = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
+function detectResizeZone(
+  localX: number,
+  localY: number,
+  width: number,
+  height: number,
+  threshold: number,
+): ResizeDir | null {
+  const deadHalf = (Math.min(width, height) * CTRL_RESIZE_CENTER_FRACTION) / 2;
+  if (
+    Math.abs(localX - width / 2) < deadHalf &&
+    Math.abs(localY - height / 2) < deadHalf
+  ) {
+    return null;
+  }
+
+  const nearN = localY < threshold;
+  const nearS = localY > height - threshold;
+  const nearW = localX < threshold;
+  const nearE = localX > width - threshold;
+
+  if (nearN && nearE) return 'ne';
+  if (nearN && nearW) return 'nw';
+  if (nearS && nearE) return 'se';
+  if (nearS && nearW) return 'sw';
+  if (nearN) return 'n';
+  if (nearS) return 's';
+  if (nearE) return 'e';
+  if (nearW) return 'w';
+  return null;
+}
 
 interface CanvasElementProps {
   placement: SurfaceElement;
@@ -63,6 +96,27 @@ export default function CanvasElement({
     .filter(Boolean)
     .join(' ');
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 0 && e.ctrlKey && !placement.is_locked) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+      const dir = detectResizeZone(
+        localX,
+        localY,
+        rect.width,
+        rect.height,
+        CTRL_RESIZE_THRESHOLD_PX,
+      );
+      if (dir) {
+        onSelect();
+        handleResizeStart(dir)(e);
+        return;
+      }
+    }
+    handleDragDown(e);
+  };
+
   return (
     <div
       className={classNames}
@@ -77,7 +131,7 @@ export default function CanvasElement({
         e.stopPropagation();
         onSelect();
       }}
-      onMouseDown={handleDragDown}
+      onMouseDown={handleMouseDown}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
