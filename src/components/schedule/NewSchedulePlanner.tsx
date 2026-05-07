@@ -689,7 +689,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const endMin = timeToMinutes(editingEntry.endTime);
     
     if (endMin <= startMin) {
-        alert("Sluttid måste vara efter starttid!");
+        showNotice("Sluttid måste vara efter starttid!", 'error');
         return;
     }
 
@@ -708,7 +708,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     );
 
     if (conflict) {
-        alert(conflict);
+        showNotice(conflict, 'error');
         return;
     }
     
@@ -854,7 +854,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <Download size={16} className="mr-2"/> PDF
                 </Button>
                 {isPdfMenuOpen && (
-                  <div className="absolute left-0 z-[100] mt-2 w-44 sp-dropdown p-1">
+                  <div className="absolute left-0 z-[100] mt-2 w-44 bg-white sp-dropdown p-1">
                     <button
                       type="button"
                       className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
@@ -888,7 +888,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <MoreVertical size={16} />
                 </Button>
                 {isImageExportMenuOpen && (
-                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 sp-dropdown p-1">
+                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 bg-white sp-dropdown p-1">
                     <button
                       type="button"
                       className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
@@ -924,7 +924,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <MoreVertical size={16} />
                 </Button>
                 {isJsonMenuOpen && (
-                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 sp-dropdown p-1">
+                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 bg-white sp-dropdown p-1">
                     <button
                       type="button"
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm sp-menu-item"
@@ -1375,8 +1375,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       </DragOverlay>
 
       {contextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-[99]"
+            onClick={() => setContextMenu(null)}
+          />
         <div
-          className="fixed z-[100] w-max sp-context-menu"
+          className="fixed z-[100] w-max bg-white sp-context-menu"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button
@@ -1440,6 +1445,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             Radera
           </button>
         </div>
+        </>
       )}
 
       {isKbPlacementActive && kbPlacementGhost && (
