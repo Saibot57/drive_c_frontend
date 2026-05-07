@@ -34,18 +34,22 @@ export const Section: React.FC<SectionProps> = ({ section, showTags }) => {
         <div className="bg-white">
           <ScrollArea className="h-[350px]">
             <div className="p-3">
-              {section.files.map((file, idx) => (
-                <FileCard key={idx} file={file} showTags={showTags} />
-              ))}
+              {[...section.files]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((file, idx) => (
+                  <FileCard key={idx} file={file} showTags={showTags} />
+                ))}
               {Object.values(section.subsections || {}).map((subsection, idx) => (
                 <div key={idx} className="mt-3">
                   <h3 className="text-xl font-monument mb-1">
                     {subsection.name}
                   </h3>
                   <div className="ml-3">
-                    {subsection.files.map((file, fileIdx) => (
-                      <FileCard key={fileIdx} file={file} showTags={showTags} />
-                    ))}
+                    {[...subsection.files]
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((file, fileIdx) => (
+                        <FileCard key={fileIdx} file={file} showTags={showTags} />
+                      ))}
                   </div>
                 </div>
               ))}
