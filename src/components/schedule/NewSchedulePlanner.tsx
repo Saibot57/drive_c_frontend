@@ -22,7 +22,6 @@ import {
   ChevronRight,
   MoreVertical,
   Search,
-  Paintbrush,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -68,7 +67,6 @@ import { useScheduleKeyboardNav } from '@/hooks/useScheduleKeyboardNav';
 import { useKeyboardPlacement } from '@/hooks/useKeyboardPlacement';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
-import { useScheduleTheme } from '@/hooks/useScheduleTheme';
 import '@/styles/schedule-theme.css';
 
 // --- Helper: Conflict Check & Filtering ---
@@ -153,7 +151,6 @@ const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
 // --- Main Component ---
 
 export default function NewSchedulePlanner() {
-  const { theme, toggleTheme } = useScheduleTheme();
   const { plannerNotice, showNotice } = usePlannerNotice();
   const { schedule, commitSchedule } = useScheduleHistory();
   const {
@@ -796,7 +793,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="sp-root" data-theme={theme}>
+      <div className="sp-root">
         {/* Background image */}
         <div className="fixed inset-0 z-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -837,14 +834,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
            </div>
 
            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={toggleTheme}
-                className="sp-btn flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors"
-                title={`Byt till ${theme === 'neo' ? 'Clean' : 'Neo'}-tema`}
-              >
-                <Paintbrush className="h-3.5 w-3.5" />
-                {theme === 'neo' ? 'Clean' : 'Neo'}
-              </button>
               <div className="relative" ref={pdfMenuRef}>
                 <Button
                   variant="neutral"
@@ -1381,7 +1370,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             onClick={() => setContextMenu(null)}
           />
           <div
-            className="fixed z-[100] w-max bg-white sp-context-menu"
+            className="fixed z-[100] flex flex-col w-max bg-white sp-context-menu"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
           <button
