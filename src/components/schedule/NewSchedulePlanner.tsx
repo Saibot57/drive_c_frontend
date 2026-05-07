@@ -1380,10 +1380,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             className="fixed inset-0 z-[99]"
             onClick={() => setContextMenu(null)}
           />
-        <div
-          className="fixed z-[100] w-max bg-white sp-context-menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
+          <div
+            className="fixed z-[100] w-max bg-white sp-context-menu"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
           <button
             className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
             onClick={() => {

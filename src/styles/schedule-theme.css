@@ -133,7 +133,6 @@
 
 .sp-context-menu {
   border: var(--sp-border);
-  background: var(--sp-bg);
   box-shadow: var(--sp-shadow-lg);
   border-radius: var(--sp-radius-sm);
 }
@@ -165,7 +164,6 @@
 .sp-dropdown {
   border: var(--sp-border);
   border-radius: var(--sp-radius-sm);
-  background: var(--sp-bg);
   box-shadow: var(--sp-shadow);
 }
 
