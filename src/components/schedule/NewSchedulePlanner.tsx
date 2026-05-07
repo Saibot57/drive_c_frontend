@@ -1374,7 +1374,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
           <button
-            className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
+            className="px-3 py-2 text-left text-sm sp-menu-item"
             onClick={() => {
               setEditingEntry(contextMenu.entry);
               setIsEntryModalOpen(true);
@@ -1384,19 +1384,19 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             Redigera
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
+            className="px-3 py-2 text-left text-sm sp-menu-item"
             onClick={() => handleDuplicateParallel(contextMenu.entry)}
           >
             Duplicera och lägg parallellt
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
+            className="px-3 py-2 text-left text-sm sp-menu-item"
             onClick={() => handleDuplicateAndPlace(contextMenu.entry)}
           >
             Duplicera och placera
           </button>
           <button
-            className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
+            className="px-3 py-2 text-left text-sm sp-menu-item"
             onClick={() => {
               const { teacher, room, notes, category, color } = contextMenu.entry;
               setCopiedEntryContent({ teacher, room, notes, category, color });
@@ -1408,7 +1408,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           </button>
           {copiedEntryContent && (
             <button
-              className="w-full px-1.5 py-2 text-left text-sm sp-menu-item"
+              className="px-3 py-2 text-left text-sm sp-menu-item"
               onClick={() => {
                 commitSchedule(prev =>
                   prev.map(e =>
@@ -1425,7 +1425,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             </button>
           )}
           <button
-            className="w-full px-1.5 py-2 text-left text-sm text-rose-700 sp-menu-item"
+            className="px-3 py-2 text-left text-sm text-rose-700 sp-menu-item"
             onClick={() => {
               commitSchedule(p => p.filter(e => e.instanceId !== contextMenu.entry.instanceId));
               setContextMenu(null);
