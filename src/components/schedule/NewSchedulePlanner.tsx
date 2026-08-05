@@ -40,6 +40,7 @@ import {
   checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
+import { mergeIntervalMinutes, totalMinutesByTeacher, totalMinutesByTitle } from '@/utils/scheduleStats';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
 import { DraggableSourceCard } from '@/components/schedule/DraggableSourceCard';
 import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
@@ -388,49 +389,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   }, [schedule]);
 
   // Statistics
-  const scheduleStats = useMemo(() => {
-    const visibleSchedule = schedule.filter(entry => advancedFilterMatch(entry, filterQuery));
-    const intervalsByDayAndTitle: Record<string, Record<string, { start: number; end: number }[]>> = {};
+  const visibleSchedule = useMemo(
+    () => schedule.filter(entry => advancedFilterMatch(entry, filterQuery)),
+    [schedule, filterQuery]
+  );
 
-    visibleSchedule.forEach(entry => {
-      if (!intervalsByDayAndTitle[entry.day]) intervalsByDayAndTitle[entry.day] = {};
-      if (!intervalsByDayAndTitle[entry.day][entry.title]) intervalsByDayAndTitle[entry.day][entry.title] = [];
-      
-      intervalsByDayAndTitle[entry.day][entry.title].push({
-        start: timeToMinutes(entry.startTime),
-        end: timeToMinutes(entry.endTime),
-      });
-    });
+  const scheduleStats = useMemo(() => totalMinutesByTitle(visibleSchedule), [visibleSchedule]);
 
-    const stats: Record<string, number> = {};
-
-    Object.entries(intervalsByDayAndTitle).forEach(([day, subjects]) => {
-      Object.entries(subjects).forEach(([title, intervals]) => {
-        if (intervals.length === 0) return;
-        
-        const sorted = [...intervals].sort((a, b) => a.start - b.start);
-        let totalForDay = 0;
-        let currentStart = sorted[0].start;
-        let currentEnd = sorted[0].end;
-
-        sorted.slice(1).forEach(interval => {
-          if (interval.start <= currentEnd) {
-            currentEnd = Math.max(currentEnd, interval.end);
-          } else {
-            totalForDay += currentEnd - currentStart;
-            currentStart = interval.start;
-            currentEnd = interval.end;
-          }
-        });
-        totalForDay += currentEnd - currentStart;
-
-        if (!stats[title]) stats[title] = 0;
-        stats[title] += totalForDay;
-      });
-    });
-
-    return Object.entries(stats).sort((a, b) => b[1] - a[1]);
-  }, [schedule, filterQuery]);
+  const teacherStats = useMemo(() => totalMinutesByTeacher(visibleSchedule), [visibleSchedule]);
 
   const hoursFormatter = useMemo(() => new Intl.NumberFormat('sv-SE', {
     minimumFractionDigits: 1,
@@ -475,21 +441,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     Object.entries(intervalsByDay).forEach(([day, subjects]) => {
       Object.entries(subjects).forEach(([title, intervals]) => {
         if (intervals.length === 0) return;
-        const sorted = [...intervals].sort((a, b) => a.start - b.start);
-        let total = 0;
-        let currentStart = sorted[0].start;
-        let currentEnd = sorted[0].end;
-        sorted.slice(1).forEach(interval => {
-          if (interval.start < currentEnd && interval.end > currentStart) {
-            currentEnd = Math.max(currentEnd, interval.end);
-          } else {
-            total += currentEnd - currentStart;
-            currentStart = interval.start;
-            currentEnd = interval.end;
-          }
-        });
-        total += currentEnd - currentStart;
-        totals[day][title] = total;
+        if (!totals[day]) totals[day] = {};
+        totals[day][title] = mergeIntervalMinutes(intervals);
       });
     });
     return totals;
@@ -1033,14 +986,30 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       <BarChart3 size={14} /> 
                       <span className="text-xs font-bold uppercase">Tid (Filtrerat)</span>
                     </div>
+                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Ämnen</div>
                     <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
-                      {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> : 
+                      {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> :
                         scheduleStats.slice(0, 10).map(([title, minutes]) => {
                           const hours = minutes / 60;
                           return (
                             <div key={title} className="flex justify-between">
                               <span>{title}</span>
                               <span className="font-mono font-bold">{hoursFormatter.format(hours)} h</span>
+                            </div>
+                          );
+                        })
+                      }
+                    </div>
+
+                    <div className="text-[10px] font-bold uppercase text-gray-400 mt-3 mb-1">Lärare</div>
+                    <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
+                      {teacherStats.length === 0 ? <span className="text-gray-400 italic">Ingen lärare angiven</span> :
+                        teacherStats.map(([teacher, minutes]) => {
+                          const hours = minutes / 60;
+                          return (
+                            <div key={teacher} className="flex justify-between gap-2">
+                              <span className="truncate" title={teacher}>{teacher}</span>
+                              <span className="font-mono font-bold shrink-0">{hoursFormatter.format(hours)} h</span>
                             </div>
                           );
                         })
