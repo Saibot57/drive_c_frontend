@@ -4,53 +4,18 @@ import { useCallback, useState } from 'react';
 import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { v4 as uuidv4 } from 'uuid';
 import { GhostPlacement } from '@/types/plannerUI';
-import { PlannerCourse, RestrictionRule, ScheduledEntry } from '@/types/schedule';
-import { checkOverlap, END_HOUR, minutesToTime, PIXELS_PER_MINUTE, snapTime, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
+import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
+import { PlacementCandidate, PlacementVerdict } from '@/utils/scheduleRules';
+import { END_HOUR, minutesToTime, PIXELS_PER_MINUTE, snapTime, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
 
 type UseDragHandlersParams = {
-  schedule: ScheduledEntry[];
   commitSchedule: (
     updater: (prev: ScheduledEntry[]) => ScheduledEntry[],
     options?: { clearHistory?: boolean }
   ) => void;
-  restrictions: RestrictionRule[];
+  validatePlacement: (candidate: PlacementCandidate) => PlacementVerdict;
   isMobileDragDisabled: boolean;
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
-};
-
-const wildcardMatch = (pattern: string, text: string): boolean => {
-  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp('^' + escaped.replace(/\*/g, '.*') + '$', 'i');
-  return regex.test(text);
-};
-
-const validateRestrictions = (
-  nextEntry: { title: string; day: string; startTime: string; endTime: string; instanceId?: string },
-  currentSchedule: ScheduledEntry[],
-  rules: RestrictionRule[]
-): string | null => {
-  const conflicts = currentSchedule.filter(entry =>
-    entry.day === nextEntry.day
-    && entry.instanceId !== nextEntry.instanceId
-    && checkOverlap(nextEntry.startTime, nextEntry.endTime, entry.startTime, entry.endTime)
-  );
-
-  if (conflicts.length === 0) return null;
-
-  for (const existing of conflicts) {
-    for (const rule of rules) {
-      const matchA_New = wildcardMatch(rule.subjectA, nextEntry.title);
-      const matchB_Exist = wildcardMatch(rule.subjectB, existing.title);
-      const matchB_New = wildcardMatch(rule.subjectB, nextEntry.title);
-      const matchA_Exist = wildcardMatch(rule.subjectA, existing.title);
-
-      if ((matchA_New && matchB_Exist) || (matchB_New && matchA_Exist)) {
-        return `Krock! "${nextEntry.title}" krockar med "${existing.title}" (${existing.startTime}-${existing.endTime}).`;
-      }
-    }
-  }
-
-  return null;
 };
 
 type DropTimeResult = {
@@ -61,9 +26,8 @@ type DropTimeResult = {
 };
 
 export const useDragHandlers = ({
-  schedule,
   commitSchedule,
-  restrictions,
+  validatePlacement,
   isMobileDragDisabled,
   showNotice
 }: UseDragHandlersParams) => {
@@ -172,19 +136,19 @@ export const useDragHandlers = ({
     if (type === 'course') {
       const course = active.data.current?.course as PlannerCourse;
 
-      const conflict = validateRestrictions(
-        {
-          title: course.title,
-          day: computed.targetDay,
-          startTime: computed.newStartTime,
-          endTime: computed.newEndTime
-        },
-        schedule,
-        restrictions
-      );
-      if (conflict) {
-        showNotice(conflict, 'error');
+      const { blocked, warning } = validatePlacement({
+        title: course.title,
+        teacher: course.teacher,
+        day: computed.targetDay,
+        startTime: computed.newStartTime,
+        endTime: computed.newEndTime
+      });
+      if (blocked) {
+        showNotice(blocked, 'error');
         return;
+      }
+      if (warning) {
+        showNotice(warning, 'warning');
       }
 
       const newEntry: ScheduledEntry = {
@@ -202,20 +166,20 @@ export const useDragHandlers = ({
     if (type === 'scheduled') {
       const entry = active.data.current?.entry as ScheduledEntry;
 
-      const conflict = validateRestrictions(
-        {
-          title: entry.title,
-          day: computed.targetDay,
-          startTime: computed.newStartTime,
-          endTime: computed.newEndTime,
-          instanceId: entry.instanceId
-        },
-        schedule,
-        restrictions
-      );
-      if (conflict) {
-        showNotice(conflict, 'error');
+      const { blocked, warning } = validatePlacement({
+        title: entry.title,
+        teacher: entry.teacher,
+        day: computed.targetDay,
+        startTime: computed.newStartTime,
+        endTime: computed.newEndTime,
+        instanceId: entry.instanceId
+      });
+      if (blocked) {
+        showNotice(blocked, 'error');
         return;
+      }
+      if (warning) {
+        showNotice(warning, 'warning');
       }
 
       commitSchedule(prev => prev.map(existing =>
@@ -224,7 +188,7 @@ export const useDragHandlers = ({
           : existing
       ));
     }
-  }, [commitSchedule, computeDropTime, restrictions, schedule, showNotice]);
+  }, [commitSchedule, computeDropTime, showNotice, validatePlacement]);
 
   const handleDragCancel = useCallback(() => {
     setActiveDragItem(null);

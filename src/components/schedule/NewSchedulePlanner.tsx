@@ -34,11 +34,12 @@ import {
 } from '@/components/schedule/constants';
 import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
 import { ContextMenuState, GhostPlacement } from '@/types/plannerUI';
-import { 
+import {
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE,
   timeToMinutes, minutesToTime, snapTime,
-  checkOverlap, EVENT_GAP_PX, MIN_HEIGHT_PX
+  EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
+import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 import { mergeIntervalMinutes, totalMinutesByTeacher, totalMinutesByTitle } from '@/utils/scheduleStats';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
@@ -72,12 +73,6 @@ import '@/styles/schedule-theme.css';
 
 // --- Helper: Conflict Check & Filtering ---
 
-const wildcardMatch = (pattern: string, text: string): boolean => {
-  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp('^' + escaped.replace(/\*/g, '.*') + '$', 'i');
-  return regex.test(text);
-};
-
 const advancedFilterMatch = (item: PlannerCourse | ScheduledEntry, filterQuery: string): boolean => {
   if (!filterQuery.trim()) return true;
   const searchString = `${item.title} ${item.teacher} ${item.room} ${item.category || ''}`.toLowerCase();
@@ -95,34 +90,6 @@ const advancedFilterMatch = (item: PlannerCourse | ScheduledEntry, filterQuery: 
       }
     });
   });
-};
-
-const validateRestrictions = (
-  newEntry: { title: string, day: string, startTime: string, endTime: string, instanceId?: string },
-  currentSchedule: ScheduledEntry[],
-  rules: RestrictionRule[]
-): string | null => {
-  const potentialConflicts = currentSchedule.filter(e => 
-    e.day === newEntry.day && 
-    e.instanceId !== newEntry.instanceId &&
-    checkOverlap(newEntry.startTime, newEntry.endTime, e.startTime, e.endTime)
-  );
-
-  if (potentialConflicts.length === 0) return null;
-
-  for (const existing of potentialConflicts) {
-    for (const rule of rules) {
-      const matchA_New = wildcardMatch(rule.subjectA, newEntry.title);
-      const matchB_Exist = wildcardMatch(rule.subjectB, existing.title);
-      const matchB_New = wildcardMatch(rule.subjectB, newEntry.title);
-      const matchA_Exist = wildcardMatch(rule.subjectA, existing.title);
-
-      if ((matchA_New && matchB_Exist) || (matchB_New && matchA_Exist)) {
-        return `Krock! "${newEntry.title}" krockar med "${existing.title}" (${existing.startTime}-${existing.endTime}).`;
-      }
-    }
-  }
-  return null;
 };
 
 // --- Helper: Data Sanitization ---
@@ -186,13 +153,22 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
-  const { teachers, rooms, isHiddenSettingsOpen, setIsHiddenSettingsOpen, handleHiddenSettingsSave } = useHiddenSettings();
+  const {
+    teachers,
+    rooms,
+    teacherAvailability,
+    applyTeacherAvailability,
+    isHiddenSettingsOpen,
+    setIsHiddenSettingsOpen,
+    handleHiddenSettingsSave
+  } = useHiddenSettings();
   const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
   const [isMobileDragDisabled, setIsMobileDragDisabled] = useState(false);
   const [pendingImportData, setPendingImportData] = useState<{
     courses: PlannerCourse[];
     schedule: ScheduledEntry[];
     restrictions?: RestrictionRule[];
+    teacherAvailability?: unknown;
   } | null>(null);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [isClearScheduleConfirmOpen, setIsClearScheduleConfirmOpen] = useState(false);
@@ -246,6 +222,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     showNotice
   });
 
+  /**
+   * Gemensam bedömning för alla vägar in i schemat. Ämnesreglerna stoppar
+   * placeringen, lärarreglerna varnar bara.
+   */
+  const validatePlacement = useCallback((candidate: PlacementCandidate) => (
+    evaluatePlacement(candidate, schedule, restrictions, teacherAvailability)
+  ), [schedule, restrictions, teacherAvailability]);
+
   const {
     setMobileActiveDayIndex,
     mobileSelectedDay,
@@ -270,9 +254,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleDragEnd,
     handleDragCancel
   } = useDragHandlers({
-    schedule,
     commitSchedule,
-    restrictions,
+    validatePlacement,
     isMobileDragDisabled,
     showNotice
   });
@@ -284,7 +267,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     kbPlacementGhost,
     startPlacement: startKbPlacement,
     isKbPlacementActive,
-  } = useKeyboardPlacement({ commitSchedule, showNotice });
+  } = useKeyboardPlacement({ commitSchedule, validatePlacement, showNotice });
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
@@ -475,11 +458,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleExportJSON = () => {
     const dataToSave: PersistedPlannerState = {
-      version: 5,
+      version: 6,
       timestamp: new Date().toISOString(),
       courses,
       schedule,
-      restrictions
+      restrictions,
+      teacherAvailability
     };
     const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -504,7 +488,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           setPendingImportData({
             courses: sanitizeManualCourses(parsed.courses),
             schedule: sanitizeScheduleImport(parsed.schedule),
-            restrictions: parsed.restrictions
+            restrictions: parsed.restrictions,
+            teacherAvailability: parsed.teacherAvailability
           });
           setIsImportConfirmOpen(true);
         } else {
@@ -525,9 +510,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     if (pendingImportData.restrictions) {
       setRestrictions(pendingImportData.restrictions);
     }
+    if (pendingImportData.teacherAvailability) {
+      applyTeacherAvailability(pendingImportData.teacherAvailability);
+    }
     setIsImportConfirmOpen(false);
     setPendingImportData(null);
-  }, [commitSchedule, pendingImportData, setManualCourses]);
+  }, [applyTeacherAvailability, commitSchedule, pendingImportData, setManualCourses]);
 
   const handleAddRestrictionRule = useCallback(() => {
     if (!newRule.subjectA || !newRule.subjectB) return;
@@ -645,23 +633,23 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const newDuration = endMin - startMin;
 
-    const conflict = validateRestrictions(
-        { 
-            title: editingEntry.title, 
-            day: editingEntry.day, 
-            startTime: editingEntry.startTime, 
-            endTime: editingEntry.endTime, 
-            instanceId: editingEntry.instanceId 
-        },
-        schedule,
-        restrictions
-    );
+    const { blocked, warning } = validatePlacement({
+        title: editingEntry.title,
+        teacher: editingEntry.teacher,
+        day: editingEntry.day,
+        startTime: editingEntry.startTime,
+        endTime: editingEntry.endTime,
+        instanceId: editingEntry.instanceId
+    });
 
-    if (conflict) {
-        showNotice(conflict, 'error');
+    if (blocked) {
+        showNotice(blocked, 'error');
         return;
     }
-    
+    if (warning) {
+        showNotice(warning, 'warning');
+    }
+
     commitSchedule(p => p.map(entry => entry.instanceId === editingEntry.instanceId ? {...editingEntry, duration: newDuration} : entry));
     setIsEntryModalOpen(false);
   };
@@ -669,11 +657,24 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // --- Duplicate / Placement Handlers ---
 
   const handleDuplicateParallel = useCallback((entry: ScheduledEntry) => {
+    const { blocked, warning } = validatePlacement({
+      title: entry.title,
+      teacher: entry.teacher,
+      day: entry.day,
+      startTime: entry.startTime,
+      endTime: entry.endTime
+    });
+    if (blocked) {
+      showNotice(blocked, 'error');
+      setContextMenu(null);
+      return;
+    }
+
     const newEntry: ScheduledEntry = { ...entry, instanceId: uuidv4() };
     commitSchedule(prev => [...prev, newEntry]);
     setContextMenu(null);
-    showNotice('Post duplicerad parallellt', 'success');
-  }, [commitSchedule, showNotice]);
+    showNotice(warning ?? 'Post duplicerad parallellt', warning ? 'warning' : 'success');
+  }, [commitSchedule, showNotice, validatePlacement]);
 
   const handleDuplicateAndPlace = useCallback((entry: ScheduledEntry) => {
     const dayIndex = PLANNER_DAYS.indexOf(entry.day as typeof PLANNER_DAYS[number]);
@@ -1418,6 +1419,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onOpenChange={setIsHiddenSettingsOpen}
         teachers={teachers}
         rooms={rooms}
+        teacherAvailability={teacherAvailability}
         onSave={handleHiddenSettingsSave}
       />
       <CategoryDebugPanel

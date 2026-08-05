@@ -13,14 +13,17 @@ import {
 } from '@/utils/scheduleTime';
 import { v4 as uuidv4 } from 'uuid';
 import { GhostPlacement } from '@/types/plannerUI';
+import { PlacementCandidate, PlacementVerdict } from '@/utils/scheduleRules';
 
 type UseKeyboardPlacementOptions = {
   commitSchedule: (updater: (prev: ScheduledEntry[]) => ScheduledEntry[]) => void;
+  validatePlacement: (candidate: PlacementCandidate) => PlacementVerdict;
   showNotice: (msg: string, tone: 'success' | 'warning' | 'error') => void;
 };
 
 export function useKeyboardPlacement({
   commitSchedule,
+  validatePlacement,
   showNotice,
 }: UseKeyboardPlacementOptions) {
   const [kbPlacement, setKbPlacement] = useState<{
@@ -136,6 +139,19 @@ export function useKeyboardPlacement({
               const day = PLANNER_DAYS[kbPlacement.dayIndex];
               const startTime = minutesToTime(kbPlacement.timeMinutes);
               const endTime = minutesToTime(kbPlacement.timeMinutes + kbPlacement.course.duration);
+
+              const { blocked, warning } = validatePlacement({
+                title: kbPlacement.course.title,
+                teacher: kbPlacement.course.teacher,
+                day,
+                startTime,
+                endTime,
+              });
+              if (blocked) {
+                showNotice(blocked, 'error');
+                return;
+              }
+
               const newEntry: ScheduledEntry = {
                 ...kbPlacement.course,
                 instanceId: uuidv4(),
@@ -145,7 +161,7 @@ export function useKeyboardPlacement({
               };
               commitSchedule(prev => [...prev, newEntry]);
               setKbPlacement(null);
-              showNotice('Post placerad', 'success');
+              showNotice(warning ?? 'Post placerad', warning ? 'warning' : 'success');
             },
           },
           // Escape cancels
@@ -155,7 +171,7 @@ export function useKeyboardPlacement({
           },
         ]
       : [],
-    [kbPlacement, commitSchedule, showNotice],
+    [kbPlacement, commitSchedule, showNotice, validatePlacement],
   );
 
   return {

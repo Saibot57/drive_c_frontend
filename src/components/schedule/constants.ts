@@ -20,6 +20,7 @@ export const MANUAL_COURSES_KEY = 'planner_manual_courses_v1';
 export const DERIVED_COURSE_PREFIX = 'gen_';
 export const TEACHERS_KEY = 'app.teachers.v1';
 export const ROOMS_KEY = 'app.rooms.v1';
+export const TEACHER_AVAILABILITY_KEY = 'app.teacher_availability.v1';
 export const ACTIVE_ARCHIVE_NAME_KEY = 'active_archive_name';
 
 export const PLANNER_NOTICE_DISMISS_MS = 2600;

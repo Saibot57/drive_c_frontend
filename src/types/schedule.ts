@@ -57,9 +57,18 @@ export interface ScheduledEntry extends PlannerCourse {
 
 export interface RestrictionRule {
   id: string;
-  subjectA: string; 
-  subjectB: string; 
+  subjectA: string;
+  subjectB: string;
 }
+
+/** Del av dagen som en lärare är otillgänglig. 'all' = hela dagen. */
+export type TeacherDayBlock = 'all' | 'fm' | 'em';
+
+/**
+ * Lärarnamn -> dag -> spärrade delar av dagen. En dag som saknas eller har en
+ * tom lista är ledig.
+ */
+export type TeacherAvailability = Record<string, Record<string, TeacherDayBlock[]>>;
 
 export interface PersistedPlannerState {
   version: number;
@@ -67,4 +76,5 @@ export interface PersistedPlannerState {
   courses: PlannerCourse[];
   schedule: ScheduledEntry[];
   restrictions: RestrictionRule[];
+  teacherAvailability?: TeacherAvailability;
 }

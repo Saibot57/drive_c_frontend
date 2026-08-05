@@ -1,12 +1,26 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ROOMS_KEY, TEACHERS_KEY } from '@/components/schedule/constants';
+import { ROOMS_KEY, TEACHERS_KEY, TEACHER_AVAILABILITY_KEY } from '@/components/schedule/constants';
 import { useHotkeys } from '@/hooks/useHotkeys';
+import { TeacherAvailability } from '@/types/schedule';
+import { sanitizeTeacherAvailability } from '@/utils/scheduleRules';
+
+/** Behåller bara lärare som fortfarande står i lärarlistan. */
+const pruneAvailability = (
+  availability: TeacherAvailability,
+  teachers: string[]
+): TeacherAvailability => {
+  const known = new Set(teachers);
+  return Object.fromEntries(
+    Object.entries(availability).filter(([teacher]) => known.has(teacher))
+  );
+};
 
 export const useHiddenSettings = () => {
   const [teachers, setTeachers] = useState<string[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
+  const [teacherAvailability, setTeacherAvailability] = useState<TeacherAvailability>({});
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -14,10 +28,14 @@ export const useHiddenSettings = () => {
     try {
       const storedTeachers = window.localStorage.getItem(TEACHERS_KEY);
       const storedRooms = window.localStorage.getItem(ROOMS_KEY);
+      const storedAvailability = window.localStorage.getItem(TEACHER_AVAILABILITY_KEY);
       const parsedTeachers = storedTeachers ? JSON.parse(storedTeachers) : [];
       const parsedRooms = storedRooms ? JSON.parse(storedRooms) : [];
       setTeachers(Array.isArray(parsedTeachers) ? parsedTeachers.filter(item => typeof item === 'string') : []);
       setRooms(Array.isArray(parsedRooms) ? parsedRooms.filter(item => typeof item === 'string') : []);
+      setTeacherAvailability(
+        sanitizeTeacherAvailability(storedAvailability ? JSON.parse(storedAvailability) : {})
+      );
     } catch (error) {
       console.warn('Kunde inte läsa lärare/salar.', error);
     }
@@ -28,9 +46,29 @@ export const useHiddenSettings = () => {
     [],
   );
 
-  const handleHiddenSettingsSave = useCallback((nextTeachers: string[], nextRooms: string[]) => {
+  const persistAvailability = useCallback((next: TeacherAvailability) => {
+    setTeacherAvailability(next);
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(TEACHER_AVAILABILITY_KEY, JSON.stringify(next));
+    } catch (error) {
+      console.warn('Kunde inte spara lärartillgänglighet.', error);
+    }
+  }, []);
+
+  /** Används när ett schema importeras från JSON. */
+  const applyTeacherAvailability = useCallback((next: unknown) => {
+    persistAvailability(sanitizeTeacherAvailability(next));
+  }, [persistAvailability]);
+
+  const handleHiddenSettingsSave = useCallback((
+    nextTeachers: string[],
+    nextRooms: string[],
+    nextAvailability: TeacherAvailability
+  ) => {
     setTeachers(nextTeachers);
     setRooms(nextRooms);
+    persistAvailability(pruneAvailability(nextAvailability, nextTeachers));
     if (typeof window === 'undefined') return;
     try {
       window.localStorage.setItem(TEACHERS_KEY, JSON.stringify(nextTeachers));
@@ -38,11 +76,13 @@ export const useHiddenSettings = () => {
     } catch (error) {
       console.warn('Kunde inte spara lärare/salar.', error);
     }
-  }, []);
+  }, [persistAvailability]);
 
   return {
     teachers,
     rooms,
+    teacherAvailability,
+    applyTeacherAvailability,
     isHiddenSettingsOpen,
     setIsHiddenSettingsOpen,
     handleHiddenSettingsSave

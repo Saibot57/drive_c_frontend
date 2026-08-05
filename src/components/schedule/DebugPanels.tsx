@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { PLANNER_DAYS } from '@/components/schedule/constants';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
+import { blocksWholeDay } from '@/utils/scheduleRules';
 
 const sanitizeHiddenList = (input: string) => {
   const lines = input
@@ -20,12 +24,137 @@ const sanitizeHiddenList = (input: string) => {
   });
 };
 
+const DAY_ABBREVIATION: Record<string, string> = {
+  'Måndag': 'Må',
+  'Tisdag': 'Ti',
+  'Onsdag': 'On',
+  'Torsdag': 'To',
+  'Fredag': 'Fr'
+};
+
+const toggleBlock = (
+  availability: TeacherAvailability,
+  teacher: string,
+  day: string,
+  next: TeacherDayBlock[]
+): TeacherAvailability => {
+  const days = { ...(availability[teacher] ?? {}) };
+  if (next.length === 0) {
+    delete days[day];
+  } else {
+    days[day] = next;
+  }
+
+  const updated = { ...availability };
+  if (Object.keys(days).length === 0) {
+    delete updated[teacher];
+  } else {
+    updated[teacher] = days;
+  }
+  return updated;
+};
+
+type TeacherAvailabilityRowProps = {
+  teacher: string;
+  days: Record<string, TeacherDayBlock[]>;
+  onChange: (day: string, next: TeacherDayBlock[]) => void;
+};
+
+function TeacherAvailabilityRow({ teacher, days, onChange }: TeacherAvailabilityRowProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const summary = useMemo(() => {
+    const parts = PLANNER_DAYS
+      .filter(day => (days[day] ?? []).length > 0)
+      .map(day => {
+        const blocks = days[day];
+        if (blocksWholeDay(blocks)) return DAY_ABBREVIATION[day];
+        return `${DAY_ABBREVIATION[day]} ${blocks[0]}`;
+      });
+    return parts.length > 0 ? parts.join(', ') : 'Alltid tillgänglig';
+  }, [days]);
+
+  return (
+    <div className="border-2 border-black rounded p-2 bg-white">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-bold text-sm truncate">{teacher}</p>
+          <p className="text-[11px] text-gray-500 truncate">{summary}</p>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="neutral"
+          className="h-7 w-7 p-0 shrink-0"
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? `Dölj halvdagar för ${teacher}` : `Visa halvdagar för ${teacher}`}
+          onClick={() => setIsExpanded(open => !open)}
+        >
+          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </Button>
+      </div>
+
+      <div className="mt-2 flex gap-1">
+        {PLANNER_DAYS.map(day => {
+          const blocks = days[day] ?? [];
+          const wholeDay = blocksWholeDay(blocks);
+
+          return (
+            <div key={day} className="flex-1 min-w-0 space-y-1">
+              <button
+                type="button"
+                aria-pressed={wholeDay}
+                title={`${teacher}, ${day.toLocaleLowerCase('sv')} – hela dagen`}
+                onClick={() => onChange(day, wholeDay ? [] : ['all'])}
+                className={`w-full rounded border-2 border-black px-1 py-1 text-xs font-bold transition-colors ${
+                  wholeDay ? 'bg-rose-300' : 'bg-white hover:bg-gray-100'
+                }`}
+              >
+                {DAY_ABBREVIATION[day]}
+              </button>
+
+              {isExpanded && (['fm', 'em'] as const).map(part => {
+                const active = wholeDay || blocks.includes(part);
+                return (
+                  <button
+                    key={part}
+                    type="button"
+                    aria-pressed={active}
+                    title={`${teacher}, ${day.toLocaleLowerCase('sv')} ${part === 'fm' ? 'förmiddag (före 12)' : 'eftermiddag (efter 12)'}`}
+                    onClick={() => {
+                      const current = wholeDay ? (['fm', 'em'] as TeacherDayBlock[]) : blocks;
+                      const next = current.includes(part)
+                        ? current.filter(block => block !== part)
+                        : [...current.filter(block => block !== 'all'), part];
+                      onChange(day, next);
+                    }}
+                    className={`w-full rounded border border-black px-1 py-0.5 text-[10px] font-bold uppercase transition-colors ${
+                      active ? 'bg-rose-200' : 'bg-white hover:bg-gray-100'
+                    }`}
+                  >
+                    {part}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 type HiddenSettingsPanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teachers: string[];
   rooms: string[];
-  onSave: (nextTeachers: string[], nextRooms: string[]) => void;
+  teacherAvailability: TeacherAvailability;
+  onSave: (
+    nextTeachers: string[],
+    nextRooms: string[],
+    nextAvailability: TeacherAvailability
+  ) => void;
 };
 
 export function HiddenSettingsPanel({
@@ -33,48 +162,85 @@ export function HiddenSettingsPanel({
   onOpenChange,
   teachers,
   rooms,
+  teacherAvailability,
   onSave
 }: HiddenSettingsPanelProps) {
   const [teacherText, setTeacherText] = useState('');
   const [roomText, setRoomText] = useState('');
+  const [availability, setAvailability] = useState<TeacherAvailability>({});
 
   useEffect(() => {
     if (!open) return;
     setTeacherText(teachers.join('\n'));
     setRoomText(rooms.join('\n'));
-  }, [open, rooms, teachers]);
+    setAvailability(teacherAvailability);
+  }, [open, rooms, teachers, teacherAvailability]);
+
+  // Raderna följer textrutan direkt, så en nyss tillagd lärare går att
+  // ställa in utan att man behöver spara och öppna panelen igen.
+  const teacherRows = useMemo(() => sanitizeHiddenList(teacherText), [teacherText]);
 
   const handleSave = () => {
-    const nextTeachers = sanitizeHiddenList(teacherText);
-    const nextRooms = sanitizeHiddenList(roomText);
-    onSave(nextTeachers, nextRooms);
+    onSave(teacherRows, sanitizeHiddenList(roomText), availability);
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Hidden settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="hidden-teachers">Lärare (en per rad)</Label>
-            <Textarea
-              id="hidden-teachers"
-              value={teacherText}
-              onChange={event => setTeacherText(event.target.value)}
-              rows={6}
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="hidden-teachers">Lärare (en per rad)</Label>
+              <Textarea
+                id="hidden-teachers"
+                value={teacherText}
+                onChange={event => setTeacherText(event.target.value)}
+                rows={6}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="hidden-rooms">Salar (en per rad)</Label>
+              <Textarea
+                id="hidden-rooms"
+                value={roomText}
+                onChange={event => setRoomText(event.target.value)}
+                rows={6}
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="hidden-rooms">Salar (en per rad)</Label>
-            <Textarea
-              id="hidden-rooms"
-              value={roomText}
-              onChange={event => setRoomText(event.target.value)}
-              rows={6}
-            />
+
+          <div className="space-y-2">
+            <div>
+              <Label>När lärare inte kan schemaläggas</Label>
+              <p className="text-xs text-gray-500">
+                Klicka på en dag för att spärra hela dagen. Pilen fäller ut förmiddag
+                (ryms helt före 12) och eftermiddag (börjar 12 eller senare). En post som
+                krockar placeras ändå, men du får en varning.
+              </p>
+            </div>
+
+            {teacherRows.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">
+                Lägg till lärare i listan ovan för att kunna spärra dagar.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                {teacherRows.map(teacher => (
+                  <TeacherAvailabilityRow
+                    key={teacher}
+                    teacher={teacher}
+                    days={availability[teacher] ?? {}}
+                    onChange={(day, next) => {
+                      setAvailability(prev => toggleBlock(prev, teacher, day, next));
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
