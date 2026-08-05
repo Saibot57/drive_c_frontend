@@ -70,6 +70,13 @@ export type TeacherDayBlock = 'all' | 'fm' | 'em';
  */
 export type TeacherAvailability = Record<string, Record<string, TeacherDayBlock[]>>;
 
+/** Ett ord i titeln som ger posten en bestämd färg. */
+export interface ColorTriggerRule {
+  id: string;
+  word: string;
+  color: string;
+}
+
 export interface PersistedPlannerState {
   version: number;
   timestamp: string;
@@ -77,4 +84,5 @@ export interface PersistedPlannerState {
   schedule: ScheduledEntry[];
   restrictions: RestrictionRule[];
   teacherAvailability?: TeacherAvailability;
+  colorTriggers?: ColorTriggerRule[];
 }

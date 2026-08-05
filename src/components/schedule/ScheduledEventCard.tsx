@@ -19,6 +19,8 @@ type ScheduledEventCardProps = {
   dragDisabled?: boolean;
   isSelected?: boolean;
   isHighlighted?: boolean;
+  /** Färgen att visa. Kan skilja sig från entry.color när en färgregel slår till. */
+  color?: string;
 };
 
 const extractUrl = (value?: string) => {
@@ -39,7 +41,8 @@ export function ScheduledEventCard({
   showLayoutDebug,
   dragDisabled = false,
   isSelected = false,
-  isHighlighted = false
+  isHighlighted = false,
+  color
 }: ScheduledEventCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
@@ -72,7 +75,7 @@ export function ScheduledEventCard({
         height: `${adjustedHeight}px`,
         left: `calc(${leftPercentage}% + 4px)`,
         width: `calc(${widthPercentage}% - 8px)`,
-        backgroundColor: entry.color,
+        backgroundColor: color ?? entry.color,
         zIndex: isDragging ? 50 : 10
       }}
       data-instance-id={entry.instanceId}

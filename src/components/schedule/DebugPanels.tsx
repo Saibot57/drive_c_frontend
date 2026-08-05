@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import { DEFAULT_COURSE_COLOR, PLANNER_DAYS } from '@/components/schedule/constants';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
+import { ColorTriggerRule, TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
 import { blocksWholeDay } from '@/utils/scheduleRules';
 
 const sanitizeHiddenList = (input: string) => {
@@ -144,16 +146,88 @@ function TeacherAvailabilityRow({ teacher, days, onChange }: TeacherAvailability
   );
 }
 
+type ColorTriggerListProps = {
+  triggers: ColorTriggerRule[];
+  onChange: (next: ColorTriggerRule[]) => void;
+};
+
+function ColorTriggerList({ triggers, onChange }: ColorTriggerListProps) {
+  const update = (id: string, patch: Partial<ColorTriggerRule>) => {
+    onChange(triggers.map(trigger => (trigger.id === id ? { ...trigger, ...patch } : trigger)));
+  };
+
+  return (
+    <div className="space-y-2">
+      {triggers.length === 0 ? (
+        <p className="text-sm text-gray-500 italic">Inga färgregler ännu.</p>
+      ) : (
+        <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+          {triggers.map((trigger, index) => (
+            <div key={trigger.id} className="flex items-center gap-2">
+              <span className="w-5 shrink-0 text-xs font-bold text-gray-400">{index + 1}</span>
+              <Input
+                value={trigger.word}
+                onChange={event => update(trigger.id, { word: event.target.value })}
+                placeholder="Ord i titeln, t.ex. prov"
+                aria-label={`Triggerord ${index + 1}`}
+                className="flex-1"
+              />
+              <label
+                className="flex shrink-0 cursor-pointer items-center gap-2 rounded border-2 border-black px-2 py-1 text-xs"
+                title="Välj färg"
+              >
+                <span
+                  className="h-4 w-4 rounded-full border border-black"
+                  style={{ backgroundColor: trigger.color }}
+                />
+                Färg
+                <input
+                  type="color"
+                  className="sr-only"
+                  aria-label={`Färg för ${trigger.word || `regel ${index + 1}`}`}
+                  value={trigger.color}
+                  onChange={event => update(trigger.id, { color: event.target.value })}
+                />
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                variant="neutral"
+                className="h-8 w-8 shrink-0 p-0"
+                aria-label={`Ta bort regel ${index + 1}`}
+                onClick={() => onChange(triggers.filter(item => item.id !== trigger.id))}
+              >
+                <X size={14} />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Button
+        type="button"
+        size="sm"
+        variant="neutral"
+        onClick={() => onChange([...triggers, { id: uuidv4(), word: '', color: DEFAULT_COURSE_COLOR }])}
+      >
+        <Plus size={14} className="mr-1" /> Lägg till färgregel
+      </Button>
+    </div>
+  );
+}
+
 type HiddenSettingsPanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teachers: string[];
   rooms: string[];
   teacherAvailability: TeacherAvailability;
+  colorTriggers: ColorTriggerRule[];
   onSave: (
     nextTeachers: string[],
     nextRooms: string[],
-    nextAvailability: TeacherAvailability
+    nextAvailability: TeacherAvailability,
+    nextColorTriggers: ColorTriggerRule[]
   ) => void;
 };
 
@@ -163,25 +237,28 @@ export function HiddenSettingsPanel({
   teachers,
   rooms,
   teacherAvailability,
+  colorTriggers,
   onSave
 }: HiddenSettingsPanelProps) {
   const [teacherText, setTeacherText] = useState('');
   const [roomText, setRoomText] = useState('');
   const [availability, setAvailability] = useState<TeacherAvailability>({});
+  const [triggers, setTriggers] = useState<ColorTriggerRule[]>([]);
 
   useEffect(() => {
     if (!open) return;
     setTeacherText(teachers.join('\n'));
     setRoomText(rooms.join('\n'));
     setAvailability(teacherAvailability);
-  }, [open, rooms, teachers, teacherAvailability]);
+    setTriggers(colorTriggers);
+  }, [open, rooms, teachers, teacherAvailability, colorTriggers]);
 
   // Raderna följer textrutan direkt, så en nyss tillagd lärare går att
   // ställa in utan att man behöver spara och öppna panelen igen.
   const teacherRows = useMemo(() => sanitizeHiddenList(teacherText), [teacherText]);
 
   const handleSave = () => {
-    onSave(teacherRows, sanitizeHiddenList(roomText), availability);
+    onSave(teacherRows, sanitizeHiddenList(roomText), availability, triggers);
     onOpenChange(false);
   };
 
@@ -241,6 +318,19 @@ export function HiddenSettingsPanel({
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <div>
+              <Label>Färg efter ord i titeln</Label>
+              <p className="text-xs text-gray-500">
+                Innehåller titeln ordet får posten den valda färgen. Hela ord matchar,
+                så &quot;prov&quot; träffar &quot;Prov kap 3&quot; men inte &quot;Provisorisk&quot;.
+                Matchar flera regler vinner den översta, och färgen slår igenom även på
+                poster du färgat för hand.
+              </p>
+            </div>
+            <ColorTriggerList triggers={triggers} onChange={setTriggers} />
           </div>
         </div>
         <DialogFooter>

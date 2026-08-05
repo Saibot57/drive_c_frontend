@@ -40,6 +40,7 @@ import {
   EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
+import { createColorResolver } from '@/utils/colorTriggers';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 import { mergeIntervalMinutes, totalMinutesByTeacher, totalMinutesByTitle } from '@/utils/scheduleStats';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
@@ -157,7 +158,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     teachers,
     rooms,
     teacherAvailability,
+    colorTriggers,
     applyTeacherAvailability,
+    applyColorTriggers,
     isHiddenSettingsOpen,
     setIsHiddenSettingsOpen,
     handleHiddenSettingsSave
@@ -169,6 +172,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     schedule: ScheduledEntry[];
     restrictions?: RestrictionRule[];
     teacherAvailability?: unknown;
+    colorTriggers?: unknown;
   } | null>(null);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [isClearScheduleConfirmOpen, setIsClearScheduleConfirmOpen] = useState(false);
@@ -230,6 +234,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     evaluatePlacement(candidate, schedule, restrictions, teacherAvailability)
   ), [schedule, restrictions, teacherAvailability]);
 
+  /**
+   * Färgreglerna gäller när kortet ritas, så ett ändrat ord slår igenom direkt
+   * i hela schemat utan att posternas lagrade färg rörs.
+   */
+  const resolveColor = useMemo(() => createColorResolver(colorTriggers), [colorTriggers]);
+
   const {
     setMobileActiveDayIndex,
     mobileSelectedDay,
@@ -256,6 +266,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   } = useDragHandlers({
     commitSchedule,
     validatePlacement,
+    resolveColor,
     isMobileDragDisabled,
     showNotice
   });
@@ -458,12 +469,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleExportJSON = () => {
     const dataToSave: PersistedPlannerState = {
-      version: 6,
+      version: 7,
       timestamp: new Date().toISOString(),
       courses,
       schedule,
       restrictions,
-      teacherAvailability
+      teacherAvailability,
+      colorTriggers
     };
     const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -489,7 +501,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             courses: sanitizeManualCourses(parsed.courses),
             schedule: sanitizeScheduleImport(parsed.schedule),
             restrictions: parsed.restrictions,
-            teacherAvailability: parsed.teacherAvailability
+            teacherAvailability: parsed.teacherAvailability,
+            colorTriggers: parsed.colorTriggers
           });
           setIsImportConfirmOpen(true);
         } else {
@@ -513,9 +526,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     if (pendingImportData.teacherAvailability) {
       applyTeacherAvailability(pendingImportData.teacherAvailability);
     }
+    if (pendingImportData.colorTriggers) {
+      applyColorTriggers(pendingImportData.colorTriggers);
+    }
     setIsImportConfirmOpen(false);
     setPendingImportData(null);
-  }, [applyTeacherAvailability, commitSchedule, pendingImportData, setManualCourses]);
+  }, [applyColorTriggers, applyTeacherAvailability, commitSchedule, pendingImportData, setManualCourses]);
 
   const handleAddRestrictionRule = useCallback(() => {
     if (!newRule.subjectA || !newRule.subjectB) return;
@@ -973,6 +989,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                            dragDisabled={isMobileDragDisabled}
                            hidden={!advancedFilterMatch(c, filterQuery)}
                            isSelected={activeZone === 'courses' && selectedCourseIndex === visibleIdx}
+                           color={resolveColor(c.title, c.color)}
                          />
                        );
                      })}
@@ -1143,6 +1160,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   showLayoutDebug={showLayoutDebug}
                                   isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                   isHighlighted={highlightedIds.has(entry.instanceId)}
+                                  color={resolveColor(entry.title, entry.color)}
                                />
                               );
                               });
@@ -1195,6 +1213,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                  showLayoutDebug={showLayoutDebug}
                                  isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                  isHighlighted={highlightedIds.has(entry.instanceId)}
+                                 color={resolveColor(entry.title, entry.color)}
                                />
                              );
                            });
@@ -1321,13 +1340,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
       <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.5' } } }) }}>
         {activeDragItem?.type === 'course' && (
-          <div className="w-[120px] h-[60px] sp-drag-overlay p-2 rounded opacity-80" style={{backgroundColor: activeDragItem.course.color}}>
+          <div className="w-[120px] h-[60px] sp-drag-overlay p-2 rounded opacity-80" style={{backgroundColor: resolveColor(activeDragItem.course.title, activeDragItem.course.color)}}>
              {activeDragItem.course.title}
           </div>
         )}
         {activeDragItem?.type === 'scheduled' && (
            <div className="w-[120px] sp-drag-overlay p-1 rounded opacity-80" 
-             style={{ height: `${Math.max(activeDragItem.entry.duration * PIXELS_PER_MINUTE - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`, backgroundColor: activeDragItem.entry.color }}>
+             style={{ height: `${Math.max(activeDragItem.entry.duration * PIXELS_PER_MINUTE - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`, backgroundColor: resolveColor(activeDragItem.entry.title, activeDragItem.entry.color) }}>
               {activeDragItem.entry.title}
            </div>
         )}
@@ -1420,6 +1439,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         teachers={teachers}
         rooms={rooms}
         teacherAvailability={teacherAvailability}
+        colorTriggers={colorTriggers}
         onSave={handleHiddenSettingsSave}
       />
       <CategoryDebugPanel
@@ -1439,6 +1459,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onSaveCourse={handleSaveCourseSubmit}
         teachers={teachers}
         rooms={rooms}
+        colorTriggers={colorTriggers}
         isEntryModalOpen={isEntryModalOpen}
         onEntryModalOpenChange={setIsEntryModalOpen}
         editingEntry={editingEntry}

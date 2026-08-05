@@ -14,6 +14,8 @@ type UseDragHandlersParams = {
     options?: { clearHistory?: boolean }
   ) => void;
   validatePlacement: (candidate: PlacementCandidate) => PlacementVerdict;
+  /** Ger förhandsvisningen samma färg som den placerade posten kommer att få. */
+  resolveColor: (title: string, fallbackColor: string) => string;
   isMobileDragDisabled: boolean;
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
 };
@@ -28,6 +30,7 @@ type DropTimeResult = {
 export const useDragHandlers = ({
   commitSchedule,
   validatePlacement,
+  resolveColor,
   isMobileDragDisabled,
   showNotice
 }: UseDragHandlersParams) => {
@@ -101,7 +104,7 @@ export const useDragHandlers = ({
         startTime: computed.newStartTime,
         endTime: computed.newEndTime,
         duration: computed.itemDuration,
-        color: course.color,
+        color: resolveColor(course.title, course.color),
         title: course.title
       });
       return;
@@ -114,14 +117,14 @@ export const useDragHandlers = ({
         startTime: computed.newStartTime,
         endTime: computed.newEndTime,
         duration: computed.itemDuration,
-        color: entry.color,
+        color: resolveColor(entry.title, entry.color),
         title: entry.title
       });
       return;
     }
 
     setGhostPlacement(null);
-  }, [computeDropTime]);
+  }, [computeDropTime, resolveColor]);
 
   const handleDragEnd = useCallback((event: any) => {
     const { active } = event;

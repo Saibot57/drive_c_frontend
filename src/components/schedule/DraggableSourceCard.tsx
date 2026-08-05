@@ -13,6 +13,8 @@ type DraggableSourceCardProps = {
   isDerived?: boolean;
   dragDisabled?: boolean;
   isSelected?: boolean;
+  /** Färgen att visa. Kan skilja sig från course.color när en färgregel slår till. */
+  color?: string;
 };
 
 export function DraggableSourceCard({
@@ -22,7 +24,8 @@ export function DraggableSourceCard({
   hidden,
   isDerived,
   dragDisabled = false,
-  isSelected = false
+  isSelected = false,
+  color
 }: DraggableSourceCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `source-${course.id}`,
@@ -37,7 +40,7 @@ export function DraggableSourceCard({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      style={{ backgroundColor: course.color }}
+      style={{ backgroundColor: color ?? course.color }}
       className={`relative group p-2 mb-2 rounded sp-source-card transition-all ${dragDisabled ? 'cursor-default' : 'cursor-grab hover:shadow-md'} ${isDragging ? 'opacity-50' : ''} ${isSelected ? 'sp-ring' : ''}`}
     >
       <div className="flex justify-between items-start">

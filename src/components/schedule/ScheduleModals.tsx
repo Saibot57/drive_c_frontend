@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { generateBoxColor } from '@/config/colorManagement';
-import { PlannerCourse, RestrictionRule, ScheduledEntry } from '@/types/schedule';
+import { ColorTriggerRule, PlannerCourse, RestrictionRule, ScheduledEntry } from '@/types/schedule';
+import { findColorTrigger } from '@/utils/colorTriggers';
 
 type ScheduleModalsProps = {
   isCourseModalOpen: boolean;
@@ -22,6 +23,7 @@ type ScheduleModalsProps = {
   onSaveCourse: (event: React.FormEvent) => void;
   teachers: string[];
   rooms: string[];
+  colorTriggers: ColorTriggerRule[];
   isEntryModalOpen: boolean;
   onEntryModalOpenChange: (open: boolean) => void;
   editingEntry: ScheduledEntry | null;
@@ -68,6 +70,7 @@ export function ScheduleModals({
   onSaveCourse,
   teachers,
   rooms,
+  colorTriggers,
   isEntryModalOpen,
   onEntryModalOpenChange,
   editingEntry,
@@ -120,6 +123,27 @@ export function ScheduleModals({
 
   const [recentColors, setRecentColors] = useState<string[]>(loadRecentColors);
 
+  /**
+   * En färgregel slår igenom när kortet ritas, så färgväljaren nedan har ingen
+   * synlig effekt så länge titeln matchar. Säg det i stället för att låta
+   * användaren undra.
+   */
+  const activeTrigger = (title: string) => findColorTrigger(title ?? '', colorTriggers);
+
+  const renderTriggerHint = (title: string) => {
+    const trigger = activeTrigger(title);
+    if (!trigger) return null;
+    return (
+      <p className="flex items-center gap-2 text-xs text-gray-600">
+        <span
+          className="h-3 w-3 shrink-0 rounded-full border border-black"
+          style={{ backgroundColor: trigger.color }}
+        />
+        Färgen styrs av färgregeln &quot;{trigger.word}&quot; och går inte att ändra här.
+      </p>
+    );
+  };
+
   const saveRecentColor = useCallback((color: string) => {
     const paletteSet = new Set(COURSE_COLOR_PALETTE as readonly string[]);
     if (paletteSet.has(color)) return;
@@ -162,6 +186,7 @@ export function ScheduleModals({
                   onChange={room => setEditingCourse({ ...editingCourse, room })}
                 />
               </div>
+              {renderTriggerHint(editingCourse.title)}
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <div className="flex gap-2">
                   {COURSE_COLOR_PALETTE.map(c => (
@@ -266,6 +291,7 @@ export function ScheduleModals({
                   onChange={e => setEditingEntry({ ...editingEntry, category: e.target.value })}
                 />
               </div>
+              {renderTriggerHint(editingEntry.title)}
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <div className="flex gap-2">
                   {COURSE_COLOR_PALETTE.map(c => (
