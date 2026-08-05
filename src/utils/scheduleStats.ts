@@ -92,6 +92,20 @@ const totalMinutesByKey = (
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'sv'));
 };
 
+/**
+ * Skriver minuter som "17 tim, 15 min". Delar som är noll utelämnas, så jämna
+ * timmar blir "18 tim" och en kort stund blir "45 min".
+ */
+export const formatMinutes = (minutes: number): string => {
+  const total = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(total / 60);
+  const remaining = total % 60;
+
+  if (hours === 0) return `${remaining} min`;
+  if (remaining === 0) return `${hours} tim`;
+  return `${hours} tim, ${remaining} min`;
+};
+
 /** Timmar per ämnestitel, med parallella lektioner räknade en gång. */
 export const totalMinutesByTitle = (entries: ScheduledEntry[]): [string, number][] =>
   totalMinutesByKey(entries, entry => (entry.title ? [entry.title] : []));

@@ -42,7 +42,7 @@ import {
 import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
 import { createColorResolver } from '@/utils/colorTriggers';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
-import { mergeIntervalMinutes, totalMinutesByTeacher, totalMinutesByTitle } from '@/utils/scheduleStats';
+import { formatMinutes, mergeIntervalMinutes, totalMinutesByTeacher, totalMinutesByTitle } from '@/utils/scheduleStats';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
 import { DraggableSourceCard } from '@/components/schedule/DraggableSourceCard';
 import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
@@ -392,11 +392,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const teacherStats = useMemo(() => totalMinutesByTeacher(visibleSchedule), [visibleSchedule]);
 
-  const hoursFormatter = useMemo(() => new Intl.NumberFormat('sv-SE', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1
-  }), []);
-
   const hasMissingScheduleBlocks = useMemo(() => {
     if (schedule.length === 0) return false;
     const currentCourseKeys = new Set(courses.map(course => buildCourseDedupeKey(course)));
@@ -442,12 +437,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     return totals;
   }, [schedule]);
 
-  const formatDuration = useCallback((minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const remaining = minutes % 60;
-    return `${hours}h + ${remaining} min`;
-  }, []);
-
   const dayHeaderTooltips = useMemo(() => {
     const tooltips: Record<string, string> = {};
     PLANNER_DAYS.forEach(day => {
@@ -459,11 +448,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       const totalMinutes = entries.reduce((sum, [, minutes]) => sum + minutes, 0);
       const lines = entries
         .sort((a, b) => b[1] - a[1])
-        .map(([title, minutes]) => `${title}: ${formatDuration(minutes)}`);
-      tooltips[day] = [`Totalt: ${formatDuration(totalMinutes)}`, ...lines].join('\n');
+        .map(([title, minutes]) => `${title}: ${formatMinutes(minutes)}`);
+      tooltips[day] = [`Totalt: ${formatMinutes(totalMinutes)}`, ...lines].join('\n');
     });
     return tooltips;
-  }, [daySubjectTotals, formatDuration]);
+  }, [daySubjectTotals]);
 
   // --- JSON Import/Export Handlers ---
 
@@ -1007,30 +996,24 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Ämnen</div>
                     <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
                       {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> :
-                        scheduleStats.slice(0, 10).map(([title, minutes]) => {
-                          const hours = minutes / 60;
-                          return (
-                            <div key={title} className="flex justify-between">
-                              <span>{title}</span>
-                              <span className="font-mono font-bold">{hoursFormatter.format(hours)} h</span>
-                            </div>
-                          );
-                        })
+                        scheduleStats.slice(0, 10).map(([title, minutes]) => (
+                          <div key={title} className="flex justify-between gap-2">
+                            <span className="truncate" title={title}>{title}</span>
+                            <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
+                          </div>
+                        ))
                       }
                     </div>
 
                     <div className="text-[10px] font-bold uppercase text-gray-400 mt-3 mb-1">Lärare</div>
                     <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
                       {teacherStats.length === 0 ? <span className="text-gray-400 italic">Ingen lärare angiven</span> :
-                        teacherStats.map(([teacher, minutes]) => {
-                          const hours = minutes / 60;
-                          return (
-                            <div key={teacher} className="flex justify-between gap-2">
-                              <span className="truncate" title={teacher}>{teacher}</span>
-                              <span className="font-mono font-bold shrink-0">{hoursFormatter.format(hours)} h</span>
-                            </div>
-                          );
-                        })
+                        teacherStats.map(([teacher, minutes]) => (
+                          <div key={teacher} className="flex justify-between gap-2">
+                            <span className="truncate" title={teacher}>{teacher}</span>
+                            <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
+                          </div>
+                        ))
                       }
                     </div>
                   </div>
