@@ -27,6 +27,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
   DEFAULT_COURSE_COLOR,
   PLANNER_DAYS,
@@ -950,72 +951,80 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   </div>
                 )}
 
-                {/* Courses List */}
+                {/* Byggstenar och TID delar på höjden, med ett draghandtag emellan.
+                    Storleken sparas i localStorage av ResizablePanelGroup. */}
                 {!isSidebarCollapsed && (
-                  <>
-                    {hasMissingScheduleBlocks && (
-                      <Button
-                        variant="neutral"
-                        onClick={() => {
-                          recomputeCourses(schedule, manualCourses);
-                          showNotice('Byggstenar uppdaterade.', 'success');
-                        }}
-                        className="mb-3 sp-btn bg-emerald-100 hover:bg-emerald-200"
-                      >
-                        <RefreshCcw size={16} className="mr-2"/> Uppdatera byggstenar från schema
-                      </Button>
-                    )}
-                  <div className="overflow-y-auto pr-2 min-h-0">
-                     {courses.map((c, idx) => {
-                       const visibleIdx = courses.filter((cc, ii) => ii < idx && advancedFilterMatch(cc, filterQuery)).length;
-                       return (
-                         <DraggableSourceCard
-                           key={c.id}
-                           course={c}
-                           onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }}
-                           onDelete={handleDeleteCourse}
-                           isDerived={derivedCourseKeys.has(buildCourseDedupeKey(c)) && !manualCourseKeys.has(buildCourseDedupeKey(c))}
-                           dragDisabled={isMobileDragDisabled}
-                           hidden={!advancedFilterMatch(c, filterQuery)}
-                           isSelected={activeZone === 'courses' && selectedCourseIndex === visibleIdx}
-                           color={resolveColor(c.title, c.color)}
-                         />
-                       );
-                     })}
-                  </div>
-                  </>
-                )}
+                  <div className="flex-1 min-h-0">
+                    <ResizablePanelGroup direction="vertical" autoSaveId="planner-sidebar-v1">
+                      <ResizablePanel defaultSize={60} minSize={15} className="flex flex-col min-h-0">
+                        {hasMissingScheduleBlocks && (
+                          <Button
+                            variant="neutral"
+                            onClick={() => {
+                              recomputeCourses(schedule, manualCourses);
+                              showNotice('Byggstenar uppdaterade.', 'success');
+                            }}
+                            className="mb-3 shrink-0 sp-btn bg-emerald-100 hover:bg-emerald-200"
+                          >
+                            <RefreshCcw size={16} className="mr-2"/> Uppdatera byggstenar från schema
+                          </Button>
+                        )}
+                        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+                           {courses.map((c, idx) => {
+                             const visibleIdx = courses.filter((cc, ii) => ii < idx && advancedFilterMatch(cc, filterQuery)).length;
+                             return (
+                               <DraggableSourceCard
+                                 key={c.id}
+                                 course={c}
+                                 onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }}
+                                 onDelete={handleDeleteCourse}
+                                 isDerived={derivedCourseKeys.has(buildCourseDedupeKey(c)) && !manualCourseKeys.has(buildCourseDedupeKey(c))}
+                                 dragDisabled={isMobileDragDisabled}
+                                 hidden={!advancedFilterMatch(c, filterQuery)}
+                                 isSelected={activeZone === 'courses' && selectedCourseIndex === visibleIdx}
+                                 color={resolveColor(c.title, c.color)}
+                               />
+                             );
+                           })}
+                        </div>
+                      </ResizablePanel>
 
-                {/* Statistics */}
-                {!isSidebarCollapsed && (
-                  <div className="mt-4 pt-4 border-t-2 border-gray-100 mb-auto">
-                    <div className="flex items-center gap-2 mb-2 text-gray-500">
-                      <BarChart3 size={14} /> 
-                      <span className="text-xs font-bold uppercase">Tid (Filtrerat)</span>
-                    </div>
-                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Ämnen</div>
-                    <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
-                      {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> :
-                        scheduleStats.slice(0, 10).map(([title, minutes]) => (
-                          <div key={title} className="flex justify-between gap-2">
-                            <span className="truncate" title={title}>{title}</span>
-                            <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
-                          </div>
-                        ))
-                      }
-                    </div>
+                      <ResizableHandle
+                        withHandle
+                        className="my-3 shrink-0 cursor-row-resize"
+                        title="Dra för att ändra storlek på byggstenarna"
+                      />
 
-                    <div className="text-[10px] font-bold uppercase text-gray-400 mt-3 mb-1">Lärare</div>
-                    <div className="space-y-1 text-xs max-h-[100px] overflow-y-auto">
-                      {teacherStats.length === 0 ? <span className="text-gray-400 italic">Ingen lärare angiven</span> :
-                        teacherStats.map(([teacher, minutes]) => (
-                          <div key={teacher} className="flex justify-between gap-2">
-                            <span className="truncate" title={teacher}>{teacher}</span>
-                            <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
-                          </div>
-                        ))
-                      }
-                    </div>
+                      <ResizablePanel defaultSize={40} minSize={15} className="flex flex-col min-h-0">
+                        <div className="flex shrink-0 items-center gap-2 mb-2 text-gray-500">
+                          <BarChart3 size={14} />
+                          <span className="text-xs font-bold uppercase">Tid (Filtrerat)</span>
+                        </div>
+                        <div className="shrink-0 text-[10px] font-bold uppercase text-gray-400 mb-1">Ämnen</div>
+                        <div className="min-h-0 space-y-1 text-xs overflow-y-auto">
+                          {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> :
+                            scheduleStats.map(([title, minutes]) => (
+                              <div key={title} className="flex justify-between gap-2">
+                                <span className="truncate" title={title}>{title}</span>
+                                <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
+                              </div>
+                            ))
+                          }
+                        </div>
+
+                        <div className="shrink-0 text-[10px] font-bold uppercase text-gray-400 mt-3 mb-1">Lärare</div>
+                        <div className="min-h-0 space-y-1 text-xs overflow-y-auto">
+                          {teacherStats.length === 0 ? <span className="text-gray-400 italic">Ingen lärare angiven</span> :
+                            teacherStats.map(([teacher, minutes]) => (
+                              <div key={teacher} className="flex justify-between gap-2">
+                                <span className="truncate" title={teacher}>{teacher}</span>
+                                <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
+                              </div>
+                            ))
+                          }
+                        </div>
+                      </ResizablePanel>
+                    </ResizablePanelGroup>
                   </div>
                 )}
 
