@@ -31,7 +31,7 @@ export const mergeIntervalMinutes = (intervals: TimeInterval[]): number => {
 
 /**
  * Lärarfältet är fritext och kan innehålla flera lärare separerade med komma
- * ("Anna, Björn") eftersom SmartTextInput autofyller på det sättet.
+ * ("Anna, Björn").
  */
 export const splitTeacherNames = (value: unknown): string[] => {
   if (typeof value !== 'string') return [];

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -22,17 +22,19 @@ const normalizeAutofillValue = (value: string) => (
     .replace(/[\u0300-\u036f]/g, '')
 );
 
+const leadingWhitespace = (value: string) => (
+  value.slice(0, value.length - value.trimStart().length)
+);
+
 export function SmartTextInput({
   options,
   value,
   onChange,
-  minChars = 2,
+  minChars = 3,
   fieldId,
   label,
   placeholder
 }: SmartTextInputProps) {
-  const lastAutofillRef = useRef<string | null>(null);
-
   const normalizedOptions = useMemo(() => (
     options.map(option => ({
       raw: option,
@@ -40,28 +42,36 @@ export function SmartTextInput({
     }))
   ), [options]);
 
-  useEffect(() => {
-    if (lastAutofillRef.current === value) return;
-
-    const segments = value.split(',');
-    const lastSegment = segments[segments.length - 1];
+  /**
+   * Fyller i resten av namnet när det som skrivits matchar exakt ett
+   * alternativ. Fältet kan innehålla flera värden separerade med komma, så
+   * bara segmentet efter sista kommat fylls i – allt före lämnas orört,
+   * tecken för tecken. Inga kommatecken läggs till.
+   */
+  const completeLastSegment = (nextValue: string): string => {
+    const separatorIndex = nextValue.lastIndexOf(',');
+    const lastSegment = nextValue.slice(separatorIndex + 1);
     const trimmedSegment = lastSegment.trim();
 
-    if (trimmedSegment.length < minChars) return;
+    if (trimmedSegment.length < minChars) return nextValue;
 
     const query = normalizeAutofillValue(trimmedSegment);
     const matches = normalizedOptions.filter(option => option.normalized.startsWith(query));
-    if (matches.length !== 1) return;
+    if (matches.length !== 1) return nextValue;
 
     const match = matches[0].raw;
-    if (normalizeAutofillValue(match) === query && match === trimmedSegment) return;
+    if (match === trimmedSegment) return nextValue;
 
-    const prefix = segments.slice(0, -1).map(s => s.trim()).join(', ');
-    const newValue = prefix ? `${prefix}, ${match}, ` : `${match}, `;
+    const prefix = nextValue.slice(0, separatorIndex + 1);
+    return `${prefix}${leadingWhitespace(lastSegment)}${match}`;
+  };
 
-    lastAutofillRef.current = newValue;
-    onChange(newValue);
-  }, [value, minChars, normalizedOptions, onChange]);
+  const handleChange = (nextValue: string) => {
+    // Fyll bara i när användaren skriver till tecken. Blir fältet kortare
+    // raderar hen, och då ska texten få stå kvar som den är.
+    const isTyping = nextValue.length > value.length;
+    onChange(isTyping ? completeLastSegment(nextValue) : nextValue);
+  };
 
   return (
     <div className="space-y-1">
@@ -70,7 +80,7 @@ export function SmartTextInput({
         <Input
           id={fieldId}
           value={value}
-          onChange={event => onChange(event.target.value)}
+          onChange={event => handleChange(event.target.value)}
           onBlur={() => onChange(value.replace(/,\s*$/, ''))}
           placeholder={placeholder}
         />
