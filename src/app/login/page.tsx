@@ -78,7 +78,7 @@ export default function LoginPage() {
                     autoComplete="off"
                     className="border-2 border-black"
                   />
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-white/90">
                     Krävs för att skapa konto. Fråga den som äger appen.
                   </p>
                 </div>
@@ -108,7 +108,7 @@ export default function LoginPage() {
                 className="border-2 border-black"
               />
               {isRegister && (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-white/90">
                   Minst {MIN_PASSWORD_LENGTH} tecken.
                 </p>
               )}
@@ -126,7 +126,7 @@ export default function LoginPage() {
           <div className="mt-4 text-center">
             <button
               onClick={() => setIsRegister(!isRegister)}
-              className="text-[#ff6b6b] hover:underline"
+              className="font-medium text-white underline underline-offset-2 hover:no-underline"
               type="button"
             >
               {isRegister ? 'Har du redan ett konto? Logga in' : 'Inget konto? Registrera dig'}
