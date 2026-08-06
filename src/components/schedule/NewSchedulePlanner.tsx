@@ -24,6 +24,7 @@ import {
   ChevronUp,
   MoreVertical,
   Search,
+  Share2,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -211,6 +212,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleConfirmDeleteWeek,
     handleDuplicateWeek,
     handleConfirmOverwriteWeek,
+    shareWeekName,
+    setShareWeekName,
+    shareRecipient,
+    setShareRecipient,
+    isSharing,
+    handleShareWeek,
+    handleConfirmShareWeek,
     newScheduleName,
     setNewScheduleName,
     isNewScheduleDialogOpen,
@@ -1368,6 +1376,16 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                             <Button
                               size="sm"
                               variant="neutral"
+                              onClick={() => handleShareWeek(name)}
+                              className="h-8 w-8 p-0 sp-btn bg-emerald-100 hover:bg-emerald-200"
+                              aria-label={`Dela ${name}`}
+                              title={`Dela ${name}`}
+                            >
+                              <Share2 size={14}/>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="neutral"
                               onClick={() => handleDeleteWeek(name)}
                               className="h-8 w-8 p-0 sp-btn bg-rose-100 hover:bg-rose-200 text-rose-800"
                               aria-label={`Ta bort ${name}`}
@@ -1535,6 +1553,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         deleteWeekName={deleteWeekName}
         onDeleteWeekNameChange={setDeleteWeekName}
         onConfirmDeleteWeek={handleConfirmDeleteWeek}
+        shareWeekName={shareWeekName}
+        onShareWeekNameChange={setShareWeekName}
+        shareRecipient={shareRecipient}
+        onShareRecipientChange={setShareRecipient}
+        onConfirmShareWeek={handleConfirmShareWeek}
+        isSharing={isSharing}
         deleteCourseName={deleteCourseName}
         onDeleteCourseNameChange={(_value) => { setDeleteCourseId(null); }}
         onConfirmDeleteCourse={handleConfirmDeleteCourse}

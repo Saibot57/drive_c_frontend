@@ -46,6 +46,12 @@ type ScheduleModalsProps = {
   deleteWeekName: string | null;
   onDeleteWeekNameChange: (value: string | null) => void;
   onConfirmDeleteWeek: () => void;
+  shareWeekName: string | null;
+  onShareWeekNameChange: (value: string | null) => void;
+  shareRecipient: string;
+  onShareRecipientChange: (value: string) => void;
+  onConfirmShareWeek: () => void;
+  isSharing: boolean;
   deleteCourseName: string | null;
   onDeleteCourseNameChange: (value: string | null) => void;
   onConfirmDeleteCourse: () => void;
@@ -92,6 +98,12 @@ export function ScheduleModals({
   onConfirmOverwriteWeek,
   deleteWeekName,
   onDeleteWeekNameChange,
+  shareWeekName,
+  onShareWeekNameChange,
+  shareRecipient,
+  onShareRecipientChange,
+  onConfirmShareWeek,
+  isSharing,
   onConfirmDeleteWeek,
   deleteCourseName,
   onDeleteCourseNameChange,
@@ -391,6 +403,36 @@ export function ScheduleModals({
             <Button variant="neutral" onClick={() => onDeleteWeekNameChange(null)}>Avbryt</Button>
             <Button className="bg-rose-200 hover:bg-rose-300" onClick={onConfirmDeleteWeek}>Radera</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(shareWeekName)} onOpenChange={(open) => { if (!open) onShareWeekNameChange(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dela vecka</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); onConfirmShareWeek(); }} className="space-y-3">
+            <div>
+              <Label>Användarnamn</Label>
+              <Input
+                value={shareRecipient}
+                onChange={(e) => onShareRecipientChange(e.target.value)}
+                placeholder="t.ex. Anna"
+                autoFocus
+                autoComplete="off"
+              />
+            </div>
+            <p className="text-xs text-gray-600">
+              &quot;{shareWeekName}&quot; kopieras till mottagarens arkiv. De får en egen version
+              att redigera — dina senare ändringar följer inte med.
+            </p>
+            <DialogFooter>
+              <Button type="button" variant="neutral" onClick={() => onShareWeekNameChange(null)}>Avbryt</Button>
+              <Button type="submit" disabled={isSharing || !shareRecipient.trim()}>
+                {isSharing ? 'Delar…' : 'Dela'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

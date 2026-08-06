@@ -9,6 +9,12 @@ type PlannerSyncResponse = {
   count: number;
 };
 
+type ShareArchiveResult = {
+  archiveName: string;
+  recipient: string;
+  count: number;
+};
+
 type PlannerSyncPayload = {
   activities?: unknown;
   count?: unknown;
@@ -126,6 +132,24 @@ export const plannerService = {
     if (!response.ok) {
       throw new Error('Kunde inte ta bort planeringsarkiv.');
     }
+  },
+
+  async shareArchive(name: string, toUsername: string): Promise<ShareArchiveResult> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/share`, {
+      method: 'POST',
+      body: JSON.stringify({ archiveName: name, toUsername }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      // The backend sends a user-facing Swedish reason (unknown user, empty
+      // archive, rate limited) - surface it instead of a generic message.
+      throw new Error(payload?.error || 'Kunde inte dela arkivet.');
+    }
+    return {
+      archiveName: payload?.data?.archiveName ?? name,
+      recipient: payload?.data?.recipient ?? toUsername,
+      count: payload?.data?.count ?? 0,
+    };
   },
 
   async getPlannerArchiveNames(): Promise<string[]> {

@@ -167,6 +167,46 @@ export const useArchiveManager = ({
     setOverwriteWeekName(null);
   }, [overwriteWeekName, saveWeekArchive]);
 
+  // --- Dela arkiv ---
+  // Delning är en engångskopia: mottagaren får egna rader och kan redigera
+  // dem fritt utan att det påverkar arkivet här.
+  const [shareWeekName, setShareWeekName] = useState<string | null>(null);
+  const [shareRecipient, setShareRecipient] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
+
+  const handleShareWeek = useCallback((name: string) => {
+    setShareRecipient('');
+    setShareWeekName(name);
+  }, []);
+
+  const handleConfirmShareWeek = useCallback(async () => {
+    if (!shareWeekName) return;
+    const recipient = shareRecipient.trim();
+    if (!recipient) {
+      showNotice('Ange vem du vill dela med.', 'warning');
+      return;
+    }
+
+    setIsSharing(true);
+    try {
+      const result = await plannerService.shareArchive(shareWeekName, recipient);
+      setShareWeekName(null);
+      setShareRecipient('');
+      showNotice(
+        `"${shareWeekName}" delades med ${result.recipient} som "${result.archiveName}".`,
+        'success'
+      );
+    } catch (error) {
+      console.error('Archive share failed', error);
+      showNotice(
+        error instanceof Error ? error.message : 'Kunde inte dela arkivet.',
+        'error'
+      );
+    } finally {
+      setIsSharing(false);
+    }
+  }, [shareRecipient, shareWeekName, showNotice]);
+
   const [newScheduleName, setNewScheduleName] = useState('');
   const [isNewScheduleDialogOpen, setIsNewScheduleDialogOpen] = useState(false);
 
@@ -206,6 +246,13 @@ export const useArchiveManager = ({
     handleConfirmDeleteWeek,
     handleDuplicateWeek,
     handleConfirmOverwriteWeek,
+    shareWeekName,
+    setShareWeekName,
+    shareRecipient,
+    setShareRecipient,
+    isSharing,
+    handleShareWeek,
+    handleConfirmShareWeek,
     newScheduleName,
     setNewScheduleName,
     isNewScheduleDialogOpen,
