@@ -1,0 +1,10 @@
+/* ── Temakalender ── */
+
+/* Tomma tårtbitar är osynliga tills man är på väg att fylla dem. */
+.theme-wheel-empty-cell {
+  transition: fill 120ms ease;
+}
+
+.theme-wheel-empty-cell:hover {
+  fill: rgba(0, 0, 0, 0.06);
+}

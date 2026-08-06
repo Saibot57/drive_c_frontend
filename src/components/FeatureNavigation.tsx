@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, Users, Briefcase, Terminal, LogOut, LogIn } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, PieChart, Users, Briefcase, Terminal, LogOut, LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const features = [
   { label: 'Bibliotek',       href: '/',                            icon: Library   },
   { label: 'Schema',          href: '/features/schedule',           icon: Calendar  },
+  { label: 'Temakalender',    href: '/features/temakalender',       icon: PieChart  },
   { label: 'Familjeschema',   href: '/features/familjeschema',      icon: Users     },
   { label: 'Skrivbord',        href: '/features/command-center',     icon: Terminal  },
   { label: 'Workspace',       href: '/workspace',                   icon: Briefcase },
