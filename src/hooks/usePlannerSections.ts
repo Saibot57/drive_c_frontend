@@ -3,11 +3,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SIDEBAR_SECTIONS_KEY } from '@/components/schedule/constants';
 
-export type PlannerSection = 'courses' | 'stats';
+export type PlannerSection = 'courses' | 'stats' | 'subjects' | 'teachers';
 
 export type PlannerSectionState = Record<PlannerSection, boolean>;
 
-const DEFAULT_SECTIONS: PlannerSectionState = { courses: true, stats: true };
+const DEFAULT_SECTIONS: PlannerSectionState = {
+  courses: true,
+  stats: true,
+  subjects: true,
+  teachers: true
+};
 
 /**
  * Håller reda på vilka sektioner i sidopanelen som är utfällda. Lägena sparas
@@ -22,10 +27,16 @@ export const usePlannerSections = () => {
       const stored = window.localStorage.getItem(SIDEBAR_SECTIONS_KEY);
       if (!stored) return;
       const parsed = JSON.parse(stored);
-      setSections({
-        courses: typeof parsed?.courses === 'boolean' ? parsed.courses : DEFAULT_SECTIONS.courses,
-        stats: typeof parsed?.stats === 'boolean' ? parsed.stats : DEFAULT_SECTIONS.stats
-      });
+      // Sektioner som saknas i sparad data får sitt standardläge, så äldre
+      // lagrade värden fungerar när en ny sektion tillkommer.
+      setSections(
+        Object.fromEntries(
+          Object.entries(DEFAULT_SECTIONS).map(([section, fallback]) => [
+            section,
+            typeof parsed?.[section] === 'boolean' ? parsed[section] : fallback
+          ])
+        ) as PlannerSectionState
+      );
     } catch (error) {
       console.warn('Kunde inte läsa sidopanelens sektioner.', error);
     }

@@ -813,29 +813,51 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const statsContent = (
     <>
-      <div className="shrink-0 text-[10px] font-bold uppercase text-gray-400 mb-1">Ämnen</div>
-      <div className="min-h-0 space-y-1 text-xs overflow-y-auto">
-        {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> :
-          scheduleStats.map(([title, minutes]) => (
-            <div key={title} className="flex justify-between gap-2">
-              <span className="truncate" title={title}>{title}</span>
-              <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
-            </div>
-          ))
-        }
-      </div>
+      <button
+        type="button"
+        onClick={() => toggleSection('subjects')}
+        aria-expanded={sections.subjects}
+        title={sections.subjects ? 'Fäll ihop ämnen' : 'Fäll ut ämnen'}
+        className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase text-gray-400 mb-1 hover:text-gray-600 transition-colors"
+      >
+        Ämnen
+        {sections.subjects ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+      {sections.subjects && (
+        <div className="min-h-0 space-y-1 text-xs overflow-y-auto">
+          {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> :
+            scheduleStats.map(([title, minutes]) => (
+              <div key={title} className="flex justify-between gap-2">
+                <span className="truncate" title={title}>{title}</span>
+                <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
+              </div>
+            ))
+          }
+        </div>
+      )}
 
-      <div className="shrink-0 text-[10px] font-bold uppercase text-gray-400 mt-3 mb-1">Lärare</div>
-      <div className="min-h-0 space-y-1 text-xs overflow-y-auto">
-        {teacherStats.length === 0 ? <span className="text-gray-400 italic">Ingen lärare angiven</span> :
-          teacherStats.map(([teacher, minutes]) => (
-            <div key={teacher} className="flex justify-between gap-2">
-              <span className="truncate" title={teacher}>{teacher}</span>
-              <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
-            </div>
-          ))
-        }
-      </div>
+      <button
+        type="button"
+        onClick={() => toggleSection('teachers')}
+        aria-expanded={sections.teachers}
+        title={sections.teachers ? 'Fäll ihop lärare' : 'Fäll ut lärare'}
+        className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase text-gray-400 mt-3 mb-1 hover:text-gray-600 transition-colors"
+      >
+        Lärare
+        {sections.teachers ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+      {sections.teachers && (
+        <div className="min-h-0 space-y-1 text-xs overflow-y-auto">
+          {teacherStats.length === 0 ? <span className="text-gray-400 italic">Ingen lärare angiven</span> :
+            teacherStats.map(([teacher, minutes]) => (
+              <div key={teacher} className="flex justify-between gap-2">
+                <span className="truncate" title={teacher}>{teacher}</span>
+                <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
+              </div>
+            ))
+          }
+        </div>
+      )}
     </>
   );
 
