@@ -13,7 +13,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const router = useRouter();
+
+  const MIN_PASSWORD_LENGTH = 10;
   
   const { login, register, isAuthenticated, error, isLoading } = useAuth();
 
@@ -28,7 +31,7 @@ export default function LoginPage() {
     e.preventDefault();
     
     if (isRegister) {
-      await register(username, password, email);
+      await register(username, password, inviteCode, email);
     } else {
       await login(username, password);
     }
@@ -63,18 +66,36 @@ export default function LoginPage() {
             </div>
             
             {isRegister && (
-              <div className="space-y-2">
-                <Label htmlFor="email">E-post (valfritt)</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="border-2 border-black"
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="inviteCode">Inbjudningskod</Label>
+                  <Input
+                    id="inviteCode"
+                    type="text"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    required
+                    autoComplete="off"
+                    className="border-2 border-black"
+                  />
+                  <p className="text-xs text-gray-600">
+                    Krävs för att skapa konto. Fråga den som äger appen.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-post (valfritt)</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="border-2 border-black"
+                  />
+                </div>
+              </>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Lösenord</Label>
               <Input
@@ -83,10 +104,16 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={isRegister ? MIN_PASSWORD_LENGTH : undefined}
                 className="border-2 border-black"
               />
+              {isRegister && (
+                <p className="text-xs text-gray-600">
+                  Minst {MIN_PASSWORD_LENGTH} tecken.
+                </p>
+              )}
             </div>
-            
+
             <Button
               type="submit"
               disabled={isLoading}

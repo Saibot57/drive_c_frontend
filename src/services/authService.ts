@@ -75,13 +75,13 @@ const authService = {
     return data;
   },
   
-  register: async (username: string, password: string, email?: string) => {
+  register: async (username: string, password: string, inviteCode: string, email?: string) => {
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password, email }),
+      body: JSON.stringify({ username, password, inviteCode, email }),
     });
     
     return await response.json();
