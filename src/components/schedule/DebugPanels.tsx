@@ -157,11 +157,11 @@ function ColorTriggerList({ triggers, onChange }: ColorTriggerListProps) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       {triggers.length === 0 ? (
         <p className="text-sm text-gray-500 italic">Inga färgregler ännu.</p>
       ) : (
-        <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+        <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
           {triggers.map((trigger, index) => (
             <div key={trigger.id} className="flex items-center gap-2">
               <span className="w-5 shrink-0 text-xs font-bold text-gray-400">{index + 1}</span>
@@ -208,6 +208,7 @@ function ColorTriggerList({ triggers, onChange }: ColorTriggerListProps) {
         type="button"
         size="sm"
         variant="neutral"
+        className="shrink-0 self-start"
         onClick={() => onChange([...triggers, { id: uuidv4(), word: '', color: DEFAULT_COURSE_COLOR }])}
       >
         <Plus size={14} className="mr-1" /> Lägg till färgregel
@@ -264,34 +265,36 @@ export function HiddenSettingsPanel({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Hidden settings</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
+      {/* Nära fullskärm. Kolumnerna scrollar var för sig så fönstret självt
+          aldrig behöver scrollas. pt-10 ger plats åt stängkrysset, som annars
+          hamnar ovanpå innehållet nu när rubriken är dold. */}
+      <DialogContent className="flex flex-col gap-4 w-[96vw] max-w-none h-[92vh] max-h-[92vh] p-6 pt-10">
+        <DialogTitle className="sr-only">Dolda inställningar</DialogTitle>
+
+        <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(240px,1fr)_minmax(420px,2fr)_minmax(300px,1.4fr)]">
+          <div className="flex min-h-0 flex-col gap-4">
+            <div className="flex min-h-0 flex-1 flex-col space-y-1">
               <Label htmlFor="hidden-teachers">Lärare (en per rad)</Label>
               <Textarea
                 id="hidden-teachers"
                 value={teacherText}
                 onChange={event => setTeacherText(event.target.value)}
-                rows={6}
+                className="min-h-0 flex-1 resize-none"
               />
             </div>
-            <div className="space-y-1">
+            <div className="flex min-h-0 flex-1 flex-col space-y-1">
               <Label htmlFor="hidden-rooms">Salar (en per rad)</Label>
               <Textarea
                 id="hidden-rooms"
                 value={roomText}
                 onChange={event => setRoomText(event.target.value)}
-                rows={6}
+                className="min-h-0 flex-1 resize-none"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div>
+          <div className="flex min-h-0 flex-col">
+            <div className="shrink-0">
               <Label>När lärare inte kan schemaläggas</Label>
               <p className="text-xs text-gray-500">
                 Klicka på en dag för att spärra hela dagen. Pilen fäller ut förmiddag
@@ -301,11 +304,11 @@ export function HiddenSettingsPanel({
             </div>
 
             {teacherRows.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">
-                Lägg till lärare i listan ovan för att kunna spärra dagar.
+              <p className="mt-2 text-sm text-gray-500 italic">
+                Lägg till lärare i listan till vänster för att kunna spärra dagar.
               </p>
             ) : (
-              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+              <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {teacherRows.map(teacher => (
                   <TeacherAvailabilityRow
                     key={teacher}
@@ -320,8 +323,8 @@ export function HiddenSettingsPanel({
             )}
           </div>
 
-          <div className="space-y-2">
-            <div>
+          <div className="flex min-h-0 flex-col">
+            <div className="shrink-0 mb-2">
               <Label>Färg efter ord i titeln</Label>
               <p className="text-xs text-gray-500">
                 Innehåller titeln ordet får posten den valda färgen. Hela ord matchar,
@@ -333,7 +336,8 @@ export function HiddenSettingsPanel({
             <ColorTriggerList triggers={triggers} onChange={setTriggers} />
           </div>
         </div>
-        <DialogFooter>
+
+        <DialogFooter className="shrink-0">
           <Button variant="neutral" onClick={handleSave} className="border-2 border-black">
             Spara
           </Button>
