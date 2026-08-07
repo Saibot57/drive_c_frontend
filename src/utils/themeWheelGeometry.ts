@@ -5,9 +5,10 @@
  * mellan datamodellen (vecka, ring) och det som ritas. Allt räknas i grader där
  * 0° är klockan tolv och vinkeln växer medurs, samt i radie från hjulets mitt.
  *
- * Ringhöjden är enhetlig i hela hjulet – ring 1 betyder samma sak i alla veckor
- * – men beror på hur många ringar hjulet använder. Måtten räknas därför fram
- * per hjul med buildWheelMetrics().
+ * Ring 1 betyder samma sak i alla veckor, och ringhöjden beror på hur många
+ * ringar hjulet använder. En ring som innehåller delområden delas på höjden
+ * och får därför extra plats – ringar kan alltså vara olika tjocka. Måtten
+ * räknas fram per hjul med buildWheelMetrics().
  */
 
 /** Hålet i mitten där temats namn står. */
@@ -16,6 +17,17 @@ export const HUB_RADIUS = 96;
 export const BASE_RING_HEIGHT = 92;
 /** Under detta går texten inte att läsa; då växer hjulet i stället. */
 export const MIN_RING_HEIGHT = 24;
+/**
+ * En ring som innehåller delområden delas på höjden och behöver mer plats.
+ * Efter avdrag för luften mellan ringar och mellan lanor ger 94 px ungefär
+ * 54 åt arbetsområdet och 35 åt delområdet – båda över COMMENT_MIN_RING_HEIGHT,
+ * så att bägge kan visa en kommentar.
+ */
+export const NESTED_MIN_RING_HEIGHT = 94;
+/** Arbetsområdets andel av en delad ring. Delområdena delar på resten. */
+export const PARENT_LANE_SHARE = 0.6;
+/** Luft mellan arbetsområdets lana och delområdets. */
+export const LANE_GAP_PX = 2;
 /** Ringen utanför banden med veckonummer och datum. */
 export const AXIS_RING_HEIGHT = 40;
 /** Luft mellan ytterringen och SVG-kanten. */
@@ -43,10 +55,24 @@ export interface AngleSpan {
   end: number;
 }
 
+/** Vilken del av ringens höjd ett block upptar. */
+export type BlockLane =
+  /** Hela ringen – ett arbetsområde utan delområden. */
+  | 'full'
+  /** Inre delen – ett arbetsområde som har delområden. */
+  | 'parent'
+  /** Yttre delen – ett delområde. */
+  | 'child';
+
 /** Alla mått ett hjul behöver, härledda ur antalet ringar det faktiskt använder. */
 export interface WheelMetrics {
   ringCount: number;
-  ringHeight: number;
+  /** Höjd per ring. Ringar med delområden är högre än de övriga. */
+  ringHeights: number[];
+  /** Inre radie per ring, kumulativ eftersom höjderna kan skilja sig åt. */
+  ringInner: number[];
+  /** Höjden en ring utan delområden får. */
+  baseRingHeight: number;
   hubRadius: number;
   /** Ytterkanten på arbetsområdenas band. */
   contentOuter: number;
@@ -67,17 +93,37 @@ export const ringHeightFor = (ringCount: number): number => {
   return Math.max(MIN_RING_HEIGHT, (BASE_RING_HEIGHT * 3) / (rings + 2));
 };
 
-export const buildWheelMetrics = (ringCount: number): WheelMetrics => {
+export const buildWheelMetrics = (
+  ringCount: number,
+  ringsWithChildren: ReadonlySet<number> = new Set()
+): WheelMetrics => {
   const rings = Math.max(ringCount, 1);
-  const ringHeight = ringHeightFor(rings);
-  const contentOuter = HUB_RADIUS + rings * ringHeight;
+  const baseRingHeight = ringHeightFor(rings);
+
+  // Bara de ringar som faktiskt delas får extra höjd. Hjulet växer alltså
+  // lokalt där det behövs i stället för överallt.
+  const ringHeights: number[] = [];
+  const ringInner: number[] = [];
+  let radius = HUB_RADIUS;
+  for (let ring = 0; ring < rings; ring++) {
+    const height = ringsWithChildren.has(ring)
+      ? Math.max(baseRingHeight, NESTED_MIN_RING_HEIGHT)
+      : baseRingHeight;
+    ringInner.push(radius);
+    ringHeights.push(height);
+    radius += height;
+  }
+
+  const contentOuter = radius;
   const axisInner = contentOuter + 2;
   const axisOuter = axisInner + AXIS_RING_HEIGHT;
   const size = (axisOuter + WHEEL_PADDING) * 2;
 
   return {
     ringCount: rings,
-    ringHeight,
+    ringHeights,
+    ringInner,
+    baseRingHeight,
     hubRadius: HUB_RADIUS,
     contentOuter,
     axisInner,
@@ -128,11 +174,26 @@ export const weekSpanAngles = (
 
 /** Radierna för en ring, räknat från mitten och utåt. */
 export const ringRadii = (metrics: WheelMetrics, ring: number): Radii => {
-  const inner = metrics.hubRadius + ring * metrics.ringHeight;
+  const index = Math.min(Math.max(ring, 0), metrics.ringCount - 1);
+  const inner = metrics.ringInner[index];
   return {
     inner: inner + RING_GAP_PX / 2,
-    outer: inner + metrics.ringHeight - RING_GAP_PX / 2,
+    outer: inner + metrics.ringHeights[index] - RING_GAP_PX / 2,
   };
+};
+
+/**
+ * Radierna för en lana inom en ring. Ett arbetsområde utan delområden fyller
+ * hela ringen; har det delområden lägger det sig innerst och delområdena ytterst.
+ */
+export const laneRadii = (metrics: WheelMetrics, ring: number, lane: BlockLane): Radii => {
+  const { inner, outer } = ringRadii(metrics, ring);
+  if (lane === 'full') return { inner, outer };
+
+  const split = inner + (outer - inner) * PARENT_LANE_SHARE;
+  return lane === 'parent'
+    ? { inner, outer: split - LANE_GAP_PX / 2 }
+    : { inner: split + LANE_GAP_PX / 2, outer };
 };
 
 /** Beskriver en tårtbit (ringsegment) som en sluten SVG-path. */
@@ -207,8 +268,19 @@ export const weekFromAngle = (degrees: number, weekCount: number): number => {
 
 /** Vilken ring en radie ligger i. Utanför banden ger närmaste giltiga ring. */
 export const ringFromRadius = (metrics: WheelMetrics, radius: number): number => {
-  const index = Math.floor((radius - metrics.hubRadius) / metrics.ringHeight);
-  return Math.min(Math.max(index, 0), metrics.ringCount - 1);
+  for (let ring = metrics.ringCount - 1; ring >= 0; ring--) {
+    if (radius >= metrics.ringInner[ring]) return ring;
+  }
+  return 0;
+};
+
+/**
+ * Ringen under pekaren vid ett släpp. Får bli en högre än de befintliga, så
+ * att ett arbetsområde kan läggas parallellt i en vecka som redan är full.
+ */
+export const targetRingFromRadius = (metrics: WheelMetrics, radius: number): number => {
+  if (radius >= metrics.contentOuter) return metrics.ringCount;
+  return ringFromRadius(metrics, radius);
 };
 
 /** Vinkel och radie för en punkt relativt hjulets mitt. */

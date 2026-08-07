@@ -2,7 +2,12 @@
 
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { ThemeArea, ThemeBlock } from '@/types/themeWheel';
-import { WheelMetrics, pointToPolar, weekFromAngle } from '@/utils/themeWheelGeometry';
+import {
+  WheelMetrics,
+  pointToPolar,
+  targetRingFromRadius,
+  weekFromAngle,
+} from '@/utils/themeWheelGeometry';
 import { BlockPlacement } from '@/utils/themeWheelLayout';
 
 /**
@@ -96,10 +101,9 @@ export const useWheelInteraction = ({
 
     if (radius > m.axisOuter) return null;
 
-    const rawRing = Math.floor((radius - m.hubRadius) / m.ringHeight);
     return {
       week: weekFromAngle(degrees, weeks),
-      ring: Math.min(Math.max(rawRing, 0), m.ringCount),
+      ring: targetRingFromRadius(m, radius),
     };
   }, [svgRef]);
 

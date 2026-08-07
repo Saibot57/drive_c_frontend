@@ -23,6 +23,7 @@ export type LoadStatus = 'loading' | 'loaded' | 'error';
 const canonicalBlock = (block: ThemeBlock) => ({
   instanceId: block.instanceId,
   areaId: block.areaId || undefined,
+  parentId: block.parentId || undefined,
   title: block.title.trim(),
   color: block.color,
   comment: block.comment?.trim() || undefined,

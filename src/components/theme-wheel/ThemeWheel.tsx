@@ -7,6 +7,7 @@ import { buildWheelWeeks, currentWheelIndex } from '@/utils/themeWheelWeeks';
 import {
   buildWheelMetrics,
   describeSector,
+  laneRadii,
   ringRadii,
   truncateToWidth,
   weekSpanAngles,
@@ -28,7 +29,8 @@ type ThemeWheelProps = {
   onSelectBlock?: (block: ThemeBlock) => void;
   onOpenBlockEditor?: (block: ThemeBlock) => void;
   onBlockContextMenu?: (event: React.MouseEvent, block: ThemeBlock) => void;
-  onEmptyCellClick?: (week: number, ring: number) => void;
+  /** parentId satt = rutan ligger i ett arbetsområdes yttre lana, alltså ett delområde. */
+  onEmptyCellClick?: (week: number, ring: number, parentId?: string) => void;
   onWeekClick?: (week: number) => void;
   onWeekContextMenu?: (event: React.MouseEvent, week: number) => void;
   onBackgroundClick?: () => void;
@@ -55,31 +57,54 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
     [wheel.startWeek, wheel.startYear, wheel.weekCount]
   );
 
-  const { placementByBlock, ringCount } = useMemo(
+  const { placementByBlock, ringCount, ringsWithChildren } = useMemo(
     () => buildRingLayout(wheel.blocks, wheel.weekCount),
     [wheel.blocks, wheel.weekCount]
   );
 
-  const metrics = useMemo(() => buildWheelMetrics(ringCount), [ringCount]);
+  const metrics = useMemo(
+    () => buildWheelMetrics(ringCount, ringsWithChildren),
+    [ringCount, ringsWithChildren]
+  );
   const todayIndex = useMemo(() => currentWheelIndex(weeks, today), [weeks, today]);
 
-  /** Lediga rutor att klicka på. Beräknas ur samma placeringar som ritas. */
+  /**
+   * Lediga rutor att klicka på. Två sorter: hela ringar där inget arbetsområde
+   * ligger, och den yttre lanan inuti ett arbetsområde som redan har
+   * delområden – där skapar ett klick ett nytt delområde.
+   */
   const emptyCells = useMemo(() => {
     const occupied = new Set<string>();
-    placementByBlock.forEach(placement => {
+    const childWeeks = new Set<string>();
+
+    wheel.blocks.forEach(block => {
+      const placement = placementByBlock.get(block.instanceId);
+      if (!placement) return;
       for (let week = placement.startWeek; week <= placement.endWeek; week++) {
-        occupied.add(`${week}:${placement.ring}`);
+        if (placement.lane === 'child') childWeeks.add(`${block.parentId}:${week}`);
+        else occupied.add(`${week}:${placement.ring}`);
       }
     });
 
-    const cells: { week: number; ring: number }[] = [];
+    const cells: { week: number; ring: number; lane: 'full' | 'child'; parentId?: string }[] = [];
+
     for (let week = 0; week < wheel.weekCount; week++) {
       for (let ring = 0; ring < ringCount; ring++) {
-        if (!occupied.has(`${week}:${ring}`)) cells.push({ week, ring });
+        if (!occupied.has(`${week}:${ring}`)) cells.push({ week, ring, lane: 'full' });
       }
     }
+
+    wheel.blocks.forEach(block => {
+      const placement = placementByBlock.get(block.instanceId);
+      if (!placement || placement.lane !== 'parent') return;
+      for (let week = placement.startWeek; week <= placement.endWeek; week++) {
+        if (childWeeks.has(`${block.instanceId}:${week}`)) continue;
+        cells.push({ week, ring: placement.ring, lane: 'child', parentId: block.instanceId });
+      }
+    });
+
     return cells;
-  }, [placementByBlock, ringCount, wheel.weekCount]);
+  }, [placementByBlock, ringCount, wheel.blocks, wheel.weekCount]);
 
   const previewSector = useMemo(() => {
     if (!preview) return null;
@@ -89,7 +114,7 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
     const ring = Math.min(preview.ring, metrics.ringCount - 1);
     const isNewRing = preview.ring >= metrics.ringCount;
     const { inner, outer } = ringRadii(metrics, ring);
-    const shift = isNewRing ? metrics.ringHeight : 0;
+    const shift = isNewRing ? metrics.baseRingHeight : 0;
     return describeSector(metrics, inner + shift, outer + shift, start, end);
   }, [metrics, preview, wheel.weekCount]);
 
@@ -123,18 +148,22 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
 
       {onEmptyCellClick && emptyCells.map(cell => {
         const { start, end } = weekSpanAngles(cell.week, cell.week, wheel.weekCount);
-        const { inner, outer } = ringRadii(metrics, cell.ring);
+        const { inner, outer } = laneRadii(metrics, cell.ring, cell.lane);
         return (
           <path
-            key={`empty-${cell.week}-${cell.ring}`}
+            key={`empty-${cell.lane}-${cell.parentId ?? ''}-${cell.week}-${cell.ring}`}
             d={describeSector(metrics, inner, outer, start, end)}
             fill="transparent"
             className="theme-wheel-empty-cell"
             style={{ cursor: 'copy' }}
             data-export="omit"
-            onClick={() => onEmptyCellClick(cell.week, cell.ring)}
+            onClick={() => onEmptyCellClick(cell.week, cell.ring, cell.parentId)}
           >
-            <title>Klicka för att lägga till ett arbetsområde</title>
+            <title>
+              {cell.parentId
+                ? 'Klicka för att lägga till ett delområde'
+                : 'Klicka för att lägga till ett arbetsområde'}
+            </title>
           </path>
         );
       })}

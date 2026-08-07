@@ -30,6 +30,8 @@ type ThemeWheelModalsProps = {
   onDeleteBlock: (instanceId: string) => void;
   /** Falskt när blocket ännu inte lagts till – då finns inget att ta bort. */
   isExistingBlock: boolean;
+  /** Arbetsområdet blocket är ett delområde av, om det är ett delområde. */
+  blockParent: ThemeBlock | null;
 
   editingSettings: ThemeWheel | null;
   setEditingSettings: React.Dispatch<React.SetStateAction<ThemeWheel | null>>;
@@ -65,6 +67,7 @@ export function ThemeWheelModals({
   onCloseBlock,
   onDeleteBlock,
   isExistingBlock,
+  blockParent,
   editingSettings,
   setEditingSettings,
   onSaveSettings,
@@ -73,6 +76,11 @@ export function ThemeWheelModals({
   onCancelDeleteArea,
   onConfirmDeleteArea,
 }: ThemeWheelModalsProps) {
+  // Ett delområde får bara välja bland förälderns veckor.
+  const selectableWeeks = blockParent
+    ? weeks.filter(week => week.index >= blockParent.startWeek && week.index <= blockParent.endWeek)
+    : weeks;
+
   return (
     <>
       <Dialog open={Boolean(editingArea)} onOpenChange={open => { if (!open) onCloseArea(); }}>
@@ -123,9 +131,20 @@ export function ThemeWheelModals({
 
       <Dialog open={Boolean(editingBlock)} onOpenChange={open => { if (!open) onCloseBlock(); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Arbetsområde i hjulet</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{blockParent ? 'Delområde' : 'Arbetsområde i hjulet'}</DialogTitle>
+          </DialogHeader>
           {editingBlock && (
             <form onSubmit={onSaveBlock} onKeyDown={ctrlEnter(onSaveBlock)} className="space-y-3">
+              {blockParent && (
+                <p className="flex items-center gap-2 text-xs text-gray-600">
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full border border-black"
+                    style={{ backgroundColor: blockParent.color }}
+                  />
+                  Ligger inom &quot;{blockParent.title}&quot; och kan bara sträcka sig över dess veckor.
+                </p>
+              )}
               <div className="space-y-1">
                 <Label htmlFor="block-title">Namn</Label>
                 <Input
@@ -162,7 +181,7 @@ export function ThemeWheelModals({
                       });
                     }}
                   >
-                    {weeks.map(week => (
+                    {selectableWeeks.map(week => (
                       <option key={week.index} value={week.index}>{week.label}</option>
                     ))}
                   </select>
@@ -182,7 +201,7 @@ export function ThemeWheelModals({
                       });
                     }}
                   >
-                    {weeks.map(week => (
+                    {selectableWeeks.map(week => (
                       <option key={week.index} value={week.index}>{week.label}</option>
                     ))}
                   </select>

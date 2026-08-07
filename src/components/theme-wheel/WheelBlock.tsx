@@ -10,9 +10,9 @@ import {
   describeTextArc,
   fitFontSize,
   isFlippedAngle,
+  laneRadii,
   polar,
   radialTextRotation,
-  ringRadii,
   truncateToWidth,
   weekSpanAngles,
 } from '@/utils/themeWheelGeometry';
@@ -69,7 +69,7 @@ export function WheelBlock({
   onContextMenu,
 }: WheelBlockProps) {
   const { start, end } = weekSpanAngles(placement.startWeek, placement.endWeek, weekCount);
-  const { inner, outer } = ringRadii(metrics, placement.ring);
+  const { inner, outer } = laneRadii(metrics, placement.ring, placement.lane);
   const midAngle = (start + end) / 2;
   const midRadius = (inner + outer) / 2;
   const ringHeight = outer - inner;

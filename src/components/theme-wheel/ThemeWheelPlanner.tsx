@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ThemeArea, ThemeBlock, ThemeWheel as ThemeWheelData } from '@/types/themeWheel';
-import { buildRingLayout, weeksPerArea } from '@/utils/themeWheelLayout';
+import { buildRingLayout, childrenOf, freeWeeksInParent, weeksPerArea } from '@/utils/themeWheelLayout';
 import { buildWheelMetrics } from '@/utils/themeWheelGeometry';
 import { buildWheelWeeks } from '@/utils/themeWheelWeeks';
 import {
@@ -19,6 +19,7 @@ import {
   mergeAreas,
 } from '@/utils/themeWheelAreas';
 import { generateBoxColor } from '@/config/colorManagement';
+import { deriveChildColor } from '@/utils/readableTextColor';
 import { useThemeWheelHistory } from '@/hooks/useThemeWheelHistory';
 import { useThemeWheelSync } from '@/hooks/useThemeWheelSync';
 import { parseWheelFile, useThemeWheelExport } from '@/hooks/useThemeWheelExport';
@@ -107,12 +108,28 @@ export default function ThemeWheelPlanner() {
   );
 
   // Samma beräkning som ThemeWheel gör internt. Pekarlagret behöver måtten för
-  // att kunna räkna om en skärmposition till vecka och ring.
-  const ringCount = useMemo(
-    () => buildRingLayout(wheel.blocks, wheel.weekCount).ringCount,
+  // att kunna räkna om en skärmposition till vecka och ring, och släpplogiken
+  // behöver placeringarna för att veta vad man släppte ovanpå.
+  const layout = useMemo(
+    () => buildRingLayout(wheel.blocks, wheel.weekCount),
     [wheel.blocks, wheel.weekCount]
   );
-  const metrics = useMemo(() => buildWheelMetrics(ringCount), [ringCount]);
+  const metrics = useMemo(
+    () => buildWheelMetrics(layout.ringCount, layout.ringsWithChildren),
+    [layout]
+  );
+
+  /** Arbetsområdet som ligger i en viss ring och vecka, om något gör det. */
+  const hostAt = useCallback((ring: number, week: number) => (
+    wheel.blocks.find(block => {
+      const placement = layout.placementByBlock.get(block.instanceId);
+      return placement
+        && placement.lane !== 'child'
+        && placement.ring === ring
+        && week >= placement.startWeek
+        && week <= placement.endWeek;
+    }) ?? null
+  ), [layout, wheel.blocks]);
 
   const areas = useMemo(
     () => mergeAreas(manualAreas, deriveAreasFromBlocks(wheel.blocks)),
@@ -134,6 +151,34 @@ export default function ThemeWheelPlanner() {
     target: { startWeek: number; endWeek: number; ring: number }
   ) => {
     const instanceId = uuidv4();
+    // Släpps området ovanpå ett befintligt arbetsområde blir det ett delområde
+    // i stället för att tryckas ut i en ny ring. Det är hela poängen: hjulet
+    // ska inte växa bara för att något ska rymmas inuti något annat.
+    const host = hostAt(target.ring, target.startWeek);
+
+    if (host) {
+      if (!freeWeeksInParent(wheel.blocks, host).includes(target.startWeek)) {
+        showNotice('Veckan har redan ett delområde.', 'warning');
+        return;
+      }
+      const siblings = childrenOf(wheel.blocks, host.instanceId).length;
+      commit(prev => ({
+        ...prev,
+        blocks: [...prev.blocks, {
+          instanceId,
+          parentId: host.instanceId,
+          areaId: isDerivedArea(area) ? undefined : area.id,
+          title: area.title,
+          color: deriveChildColor(host.color, siblings),
+          comment: area.comment,
+          startWeek: target.startWeek,
+          endWeek: target.startWeek,
+        }],
+      }));
+      setSelectedInstanceId(instanceId);
+      return;
+    }
+
     commit(prev => ({
       ...prev,
       blocks: [...prev.blocks, {
@@ -148,7 +193,7 @@ export default function ThemeWheelPlanner() {
       }],
     }));
     setSelectedInstanceId(instanceId);
-  }, [commit]);
+  }, [commit, hostAt, showNotice, wheel.blocks]);
 
   const handleUpdateBlock = useCallback((instanceId: string, patch: Partial<ThemeBlock>) => {
     commit(prev => {
@@ -159,6 +204,32 @@ export default function ThemeWheelPlanner() {
       if (unchanged) return prev;
 
       const next = { ...current, ...patch };
+
+      // Ett delområde hålls inom sin förälder, ärver dess ring och får inte
+      // lägga sig över ett syskon. Krockar det avbryts ändringen helt hellre
+      // än att två delområden ritas ovanpå varandra.
+      if (next.parentId) {
+        const parent = prev.blocks.find(block => block.instanceId === next.parentId);
+        if (parent) {
+          const clamp = (week: number) => (
+            Math.min(Math.max(week, parent.startWeek), parent.endWeek)
+          );
+          next.startWeek = clamp(next.startWeek);
+          next.endWeek = clamp(next.endWeek);
+          next.ring = undefined;
+
+          const taken = new Set<number>();
+          prev.blocks
+            .filter(block => block.parentId === parent.instanceId && block.instanceId !== instanceId)
+            .forEach(sibling => {
+              for (let week = sibling.startWeek; week <= sibling.endWeek; week++) taken.add(week);
+            });
+          for (let week = next.startWeek; week <= next.endWeek; week++) {
+            if (taken.has(week)) return prev;
+          }
+        }
+      }
+
       // Milstolpen hör ihop med sitt block. Flyttas blocket följer den med lika
       // långt; krymps blocket dras den in till närmaste ände i stället.
       if (next.milestone) {
@@ -170,17 +241,32 @@ export default function ThemeWheelPlanner() {
         };
       }
 
+      // Flyttas ett arbetsområde följer dess delområden med lika långt, och
+      // krymps det dras de in innanför den nya kanten.
+      const shift = next.startWeek - current.startWeek;
+      const spanMoved = shift !== 0 || next.endWeek !== current.endWeek;
+
       return {
         ...prev,
-        blocks: prev.blocks.map(block => (block.instanceId === instanceId ? next : block)),
+        blocks: prev.blocks.map(block => {
+          if (block.instanceId === instanceId) return next;
+          if (block.parentId !== instanceId || !spanMoved) return block;
+          const clamp = (week: number) => Math.min(Math.max(week, next.startWeek), next.endWeek);
+          const start = clamp(block.startWeek + shift);
+          const end = clamp(block.endWeek + shift);
+          return { ...block, startWeek: Math.min(start, end), endWeek: Math.max(start, end) };
+        }),
       };
     });
   }, [commit]);
 
   const handleRemoveBlock = useCallback((instanceId: string) => {
+    // Delområdena hör till sitt arbetsområde och följer med när det tas bort.
     commit(prev => ({
       ...prev,
-      blocks: prev.blocks.filter(block => block.instanceId !== instanceId),
+      blocks: prev.blocks.filter(block => (
+        block.instanceId !== instanceId && block.parentId !== instanceId
+      )),
     }));
     setSelectedInstanceId(current => (current === instanceId ? null : current));
     setContextMenu(null);
@@ -194,17 +280,35 @@ export default function ThemeWheelPlanner() {
     onUpdate: handleUpdateBlock,
   });
 
-  const openNewBlockEditor = useCallback((week: number, ring?: number) => {
-    setManualColor(false);
+  const openNewBlockEditor = useCallback((week: number, ring?: number, parentId?: string) => {
+    const parent = parentId
+      ? wheel.blocks.find(block => block.instanceId === parentId) ?? null
+      : null;
+    // Ett delområde ärver en nyans av sitt arbetsområde, så titeln ska inte
+    // skriva över den medan man skriver.
+    setManualColor(Boolean(parent));
     setEditingBlock({
       instanceId: uuidv4(),
       title: '',
-      color: DEFAULT_AREA_COLOR,
+      color: parent
+        ? deriveChildColor(parent.color, childrenOf(wheel.blocks, parent.instanceId).length)
+        : DEFAULT_AREA_COLOR,
       startWeek: week,
       endWeek: week,
-      ring,
+      ring: parent ? undefined : ring,
+      parentId: parent?.instanceId,
     });
-  }, []);
+  }, [wheel.blocks]);
+
+  const addChildTo = useCallback((parent: ThemeBlock) => {
+    const free = freeWeeksInParent(wheel.blocks, parent);
+    setContextMenu(null);
+    if (free.length === 0) {
+      showNotice('Arbetsområdet har redan delområden i alla sina veckor.', 'warning');
+      return;
+    }
+    openNewBlockEditor(free[0], undefined, parent.instanceId);
+  }, [openNewBlockEditor, showNotice, wheel.blocks]);
 
   const handleSaveBlock = useCallback((event: React.FormEvent) => {
     event.preventDefault();
@@ -489,7 +593,7 @@ export default function ThemeWheelPlanner() {
                 onBlockContextMenu={(event, block) => setContextMenu({
                   kind: 'block', x: event.clientX, y: event.clientY, block,
                 })}
-                onEmptyCellClick={(week, ring) => openNewBlockEditor(week, ring)}
+                onEmptyCellClick={(week, ring, parentId) => openNewBlockEditor(week, ring, parentId)}
                 onWeekClick={week => openNewBlockEditor(week)}
                 onWeekContextMenu={(event, week) => setContextMenu({
                   kind: 'week', x: event.clientX, y: event.clientY, week,
@@ -534,6 +638,24 @@ export default function ThemeWheelPlanner() {
               >
                 Duplicera
               </button>
+              {contextMenu.block.parentId ? (
+                <button
+                  className="px-3 py-2 text-left text-sm sp-menu-item"
+                  onClick={() => {
+                    handleUpdateBlock(contextMenu.block.instanceId, { parentId: undefined });
+                    setContextMenu(null);
+                  }}
+                >
+                  Lyft ut ur arbetsområdet
+                </button>
+              ) : (
+                <button
+                  className="px-3 py-2 text-left text-sm sp-menu-item"
+                  onClick={() => addChildTo(contextMenu.block)}
+                >
+                  Lägg till delområde
+                </button>
+              )}
               <button
                 className="px-3 py-2 text-left text-sm sp-menu-item"
                 onClick={() => handleUpdateBlock(contextMenu.block.instanceId, { ring: undefined })}
@@ -582,6 +704,11 @@ export default function ThemeWheelPlanner() {
         isExistingBlock={Boolean(
           editingBlock && wheel.blocks.some(block => block.instanceId === editingBlock.instanceId)
         )}
+        blockParent={
+          editingBlock?.parentId
+            ? wheel.blocks.find(block => block.instanceId === editingBlock.parentId) ?? null
+            : null
+        }
         editingSettings={editingSettings}
         setEditingSettings={setEditingSettings}
         onSaveSettings={handleSaveSettings}

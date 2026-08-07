@@ -4,9 +4,16 @@
  * Samma problem som buildDayLayout() löser i dagsschemat: poster som krockar
  * måste läggas bredvid varandra. Här är krocken överlappande veckospann och
  * "bredvid" betyder en ring längre ut från mitten.
+ *
+ * Delområden räknas inte med i ringpackningen. De ärver sin förälders ring och
+ * delar bandet på höjden i stället, så att hjulet inte får en ny ring bara för
+ * att ett arbetsområde delas upp.
  */
 
 import { ThemeBlock } from '@/types/themeWheel';
+import { BlockLane } from '@/utils/themeWheelGeometry';
+
+export type { BlockLane };
 
 /**
  * Var ett block faktiskt hamnar. Spannet är beskuret till hjulets veckor, så
@@ -15,6 +22,7 @@ import { ThemeBlock } from '@/types/themeWheel';
  */
 export interface BlockPlacement {
   ring: number;
+  lane: BlockLane;
   startWeek: number;
   endWeek: number;
 }
@@ -24,10 +32,14 @@ export interface RingLayout {
   placementByBlock: Map<string, BlockPlacement>;
   /** Antal ringar hjulet behöver. Styr ringhöjden i buildWheelMetrics(). */
   ringCount: number;
+  /** Ringar som innehåller delområden och därför behöver extra höjd. */
+  ringsWithChildren: Set<number>;
 }
 
+type Span = { start: number; end: number };
+
 /** Blocket beskuret till hjulets veckor, eller null om det hamnar helt utanför. */
-const clampToWheel = (block: ThemeBlock, weekCount: number) => {
+const clampToWheel = (block: ThemeBlock, weekCount: number): Span | null => {
   const first = Math.min(block.startWeek, block.endWeek);
   const last = Math.max(block.startWeek, block.endWeek);
   const start = Math.max(first, 0);
@@ -36,14 +48,55 @@ const clampToWheel = (block: ThemeBlock, weekCount: number) => {
   return { start, end };
 };
 
+/** Beskär ett delområde till förälderns spann. Utanför helt ger null. */
+const clampToParent = (span: Span, parent: Span): Span | null => {
+  const start = Math.max(span.start, parent.start);
+  const end = Math.min(span.end, parent.end);
+  if (start > end) return null;
+  return { start, end };
+};
+
 /**
- * Lägger varje block i lägsta lediga ring. Block med ett eget ring-värde får
- * behålla det när ringen är fri, så att en manuell placering inte flyttas runt
- * av grannar som kommer till efteråt.
+ * Lägger varje arbetsområde i lägsta lediga ring, och varje delområde i sin
+ * förälders ring. Block med ett eget ring-värde får behålla det när ringen är
+ * fri, så att en manuell placering inte flyttas runt av grannar som kommer
+ * till efteråt.
  */
 export const buildRingLayout = (blocks: ThemeBlock[], weekCount: number): RingLayout => {
   const placementByBlock = new Map<string, BlockPlacement>();
-  if (weekCount <= 0) return { placementByBlock, ringCount: 1 };
+  const ringsWithChildren = new Set<number>();
+  if (weekCount <= 0) {
+    return { placementByBlock, ringCount: 1, ringsWithChildren };
+  }
+
+  const byId = new Map(blocks.map(block => [block.instanceId, block]));
+
+  /**
+   * Ett delområde måste peka på ett arbetsområde som finns och som inte självt
+   * är ett delområde – bara en nivå tillåts. Pekar det fel behandlas blocket
+   * som ett vanligt arbetsområde, så att inget tyst försvinner ur hjulet.
+   */
+  const parentOf = (block: ThemeBlock): ThemeBlock | null => {
+    if (!block.parentId || block.parentId === block.instanceId) return null;
+    const parent = byId.get(block.parentId);
+    if (!parent || parent.parentId) return null;
+    return parent;
+  };
+
+  const parents: { block: ThemeBlock; span: Span }[] = [];
+  const children: { block: ThemeBlock; span: Span; parent: ThemeBlock }[] = [];
+
+  blocks.forEach(block => {
+    const span = clampToWheel(block, weekCount);
+    if (!span) return;
+    const parent = parentOf(block);
+    if (parent) children.push({ block, span, parent });
+    else parents.push({ block, span });
+  });
+
+  const hasChildren = new Set(children.map(item => item.parent.instanceId));
+
+  // --- Arbetsområdena packas i ringar, precis som tidigare ---
 
   /** ringindex -> upptagna veckor. */
   const occupancy: boolean[][] = [];
@@ -66,46 +119,89 @@ export const buildRingLayout = (blocks: ThemeBlock[], weekCount: number): RingLa
     }
   };
 
-  const placeable = blocks
-    .map(block => ({ block, span: clampToWheel(block, weekCount) }))
-    .filter((item): item is { block: ThemeBlock; span: { start: number; end: number } } => (
-      item.span !== null
-    ));
+  const place = (block: ThemeBlock, span: Span, from: number) => {
+    let ring = from;
+    while (!isFree(ring, span.start, span.end)) ring++;
+    occupy(ring, span.start, span.end);
+    placementByBlock.set(block.instanceId, {
+      ring,
+      lane: hasChildren.has(block.instanceId) ? 'parent' : 'full',
+      startWeek: span.start,
+      endWeek: span.end,
+    });
+    if (hasChildren.has(block.instanceId)) ringsWithChildren.add(ring);
+  };
 
   // Manuellt placerade block först, annars kan ett automatiskt block hinna ta
   // ringen och tvinga bort det som användaren själv lagt där.
-  const manual = placeable.filter(item => typeof item.block.ring === 'number');
-  const automatic = placeable.filter(item => typeof item.block.ring !== 'number');
-
-  manual
+  parents
+    .filter(item => typeof item.block.ring === 'number')
     .sort((a, b) => (a.block.ring ?? 0) - (b.block.ring ?? 0) || a.span.start - b.span.start)
-    .forEach(({ block, span }) => {
-      const wanted = Math.max(block.ring ?? 0, 0);
-      let ring = wanted;
-      while (!isFree(ring, span.start, span.end)) ring++;
-      occupy(ring, span.start, span.end);
-      placementByBlock.set(block.instanceId, { ring, startWeek: span.start, endWeek: span.end });
-    });
+    .forEach(({ block, span }) => place(block, span, Math.max(block.ring ?? 0, 0)));
 
   // Långa spann först: de har minst frihet och skulle annars trycka ut korta
   // block i onödigt höga ringar.
-  automatic
+  parents
+    .filter(item => typeof item.block.ring !== 'number')
     .sort((a, b) => (
       a.span.start - b.span.start
       || (b.span.end - b.span.start) - (a.span.end - a.span.start)
       || a.block.title.localeCompare(b.block.title, 'sv')
     ))
-    .forEach(({ block, span }) => {
-      let ring = 0;
-      while (!isFree(ring, span.start, span.end)) ring++;
-      occupy(ring, span.start, span.end);
-      placementByBlock.set(block.instanceId, { ring, startWeek: span.start, endWeek: span.end });
+    .forEach(({ block, span }) => place(block, span, 0));
+
+  // --- Delområdena ärver förälderns ring ---
+
+  children
+    .sort((a, b) => a.span.start - b.span.start)
+    .forEach(({ block, span, parent }) => {
+      const parentPlacement = placementByBlock.get(parent.instanceId);
+      if (!parentPlacement) return;
+      const bounded = clampToParent(span, {
+        start: parentPlacement.startWeek,
+        end: parentPlacement.endWeek,
+      });
+      if (!bounded) return;
+      placementByBlock.set(block.instanceId, {
+        ring: parentPlacement.ring,
+        lane: 'child',
+        startWeek: bounded.start,
+        endWeek: bounded.end,
+      });
     });
 
   return {
     placementByBlock,
     ringCount: Math.max(occupancy.length, 1),
+    ringsWithChildren,
   };
+};
+
+/** Delområdena som hör till ett visst arbetsområde. */
+export const childrenOf = (blocks: ThemeBlock[], parentId: string): ThemeBlock[] => (
+  blocks.filter(block => block.parentId === parentId)
+);
+
+/**
+ * Veckorna inom föräldern som inte redan täcks av ett delområde. Används när
+ * ett nytt delområde ska placeras, eftersom delområden inte får överlappa.
+ */
+export const freeWeeksInParent = (
+  blocks: ThemeBlock[],
+  parent: ThemeBlock,
+  ignoreInstanceId?: string
+): number[] => {
+  const taken = new Set<number>();
+  childrenOf(blocks, parent.instanceId).forEach(child => {
+    if (child.instanceId === ignoreInstanceId) return;
+    for (let week = child.startWeek; week <= child.endWeek; week++) taken.add(week);
+  });
+
+  const free: number[] = [];
+  for (let week = parent.startWeek; week <= parent.endWeek; week++) {
+    if (!taken.has(week)) free.push(week);
+  }
+  return free;
 };
 
 /** Antal arbetsveckor per arbetsområde, lov borträknat. Underlag för statistik. */

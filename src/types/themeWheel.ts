@@ -37,6 +37,13 @@ export interface ThemeBlock {
   instanceId: string;
   /** Kopplingen till biblioteket. Saknas när blocket skapats direkt i hjulet. */
   areaId?: string;
+  /**
+   * instanceId på det arbetsområde det här blocket är ett delområde av.
+   * Delområdet ritas inom förälderns eget band i stället för att ta en ny ring,
+   * och dess veckospann hålls inom förälderns. Bara en nivå tillåts – ett
+   * delområde kan inte självt ha delområden.
+   */
+  parentId?: string;
   title: string;
   color: string;
   comment?: string;

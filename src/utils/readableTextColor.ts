@@ -1,8 +1,9 @@
 /**
- * Textfärg som håller sig läsbar mot en vald bakgrundsfärg.
+ * Färgmatematik för temahjulet.
  *
- * Temahjulets färger sätts fritt av användaren, så textfärgen kan inte vara
- * hårdkodad – den räknas ut från bakgrundens relativa luminans enligt WCAG 2.1.
+ * Färgerna sätts fritt av användaren, så textfärgen kan inte vara hårdkodad –
+ * den räknas ut från bakgrundens relativa luminans enligt WCAG 2.1. Här finns
+ * också nyansen ett delområde ärver av sitt arbetsområde.
  */
 
 export const TEXT_ON_LIGHT = '#1a1a1a';
@@ -55,3 +56,31 @@ export const getReadableTextColor = (background: string): string => (
 export const getMutedTextColor = (background: string): string => (
   getReadableTextColor(background) === TEXT_ON_LIGHT ? '#404040' : '#e8e8e8'
 );
+
+const toHex = (value: number) => Math.round(value).toString(16).padStart(2, '0');
+
+/** Blandar två färger. t = 0 ger den första, t = 1 den andra. */
+const mixHex = (from: string, to: string, t: number): string => {
+  const a = parseHex(from);
+  const b = parseHex(to);
+  if (!a || !b) return from;
+  const blend = (x: number, y: number) => x + (y - x) * t;
+  return `#${toHex(blend(a.r, b.r))}${toHex(blend(a.g, b.g))}${toHex(blend(a.b, b.b))}`;
+};
+
+/**
+ * Nyansen ett delområde får av sitt arbetsområde.
+ *
+ * Syskonen bildar en stege i samma kulör: varje steg är tydligt skilt både
+ * från föräldern och från föregående syskon. Riktningen avgörs av föräldern –
+ * en ljus pastell har nästan inget utrymme uppåt, så där går stegen nedåt.
+ * Att växla ljust och mörkt gav ett andra syskon som knappt gick att se.
+ *
+ * Stegen avtar (1 - 0.72^n) så att de fyra första skiljer sig märkbart utan
+ * att de sista krossas mot svart.
+ */
+export const deriveChildColor = (parentColor: string, index: number): string => {
+  const towards = relativeLuminance(parentColor) > 0.4 ? '#000000' : '#ffffff';
+  const step = Math.min(1 - 0.72 ** (index + 1), 0.78);
+  return mixHex(parentColor, towards, step);
+};
