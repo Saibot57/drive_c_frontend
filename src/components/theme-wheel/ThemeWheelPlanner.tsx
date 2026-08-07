@@ -16,6 +16,7 @@ import { buildWheelMetrics } from '@/utils/themeWheelGeometry';
 import { buildWheelWeeks } from '@/utils/themeWheelWeeks';
 import {
   buildAreaKey,
+  buildAreaLibrary,
   deriveAreasFromBlocks,
   isDerivedArea,
   mergeAreas,
@@ -128,6 +129,13 @@ export default function ThemeWheelPlanner() {
   const areas = useMemo(
     () => mergeAreas(manualAreas, deriveAreasFromBlocks(wheel.blocks)),
     [manualAreas, wheel.blocks]
+  );
+
+  // Listan speglar hjulet: delområdena hamnar under det arbetsområde de ligger
+  // inuti, i stället för blandade med det i en enda alfabetisk rad.
+  const areaLibrary = useMemo(
+    () => buildAreaLibrary(areas, wheel.blocks),
+    [areas, wheel.blocks]
   );
 
   const weeksByArea = useMemo(() => {
@@ -539,11 +547,12 @@ export default function ThemeWheelPlanner() {
                   Inga arbetsområden ännu. Skapa ett här, eller klicka på en tom tårtbit i hjulet.
                 </p>
               ) : (
-                areas.map(area => (
+                areaLibrary.map(({ area, parentKey }) => (
                   <AreaLibraryCard
                     key={area.id}
                     area={area}
                     isDerived={isDerivedArea(area)}
+                    isSub={parentKey !== null}
                     weeksUsed={weeksByArea.get(buildAreaKey(area.title)) ?? 0}
                     onEdit={selected => { setManualColor(true); setEditingArea(selected); }}
                     onDelete={handleDeleteArea}

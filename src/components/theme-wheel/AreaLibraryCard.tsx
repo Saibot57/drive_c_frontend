@@ -9,6 +9,8 @@ type AreaLibraryCardProps = {
   area: ThemeArea;
   /** Härledd ur hjulet i stället för skapad för hand – går inte att radera. */
   isDerived: boolean;
+  /** Används bara som delområde. Visas indenterat och mindre under sin förälder. */
+  isSub?: boolean;
   weeksUsed: number;
   onEdit: (area: ThemeArea) => void;
   onDelete: (area: ThemeArea, isDerived: boolean) => void;
@@ -22,6 +24,7 @@ type AreaLibraryCardProps = {
 export function AreaLibraryCard({
   area,
   isDerived,
+  isSub = false,
   weeksUsed,
   onEdit,
   onDelete,
@@ -34,10 +37,12 @@ export function AreaLibraryCard({
     <div
       onPointerDown={event => onPointerDown(area, event)}
       style={{ backgroundColor: area.color, color: textColor }}
-      className="group relative mb-2 cursor-grab touch-none select-none rounded p-2 sp-source-card transition-all hover:shadow-md active:cursor-grabbing"
+      className={`group relative mb-2 cursor-grab touch-none select-none rounded sp-source-card transition-all hover:shadow-md active:cursor-grabbing ${
+        isSub ? 'ml-5 px-2 py-1' : 'p-2'
+      }`}
       title="Dra ut i hjulet för att placera"
     >
-      <p className="pr-12 text-sm font-bold">{area.title}</p>
+      <p className={`pr-12 font-bold ${isSub ? 'text-xs' : 'text-sm'}`}>{area.title}</p>
       <p className="text-2xs" style={{ color: mutedColor }}>
         {weeksUsed > 0 ? `${weeksUsed} v i hjulet` : 'Inte placerad'}
         {area.comment ? ` · ${area.comment}` : ''}

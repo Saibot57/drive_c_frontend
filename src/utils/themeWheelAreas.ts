@@ -48,6 +48,76 @@ export const isDerivedArea = (area: ThemeArea): boolean => (
   area.id.startsWith(DERIVED_AREA_PREFIX)
 );
 
+/** Ett område i biblioteket, med den nivå det ska visas på. */
+export interface LibraryArea {
+  area: ThemeArea;
+  /** Nyckeln på arbetsområdet det ligger under, eller null på egen nivå. */
+  parentKey: string | null;
+}
+
+/**
+ * Ordnar biblioteket som hjulet: varje arbetsområde följt av de områden som
+ * används som delområden till det.
+ *
+ * Ett område räknas som delområde först när alla dess bågar ligger inuti ett
+ * och samma arbetsområde. Används det både på egen hand och som delområde,
+ * eller under två olika arbetsområden, stannar det på egen nivå – annars hade
+ * en del av användningen hamnat under fel rubrik.
+ *
+ * Ett arbetsområde som har delområden har alltid minst en egen båge, och
+ * hamnar därför alltid på egen nivå. Ett delområde kan alltså inte bli
+ * föräldralöst i listan.
+ */
+export const buildAreaLibrary = (areas: ThemeArea[], blocks: ThemeBlock[]): LibraryArea[] => {
+  const titleByInstance = new Map(blocks.map(block => [block.instanceId, block.title]));
+
+  /** områdesnyckel -> arbetsområdet det ligger under. null betyder egen nivå. */
+  const parentByKey = new Map<string, string | null>();
+  /** Områden som förekommer på mer än ett ställe och därför stannar på egen nivå. */
+  const mixedKeys = new Set<string>();
+
+  blocks.forEach(block => {
+    const key = buildAreaKey(block.title);
+    if (!key) return;
+    const parentTitle = block.parentId ? titleByInstance.get(block.parentId) : undefined;
+    const raw = parentTitle ? buildAreaKey(parentTitle) : null;
+    // Ett område som ligger inuti sig självt hör hemma på egen nivå, annars
+    // skulle det indenteras under sitt eget namn.
+    const parentKey = raw === key ? null : raw;
+
+    if (!parentByKey.has(key)) parentByKey.set(key, parentKey);
+    else if (parentByKey.get(key) !== parentKey) mixedKeys.add(key);
+  });
+
+  const byKey = new Map(areas.map(area => [buildAreaKey(area.title), area]));
+
+  const parentOf = (area: ThemeArea): string | null => {
+    const key = buildAreaKey(area.title);
+    if (mixedKeys.has(key)) return null;
+    const parentKey = parentByKey.get(key) ?? null;
+    return parentKey && byKey.has(parentKey) ? parentKey : null;
+  };
+
+  const childrenByKey = new Map<string, ThemeArea[]>();
+  const roots: ThemeArea[] = [];
+  areas.forEach(area => {
+    const parentKey = parentOf(area);
+    if (!parentKey) {
+      roots.push(area);
+      return;
+    }
+    childrenByKey.set(parentKey, [...(childrenByKey.get(parentKey) ?? []), area]);
+  });
+
+  return roots.flatMap(area => {
+    const key = buildAreaKey(area.title);
+    return [
+      { area, parentKey: null },
+      ...(childrenByKey.get(key) ?? []).map(child => ({ area: child, parentKey: key })),
+    ];
+  });
+};
+
 /** Plockar bort skräp ur data som lästs från localStorage eller en JSON-fil. */
 export const sanitizeAreas = (input: unknown): ThemeArea[] => {
   if (!Array.isArray(input)) return [];
