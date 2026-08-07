@@ -2,13 +2,14 @@
 
 import React, { forwardRef, useMemo } from 'react';
 import { ThemeBlock, ThemeWheel as ThemeWheelData } from '@/types/themeWheel';
-import { BlockPlacement, buildRingLayout } from '@/utils/themeWheelLayout';
+import { BlockPlacement, buildRingLayout, hostBlockAt } from '@/utils/themeWheelLayout';
 import { buildWheelWeeks, currentWheelIndex } from '@/utils/themeWheelWeeks';
 import {
+  CHILD_INSET_PX,
+  blockRadii,
   buildWheelMetrics,
   describeSector,
-  laneRadii,
-  ringRadii,
+  insetAngles,
   truncateToWidth,
   weekSpanAngles,
 } from '@/utils/themeWheelGeometry';
@@ -70,8 +71,8 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
 
   /**
    * Lediga rutor att klicka på. Två sorter: hela ringar där inget arbetsområde
-   * ligger, och den yttre lanan inuti ett arbetsområde som redan har
-   * delområden – där skapar ett klick ett nytt delområde.
+   * ligger, och veckorna inuti ett arbetsområde som redan har delområden – där
+   * skapar ett klick ett nytt delområde.
    */
   const emptyCells = useMemo(() => {
     const occupied = new Set<string>();
@@ -86,7 +87,14 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
       }
     });
 
-    const cells: { week: number; ring: number; lane: 'full' | 'child'; parentId?: string }[] = [];
+    const cells: {
+      week: number;
+      ring: number;
+      lane: 'full' | 'child';
+      /** Arbetsområdet rutan ligger inuti. Bara satt för delområdesrutor. */
+      host?: ThemeBlock;
+      hostPlacement?: BlockPlacement;
+    }[] = [];
 
     for (let week = 0; week < wheel.weekCount; week++) {
       for (let ring = 0; ring < ringCount; ring++) {
@@ -99,24 +107,86 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
       if (!placement || placement.lane !== 'parent') return;
       for (let week = placement.startWeek; week <= placement.endWeek; week++) {
         if (childWeeks.has(`${block.instanceId}:${week}`)) continue;
-        cells.push({ week, ring: placement.ring, lane: 'child', parentId: block.instanceId });
+        cells.push({
+          week,
+          ring: placement.ring,
+          lane: 'child',
+          host: block,
+          hostPlacement: placement,
+        });
       }
     });
 
     return cells;
   }, [placementByBlock, ringCount, wheel.blocks, wheel.weekCount]);
 
+  /**
+   * Arbetsområdet ett släpp skulle hamna inuti. Ett block som redan är ett
+   * arbetsområde blir inte ett delområde av att flyttas – det trycks ut i en
+   * egen ring – så för det ritas spöket i full bandhöjd.
+   */
+  const previewHost = useMemo(() => {
+    if (!preview) return null;
+    const dragged = preview.instanceId
+      ? wheel.blocks.find(block => block.instanceId === preview.instanceId) ?? null
+      : null;
+    if (dragged && !dragged.parentId) return null;
+    return hostBlockAt(
+      wheel.blocks, placementByBlock, preview.ring, preview.startWeek, preview.instanceId
+    );
+  }, [placementByBlock, preview, wheel.blocks]);
+
   const previewSector = useMemo(() => {
     if (!preview) return null;
-    const { start, end } = weekSpanAngles(preview.startWeek, preview.endWeek, wheel.weekCount);
     // Dras något ut i en ny ring finns den inte i metrics ännu; rita den
     // direkt utanför den yttersta befintliga i stället.
     const ring = Math.min(preview.ring, metrics.ringCount - 1);
     const isNewRing = preview.ring >= metrics.ringCount;
-    const { inner, outer } = ringRadii(metrics, ring);
     const shift = isNewRing ? metrics.baseRingHeight : 0;
+
+    const lane = previewHost && !isNewRing ? 'child' : 'full';
+    const { inner, outer } = blockRadii(metrics, ring, lane);
+    const span = weekSpanAngles(preview.startWeek, preview.endWeek, wheel.weekCount);
+    const { start, end } = lane === 'child'
+      ? insetAngles(span, (inner + outer) / 2, CHILD_INSET_PX)
+      : span;
+
     return describeSector(metrics, inner + shift, outer + shift, start, end);
-  }, [metrics, preview, wheel.weekCount]);
+  }, [metrics, preview, previewHost, wheel.weekCount]);
+
+  /**
+   * Delområdena ritas efter arbetsområdena. De ligger inuti sin förälders band
+   * och skulle annars målas över av det – och i SVG är det översta lagret också
+   * det som tar emot klick.
+   */
+  const { parentBlocks, childBlocks } = useMemo(() => {
+    const parents: { block: ThemeBlock; placement: BlockPlacement }[] = [];
+    const children: { block: ThemeBlock; placement: BlockPlacement }[] = [];
+    wheel.blocks.forEach(block => {
+      const placement = placementByBlock.get(block.instanceId);
+      if (!placement) return;
+      (placement.lane === 'child' ? children : parents).push({ block, placement });
+    });
+    return { parentBlocks: parents, childBlocks: children };
+  }, [placementByBlock, wheel.blocks]);
+
+  const renderBlock = ({ block, placement }: { block: ThemeBlock; placement: BlockPlacement }) => (
+    <WheelBlock
+      key={block.instanceId}
+      block={block}
+      placement={placement}
+      weekCount={wheel.weekCount}
+      metrics={metrics}
+      idPrefix={wheel.id}
+      isSelected={selectedInstanceId === block.instanceId}
+      isDimmed={Boolean(preview) && selectedInstanceId === block.instanceId}
+      onPointerDownBody={onBlockPointerDown}
+      onResizeStart={onBlockResizeStart}
+      onSelect={onSelectBlock}
+      onOpenEditor={onOpenBlockEditor}
+      onContextMenu={onBlockContextMenu}
+    />
+  );
 
   const firstWeek = weeks[0];
   const lastWeek = weeks[weeks.length - 1];
@@ -146,21 +216,32 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
         onWeekContextMenu={onWeekContextMenu}
       />
 
+      {parentBlocks.map(renderBlock)}
+
       {onEmptyCellClick && emptyCells.map(cell => {
-        const { start, end } = weekSpanAngles(cell.week, cell.week, wheel.weekCount);
-        const { inner, outer } = laneRadii(metrics, cell.ring, cell.lane);
+        const { inner, outer } = blockRadii(metrics, cell.ring, cell.lane);
+        const span = weekSpanAngles(cell.week, cell.week, wheel.weekCount);
+        const { start, end } = cell.lane === 'child'
+          ? insetAngles(span, (inner + outer) / 2, CHILD_INSET_PX)
+          : span;
         return (
           <path
-            key={`empty-${cell.lane}-${cell.parentId ?? ''}-${cell.week}-${cell.ring}`}
+            key={`empty-${cell.lane}-${cell.host?.instanceId ?? ''}-${cell.week}-${cell.ring}`}
             d={describeSector(metrics, inner, outer, start, end)}
             fill="transparent"
             className="theme-wheel-empty-cell"
             style={{ cursor: 'copy' }}
             data-export="omit"
-            onClick={() => onEmptyCellClick(cell.week, cell.ring, cell.parentId)}
+            onClick={() => onEmptyCellClick(cell.week, cell.ring, cell.host?.instanceId)}
+            // Rutan ligger ovanpå arbetsområdet och skulle annars äta upp
+            // greppet om det. Ett drag härifrån flyttar alltså bandet, medan
+            // ett klick utan rörelse lägger till ett delområde.
+            onPointerDown={cell.host && cell.hostPlacement
+              ? event => onBlockPointerDown?.(event, cell.host!, cell.hostPlacement!)
+              : undefined}
           >
             <title>
-              {cell.parentId
+              {cell.host
                 ? 'Klicka för att lägga till ett delområde'
                 : 'Klicka för att lägga till ett arbetsområde'}
             </title>
@@ -168,27 +249,7 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
         );
       })}
 
-      {wheel.blocks.map(block => {
-        const placement = placementByBlock.get(block.instanceId);
-        if (!placement) return null;
-        return (
-          <WheelBlock
-            key={block.instanceId}
-            block={block}
-            placement={placement}
-            weekCount={wheel.weekCount}
-            metrics={metrics}
-            idPrefix={wheel.id}
-            isSelected={selectedInstanceId === block.instanceId}
-            isDimmed={Boolean(preview) && selectedInstanceId === block.instanceId}
-            onPointerDownBody={onBlockPointerDown}
-            onResizeStart={onBlockResizeStart}
-            onSelect={onSelectBlock}
-            onOpenEditor={onOpenBlockEditor}
-            onContextMenu={onBlockContextMenu}
-          />
-        );
-      })}
+      {childBlocks.map(renderBlock)}
 
       {previewSector && preview && (
         <path

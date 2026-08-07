@@ -4,15 +4,18 @@ import React from 'react';
 import { ThemeBlock } from '@/types/themeWheel';
 import { BlockPlacement } from '@/utils/themeWheelLayout';
 import {
+  CHILD_INSET_PX,
   WheelMetrics,
   arcLength,
+  blockRadii,
   describeSector,
   describeTextArc,
   fitFontSize,
+  insetAngles,
   isFlippedAngle,
-  laneRadii,
   polar,
   radialTextRotation,
+  textRadii,
   truncateToWidth,
   weekSpanAngles,
 } from '@/utils/themeWheelGeometry';
@@ -68,22 +71,30 @@ export function WheelBlock({
   onOpenEditor,
   onContextMenu,
 }: WheelBlockProps) {
-  const { start, end } = weekSpanAngles(placement.startWeek, placement.endWeek, weekCount);
-  const { inner, outer } = laneRadii(metrics, placement.ring, placement.lane);
+  // Ytan blocket fyller och ytan dess text får använda är inte samma sak: ett
+  // arbetsområde med delområden fyller hela bandet men skriver bara på raden
+  // innerst, eftersom delområdena ritas över resten.
+  const shape = blockRadii(metrics, placement.ring, placement.lane);
+  const label = textRadii(metrics, placement.ring, placement.lane);
+  const span = weekSpanAngles(placement.startWeek, placement.endWeek, weekCount);
+  const { start, end } = placement.lane === 'child'
+    ? insetAngles(span, (shape.inner + shape.outer) / 2, CHILD_INSET_PX)
+    : span;
+
   const midAngle = (start + end) / 2;
-  const midRadius = (inner + outer) / 2;
-  const ringHeight = outer - inner;
+  const midRadius = (label.inner + label.outer) / 2;
+  const textHeight = label.outer - label.inner;
   const spanDegrees = end - start;
 
   const textColor = getReadableTextColor(block.color);
   const mutedColor = getMutedTextColor(block.color);
   const commentText = block.comment?.trim() ?? '';
-  const showComment = commentText.length > 0 && ringHeight >= COMMENT_MIN_RING_HEIGHT;
+  const showComment = commentText.length > 0 && textHeight >= COMMENT_MIN_RING_HEIGHT;
 
   // Välj den riktning som ger mest plats: längs bågen för breda spann, radiellt
   // ut från mitten när tårtbiten är högre än den är bred.
   const curvedWidth = arcLength(midRadius, spanDegrees) - ARC_TEXT_PADDING;
-  const radialWidth = ringHeight - RADIAL_TEXT_PADDING;
+  const radialWidth = textHeight - RADIAL_TEXT_PADDING;
   const useArcText = curvedWidth >= radialWidth;
   const availableWidth = Math.max(useArcText ? curvedWidth : radialWidth, 0);
   const hasRoomForText = Math.max(curvedWidth, radialWidth) >= TEXT_MIN_EXTENT;
@@ -114,7 +125,13 @@ export function WheelBlock({
     .join('\n');
 
   // Milstolpen ritas i sin egen vecka, inte i mitten av blocket, så att den
-  // visar var i spannet inlämningen eller provet ligger.
+  // visar var i spannet inlämningen eller provet ligger. Den läggs strax utanför
+  // textraden: ett arbetsområde med delområden har bara raden innerst, och där
+  // hamnar prickens plats i luften mellan raden och delområdena – synlig, och
+  // utan att lägga sig ovanpå namnet.
+  const milestoneRadius = placement.lane === 'parent'
+    ? label.outer + CHILD_INSET_PX / 2
+    : label.outer - 8;
   const milestoneWeek = block.milestone?.week;
   const milestoneInSpan = typeof milestoneWeek === 'number'
     && milestoneWeek >= placement.startWeek
@@ -122,7 +139,7 @@ export function WheelBlock({
   let milestonePoint: { x: number; y: number } | null = null;
   if (milestoneInSpan && typeof milestoneWeek === 'number') {
     const weekAngles = weekSpanAngles(milestoneWeek, milestoneWeek, weekCount);
-    milestonePoint = polar(metrics, outer - 9, (weekAngles.start + weekAngles.end) / 2);
+    milestonePoint = polar(metrics, milestoneRadius, (weekAngles.start + weekAngles.end) / 2);
   }
 
   const radialAnchor = polar(metrics, midRadius, midAngle);
@@ -132,7 +149,7 @@ export function WheelBlock({
   return (
     <g data-instance-id={block.instanceId} opacity={isDimmed ? 0.35 : 1}>
       <path
-        d={describeSector(metrics, inner, outer, start, end)}
+        d={describeSector(metrics, shape.inner, shape.outer, start, end)}
         fill={block.color}
         stroke={WHEEL_STROKE}
         strokeWidth={isSelected ? 2.6 : WHEEL_STROKE_WIDTH}

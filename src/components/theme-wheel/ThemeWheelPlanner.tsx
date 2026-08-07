@@ -9,7 +9,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ThemeArea, ThemeBlock, ThemeWheel as ThemeWheelData } from '@/types/themeWheel';
-import { buildRingLayout, childrenOf, freeWeeksInParent, weeksPerArea } from '@/utils/themeWheelLayout';
+import {
+  buildRingLayout, childrenOf, freeWeeksInParent, hostBlockAt, weeksPerArea,
+} from '@/utils/themeWheelLayout';
 import { buildWheelMetrics } from '@/utils/themeWheelGeometry';
 import { buildWheelWeeks } from '@/utils/themeWheelWeeks';
 import {
@@ -119,16 +121,8 @@ export default function ThemeWheelPlanner() {
     [layout]
   );
 
-  /** Arbetsområdet som ligger i en viss ring och vecka, om något gör det. */
   const hostAt = useCallback((ring: number, week: number) => (
-    wheel.blocks.find(block => {
-      const placement = layout.placementByBlock.get(block.instanceId);
-      return placement
-        && placement.lane !== 'child'
-        && placement.ring === ring
-        && week >= placement.startWeek
-        && week <= placement.endWeek;
-    }) ?? null
+    hostBlockAt(wheel.blocks, layout.placementByBlock, ring, week)
   ), [layout, wheel.blocks]);
 
   const areas = useMemo(

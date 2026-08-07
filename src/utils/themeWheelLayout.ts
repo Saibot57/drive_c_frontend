@@ -6,7 +6,7 @@
  * "bredvid" betyder en ring längre ut från mitten.
  *
  * Delområden räknas inte med i ringpackningen. De ärver sin förälders ring och
- * delar bandet på höjden i stället, så att hjulet inte får en ny ring bara för
+ * ritas inuti dess band i stället, så att hjulet inte får en ny ring bara för
  * att ett arbetsområde delas upp.
  */
 
@@ -176,6 +176,31 @@ export const buildRingLayout = (blocks: ThemeBlock[], weekCount: number): RingLa
     ringsWithChildren,
   };
 };
+
+/**
+ * Arbetsområdet som ligger i en viss ring och vecka, om något gör det.
+ *
+ * Det är det block ett släpp där skulle hamna inuti: både planeraren, som
+ * skapar delområdet, och hjulet, som ritar spöket under draget, måste komma
+ * fram till samma svar.
+ */
+export const hostBlockAt = (
+  blocks: ThemeBlock[],
+  placementByBlock: Map<string, BlockPlacement>,
+  ring: number,
+  week: number,
+  ignoreInstanceId?: string
+): ThemeBlock | null => (
+  blocks.find(block => {
+    if (block.instanceId === ignoreInstanceId) return false;
+    const placement = placementByBlock.get(block.instanceId);
+    return Boolean(placement
+      && placement.lane !== 'child'
+      && placement.ring === ring
+      && week >= placement.startWeek
+      && week <= placement.endWeek);
+  }) ?? null
+);
 
 /** Delområdena som hör till ett visst arbetsområde. */
 export const childrenOf = (blocks: ThemeBlock[], parentId: string): ThemeBlock[] => (

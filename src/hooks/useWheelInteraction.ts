@@ -30,6 +30,12 @@ export interface WheelPreview {
   ring: number;
   title: string;
   color: string;
+  /**
+   * Blocket som dras, när det redan finns i hjulet. Saknas när något dras ut
+   * ur biblioteket. Hjulet behöver det för att veta om släppet skulle skapa
+   * ett delområde och därmed hur spöket ska ritas.
+   */
+  instanceId?: string;
 }
 
 export interface WheelTarget {
@@ -128,6 +134,7 @@ export const useWheelInteraction = ({
         ring: target.ring,
         title: drag.title,
         color: drag.color,
+        instanceId: drag.instanceId,
       };
     } else {
       // Dras en ände förbi den andra byter de plats, i stället för att spannet
@@ -139,6 +146,7 @@ export const useWheelInteraction = ({
         ring: drag.ring,
         title: drag.title,
         color: drag.color,
+        instanceId: drag.instanceId,
       };
     }
 

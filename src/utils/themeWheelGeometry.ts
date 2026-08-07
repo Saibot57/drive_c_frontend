@@ -6,9 +6,10 @@
  * 0° är klockan tolv och vinkeln växer medurs, samt i radie från hjulets mitt.
  *
  * Ring 1 betyder samma sak i alla veckor, och ringhöjden beror på hur många
- * ringar hjulet använder. En ring som innehåller delområden delas på höjden
- * och får därför extra plats – ringar kan alltså vara olika tjocka. Måtten
- * räknas fram per hjul med buildWheelMetrics().
+ * ringar hjulet använder. En ring som innehåller delområden får extra plats,
+ * eftersom arbetsområdet där ska rymma delområdena inom sitt eget band –
+ * ringar kan alltså vara olika tjocka. Måtten räknas fram per hjul med
+ * buildWheelMetrics().
  */
 
 /** Hålet i mitten där temats namn står. */
@@ -18,16 +19,23 @@ export const BASE_RING_HEIGHT = 92;
 /** Under detta går texten inte att läsa; då växer hjulet i stället. */
 export const MIN_RING_HEIGHT = 24;
 /**
- * En ring som innehåller delområden delas på höjden och behöver mer plats.
- * Efter avdrag för luften mellan ringar och mellan lanor ger 94 px ungefär
- * 54 åt arbetsområdet och 35 åt delområdet – båda över COMMENT_MIN_RING_HEIGHT,
- * så att bägge kan visa en kommentar.
+ * En ring som innehåller delområden behöver rymma både arbetsområdets egen rad
+ * och delområdena inuti den. Efter avdrag för luften mellan ringar ger 86 px
+ * ett band på 83: 36 åt raden, 5 + 5 åt luften och 37 åt delområdet. Både 36
+ * och 37 ligger över COMMENT_MIN_RING_HEIGHT, så bägge kan visa en kommentar.
  */
-export const NESTED_MIN_RING_HEIGHT = 94;
-/** Arbetsområdets andel av en delad ring. Delområdena delar på resten. */
-export const PARENT_LANE_SHARE = 0.6;
-/** Luft mellan arbetsområdets lana och delområdets. */
-export const LANE_GAP_PX = 2;
+export const NESTED_MIN_RING_HEIGHT = 86;
+/**
+ * Raden innerst i bandet där ett arbetsområde med delområden skriver sitt eget
+ * namn. Resten av bandet är dess yta att lägga delområden i.
+ */
+export const PARENT_HEADER_HEIGHT = 36;
+/**
+ * Hur mycket av arbetsområdets färg som syns runt om ett delområde. Ramen är
+ * det som gör att delområdet läses som en del *av* arbetsområdet i stället för
+ * som ett eget band bredvid det.
+ */
+export const CHILD_INSET_PX = 5;
 /** Ringen utanför banden med veckonummer och datum. */
 export const AXIS_RING_HEIGHT = 40;
 /** Luft mellan ytterringen och SVG-kanten. */
@@ -55,13 +63,13 @@ export interface AngleSpan {
   end: number;
 }
 
-/** Vilken del av ringens höjd ett block upptar. */
+/** Hur ett block förhåller sig till sin ring. */
 export type BlockLane =
-  /** Hela ringen – ett arbetsområde utan delområden. */
+  /** Fyller ringen – ett arbetsområde utan delområden. */
   | 'full'
-  /** Inre delen – ett arbetsområde som har delområden. */
+  /** Fyller ringen, men skriver bara på raden innerst – har delområden. */
   | 'parent'
-  /** Yttre delen – ett delområde. */
+  /** Ligger inuti sin förälders band, indraget från alla fyra kanter. */
   | 'child';
 
 /** Alla mått ett hjul behöver, härledda ur antalet ringar det faktiskt använder. */
@@ -183,17 +191,44 @@ export const ringRadii = (metrics: WheelMetrics, ring: number): Radii => {
 };
 
 /**
- * Radierna för en lana inom en ring. Ett arbetsområde utan delområden fyller
- * hela ringen; har det delområden lägger det sig innerst och delområdena ytterst.
+ * Ytan ett block fyller.
+ *
+ * Ett arbetsområde fyller hela sitt band, oavsett om det har delområden eller
+ * inte – bandet ska se likadant ut i båda fallen. Ett delområde ritas i stället
+ * inuti bandet, indraget så att förälderns färg syns runt om det.
  */
-export const laneRadii = (metrics: WheelMetrics, ring: number, lane: BlockLane): Radii => {
-  const { inner, outer } = ringRadii(metrics, ring);
-  if (lane === 'full') return { inner, outer };
+export const blockRadii = (metrics: WheelMetrics, ring: number, lane: BlockLane): Radii => {
+  const band = ringRadii(metrics, ring);
+  if (lane !== 'child') return band;
+  const outer = band.outer - CHILD_INSET_PX;
+  return {
+    inner: Math.min(band.inner + PARENT_HEADER_HEIGHT + CHILD_INSET_PX, outer),
+    outer,
+  };
+};
 
-  const split = inner + (outer - inner) * PARENT_LANE_SHARE;
-  return lane === 'parent'
-    ? { inner, outer: split - LANE_GAP_PX / 2 }
-    : { inner: split + LANE_GAP_PX / 2, outer };
+/**
+ * Ytan blockets text får använda. För ett arbetsområde med delområden är det
+ * bara raden innerst – resten av bandet ritas delområdena över.
+ */
+export const textRadii = (metrics: WheelMetrics, ring: number, lane: BlockLane): Radii => {
+  if (lane !== 'parent') return blockRadii(metrics, ring, lane);
+  const band = ringRadii(metrics, ring);
+  return { inner: band.inner, outer: Math.min(band.inner + PARENT_HEADER_HEIGHT, band.outer) };
+};
+
+/**
+ * Vinkelspannet indraget ett antal pixlar i båda ändar, mätt på en viss radie.
+ * Ger delområdet en ram av förälderns färg även i sidled, och håller isär två
+ * delområden som ligger i angränsande veckor.
+ */
+export const insetAngles = (span: AngleSpan, radius: number, insetPx: number): AngleSpan => {
+  const insetDegrees = insetPx / Math.max(radius, 1) / DEG_TO_RAD;
+  // Ett spann får krympa, men aldrig kollapsa – en tårtbit på en enda vecka
+  // längst in i hjulet ska fortfarande gå att se och peka på.
+  const room = Math.max((span.end - span.start) / 2 - 0.5, 0);
+  const inset = Math.min(insetDegrees, room);
+  return { start: span.start + inset, end: span.end - inset };
 };
 
 /** Beskriver en tårtbit (ringsegment) som en sluten SVG-path. */
