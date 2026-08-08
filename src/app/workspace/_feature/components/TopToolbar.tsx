@@ -1,12 +1,17 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Archive, Search, ArchiveRestore, Trash2, Pencil } from 'lucide-react';
+import { Plus, Archive, Search, ArchiveRestore, Trash2, Pencil, Undo2 } from 'lucide-react';
 import type { Surface } from '../types/workspace.types';
+import type { SaveStatus } from '../hooks/useWorkspaceSync';
+import SaveIndicator from './SaveIndicator';
 
 interface TopToolbarProps {
   surfaces: Surface[];
   activeSurfaceId: string | null;
+  saveStatus: SaveStatus;
+  canUndo: boolean;
+  onUndo: () => void;
   onSurfaceSelect: (id: string) => void;
   onSurfaceCreate: () => void;
   onSearchOpen: () => void;
@@ -19,6 +24,9 @@ interface TopToolbarProps {
 export default function TopToolbar({
   surfaces,
   activeSurfaceId,
+  saveStatus,
+  canUndo,
+  onUndo,
   onSurfaceSelect,
   onSurfaceCreate,
   onSearchOpen,
@@ -68,14 +76,14 @@ export default function TopToolbar({
   return (
     <div className="ws-toolbar">
       {/* Centered pill selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+      <div className="ws-toolbar-center">
         <div className="ws-surface-pill">
           {activeSurfaces.map((surface) => (
             renamingId === surface.id ? (
               <input
                 key={surface.id}
                 ref={renameInputRef}
-                className={`ws-surface-pill__tab ${surface.id === activeSurfaceId ? 'ws-surface-pill__tab--active' : ''}`}
+                className={`ws-surface-pill__tab ws-surface-pill__tab--editing ${surface.id === activeSurfaceId ? 'ws-surface-pill__tab--active' : ''}`}
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -83,11 +91,7 @@ export default function TopToolbar({
                   if (e.key === 'Escape') setRenamingId(null);
                 }}
                 onBlur={commitRename}
-                style={{
-                  outline: 'none',
-                  width: `${Math.max(renameValue.length, 3)}ch`,
-                  minWidth: '3ch',
-                }}
+                style={{ width: `${Math.max(renameValue.length, 3)}ch` }}
               />
             ) : (
               <button
@@ -117,124 +121,76 @@ export default function TopToolbar({
       {tabContextMenu && (
         <div
           ref={tabMenuRef}
-          style={{
-            position: 'fixed',
-            left: tabContextMenu.x,
-            top: tabContextMenu.y,
-            zIndex: 200,
-            background: '#ffffff',
-            border: '1px solid #e5e7eb',
-            borderRadius: '0.5rem',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-            padding: '0.25rem 0',
-            minWidth: '9rem',
-            fontSize: '0.8125rem',
-          }}
+          className="ws-popover ws-popover--narrow"
+          style={{ left: tabContextMenu.x, top: tabContextMenu.y }}
         >
           <button
+            className="ws-menu-item"
             onClick={() => {
               const surface = surfaces.find((s) => s.id === tabContextMenu.surfaceId);
               setRenameValue(surface?.name ?? '');
               setRenamingId(tabContextMenu.surfaceId);
               setTabContextMenu(null);
             }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              width: '100%', padding: '0.375rem 0.75rem', border: 'none',
-              background: 'transparent', cursor: 'pointer', fontSize: 'inherit', color: '#374151',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#f9fafb'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
-            <Pencil size={13} style={{ color: '#9ca3af' }} />
+            <span className="ws-menu-item__icon"><Pencil size={13} /></span>
             Byt namn
           </button>
           <button
+            className="ws-menu-item"
             onClick={() => {
               onArchiveSurface?.(tabContextMenu.surfaceId);
               setTabContextMenu(null);
             }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              width: '100%', padding: '0.375rem 0.75rem', border: 'none',
-              background: 'transparent', cursor: 'pointer', fontSize: 'inherit', color: '#374151',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#f9fafb'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
-            <Archive size={13} style={{ color: '#9ca3af' }} />
+            <span className="ws-menu-item__icon"><Archive size={13} /></span>
             Arkivera
           </button>
           <button
+            className="ws-menu-item ws-menu-item--danger"
             onClick={() => {
               onDeleteSurface?.(tabContextMenu.surfaceId);
               setTabContextMenu(null);
             }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              width: '100%', padding: '0.375rem 0.75rem', border: 'none',
-              background: 'transparent', cursor: 'pointer', fontSize: 'inherit', color: '#ef4444',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#fef2f2'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           >
-            <Trash2 size={13} style={{ color: '#ef4444' }} />
+            <span className="ws-menu-item__icon"><Trash2 size={13} /></span>
             Ta bort
           </button>
         </div>
       )}
 
-      {/* Right side: archive + search */}
+      {/* Right side: status, undo, archive, search */}
       <div className="ws-toolbar-right">
-        <div style={{ position: 'relative' }} ref={archiveRef}>
+        <SaveIndicator status={saveStatus} />
+
+        <button
+          className={`ws-toggle-btn ${canUndo ? '' : 'ws-toggle-btn--dim'}`}
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Ångra (Ctrl+Z)"
+        >
+          <Undo2 size={14} />
+        </button>
+
+        <div className="ws-archive-anchor" ref={archiveRef}>
           <button
-            className="ws-toggle-btn"
+            className={`ws-toggle-btn ${archivedSurfaces.length > 0 ? '' : 'ws-toggle-btn--dim'}`}
             onClick={() => setArchiveOpen(!archiveOpen)}
             title="Arkiverade ytor"
-            style={{ opacity: archivedSurfaces.length > 0 ? 1 : 0.4 }}
           >
             <Archive size={14} />
           </button>
           {archiveOpen && archivedSurfaces.length > 0 && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: '100%',
-                marginTop: '0.25rem',
-                background: '#ffffff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                padding: '0.25rem 0',
-                minWidth: '12rem',
-                fontSize: '0.8125rem',
-                zIndex: 100,
-              }}
-            >
-              <div style={{ padding: '0.375rem 0.75rem', fontSize: '0.6875rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Arkiverade
-              </div>
+            <div className="ws-popover ws-popover--anchored">
+              <div className="ws-menu-header">Arkiverade</div>
               {archivedSurfaces.map((s) => (
-                <div
-                  key={s.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.375rem 0.75rem',
-                  }}
-                >
-                  <span style={{ color: '#374151' }}>{s.name}</span>
+                <div key={s.id} className="ws-archive-row">
+                  <span>{s.name}</span>
                   <button
+                    className="ws-archive-row__restore"
                     onClick={() => {
                       onUnarchiveSurface?.(s.id);
                       setArchiveOpen(false);
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.25rem',
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: '#6b7280', fontSize: '0.6875rem',
                     }}
                     title="Återställ"
                   >

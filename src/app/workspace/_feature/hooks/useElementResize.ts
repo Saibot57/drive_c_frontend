@@ -6,6 +6,8 @@ import { MIN_ELEMENT_WIDTH, MIN_ELEMENT_HEIGHT } from '../types/constants';
 
 type Direction = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
+export type Box = { x: number; y: number; width: number; height: number };
+
 interface UseElementResizeParams {
   placementId: string;
   zoom: number;
@@ -16,6 +18,8 @@ interface UseElementResizeParams {
   currentHeight: number;
   onResize: (placementId: string, width: number, height: number) => void;
   onMove: (placementId: string, x: number, y: number) => void;
+  /** Anropas vid släpp, och bara om måtten faktiskt ändrades. Se onMoveEnd. */
+  onResizeEnd?: (placementId: string, from: Box, to: Box) => void;
 }
 
 export function useElementResize({
@@ -28,8 +32,10 @@ export function useElementResize({
   currentHeight,
   onResize,
   onMove,
+  onResizeEnd,
 }: UseElementResizeParams) {
   const resizing = useRef(false);
+  const latest = useRef<Box | null>(null);
 
   const handleResizeStart = useCallback(
     (direction: Direction) => (e: React.MouseEvent) => {
@@ -43,6 +49,8 @@ export function useElementResize({
       const startH = currentHeight;
       const startElX = currentX;
       const startElY = currentY;
+      const from: Box = { x: startElX, y: startElY, width: startW, height: startH };
+      latest.current = from;
 
       const handleMove = (ev: MouseEvent) => {
         if (!resizing.current) return;
@@ -70,6 +78,7 @@ export function useElementResize({
         newX = snapToGrid(newX, gridSize);
         newY = snapToGrid(newY, gridSize);
 
+        latest.current = { x: newX, y: newY, width: newW, height: newH };
         onResize(placementId, newW, newH);
         if (direction.includes('w') || direction.includes('n')) {
           onMove(placementId, newX, newY);
@@ -80,12 +89,21 @@ export function useElementResize({
         resizing.current = false;
         window.removeEventListener('mousemove', handleMove);
         window.removeEventListener('mouseup', handleUp);
+
+        const to = latest.current;
+        if (
+          to &&
+          (to.width !== from.width || to.height !== from.height ||
+            to.x !== from.x || to.y !== from.y)
+        ) {
+          onResizeEnd?.(placementId, from, to);
+        }
       };
 
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
     },
-    [placementId, zoom, gridSize, currentWidth, currentHeight, currentX, currentY, onResize, onMove],
+    [placementId, zoom, gridSize, currentWidth, currentHeight, currentX, currentY, onResize, onMove, onResizeEnd],
   );
 
   return { handleResizeStart };

@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil } from 'lucide-react';
+import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, EyeOff } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
 import { useWorkspaceData } from '../hooks/useWorkspaceData';
+import { useUndoHotkey } from '../hooks/useWorkspaceHistory';
 import TopToolbar from './TopToolbar';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
@@ -14,6 +15,7 @@ import CanvasElement from './CanvasElement';
 import SearchOverlay from './SearchOverlay';
 import ContextMenu, { type ContextMenuItem } from './ContextMenu';
 import MirrorCopyModal from './MirrorCopyModal';
+import ConfirmDialog from './ConfirmDialog';
 import type { ElementType, ViewportState } from '../types/workspace.types';
 import '../styles/workspace.css';
 
@@ -24,10 +26,23 @@ interface ElementContextState {
   y: number;
 }
 
+interface ConfirmState {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  danger?: boolean;
+  onConfirm: () => void;
+}
+
 function WorkspaceInner() {
   const {
     state,
     dispatch,
+    plannerNotice,
+    dismissNotice,
+    saveStatus,
+    canUndo,
+    handleUndo,
     loadSurfaces,
     selectSurface,
     createSurface,
@@ -36,9 +51,12 @@ function WorkspaceInner() {
     updateElementTitle,
     movePlacement,
     resizePlacement,
+    commitMove,
+    commitResize,
     toggleLock,
     moveToStorage,
     moveToCanvas,
+    removePlacement,
     deleteElement,
     mirrorElement,
     copyElement,
@@ -52,8 +70,11 @@ function WorkspaceInner() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ElementContextState | null>(null);
   const [mirrorCopy, setMirrorCopy] = useState<{ elementId: string; mode: 'mirror' | 'copy' } | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [renameEl, setRenameEl] = useState<{ elementId: string; x: number; y: number; value: string } | null>(null);
   const renameElRef = useRef<HTMLInputElement>(null);
+
+  useUndoHotkey(handleUndo);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -100,6 +121,21 @@ function WorkspaceInner() {
     await createSurface(`Yta ${count + 1}`);
   }, [state.surfaces.length, createSurface]);
 
+  /** Ytradering är hård och går inte att ångra, så den bekräftas alltid. */
+  const requestDeleteSurface = useCallback((surfaceId: string) => {
+    const surface = state.surfaces.find((s) => s.id === surfaceId);
+    const count = surface?.element_count ?? 0;
+    setConfirm({
+      title: 'Ta bort yta',
+      body: count > 0
+        ? `"${surface?.name ?? 'Ytan'}" och dess ${count} placerade element tas bort. Det går inte att ångra. Vill du behålla innehållet kan du arkivera ytan i stället.`
+        : `"${surface?.name ?? 'Ytan'}" tas bort. Det går inte att ångra.`,
+      confirmLabel: 'Ta bort ytan',
+      danger: true,
+      onConfirm: () => deleteSurface(surfaceId),
+    });
+  }, [state.surfaces, deleteSurface]);
+
   const handleCreateElement = useCallback(
     (type: ElementType) => {
       const container = canvasContainerRef.current;
@@ -117,48 +153,80 @@ function WorkspaceInner() {
     [],
   );
 
+  const requestDeleteElement = useCallback((elementId: string) => {
+    const el = state.elements[elementId];
+    const count = el?.surface_count ?? 1;
+    // En radering som bara rör den yta man ser räcker det med en ångra-notis
+    // för. Speglas elementet försvinner det däremot från ytor man inte har
+    // framför sig, och då ska det sägas innan.
+    if (count > 1) {
+      setConfirm({
+        title: 'Ta bort speglat element',
+        body: `"${el?.title ?? 'Elementet'}" ligger på ${count} ytor och försvinner från alla. Du kan ångra direkt efteråt.`,
+        confirmLabel: 'Ta bort överallt',
+        danger: true,
+        onConfirm: () => deleteElement(elementId),
+      });
+      return;
+    }
+    void deleteElement(elementId);
+  }, [state.elements, deleteElement]);
+
   const contextMenuItems: ContextMenuItem[] = contextMenu
-    ? [
-        {
-          label: 'Byt namn',
-          icon: <Pencil size={13} />,
-          onClick: () => {
-            const el = state.elements[contextMenu.elementId];
-            setRenameEl({
-              elementId: contextMenu.elementId,
-              x: contextMenu.x,
-              y: contextMenu.y,
-              value: el?.title ?? '',
-            });
+    ? (() => {
+        const el = state.elements[contextMenu.elementId];
+        const surfaceCount = el?.surface_count ?? 1;
+        const otherSurfaces = state.surfaces.filter((s) => !s.is_archived).length <= 1;
+        return [
+          {
+            label: 'Byt namn',
+            icon: <Pencil size={13} />,
+            onClick: () => {
+              setRenameEl({
+                elementId: contextMenu.elementId,
+                x: contextMenu.x,
+                y: contextMenu.y,
+                value: el?.title ?? '',
+              });
+            },
           },
-        },
-        { label: '', onClick: () => {}, divider: true },
-        {
-          label: 'Spegla till...',
-          icon: <Link2 size={13} />,
-          onClick: () => setMirrorCopy({ elementId: contextMenu.elementId, mode: 'mirror' }),
-          disabled: state.surfaces.filter((s) => !s.is_archived).length <= 1,
-        },
-        {
-          label: 'Kopiera till...',
-          icon: <Copy size={13} />,
-          onClick: () => setMirrorCopy({ elementId: contextMenu.elementId, mode: 'copy' }),
-          disabled: state.surfaces.filter((s) => !s.is_archived).length <= 1,
-        },
-        { label: '', onClick: () => {}, divider: true },
-        {
-          label: 'Flytta till förråd',
-          icon: <ArrowRightToLine size={13} />,
-          onClick: () => moveToStorage(contextMenu.placementId),
-        },
-        { label: '', onClick: () => {}, divider: true },
-        {
-          label: 'Ta bort element',
-          icon: <Trash2 size={13} />,
-          onClick: () => deleteElement(contextMenu.elementId),
-          danger: true,
-        },
-      ]
+          { label: '', onClick: () => {}, divider: true },
+          {
+            label: 'Spegla till...',
+            icon: <Link2 size={13} />,
+            onClick: () => setMirrorCopy({ elementId: contextMenu.elementId, mode: 'mirror' }),
+            disabled: otherSurfaces,
+          },
+          {
+            label: 'Kopiera till...',
+            icon: <Copy size={13} />,
+            onClick: () => setMirrorCopy({ elementId: contextMenu.elementId, mode: 'copy' }),
+            disabled: otherSurfaces,
+          },
+          { label: '', onClick: () => {}, divider: true },
+          {
+            label: 'Flytta till förråd',
+            icon: <ArrowRightToLine size={13} />,
+            onClick: () => moveToStorage(contextMenu.placementId),
+          },
+          {
+            label: 'Ta bort från den här ytan',
+            icon: <EyeOff size={13} />,
+            // Ligger elementet bara här skulle det bli oåtkomligt: det finns
+            // kvar men syns ingenstans förrän biblioteket finns. Förrådet är
+            // rätt väg i det läget.
+            disabled: surfaceCount <= 1,
+            onClick: () => removePlacement(contextMenu.placementId),
+          },
+          { label: '', onClick: () => {}, divider: true },
+          {
+            label: surfaceCount > 1 ? `Ta bort från alla ${surfaceCount} ytor` : 'Ta bort element',
+            icon: <Trash2 size={13} />,
+            onClick: () => requestDeleteElement(contextMenu.elementId),
+            danger: true,
+          },
+        ];
+      })()
     : [];
 
   const canvasPlacements = state.placements.filter((p) => p.is_on_canvas);
@@ -166,7 +234,7 @@ function WorkspaceInner() {
   return (
     <div className="ws-root">
       {/* Feature navigation overlay */}
-      <div style={{ position: 'fixed', top: 8, left: 8, zIndex: 50 }}>
+      <div className="ws-nav-slot">
         <FeatureNavigation />
       </div>
 
@@ -174,22 +242,24 @@ function WorkspaceInner() {
       <TopToolbar
         surfaces={state.surfaces}
         activeSurfaceId={state.activeSurfaceId}
+        saveStatus={saveStatus}
+        canUndo={canUndo}
+        onUndo={handleUndo}
         onSurfaceSelect={selectSurface}
         onSurfaceCreate={handleSurfaceCreate}
         onSearchOpen={() => setSearchOpen(true)}
         onArchiveSurface={archiveSurface}
         onUnarchiveSurface={unarchiveSurface}
-        onDeleteSurface={deleteSurface}
+        onDeleteSurface={requestDeleteSurface}
         onRenameSurface={renameSurface}
       />
 
       {/* Main area */}
-      <div ref={canvasContainerRef} style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div ref={canvasContainerRef} className="ws-main">
         {/* Toggle left */}
         {!state.isLeftSidebarOpen && (
           <button
-            className="ws-toggle-btn"
-            style={{ margin: '0.5rem 0.25rem' }}
+            className="ws-toggle-btn ws-toggle-btn--edge"
             onClick={() => dispatch({ type: 'TOGGLE_LEFT_SIDEBAR' })}
             title="Öppna sidebar"
           >
@@ -225,6 +295,8 @@ function WorkspaceInner() {
                 onSelect={() => handleSelectElement(el.id)}
                 onMove={movePlacement}
                 onResize={resizePlacement}
+                onMoveEnd={commitMove}
+                onResizeEnd={commitResize}
                 onToggleLock={toggleLock}
                 onContentChange={updateElementContent}
                 onContextMenu={(x, y) => handleContextMenu(el.id, p.id, x, y)}
@@ -236,8 +308,7 @@ function WorkspaceInner() {
         {/* Toggle right */}
         {!state.isRightSidebarOpen && (
           <button
-            className="ws-toggle-btn"
-            style={{ margin: '0.5rem 0.25rem' }}
+            className="ws-toggle-btn ws-toggle-btn--edge"
             onClick={() => dispatch({ type: 'TOGGLE_RIGHT_SIDEBAR' })}
             title="Öppna sidebar"
           >
@@ -276,16 +347,10 @@ function WorkspaceInner() {
 
       {/* Element rename input */}
       {renameEl && (
-        <div
-          style={{
-            position: 'fixed',
-            left: renameEl.x,
-            top: renameEl.y,
-            zIndex: 200,
-          }}
-        >
+        <div className="ws-inline-input-wrap" style={{ left: renameEl.x, top: renameEl.y }}>
           <input
             ref={renameElRef}
+            className="ws-inline-input"
             value={renameEl.value}
             onChange={(e) => setRenameEl({ ...renameEl, value: e.target.value })}
             onKeyDown={(e) => {
@@ -293,17 +358,6 @@ function WorkspaceInner() {
               if (e.key === 'Escape') setRenameEl(null);
             }}
             onBlur={commitElementRename}
-            style={{
-              fontSize: '0.8125rem',
-              padding: '0.375rem 0.5rem',
-              border: '1px solid #e5e7eb',
-              borderRadius: '0.375rem',
-              background: '#ffffff',
-              color: '#111827',
-              outline: 'none',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-              minWidth: '10rem',
-            }}
           />
         </div>
       )}
@@ -324,6 +378,30 @@ function WorkspaceInner() {
           }}
           onClose={() => setMirrorCopy(null)}
         />
+      )}
+
+      {/* Bekräftelse före något oåterkalleligt */}
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          body={confirm.body}
+          confirmLabel={confirm.confirmLabel}
+          danger={confirm.danger}
+          onConfirm={confirm.onConfirm}
+          onClose={() => setConfirm(null)}
+        />
+      )}
+
+      {/* Notis, med Ångra-knapp när åtgärden går att ta tillbaka */}
+      {plannerNotice && (
+        <div className={`ws-toast ws-toast--${plannerNotice.tone}`}>
+          <span>{plannerNotice.message}</span>
+          {plannerNotice.action && (
+            <button className="ws-toast__action" onClick={plannerNotice.action.onClick}>
+              {plannerNotice.action.label}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -10,6 +10,8 @@ export interface Surface {
   is_archived: boolean;
   created_at: string;
   updated_at: string;
+  /** Antal placeringar på ytan. Används i bekräftelsen vid radering. */
+  element_count?: number;
 }
 
 export interface WorkspaceElement {
@@ -20,6 +22,8 @@ export interface WorkspaceElement {
   content: unknown; // JSON shape varies by type
   created_at: string;
   updated_at: string;
+  /** På hur många ytor elementet ligger. 2+ betyder att det är speglat. */
+  surface_count?: number;
 }
 
 export interface SurfaceElement {

@@ -1,10 +1,10 @@
 'use client';
 
 import { Lock, Unlock } from 'lucide-react';
-import type { SurfaceElement, WorkspaceElement } from '../types/workspace.types';
+import type { ElementType, SurfaceElement, WorkspaceElement } from '../types/workspace.types';
 import { GRID_SIZE, CTRL_RESIZE_THRESHOLD_PX, CTRL_RESIZE_CENTER_FRACTION } from '../types/constants';
-import { useElementDrag } from '../hooks/useElementDrag';
-import { useElementResize } from '../hooks/useElementResize';
+import { useElementDrag, type Point } from '../hooks/useElementDrag';
+import { useElementResize, type Box } from '../hooks/useElementResize';
 import ElementRenderer from './ElementRenderer';
 
 type ResizeDir = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
@@ -40,6 +40,21 @@ function detectResizeZone(
   return null;
 }
 
+/** Ritar sin egen ram ända ut i kanten och vill inte ha någon padding. */
+const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link'];
+/** Har sin egen rullning inuti och ska inte kunna rullas av wrappern. */
+const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link'];
+
+function contentClassName(type: ElementType): string {
+  return [
+    'ws-element__content',
+    FLUSH_TYPES.includes(type) && 'ws-element__content--flush',
+    CLIPPED_TYPES.includes(type) && 'ws-element__content--clip',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
 interface CanvasElementProps {
   placement: SurfaceElement;
   element: WorkspaceElement;
@@ -48,6 +63,9 @@ interface CanvasElementProps {
   onSelect: () => void;
   onMove: (placementId: string, x: number, y: number) => void;
   onResize: (placementId: string, w: number, h: number) => void;
+  /** Vid släpp: ger ångra en post per gest i stället för per musrörelse. */
+  onMoveEnd?: (placementId: string, from: Point, to: Point) => void;
+  onResizeEnd?: (placementId: string, from: Box, to: Box) => void;
   onToggleLock: (placementId: string) => void;
   onContentChange: (elementId: string, content: unknown) => void;
   onContextMenu?: (x: number, y: number) => void;
@@ -63,6 +81,8 @@ export default function CanvasElement({
   onSelect,
   onMove,
   onResize,
+  onMoveEnd,
+  onResizeEnd,
   onToggleLock,
   onContentChange,
   onContextMenu,
@@ -74,6 +94,7 @@ export default function CanvasElement({
     startX: placement.position_x,
     startY: placement.position_y,
     onMove,
+    onMoveEnd,
   });
 
   const { handleResizeStart } = useElementResize({
@@ -86,6 +107,7 @@ export default function CanvasElement({
     currentHeight: placement.height,
     onResize,
     onMove,
+    onResizeEnd,
   });
 
   const classNames = [
@@ -151,12 +173,7 @@ export default function CanvasElement({
       </button>
 
       {/* Content */}
-      <div style={{
-        width: '100%',
-        height: '100%',
-        overflow: element.type === 'pdf' || element.type === 'image' || element.type === 'link' ? 'hidden' : 'auto',
-        padding: element.type === 'sticky' || element.type === 'pdf' || element.type === 'image' || element.type === 'link' ? 0 : '0.5rem',
-      }}>
+      <div className={contentClassName(element.type)}>
         <ElementRenderer
           element={element}
           isLocked={placement.is_locked}

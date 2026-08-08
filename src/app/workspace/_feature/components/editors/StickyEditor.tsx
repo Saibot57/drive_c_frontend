@@ -25,60 +25,23 @@ export default function StickyEditor({ content, isLocked, onChange }: StickyEdit
   const color = content?.color ?? '#fef9c3';
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        background: color,
-        borderRadius: '0.25rem',
-        position: 'relative',
-      }}
-    >
+    <div className="ws-sticky" style={{ background: color }}>
       <textarea
+        className="ws-sticky__text"
         value={text}
         onChange={(e) => onChange({ ...content, text: e.target.value })}
         readOnly={isLocked}
         placeholder="Skriv här…"
-        style={{
-          flex: 1,
-          width: '100%',
-          resize: 'none',
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          padding: '0.25rem',
-          fontSize: '0.875rem',
-          lineHeight: 1.5,
-          color: '#1f2937',
-          fontFamily: 'inherit',
-        }}
       />
 
       {!isLocked && (
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.375rem',
-            padding: '0.375rem 0.25rem',
-            justifyContent: 'center',
-          }}
-        >
+        <div className="ws-sticky__colors">
           {COLORS.map((c) => (
             <button
               key={c}
+              className={`ws-sticky__swatch ${c === color ? 'ws-sticky__swatch--active' : ''}`}
               onClick={() => onChange({ ...content, color: c })}
-              style={{
-                width: '1rem',
-                height: '1rem',
-                borderRadius: '50%',
-                background: c,
-                border: c === color ? '2px solid #6b7280' : '1px solid #d1d5db',
-                cursor: 'pointer',
-                padding: 0,
-                flexShrink: 0,
-              }}
+              style={{ background: c }}
               title={c}
             />
           ))}

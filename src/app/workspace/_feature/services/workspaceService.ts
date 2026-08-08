@@ -79,9 +79,15 @@ export const workspaceService = {
     return unwrap<WorkspaceElement>(res);
   },
 
+  /** Mjuk radering — placeringarna ligger kvar tills elementet återställs. */
   async deleteElement(id: string): Promise<void> {
     const res = await fetchWithAuth(`${BASE}/elements/${id}`, { method: 'DELETE' });
     await unwrap<null>(res);
+  },
+
+  async restoreElement(id: string): Promise<WorkspaceElement> {
+    const res = await fetchWithAuth(`${BASE}/elements/${id}/restore`, { method: 'POST' });
+    return unwrap<WorkspaceElement>(res);
   },
 
   // ── Placements ──

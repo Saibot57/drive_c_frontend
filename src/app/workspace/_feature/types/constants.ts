@@ -12,6 +12,12 @@ export const MIN_ELEMENT_HEIGHT = 80;
 export const DEBOUNCE_POSITION_MS = 300;
 export const DEBOUNCE_CONTENT_MS = 500;
 
+/**
+ * Notiser med en Ångra-knapp ligger kvar längre än vanliga bekräftelser —
+ * standardtiden på 2,6 s räcker inte för att hinna läsa och klicka.
+ */
+export const UNDO_NOTICE_MS = 8000;
+
 // Ctrl-assisted resize: screen-pixel distance from an edge that counts as "near".
 export const CTRL_RESIZE_THRESHOLD_PX = 24;
 // Fraction of the element's smaller dimension kept as a center "drag" zone,

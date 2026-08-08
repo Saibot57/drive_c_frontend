@@ -1,4 +1,64 @@
-/* ── PDF viewer loading spinner ── */
+/* ──────────────────────────────────────────────────────────────
+   Workspace — allt utseende bor här, inga inline-styles i tsx.
+   Färger och mått går via variabler på .ws-root, så att det
+   neobrutalistiska skalet kan bytas in genom att skriva om
+   variabellistan i stället för att jaga värden genom tolv filer.
+   ────────────────────────────────────────────────────────────── */
+
+.ws-root {
+  /* Ytor */
+  --ws-bg: #ffffff;
+  --ws-bg-muted: #fafafa;
+  --ws-bg-hover: #f3f4f6;
+  --ws-bg-subtle: #f9fafb;
+  --ws-canvas-bg: #fafafa;
+  --ws-canvas-dot: #e5e7eb;
+  --ws-overlay: rgba(0, 0, 0, 0.3);
+
+  /* Kanter */
+  --ws-border-color: #e5e7eb;
+  --ws-border: 1px solid var(--ws-border-color);
+  --ws-divider-color: #f3f4f6;
+  --ws-radius-sm: 0.375rem;
+  --ws-radius: 0.5rem;
+  --ws-radius-lg: 0.75rem;
+
+  /* Skuggor */
+  --ws-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --ws-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --ws-shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --ws-shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.12);
+
+  /* Text */
+  --ws-text: #111827;
+  --ws-text-muted: #374151;
+  --ws-text-subtle: #6b7280;
+  --ws-text-faint: #9ca3af;
+  --ws-text-disabled: #d1d5db;
+
+  /* Accent och fara */
+  --ws-accent: #3b82f6;
+  --ws-accent-soft: #93c5fd;
+  --ws-accent-bg: #eff6ff;
+  --ws-danger: #ef4444;
+  --ws-danger-bg: #fef2f2;
+
+  /* Typografi */
+  --ws-font-xs: 0.6875rem;
+  --ws-font-sm: 0.75rem;
+  --ws-font-md: 0.8125rem;
+  --ws-font-lg: 0.875rem;
+
+  --ws-transition: 150ms;
+
+  /* Lagerordning */
+  --ws-z-canvas-chrome: 20;
+  --ws-z-overlay: 100;
+  --ws-z-modal: 150;
+  --ws-z-popover: 200;
+}
+
+/* ── PDF-läsarens spinner ── */
 @keyframes ws-spin-kf {
   to { transform: rotate(360deg); }
 }
@@ -6,7 +66,7 @@
   animation: ws-spin-kf 1s linear infinite;
 }
 
-/* ── Workspace root: negates RootLayoutBase pt-8 px-8, applies Inter ── */
+/* ── Rot: negerar RootLayoutBase pt-8 px-8, sätter Inter ── */
 .ws-root {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   margin: -2rem -2rem 0 -2rem;
@@ -14,11 +74,25 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
-  color: #111827;
+  background-color: var(--ws-bg);
+  color: var(--ws-text);
 }
 
-/* ── Top toolbar ── */
+/* Navigeringen ligger ovanpå toolbaren i övre vänstra hörnet. */
+.ws-nav-slot {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+}
+
+.ws-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Toolbar ── */
 .ws-toolbar {
   height: 3rem;
   min-height: 3rem;
@@ -26,10 +100,10 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-bottom: var(--ws-border);
+  background: var(--ws-bg);
   padding: 0 0.75rem;
-  z-index: 20;
+  z-index: var(--ws-z-canvas-chrome);
 }
 
 .ws-toolbar-right {
@@ -42,37 +116,51 @@
   gap: 0.25rem;
 }
 
-/* ── Centered pill selector ── */
+.ws-toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* ── Ytväljaren ── */
 .ws-surface-pill {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  background: #f3f4f6;
-  border-radius: 0.5rem;
+  background: var(--ws-bg-hover);
+  border-radius: var(--ws-radius);
   padding: 2px;
 }
 
 .ws-surface-pill__tab {
   padding: 0.25rem 0.75rem;
-  font-size: 0.8125rem;
+  font-size: var(--ws-font-md);
   font-weight: 500;
-  color: #6b7280;
-  border-radius: 0.375rem;
+  color: var(--ws-text-subtle);
+  border-radius: var(--ws-radius-sm);
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color 150ms, color 150ms, box-shadow 150ms;
+  transition: background-color var(--ws-transition), color var(--ws-transition),
+    box-shadow var(--ws-transition);
   border: none;
   background: transparent;
 }
 
 .ws-surface-pill__tab:hover {
-  color: #374151;
+  color: var(--ws-text-muted);
 }
 
 .ws-surface-pill__tab--active {
-  background: #ffffff;
-  color: #111827;
+  background: var(--ws-bg);
+  color: var(--ws-text);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* Namnbytet sker i en input som ärver flikens utseende. Bredden räknas
+   ut från textlängden och sätts därför fortfarande inline. */
+.ws-surface-pill__tab--editing {
+  outline: none;
+  min-width: 3ch;
 }
 
 .ws-surface-pill__add {
@@ -83,82 +171,103 @@
   justify-content: center;
   border: none;
   background: transparent;
-  color: #9ca3af;
-  border-radius: 0.375rem;
+  color: var(--ws-text-faint);
+  border-radius: var(--ws-radius-sm);
   cursor: pointer;
   margin-left: 0.25rem;
-  transition: background-color 150ms, color 150ms;
+  transition: background-color var(--ws-transition), color var(--ws-transition);
 }
 
 .ws-surface-pill__add:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--ws-border-color);
+  color: var(--ws-text-muted);
 }
 
-/* ── Sidebars ── */
+/* ── Sidopaneler ── */
 .ws-sidebar {
   display: flex;
   flex-direction: column;
-  background: #fafafa;
+  background: var(--ws-bg-muted);
   overflow-y: auto;
   scrollbar-width: thin;
 }
 
 .ws-sidebar-left {
-  border-right: 1px solid #e5e7eb;
+  width: 13rem;
+  border-right: var(--ws-border);
 }
 
 .ws-sidebar-right {
-  border-left: 1px solid #e5e7eb;
+  width: 14rem;
+  border-left: var(--ws-border);
+}
+
+.ws-sidebar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
 }
 
 .ws-sidebar-header {
   padding: 0.75rem;
-  font-size: 0.6875rem;
+  font-size: var(--ws-font-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #9ca3af;
+  color: var(--ws-text-faint);
+}
+
+/* I panelhuvudet sitter rubriken bredvid en knapp och ska inte ha padding. */
+.ws-sidebar__head .ws-sidebar-header {
+  padding: 0;
+  margin: 0;
 }
 
 .ws-sidebar-section {
   padding: 0.25rem 0.5rem;
 }
 
-/* ── Sidebar buttons ── */
+.ws-sidebar-empty {
+  font-size: var(--ws-font-sm);
+  color: var(--ws-text-faint);
+  padding: 0 0.5rem;
+}
+
+/* ── Skapa-knappar ── */
 .ws-create-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
   padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-  color: #374151;
+  font-size: var(--ws-font-md);
+  color: var(--ws-text-muted);
   border: none;
   background: transparent;
-  border-radius: 0.375rem;
+  border-radius: var(--ws-radius-sm);
   cursor: pointer;
-  transition: background-color 150ms;
+  transition: background-color var(--ws-transition);
   text-align: left;
 }
 
 .ws-create-btn:hover {
-  background-color: #f3f4f6;
+  background-color: var(--ws-bg-hover);
 }
 
 .ws-create-btn svg {
   width: 1rem;
   height: 1rem;
-  color: #9ca3af;
+  color: var(--ws-text-faint);
 }
 
-/* ── Canvas container ── */
+/* ── Canvas ── */
 .ws-canvas-container {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background-color: #fafafa;
-  background-image: radial-gradient(circle, #e5e7eb 1px, transparent 1px);
+  background-color: var(--ws-canvas-bg);
+  background-image: radial-gradient(circle, var(--ws-canvas-dot) 1px, transparent 1px);
   background-size: 24px 24px;
   cursor: grab;
 }
@@ -175,31 +284,48 @@
   will-change: transform;
 }
 
-/* ── Canvas element wrapper ── */
+/* ── Element på canvas ── */
 .ws-element {
   position: absolute;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: var(--ws-bg);
+  border: var(--ws-border);
+  border-radius: var(--ws-radius);
+  box-shadow: var(--ws-shadow-sm);
   overflow: hidden;
-  transition: box-shadow 150ms;
+  transition: box-shadow var(--ws-transition);
 }
 
 .ws-element:hover {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--ws-shadow);
 }
 
 .ws-element--selected {
-  border-color: #3b82f6;
+  border-color: var(--ws-accent);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .ws-element--unlocked {
-  border-color: #93c5fd;
+  border-color: var(--ws-accent-soft);
 }
 
-/* ── Lock icon ── */
+/* Innehållsytan. Modifierarna följer elementtypen: bild, PDF och länk
+   ritar ända ut i kanten, notislappen har sin egen inre padding. */
+.ws-element__content {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 0.5rem;
+}
+
+.ws-element__content--flush {
+  padding: 0;
+}
+
+.ws-element__content--clip {
+  overflow: hidden;
+}
+
+/* ── Låsknapp ── */
 .ws-lock-btn {
   position: absolute;
   top: 0.375rem;
@@ -213,10 +339,10 @@
   border-radius: 0.25rem;
   border: none;
   background: rgba(255, 255, 255, 0.85);
-  color: #9ca3af;
+  color: var(--ws-text-faint);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 150ms, color 150ms;
+  transition: opacity var(--ws-transition), color var(--ws-transition);
 }
 
 .ws-element:hover .ws-lock-btn,
@@ -225,18 +351,18 @@
 }
 
 .ws-lock-btn:hover {
-  color: #374151;
-  background: #f3f4f6;
+  color: var(--ws-text-muted);
+  background: var(--ws-bg-hover);
 }
 
-/* ── Resize handles ── */
+/* ── Storlekshandtag ── */
 .ws-resize-handle {
   position: absolute;
   z-index: 10;
-  background: #3b82f6;
+  background: var(--ws-accent);
   border-radius: 1px;
   opacity: 0;
-  transition: opacity 150ms;
+  transition: opacity var(--ws-transition);
 }
 
 .ws-element--selected .ws-resize-handle {
@@ -281,7 +407,7 @@
 .ws-resize-handle--sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
 .ws-resize-handle--se { bottom: -4px; right: -4px; cursor: nwse-resize; }
 
-/* ── Zoom controls ── */
+/* ── Zoomkontroller ── */
 .ws-zoom-controls {
   position: absolute;
   bottom: 1rem;
@@ -289,12 +415,12 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  background: var(--ws-bg);
+  border: var(--ws-border);
+  border-radius: var(--ws-radius);
   padding: 0.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  z-index: 20;
+  box-shadow: var(--ws-shadow);
+  z-index: var(--ws-z-canvas-chrome);
 }
 
 .ws-zoom-btn {
@@ -305,46 +431,50 @@
   justify-content: center;
   border: none;
   background: transparent;
-  border-radius: 0.375rem;
+  border-radius: var(--ws-radius-sm);
   cursor: pointer;
-  color: #6b7280;
-  font-size: 0.75rem;
-  transition: background-color 150ms;
+  color: var(--ws-text-subtle);
+  font-size: var(--ws-font-sm);
+  transition: background-color var(--ws-transition);
 }
 
 .ws-zoom-btn:hover {
-  background-color: #f3f4f6;
+  background-color: var(--ws-bg-hover);
 }
 
 .ws-zoom-label {
-  font-size: 0.6875rem;
-  color: #6b7280;
+  font-size: var(--ws-font-xs);
+  color: var(--ws-text-subtle);
   min-width: 2.5rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Right sidebar element cards ── */
+/* ── Elementkort i högerpanelen ── */
 .ws-element-card {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.375rem 0.5rem;
-  border-radius: 0.375rem;
+  border-radius: var(--ws-radius-sm);
   cursor: pointer;
-  transition: background-color 150ms;
-  font-size: 0.8125rem;
-  color: #374151;
+  transition: background-color var(--ws-transition);
+  font-size: var(--ws-font-md);
+  color: var(--ws-text-muted);
 }
 
 .ws-element-card:hover {
-  background-color: #f3f4f6;
+  background-color: var(--ws-bg-hover);
+}
+
+.ws-element-card--selected {
+  background-color: var(--ws-accent-bg);
 }
 
 .ws-element-card svg {
   width: 0.875rem;
   height: 0.875rem;
-  color: #9ca3af;
+  color: var(--ws-text-faint);
   flex-shrink: 0;
 }
 
@@ -355,29 +485,7 @@
   white-space: nowrap;
 }
 
-/* ── Search ── */
-.ws-search-input {
-  font-size: 0.8125rem;
-  padding: 0.375rem 0.5rem 0.375rem 1.75rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  background: #f9fafb;
-  color: #111827;
-  outline: none;
-  width: 12rem;
-  transition: border-color 150ms, width 200ms;
-}
-
-.ws-search-input:focus {
-  border-color: #93c5fd;
-  width: 16rem;
-}
-
-.ws-search-input::placeholder {
-  color: #9ca3af;
-}
-
-/* ── Toggle sidebar buttons ── */
+/* ── Panelknappar ── */
 .ws-toggle-btn {
   width: 1.5rem;
   height: 1.5rem;
@@ -388,23 +496,521 @@
   background: transparent;
   border-radius: 0.25rem;
   cursor: pointer;
-  color: #9ca3af;
-  transition: background-color 150ms, color 150ms;
+  color: var(--ws-text-faint);
+  transition: background-color var(--ws-transition), color var(--ws-transition);
 }
 
 .ws-toggle-btn:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--ws-bg-hover);
+  color: var(--ws-text-muted);
 }
 
-/* ── Dividers ── */
+.ws-toggle-btn--edge {
+  margin: 0.5rem 0.25rem;
+}
+
+.ws-toggle-btn--dim {
+  opacity: 0.4;
+}
+
 .ws-divider {
   height: 1px;
-  background: #e5e7eb;
+  background: var(--ws-border-color);
   margin: 0.5rem 0.75rem;
 }
 
-/* ── Kanban card delete button ── */
+/* ──────────────────────────────────────────────────────────────
+   Popover: kontextmenyer, arkivlistan, flikmenyn
+   ────────────────────────────────────────────────────────────── */
+
+.ws-popover {
+  position: fixed;
+  z-index: var(--ws-z-popover);
+  background: var(--ws-bg);
+  border: var(--ws-border);
+  border-radius: var(--ws-radius);
+  box-shadow: var(--ws-shadow-pop);
+  padding: 0.25rem 0;
+  min-width: 10rem;
+  font-size: var(--ws-font-md);
+}
+
+/* Arkivlistan hänger under sin knapp i stället för att ligga fritt. */
+.ws-popover--anchored {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 0.25rem;
+  min-width: 12rem;
+  z-index: var(--ws-z-overlay);
+}
+
+.ws-popover--narrow {
+  min-width: 9rem;
+}
+
+.ws-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ws-text-muted);
+  font-size: inherit;
+  font-family: inherit;
+  border-radius: 0;
+  transition: background-color var(--ws-transition);
+}
+
+.ws-menu-item:hover {
+  background: var(--ws-bg-subtle);
+}
+
+.ws-menu-item__icon {
+  display: flex;
+  color: var(--ws-text-faint);
+  flex-shrink: 0;
+}
+
+.ws-menu-item--danger {
+  color: var(--ws-danger);
+}
+
+.ws-menu-item--danger:hover {
+  background: var(--ws-danger-bg);
+}
+
+.ws-menu-item--danger .ws-menu-item__icon {
+  color: var(--ws-danger);
+}
+
+.ws-menu-item:disabled {
+  color: var(--ws-text-disabled);
+  cursor: default;
+}
+
+.ws-menu-item:disabled:hover {
+  background: transparent;
+}
+
+.ws-menu-item:disabled .ws-menu-item__icon {
+  color: var(--ws-text-disabled);
+}
+
+.ws-menu-divider {
+  height: 1px;
+  background: var(--ws-divider-color);
+  margin: 0.25rem 0;
+}
+
+.ws-menu-header {
+  padding: 0.375rem 0.75rem;
+  font-size: var(--ws-font-xs);
+  color: var(--ws-text-faint);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Fästpunkt för arkivlistan, som hänger under sin knapp. */
+.ws-archive-anchor {
+  position: relative;
+}
+
+.ws-archive-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.75rem;
+  color: var(--ws-text-muted);
+}
+
+.ws-archive-row__restore {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ws-text-subtle);
+  font-size: var(--ws-font-xs);
+}
+
+.ws-archive-row__restore:hover {
+  color: var(--ws-text-muted);
+}
+
+/* ── Fristående inmatning (namnbyte på element) ── */
+.ws-inline-input-wrap {
+  position: fixed;
+  z-index: var(--ws-z-popover);
+}
+
+.ws-inline-input {
+  font-size: var(--ws-font-md);
+  padding: 0.375rem 0.5rem;
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-sm);
+  background: var(--ws-bg);
+  color: var(--ws-text);
+  outline: none;
+  box-shadow: var(--ws-shadow-pop);
+  min-width: 10rem;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Overlay och dialoger
+   ────────────────────────────────────────────────────────────── */
+
+.ws-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ws-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ws-overlay);
+}
+
+/* Sökrutan landar en bit ner från toppen i stället för mitt på skärmen. */
+.ws-overlay-backdrop--top {
+  z-index: var(--ws-z-overlay);
+  align-items: flex-start;
+  padding-top: 6rem;
+}
+
+.ws-dialog {
+  background: var(--ws-bg);
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-lg);
+  box-shadow: var(--ws-shadow-modal);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-dialog--sm { width: 20rem; }
+.ws-dialog--md { width: 32rem; max-height: 24rem; }
+
+.ws-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ws-divider-color);
+}
+
+.ws-dialog__title {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-weight: 500;
+  font-size: var(--ws-font-lg);
+}
+
+.ws-dialog__title svg {
+  color: var(--ws-text-subtle);
+}
+
+.ws-dialog__body {
+  padding: 0.5rem;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.ws-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--ws-divider-color);
+}
+
+.ws-dialog__empty {
+  padding: 1rem;
+  color: var(--ws-text-faint);
+  font-size: var(--ws-font-md);
+  text-align: center;
+}
+
+.ws-icon-btn {
+  display: flex;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ws-text-faint);
+  transition: color var(--ws-transition);
+}
+
+.ws-icon-btn:hover {
+  color: var(--ws-text-muted);
+}
+
+/* ── Dialogknappar ── */
+.ws-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: var(--ws-font-md);
+  font-family: inherit;
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-sm);
+  background: var(--ws-bg);
+  cursor: pointer;
+  color: var(--ws-text-muted);
+  transition: background-color var(--ws-transition);
+}
+
+.ws-btn:hover {
+  background: var(--ws-bg-subtle);
+}
+
+.ws-btn--primary {
+  border: none;
+  background: var(--ws-accent);
+  color: #ffffff;
+}
+
+.ws-btn--primary:hover {
+  background: #2563eb;
+}
+
+.ws-btn--primary:disabled {
+  background: var(--ws-border-color);
+  color: var(--ws-text-faint);
+  cursor: default;
+}
+
+.ws-btn--danger {
+  border: none;
+  background: var(--ws-danger);
+  color: #ffffff;
+}
+
+.ws-btn--danger:hover {
+  background: #dc2626;
+}
+
+/* ── Bekräftelserutans brödtext ── */
+.ws-dialog__text {
+  padding: 0.875rem 1rem;
+  margin: 0;
+  font-size: var(--ws-font-md);
+  line-height: 1.5;
+  color: var(--ws-text-muted);
+}
+
+.ws-dialog__title-warn {
+  color: var(--ws-danger);
+}
+
+/* ── Sparstatus i toolbaren ── */
+.ws-save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--ws-font-xs);
+  font-weight: 600;
+  color: var(--ws-text-subtle);
+  white-space: nowrap;
+  padding-right: 0.25rem;
+}
+
+.ws-save-status--error {
+  color: var(--ws-danger);
+}
+
+/* ── Notis ── */
+.ws-toast {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--ws-radius);
+  box-shadow: var(--ws-shadow-modal);
+  font-size: var(--ws-font-md);
+  font-weight: 600;
+  max-width: 24rem;
+}
+
+.ws-toast--success { background: #d1fae5; color: #064e3b; }
+.ws-toast--warning { background: #fef3c7; color: #78350f; }
+.ws-toast--error   { background: #ffe4e6; color: #881337; }
+
+.ws-toast__action {
+  flex-shrink: 0;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid currentColor;
+  border-radius: var(--ws-radius-sm);
+  background: transparent;
+  color: inherit;
+  font-size: var(--ws-font-md);
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color var(--ws-transition);
+}
+
+.ws-toast__action:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* ── Ytval i spegla/kopiera ── */
+.ws-surface-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--ws-radius-sm);
+  cursor: pointer;
+  font-size: var(--ws-font-md);
+  font-family: inherit;
+  color: var(--ws-text-muted);
+  text-align: left;
+  transition: background-color var(--ws-transition);
+}
+
+.ws-surface-option:hover {
+  background: var(--ws-bg-subtle);
+}
+
+.ws-surface-option--selected,
+.ws-surface-option--selected:hover {
+  border-color: var(--ws-accent);
+  background: var(--ws-accent-bg);
+}
+
+/* ── Sök ── */
+.ws-search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ws-divider-color);
+}
+
+.ws-search-field svg {
+  color: var(--ws-text-faint);
+  flex-shrink: 0;
+}
+
+.ws-search-field__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: var(--ws-font-lg);
+  font-family: inherit;
+  background: transparent;
+  color: var(--ws-text);
+}
+
+.ws-search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.25rem 0;
+}
+
+.ws-result {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--ws-font-md);
+  font-family: inherit;
+  transition: background-color var(--ws-transition);
+}
+
+.ws-result:hover {
+  background: var(--ws-bg-subtle);
+}
+
+.ws-result__icon {
+  display: flex;
+  color: var(--ws-text-faint);
+  flex-shrink: 0;
+}
+
+.ws-result__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ws-result__title {
+  font-weight: 500;
+  color: var(--ws-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-result__meta {
+  font-size: var(--ws-font-xs);
+  color: var(--ws-text-faint);
+  margin-top: 0.125rem;
+}
+
+/* ── Notislapp ── */
+/* Färgen är innehåll och sätts därför fortfarande inline. */
+.ws-sticky {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.25rem;
+  position: relative;
+}
+
+.ws-sticky__text {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0.25rem;
+  font-size: var(--ws-font-lg);
+  line-height: 1.5;
+  color: #1f2937;
+  font-family: inherit;
+}
+
+.ws-sticky__colors {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.375rem 0.25rem;
+  justify-content: center;
+}
+
+.ws-sticky__swatch {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.ws-sticky__swatch--active {
+  border: 2px solid var(--ws-text-subtle);
+}
+
+/* ── Kanban ── */
 div:hover > .kanban-card-delete {
   opacity: 1 !important;
 }

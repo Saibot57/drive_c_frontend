@@ -43,18 +43,9 @@ export default function LeftSidebar({
   if (!isOpen) return null;
 
   return (
-    <div className="ws-sidebar ws-sidebar-left" style={{ width: '13rem' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0.5rem 0.75rem',
-        }}
-      >
-        <span className="ws-sidebar-header" style={{ padding: 0, margin: 0 }}>
-          Skapa
-        </span>
+    <div className="ws-sidebar ws-sidebar-left">
+      <div className="ws-sidebar__head">
+        <span className="ws-sidebar-header">Skapa</span>
         <button className="ws-toggle-btn" onClick={onToggle} title="Stäng sidebar">
           <PanelLeftClose size={14} />
         </button>

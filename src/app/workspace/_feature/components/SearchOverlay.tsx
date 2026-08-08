@@ -85,118 +85,37 @@ export default function SearchOverlay({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        paddingTop: '6rem',
-        background: 'rgba(0,0,0,0.3)',
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: '32rem',
-          maxHeight: '24rem',
-          background: '#ffffff',
-          borderRadius: '0.75rem',
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Search input */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.75rem 1rem',
-            borderBottom: '1px solid #f3f4f6',
-          }}
-        >
-          <Search size={16} style={{ color: '#9ca3af', flexShrink: 0 }} />
+    <div className="ws-overlay-backdrop ws-overlay-backdrop--top" onClick={onClose}>
+      <div className="ws-dialog ws-dialog--md" onClick={(e) => e.stopPropagation()}>
+        <div className="ws-search-field">
+          <Search size={16} />
           <input
             ref={inputRef}
+            className="ws-search-field__input"
             value={query}
             onChange={(e) => handleChange(e.target.value)}
             placeholder="Sök element..."
-            style={{
-              flex: 1,
-              border: 'none',
-              outline: 'none',
-              fontSize: '0.875rem',
-              background: 'transparent',
-              color: '#111827',
-            }}
             onKeyDown={(e) => {
               if (e.key === 'Escape') onClose();
             }}
           />
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#9ca3af',
-              padding: 0,
-              display: 'flex',
-            }}
-          >
+          <button className="ws-icon-btn" onClick={onClose} aria-label="Stäng">
             <X size={16} />
           </button>
         </div>
 
-        {/* Results */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0.25rem 0' }}>
-          {loading && (
-            <p style={{ padding: '1rem', color: '#9ca3af', fontSize: '0.8125rem', textAlign: 'center' }}>
-              Söker...
-            </p>
-          )}
+        <div className="ws-search-results">
+          {loading && <p className="ws-dialog__empty">Söker...</p>}
           {!loading && query && results.length === 0 && (
-            <p style={{ padding: '1rem', color: '#9ca3af', fontSize: '0.8125rem', textAlign: 'center' }}>
-              Inga resultat
-            </p>
+            <p className="ws-dialog__empty">Inga resultat</p>
           )}
           {results.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => handleSelect(r)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.625rem',
-                width: '100%',
-                padding: '0.5rem 1rem',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: '0.8125rem',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = '#f9fafb';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = 'transparent';
-              }}
-            >
-              <span style={{ color: '#9ca3af', flexShrink: 0 }}>{typeIcons[r.type]}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {r.title}
-                </div>
+            <button key={r.id} className="ws-result" onClick={() => handleSelect(r)}>
+              <span className="ws-result__icon">{typeIcons[r.type]}</span>
+              <div className="ws-result__main">
+                <div className="ws-result__title">{r.title}</div>
                 {r.surfaces.length > 0 && (
-                  <div style={{ fontSize: '0.6875rem', color: '#9ca3af', marginTop: '0.125rem' }}>
+                  <div className="ws-result__meta">
                     {r.surfaces.map((s) => s.name).join(', ')}
                   </div>
                 )}

@@ -59,18 +59,9 @@ export default function RightSidebar({
   const inStorage = placements.filter((p) => !p.is_on_canvas);
 
   return (
-    <div className="ws-sidebar ws-sidebar-right" style={{ width: '14rem' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0.5rem 0.75rem',
-        }}
-      >
-        <span className="ws-sidebar-header" style={{ padding: 0, margin: 0 }}>
-          Element
-        </span>
+    <div className="ws-sidebar ws-sidebar-right">
+      <div className="ws-sidebar__head">
+        <span className="ws-sidebar-header">Element</span>
         <button className="ws-toggle-btn" onClick={onToggle} title="Stäng sidebar">
           <PanelRightClose size={14} />
         </button>
@@ -79,18 +70,14 @@ export default function RightSidebar({
       {/* On canvas */}
       <div className="ws-sidebar-section">
         <div className="ws-sidebar-header">På canvas</div>
-        {onCanvas.length === 0 && (
-          <p style={{ fontSize: '0.75rem', color: '#9ca3af', padding: '0 0.5rem' }}>
-            Inga element
-          </p>
-        )}
+        {onCanvas.length === 0 && <p className="ws-sidebar-empty">Inga element</p>}
         {onCanvas.map((p) => {
           const el = elements[p.element_id];
           if (!el) return null;
           return (
             <div
               key={p.id}
-              className={`ws-element-card ${el.id === selectedElementId ? 'bg-blue-50' : ''}`}
+              className={`ws-element-card ${el.id === selectedElementId ? 'ws-element-card--selected' : ''}`}
               onClick={() => onSelectElement(el.id)}
             >
               {typeIcons[el.type]}
@@ -115,11 +102,7 @@ export default function RightSidebar({
       {/* In storage */}
       <div className="ws-sidebar-section">
         <div className="ws-sidebar-header">I förråd</div>
-        {inStorage.length === 0 && (
-          <p style={{ fontSize: '0.75rem', color: '#9ca3af', padding: '0 0.5rem' }}>
-            Tomt
-          </p>
-        )}
+        {inStorage.length === 0 && <p className="ws-sidebar-empty">Tomt</p>}
         {inStorage.map((p) => {
           const el = elements[p.element_id];
           if (!el) return null;

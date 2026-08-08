@@ -114,6 +114,6 @@ export default function ElementRenderer({
       );
 
     default:
-      return <p style={{ color: '#9ca3af', fontSize: '0.75rem' }}>Okänd elementtyp</p>;
+      return <p className="ws-sidebar-empty">Okänd elementtyp</p>;
   }
 }
