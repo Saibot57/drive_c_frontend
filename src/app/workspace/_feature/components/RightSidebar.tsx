@@ -10,6 +10,7 @@ import {
   FileText,
   ImageIcon,
   Link as LinkIcon,
+  PieChart,
   ArrowRightToLine,
   ArrowLeftToLine,
   PanelRightClose,
@@ -42,6 +43,7 @@ const typeIcons: Record<ElementType, React.ReactNode> = {
   pdf: <FileText size={14} />,
   image: <ImageIcon size={14} />,
   link: <LinkIcon size={14} />,
+  wheel_ref: <PieChart size={14} />,
 };
 
 export default function RightSidebar({

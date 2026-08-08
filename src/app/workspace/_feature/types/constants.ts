@@ -16,6 +16,7 @@ export const TYPE_COLORS: Record<ElementType, string> = {
   pdf: '#c7d2fe',
   image: '#a7f3d0',
   link: '#e5e7eb',
+  wheel_ref: '#f5d0fe',
 };
 
 export const GRID_SIZE = 16;
@@ -28,6 +29,19 @@ export const DEFAULT_ELEMENT_WIDTH = 320;
 export const DEFAULT_ELEMENT_HEIGHT = 200;
 export const MIN_ELEMENT_WIDTH = 160;
 export const MIN_ELEMENT_HEIGHT = 80;
+
+/**
+ * Hjulet är runt och tappar sina etiketter långt före de andra typerna. Under
+ * det här måttet är det inte längre läsbart, så det får ett eget golv.
+ */
+export const MIN_WHEEL_REF_SIZE = 280;
+
+/**
+ * Under den här canvas-zoomen ritas hjulet utan text. Motsvarar TEXT_MIN_EXTENT
+ * i temakalendern, som löser samma sak inuti hjulet: hellre ren färg än
+ * bokstäver som ändå inte går att läsa.
+ */
+export const WHEEL_REF_TEXT_MIN_ZOOM = 0.7;
 
 export const DEBOUNCE_POSITION_MS = 300;
 export const DEBOUNCE_CONTENT_MS = 500;

@@ -1,5 +1,9 @@
 // ── Element types ──
-export type ElementType = 'text' | 'table' | 'mindmap' | 'list' | 'kanban' | 'sticky' | 'pdf' | 'image' | 'link';
+export type ElementType =
+  | 'text' | 'table' | 'mindmap' | 'list' | 'kanban' | 'sticky'
+  | 'pdf' | 'image' | 'link'
+  /** Skrivskyddad vy av ett hjul i temakalendern. Innehållet är bara ett id. */
+  | 'wheel_ref';
 
 // ── Backend mirrors ──
 export interface Surface {
@@ -53,6 +57,11 @@ export interface WorkspaceState {
   activeSurfaceId: string | null;
   placements: SurfaceElement[];
   elements: Record<string, WorkspaceElement>;
+  /**
+   * Alla användarens element, oavsett yta. Skilt från `elements`, som bara
+   * innehåller det den aktiva ytan råkar visa.
+   */
+  library: WorkspaceElement[];
   viewport: ViewportState;
   selectedElementId: string | null;
   isLeftSidebarOpen: boolean;
@@ -65,6 +74,7 @@ export type WorkspaceAction =
   | { type: 'SET_PLACEMENTS'; placements: SurfaceElement[] }
   | { type: 'SET_ELEMENT'; element: WorkspaceElement }
   | { type: 'SET_ELEMENTS'; elements: WorkspaceElement[] }
+  | { type: 'SET_LIBRARY'; elements: WorkspaceElement[] }
   | { type: 'UPDATE_PLACEMENT'; placementId: string; changes: Partial<SurfaceElement> }
   | { type: 'REMOVE_PLACEMENT'; placementId: string }
   | { type: 'ADD_PLACEMENT'; placement: SurfaceElement }

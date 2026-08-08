@@ -11,16 +11,21 @@ import {
   ImageIcon,
   Link as LinkIcon,
   Layers,
+  PieChart,
   PanelLeftClose,
 } from 'lucide-react';
-import type { ElementType } from '../types/workspace.types';
+import type { ElementType, WorkspaceElement } from '../types/workspace.types';
 import { TYPE_COLORS } from '../types/constants';
+import LibraryCard from './LibraryCard';
 
 interface LeftSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   onCreateElement: (type: ElementType) => void;
   onCreateSurface: () => void;
+  library: WorkspaceElement[];
+  onLibraryPointerDown: (element: WorkspaceElement, event: React.PointerEvent) => void;
+  onDeleteElement: (elementId: string) => void;
 }
 
 const elementButtons: { type: ElementType; label: string; icon: React.ReactNode }[] = [
@@ -33,13 +38,21 @@ const elementButtons: { type: ElementType; label: string; icon: React.ReactNode 
   { type: 'pdf', label: 'PDF', icon: <FileText size={16} /> },
   { type: 'image', label: 'Bild', icon: <ImageIcon size={16} /> },
   { type: 'link', label: 'Länk', icon: <LinkIcon size={16} /> },
+  { type: 'wheel_ref', label: 'Temahjul', icon: <PieChart size={16} /> },
 ];
+
+const typeIcons: Record<ElementType, React.ReactNode> = Object.fromEntries(
+  elementButtons.map((b) => [b.type, b.icon]),
+) as Record<ElementType, React.ReactNode>;
 
 export default function LeftSidebar({
   isOpen,
   onToggle,
   onCreateElement,
   onCreateSurface,
+  library,
+  onLibraryPointerDown,
+  onDeleteElement,
 }: LeftSidebarProps) {
   if (!isOpen) return null;
 
@@ -77,6 +90,29 @@ export default function LeftSidebar({
             {btn.label}
           </button>
         ))}
+      </div>
+
+      <div className="ws-divider" />
+
+      {/*
+        Biblioteket. Elementen finns oberoende av ytorna, så samma tabell kan
+        dras ut på flera ytor utan att först behöva skapas på någon av dem.
+      */}
+      <div className="ws-sidebar-section">
+        <div className="ws-sidebar-header">Bibliotek</div>
+        {library.length === 0 ? (
+          <p className="ws-sidebar-empty">Tomt ännu</p>
+        ) : (
+          library.map((element) => (
+            <LibraryCard
+              key={element.id}
+              element={element}
+              icon={typeIcons[element.type]}
+              onPointerDown={onLibraryPointerDown}
+              onDelete={onDeleteElement}
+            />
+          ))
+        )}
       </div>
     </div>
   );

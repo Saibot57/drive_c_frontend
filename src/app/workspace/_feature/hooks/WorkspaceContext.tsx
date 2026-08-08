@@ -9,6 +9,7 @@ const initialState: WorkspaceState = {
   activeSurfaceId: null,
   placements: [],
   elements: {},
+  library: [],
   viewport: { panX: 0, panY: 0, zoom: DEFAULT_ZOOM },
   selectedElementId: null,
   isLeftSidebarOpen: true,
@@ -36,6 +37,8 @@ export function workspaceReducer(
       action.elements.forEach((el) => { map[el.id] = el; });
       return { ...state, elements: map };
     }
+    case 'SET_LIBRARY':
+      return { ...state, library: action.elements };
     case 'UPDATE_PLACEMENT':
       return {
         ...state,
@@ -64,6 +67,7 @@ export function workspaceReducer(
         ...state,
         elements: rest,
         placements: state.placements.filter((p) => p.element_id !== action.elementId),
+        library: state.library.filter((e) => e.id !== action.elementId),
       };
     }
     case 'ADD_SURFACE':

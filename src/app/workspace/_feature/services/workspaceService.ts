@@ -63,6 +63,12 @@ export const workspaceService = {
     return unwrap(res);
   },
 
+  /** Biblioteket: alla element, även de som inte ligger på någon yta. */
+  async listElements(): Promise<WorkspaceElement[]> {
+    const res = await fetchWithAuth(`${BASE}/elements`);
+    return unwrap<WorkspaceElement[]>(res);
+  },
+
   async createElement(type: ElementType, title: string, content?: unknown): Promise<WorkspaceElement> {
     const res = await fetchWithAuth(`${BASE}/elements`, {
       method: 'POST',

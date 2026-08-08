@@ -20,6 +20,9 @@ interface UseElementResizeParams {
   onMove: (placementId: string, x: number, y: number) => void;
   /** Anropas vid släpp, och bara om måtten faktiskt ändrades. Se onMoveEnd. */
   onResizeEnd?: (placementId: string, from: Box, to: Box) => void;
+  /** Typens eget golv, när standardgolvet är för litet (t.ex. temahjulet). */
+  minWidth?: number;
+  minHeight?: number;
 }
 
 export function useElementResize({
@@ -33,6 +36,8 @@ export function useElementResize({
   onResize,
   onMove,
   onResizeEnd,
+  minWidth = MIN_ELEMENT_WIDTH,
+  minHeight = MIN_ELEMENT_HEIGHT,
 }: UseElementResizeParams) {
   const resizing = useRef(false);
   const latest = useRef<Box | null>(null);
@@ -73,8 +78,8 @@ export function useElementResize({
           newY = startElY + dy;
         }
 
-        newW = clamp(snapToGrid(newW, gridSize), MIN_ELEMENT_WIDTH, Infinity);
-        newH = clamp(snapToGrid(newH, gridSize), MIN_ELEMENT_HEIGHT, Infinity);
+        newW = clamp(snapToGrid(newW, gridSize), minWidth, Infinity);
+        newH = clamp(snapToGrid(newH, gridSize), minHeight, Infinity);
         newX = snapToGrid(newX, gridSize);
         newY = snapToGrid(newY, gridSize);
 
@@ -103,7 +108,7 @@ export function useElementResize({
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
     },
-    [placementId, zoom, gridSize, currentWidth, currentHeight, currentX, currentY, onResize, onMove, onResizeEnd],
+    [placementId, zoom, gridSize, currentWidth, currentHeight, currentX, currentY, onResize, onMove, onResizeEnd, minWidth, minHeight],
   );
 
   return { handleResizeStart };

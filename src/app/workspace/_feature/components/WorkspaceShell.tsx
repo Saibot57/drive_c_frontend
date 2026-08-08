@@ -16,7 +16,7 @@ import SearchOverlay from './SearchOverlay';
 import ContextMenu, { type ContextMenuItem } from './ContextMenu';
 import MirrorCopyModal from './MirrorCopyModal';
 import ConfirmDialog from './ConfirmDialog';
-import type { ElementType, ViewportState } from '../types/workspace.types';
+import type { ElementType, ViewportState, WorkspaceElement } from '../types/workspace.types';
 // sp-root bär de delade neobrutalistiska tokens som schemat och temakalendern
 // använder. Workspace läser dem i sina egna --ws-*-variabler, så att en ändring
 // i det gemensamma temat slår igenom här utan att den här filen rörs.
@@ -48,6 +48,8 @@ function WorkspaceInner() {
     canUndo,
     handleUndo,
     loadSurfaces,
+    loadLibrary,
+    placeFromLibrary,
     selectSurface,
     createSurface,
     createAndPlaceElement,
@@ -76,9 +78,38 @@ function WorkspaceInner() {
   const [mirrorCopy, setMirrorCopy] = useState<{ elementId: string; mode: 'mirror' | 'copy' } | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [renameEl, setRenameEl] = useState<{ elementId: string; x: number; y: number; value: string } | null>(null);
+  const [libraryDrag, setLibraryDrag] = useState<
+    { element: WorkspaceElement; x: number; y: number } | null
+  >(null);
   const renameElRef = useRef<HTMLInputElement>(null);
 
   useUndoHotkey(handleUndo);
+
+  /**
+   * Dragning av ett bibliotekskort. Ett eget pekarlager i stället för dnd-kit,
+   * eftersom släpppunkten måste räknas om genom canvasens pan och zoom — och
+   * för att kortet på canvasen redan dras med samma sorts lager.
+   */
+  const handleLibraryPointerDown = useCallback(
+    (element: WorkspaceElement, event: React.PointerEvent) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      setLibraryDrag({ element, x: event.clientX, y: event.clientY });
+
+      const move = (e: PointerEvent) =>
+        setLibraryDrag((current) => (current ? { ...current, x: e.clientX, y: e.clientY } : null));
+      // Släpp utanför canvasen avbryter tyst. CanvasArea hinner köra sitt
+      // onPointerUp först, eftersom React lyssnar på rotelementet.
+      const up = () => {
+        setLibraryDrag(null);
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    },
+    [],
+  );
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -105,7 +136,8 @@ function WorkspaceInner() {
 
   useEffect(() => {
     loadSurfaces();
-  }, [loadSurfaces]);
+    loadLibrary();
+  }, [loadSurfaces, loadLibrary]);
 
   const handleViewportChange = useCallback(
     (vp: Partial<ViewportState>) => dispatch({ type: 'SET_VIEWPORT', viewport: vp }),
@@ -158,7 +190,10 @@ function WorkspaceInner() {
   );
 
   const requestDeleteElement = useCallback((elementId: string) => {
-    const el = state.elements[elementId];
+    // Elementet kan komma från biblioteket och ligga på en annan yta än den
+    // som visas, så det räcker inte att titta i state.elements.
+    const el =
+      state.elements[elementId] ?? state.library.find((e) => e.id === elementId);
     const count = el?.surface_count ?? 1;
     // En radering som bara rör den yta man ser räcker det med en ångra-notis
     // för. Speglas elementet försvinner det däremot från ytor man inte har
@@ -174,7 +209,7 @@ function WorkspaceInner() {
       return;
     }
     void deleteElement(elementId);
-  }, [state.elements, deleteElement]);
+  }, [state.elements, state.library, deleteElement]);
 
   const contextMenuItems: ContextMenuItem[] = contextMenu
     ? (() => {
@@ -276,6 +311,9 @@ function WorkspaceInner() {
           onToggle={() => dispatch({ type: 'TOGGLE_LEFT_SIDEBAR' })}
           onCreateElement={handleCreateElement}
           onCreateSurface={handleSurfaceCreate}
+          library={state.library}
+          onLibraryPointerDown={handleLibraryPointerDown}
+          onDeleteElement={requestDeleteElement}
         />
 
         <CanvasArea
@@ -285,6 +323,10 @@ function WorkspaceInner() {
           elements={state.elements}
           selectedElementId={state.selectedElementId}
           onSelectElement={handleSelectElement}
+          isLibraryDragging={libraryDrag !== null}
+          onLibraryDrop={(x, y) => {
+            if (libraryDrag) void placeFromLibrary(libraryDrag.element.id, x, y);
+          }}
         >
           {canvasPlacements.map((p) => {
             const el = state.elements[p.element_id];
@@ -394,6 +436,16 @@ function WorkspaceInner() {
           onConfirm={confirm.onConfirm}
           onClose={() => setConfirm(null)}
         />
+      )}
+
+      {/* Spöke som följer pekaren medan ett bibliotekskort dras */}
+      {libraryDrag && (
+        <div
+          className="ws-drag-ghost"
+          style={{ left: libraryDrag.x, top: libraryDrag.y }}
+        >
+          {libraryDrag.element.title}
+        </div>
       )}
 
       {/* Notis, med Ångra-knapp när åtgärden går att ta tillbaka */}

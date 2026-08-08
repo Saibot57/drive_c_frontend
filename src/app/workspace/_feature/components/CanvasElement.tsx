@@ -2,7 +2,13 @@
 
 import { Lock, Unlock } from 'lucide-react';
 import type { ElementType, SurfaceElement, WorkspaceElement } from '../types/workspace.types';
-import { GRID_SIZE, CTRL_RESIZE_THRESHOLD_PX, CTRL_RESIZE_CENTER_FRACTION, TYPE_COLORS } from '../types/constants';
+import {
+  GRID_SIZE,
+  CTRL_RESIZE_THRESHOLD_PX,
+  CTRL_RESIZE_CENTER_FRACTION,
+  TYPE_COLORS,
+  MIN_WHEEL_REF_SIZE,
+} from '../types/constants';
 import { useElementDrag, type Point } from '../hooks/useElementDrag';
 import { useElementResize, type Box } from '../hooks/useElementResize';
 import ElementRenderer from './ElementRenderer';
@@ -41,9 +47,9 @@ function detectResizeZone(
 }
 
 /** Ritar sin egen ram ända ut i kanten och vill inte ha någon padding. */
-const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link'];
+const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link', 'wheel_ref'];
 /** Har sin egen rullning inuti och ska inte kunna rullas av wrappern. */
-const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link'];
+const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link', 'wheel_ref'];
 
 function contentClassName(type: ElementType): string {
   return [
@@ -108,6 +114,9 @@ export default function CanvasElement({
     onResize,
     onMove,
     onResizeEnd,
+    // Hjulet tappar sina etiketter långt före de andra typerna.
+    minWidth: element.type === 'wheel_ref' ? MIN_WHEEL_REF_SIZE : undefined,
+    minHeight: element.type === 'wheel_ref' ? MIN_WHEEL_REF_SIZE : undefined,
   });
 
   const classNames = [

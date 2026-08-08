@@ -26,6 +26,8 @@ const SIZE_BY_TYPE: Partial<Record<ElementType, { w: number; h: number }>> = {
   pdf: { w: 480, h: 600 },
   image: { w: 320, h: 240 },
   link: { w: 280, h: 220 },
+  // Hjulet är runt och behöver plats för sina etiketter. Se MIN_WHEEL_REF_SIZE.
+  wheel_ref: { w: 380, h: 420 },
 };
 
 export function useWorkspaceData() {
@@ -177,6 +179,65 @@ export function useWorkspaceData() {
     showNotice('Ytan togs bort.', 'success');
   }, [dispatch, track, loadSurfaces, loadSurfaceElements, clearHistory, showNotice]);
 
+  // ── Biblioteket ──
+
+  const loadLibrary = useCallback(async () => {
+    const elements = await track('hämta biblioteket', () => workspaceService.listElements());
+    if (elements) dispatch({ type: 'SET_LIBRARY', elements });
+  }, [dispatch, track]);
+
+  /**
+   * Placerar ett element som redan finns i biblioteket på den aktiva ytan.
+   * Ligger det redan på en annan yta blir det en spegling — samma element,
+   * ny placering — vilket är hela poängen med att elementet och placeringen
+   * är skilda saker.
+   */
+  const placeFromLibrary = useCallback(async (
+    elementId: string,
+    canvasX: number,
+    canvasY: number,
+  ) => {
+    const surfaceId = stateRef.current.activeSurfaceId;
+    if (!surfaceId) {
+      showNotice('Skapa en yta först.', 'warning');
+      return;
+    }
+
+    const element =
+      stateRef.current.library.find((e) => e.id === elementId) ??
+      stateRef.current.elements[elementId];
+    if (!element) return;
+
+    const size = SIZE_BY_TYPE[element.type] ?? { w: DEFAULT_ELEMENT_WIDTH, h: DEFAULT_ELEMENT_HEIGHT };
+    const placement = await track('placera elementet', () =>
+      workspaceService.placeElement(surfaceId, {
+        element_id: elementId,
+        position_x: snapToGrid(canvasX - size.w / 2, GRID_SIZE),
+        position_y: snapToGrid(canvasY - size.h / 2, GRID_SIZE),
+        width: size.w,
+        height: size.h,
+        is_locked: false,
+      }),
+    );
+    if (!placement) return;
+
+    dispatch({ type: 'ADD_PLACEMENT', placement });
+    dispatch({ type: 'SET_ELEMENT', element: placement.element ?? element });
+    dispatch({ type: 'SELECT_ELEMENT', elementId });
+    void loadLibrary();
+
+    pushUndo({
+      label: 'placeringen',
+      undo: async () => {
+        dispatch({ type: 'REMOVE_PLACEMENT', placementId: placement.id });
+        await track('ta bort placeringen', () =>
+          workspaceService.deletePlacement(placement.id),
+        );
+        void loadLibrary();
+      },
+    });
+  }, [dispatch, track, pushUndo, showNotice, loadLibrary]);
+
   // ── Element ──
 
   const createAndPlaceElement = useCallback(async (
@@ -220,14 +281,16 @@ export function useWorkspaceData() {
 
     dispatch({ type: 'ADD_PLACEMENT', placement });
     dispatch({ type: 'SELECT_ELEMENT', elementId: element.id });
+    void loadLibrary();
     pushUndo({
       label: 'det nya elementet',
       undo: async () => {
         dispatch({ type: 'REMOVE_ELEMENT', elementId: element.id });
         await track('ta bort elementet', () => workspaceService.deleteElement(element.id));
+        void loadLibrary();
       },
     });
-  }, [dispatch, track, pushUndo, showNotice]);
+  }, [dispatch, track, pushUndo, showNotice, loadLibrary]);
 
   const updateElementContent = useCallback((elementId: string, content: unknown) => {
     const current = stateRef.current.elements[elementId];
@@ -389,6 +452,7 @@ export function useWorkspaceData() {
       // säkert ger tillbaka rätt placeringar på den yta man står på.
       const surfaceId = stateRef.current.activeSurfaceId;
       if (surfaceId) await loadSurfaceElements(surfaceId);
+      void loadLibrary();
     };
 
     pushUndo({ label: 'raderingen', undo: restore });
@@ -404,7 +468,7 @@ export function useWorkspaceData() {
         action: { label: 'Ångra', onClick: () => { void restore(); dismissNotice(); } },
       },
     );
-  }, [dispatch, track, pushUndo, loadSurfaceElements, showNotice, dismissNotice]);
+  }, [dispatch, track, pushUndo, loadSurfaceElements, loadLibrary, showNotice, dismissNotice]);
 
   // ── Spegla och kopiera ──
 
@@ -439,12 +503,14 @@ export function useWorkspaceData() {
       }
     }
 
+    void loadLibrary();
+
     const target = stateRef.current.surfaces.find((s) => s.id === targetSurfaceId);
     showNotice(
       `${mode === 'mirror' ? 'Speglat' : 'Kopierat'} till "${target?.name ?? 'ytan'}".`,
       'success',
     );
-  }, [dispatch, track, showNotice]);
+  }, [dispatch, track, showNotice, loadLibrary]);
 
   const mirrorElement = useCallback((elementId: string, targetSurfaceId: string) =>
     placeCopy(elementId, targetSurfaceId, 'mirror'), [placeCopy]);
@@ -469,6 +535,8 @@ export function useWorkspaceData() {
     handleUndo,
     loadSurfaces,
     loadSurfaceElements,
+    loadLibrary,
+    placeFromLibrary,
     selectSurface,
     createSurface,
     renameSurface,
@@ -518,6 +586,9 @@ function getDefaultContent(type: ElementType): unknown {
       return { source: null };
     case 'link':
       return { url: '' };
+    case 'wheel_ref':
+      // Utan id visar kortet en väljare med användarens hjul.
+      return { wheelId: null };
     default:
       return null;
   }
