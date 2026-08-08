@@ -1,13 +1,15 @@
 'use client';
 
-import { Inter } from 'next/font/google';
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-
+/**
+ * Workspace hade tidigare en egen Inter-uppsättning här, vilket gjorde att
+ * modulen skrev med ett annat typsnitt än resten av appen. Rubrikerna kommer
+ * från Monument via FeatureNavigation och brödtexten från Red Hat Text på
+ * body, precis som i schemat och temakalendern.
+ */
 export default function WorkspaceLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <div className={inter.variable}>{children}</div>;
+  return <>{children}</>;
 }

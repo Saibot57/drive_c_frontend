@@ -17,6 +17,10 @@ import ContextMenu, { type ContextMenuItem } from './ContextMenu';
 import MirrorCopyModal from './MirrorCopyModal';
 import ConfirmDialog from './ConfirmDialog';
 import type { ElementType, ViewportState } from '../types/workspace.types';
+// sp-root bär de delade neobrutalistiska tokens som schemat och temakalendern
+// använder. Workspace läser dem i sina egna --ws-*-variabler, så att en ändring
+// i det gemensamma temat slår igenom här utan att den här filen rörs.
+import '@/styles/schedule-theme.css';
 import '../styles/workspace.css';
 
 interface ElementContextState {
@@ -232,7 +236,7 @@ function WorkspaceInner() {
   const canvasPlacements = state.placements.filter((p) => p.is_on_canvas);
 
   return (
-    <div className="ws-root">
+    <div className="ws-root sp-root">
       {/* Feature navigation overlay */}
       <div className="ws-nav-slot">
         <FeatureNavigation />

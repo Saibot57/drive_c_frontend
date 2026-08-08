@@ -2,7 +2,7 @@
 
 import { Lock, Unlock } from 'lucide-react';
 import type { ElementType, SurfaceElement, WorkspaceElement } from '../types/workspace.types';
-import { GRID_SIZE, CTRL_RESIZE_THRESHOLD_PX, CTRL_RESIZE_CENTER_FRACTION } from '../types/constants';
+import { GRID_SIZE, CTRL_RESIZE_THRESHOLD_PX, CTRL_RESIZE_CENTER_FRACTION, TYPE_COLORS } from '../types/constants';
 import { useElementDrag, type Point } from '../hooks/useElementDrag';
 import { useElementResize, type Box } from '../hooks/useElementResize';
 import ElementRenderer from './ElementRenderer';
@@ -148,7 +148,10 @@ export default function CanvasElement({
         width: placement.width,
         height: placement.height,
         zIndex: placement.z_index,
-      }}
+        // Listen överst på kortet. Färgen är data om elementtypen, som
+        // notislappens färg — därför inline och inte i CSS-filen.
+        '--ws-type-color': TYPE_COLORS[element.type],
+      } as React.CSSProperties}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();

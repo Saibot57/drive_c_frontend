@@ -99,7 +99,10 @@ export default function CanvasArea({
         className="ws-canvas-viewport"
         style={{
           transform: `translate(${viewport.panX}px, ${viewport.panY}px) scale(${viewport.zoom})`,
-        }}
+          // Elementens kanter och skuggor divideras med den här, så att de
+          // förblir optiskt lika tjocka oavsett zoomnivå. Se .ws-element.
+          '--ws-zoom': viewport.zoom,
+        } as React.CSSProperties}
       >
         {children}
       </div>

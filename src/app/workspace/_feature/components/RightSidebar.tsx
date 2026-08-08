@@ -19,6 +19,7 @@ import type {
   WorkspaceElement,
   ElementType,
 } from '../types/workspace.types';
+import { TYPE_COLORS } from '../types/constants';
 
 interface RightSidebarProps {
   isOpen: boolean;
@@ -80,7 +81,12 @@ export default function RightSidebar({
               className={`ws-element-card ${el.id === selectedElementId ? 'ws-element-card--selected' : ''}`}
               onClick={() => onSelectElement(el.id)}
             >
-              {typeIcons[el.type]}
+              <span
+                className="ws-type-chip"
+                style={{ '--ws-type-color': TYPE_COLORS[el.type] } as React.CSSProperties}
+              >
+                {typeIcons[el.type]}
+              </span>
               <span className="ws-element-card__title">{el.title}</span>
               <button
                 className="ws-toggle-btn"
@@ -108,7 +114,12 @@ export default function RightSidebar({
           if (!el) return null;
           return (
             <div key={p.id} className="ws-element-card">
-              {typeIcons[el.type]}
+              <span
+                className="ws-type-chip"
+                style={{ '--ws-type-color': TYPE_COLORS[el.type] } as React.CSSProperties}
+              >
+                {typeIcons[el.type]}
+              </span>
               <span className="ws-element-card__title">{el.title}</span>
               <button
                 className="ws-toggle-btn"

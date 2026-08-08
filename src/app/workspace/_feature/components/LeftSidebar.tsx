@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
 } from 'lucide-react';
 import type { ElementType } from '../types/workspace.types';
+import { TYPE_COLORS } from '../types/constants';
 
 interface LeftSidebarProps {
   isOpen: boolean;
@@ -67,7 +68,12 @@ export default function LeftSidebar({
             className="ws-create-btn"
             onClick={() => onCreateElement(btn.type)}
           >
-            {btn.icon}
+            <span
+              className="ws-type-chip"
+              style={{ '--ws-type-color': TYPE_COLORS[btn.type] } as React.CSSProperties}
+            >
+              {btn.icon}
+            </span>
             {btn.label}
           </button>
         ))}

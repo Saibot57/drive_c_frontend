@@ -6,42 +6,72 @@
    ────────────────────────────────────────────────────────────── */
 
 .ws-root {
+  /*
+   * Två kantnivåer, och skillnaden mellan dem är hela idén med hur workspace
+   * ser ut:
+   *
+   *   RAM  (--ws-frame-*)  2 px svart och hård skugga. Bara det som håller
+   *                        ihop skärmen — toolbar, sidopaneler, menyer,
+   *                        dialoger, korten på canvasen.
+   *   DETALJ (--ws-border) 1 px grått. Allt inuti: avdelare, hovrade rader,
+   *                        menyval, redigerarnas eget innehåll.
+   *
+   * En yta med tolv element där varje tabellcell också skrek 2 px svart vore
+   * oläslig. Kontrasten mellan hård ram och lugnt innehåll är uttrycket.
+   */
+
   /* Ytor */
-  --ws-bg: #ffffff;
-  --ws-bg-muted: #fafafa;
-  --ws-bg-hover: #f3f4f6;
+  --ws-bg: var(--sp-bg, #ffffff);
+  --ws-bg-muted: var(--sp-bg-grid, #f9fafb);
+  --ws-bg-hover: var(--sp-menu-hover, #f3f4f6);
   --ws-bg-subtle: #f9fafb;
-  --ws-canvas-bg: #fafafa;
-  --ws-canvas-dot: #e5e7eb;
+  --ws-canvas-bg: var(--sp-bg-grid, #f9fafb);
+  --ws-canvas-dot: #d1d5db;
   --ws-overlay: rgba(0, 0, 0, 0.3);
 
-  /* Kanter */
+  /* Ram */
+  --ws-frame-border: var(--sp-border, 2px solid #000);
+  --ws-frame-width: 2px;
+  --ws-frame-shadow: var(--sp-shadow, 4px 4px 0px rgba(0, 0, 0, 1));
+  --ws-frame-shadow-sm: var(--sp-shadow-sm, 2px 2px 0px rgba(0, 0, 0, 1));
+
+  /* Detalj */
   --ws-border-color: #e5e7eb;
   --ws-border: 1px solid var(--ws-border-color);
   --ws-divider-color: #f3f4f6;
-  --ws-radius-sm: 0.375rem;
+  --ws-radius-sm: var(--sp-radius-sm, 0.25rem);
   --ws-radius: 0.5rem;
-  --ws-radius-lg: 0.75rem;
+  --ws-radius-lg: var(--sp-radius, 0.75rem);
 
-  /* Skuggor */
+  /* Mjuka skuggor, kvar där de inte konkurrerar med ramen */
   --ws-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --ws-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --ws-shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.12);
-  --ws-shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --ws-shadow-pop: var(--sp-shadow, 4px 4px 0px rgba(0, 0, 0, 1));
+  --ws-shadow-modal: var(--sp-shadow, 4px 4px 0px rgba(0, 0, 0, 1));
 
   /* Text */
-  --ws-text: #111827;
+  --ws-text: var(--sp-text, #000);
   --ws-text-muted: #374151;
-  --ws-text-subtle: #6b7280;
-  --ws-text-faint: #9ca3af;
+  --ws-text-subtle: var(--sp-text-muted, #6b7280);
+  --ws-text-faint: var(--sp-text-subtle, #9ca3af);
   --ws-text-disabled: #d1d5db;
 
-  /* Accent och fara */
-  --ws-accent: #3b82f6;
-  --ws-accent-soft: #93c5fd;
-  --ws-accent-bg: #eff6ff;
-  --ws-danger: #ef4444;
-  --ws-danger-bg: #fef2f2;
+  /*
+   * Markering är svart, inte blå. Blått var Figma-arvet; här ska det markerade
+   * kortet skilja sig genom sin ram och sin skugga, inte genom en annan färg.
+   */
+  --ws-accent: #000;
+  --ws-accent-soft: #000;
+  --ws-accent-bg: #dbeafe;
+  --ws-danger: #e11d48;
+  --ws-danger-bg: #fff1f2;
+
+  /*
+   * Sätts av CanvasArea från viewport.zoom. Kanter och skuggor på canvasen
+   * divideras med den, så att 2 px förblir optiskt 2 px oavsett zoomnivå —
+   * annars blir ramen grå gröt vid 0.5× och klumpig vid 1.5×.
+   */
+  --ws-zoom: 1;
 
   /* Typografi */
   --ws-font-xs: 0.6875rem;
@@ -66,9 +96,9 @@
   animation: ws-spin-kf 1s linear infinite;
 }
 
-/* ── Rot: negerar RootLayoutBase pt-8 px-8, sätter Inter ── */
+/* ── Rot: negerar RootLayoutBase pt-8 px-8 ── */
+/* Typsnittet ärvs från body (Red Hat Text), som i resten av appen. */
 .ws-root {
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   margin: -2rem -2rem 0 -2rem;
   height: 100vh;
   overflow: hidden;
@@ -93,6 +123,7 @@
 }
 
 /* ── Toolbar ── */
+/* Går kant i kant och blir därför en linje, inte ett kort med skugga. */
 .ws-toolbar {
   height: 3rem;
   min-height: 3rem;
@@ -100,7 +131,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  border-bottom: var(--ws-border);
+  border-bottom: var(--ws-frame-border);
   background: var(--ws-bg);
   padding: 0 0.75rem;
   z-index: var(--ws-z-canvas-chrome);
@@ -123,13 +154,15 @@
 }
 
 /* ── Ytväljaren ── */
+/* Segmentkontroll: hård ram om hela, aktivt segment som ett eget litet kort. */
 .ws-surface-pill {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  background: var(--ws-bg-hover);
-  border-radius: var(--ws-radius);
-  padding: 2px;
+  gap: 3px;
+  background: var(--ws-bg-muted);
+  border: var(--ws-frame-border);
+  border-radius: var(--ws-radius-lg);
+  padding: 3px;
 }
 
 .ws-surface-pill__tab {
@@ -153,7 +186,13 @@
 .ws-surface-pill__tab--active {
   background: var(--ws-bg);
   color: var(--ws-text);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  border: var(--ws-frame-border);
+  box-shadow: var(--ws-frame-shadow-sm);
+  font-weight: 700;
+  /* Ramen och skuggan tar plats som de inaktiva flikarna inte har. Utan den
+     här justeringen skulle raden hoppa när man byter yta. */
+  padding: calc(0.25rem - 2px) calc(0.75rem - 2px);
+  margin-right: 2px;
 }
 
 /* Namnbytet sker i en input som ärver flikens utseende. Bredden räknas
@@ -194,12 +233,12 @@
 
 .ws-sidebar-left {
   width: 13rem;
-  border-right: var(--ws-border);
+  border-right: var(--ws-frame-border);
 }
 
 .ws-sidebar-right {
   width: 14rem;
-  border-left: var(--ws-border);
+  border-left: var(--ws-frame-border);
 }
 
 .ws-sidebar__head {
@@ -261,6 +300,30 @@
   color: var(--ws-text-faint);
 }
 
+/*
+ * Typikonen som en färgbricka i stället för en grå symbol. Samma färg som
+ * listen på kortet, så att "Skapa"-listan samtidigt visar vilken färg
+ * elementet kommer att få.
+ */
+.ws-type-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid #000;
+  border-radius: 0.25rem;
+  background: var(--ws-type-color, transparent);
+  flex-shrink: 0;
+}
+
+.ws-create-btn .ws-type-chip svg,
+.ws-element-card .ws-type-chip svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: #000;
+}
+
 /* ── Canvas ── */
 .ws-canvas-container {
   flex: 1;
@@ -285,27 +348,53 @@
 }
 
 /* ── Element på canvas ── */
+/*
+ * Kanten och skuggan divideras med --ws-zoom. Canvasen skalas med
+ * transform: scale(), så en rak 2 px-kant hade renderats som 1 px vid 0.5×
+ * och 3 px vid 1.5×. Texten kompenseras däremot inte — den ska skalas, det
+ * är hela poängen med att zooma.
+ *
+ * I vila har kortet ingen släppskugga. Med tjugo element samtidigt blir tjugo
+ * hårda skuggor brus; skuggan är reserverad för det man pekar på och det man
+ * har markerat.
+ */
 .ws-element {
   position: absolute;
   background: var(--ws-bg);
-  border: var(--ws-border);
-  border-radius: var(--ws-radius);
-  box-shadow: var(--ws-shadow-sm);
+  border: calc(var(--ws-frame-width) / var(--ws-zoom)) solid #000;
+  border-radius: var(--ws-radius-lg);
   overflow: hidden;
   transition: box-shadow var(--ws-transition);
 }
 
+/* Typfärgen som en list överst. Ett eget lager i stället för en inre skugga,
+   eftersom en inre skugga hamnar under barnens bakgrunder — notislappen och
+   bilden hade dolt den helt. */
+.ws-element::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(3px / var(--ws-zoom));
+  background: var(--ws-type-color, transparent);
+  z-index: 5;
+  pointer-events: none;
+}
+
 .ws-element:hover {
-  box-shadow: var(--ws-shadow);
+  box-shadow: calc(2px / var(--ws-zoom)) calc(2px / var(--ws-zoom)) 0 #000;
 }
 
-.ws-element--selected {
-  border-color: var(--ws-accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+.ws-element--selected,
+.ws-element--selected:hover {
+  box-shadow: calc(4px / var(--ws-zoom)) calc(4px / var(--ws-zoom)) 0 #000;
 }
 
+/* Upplåst ritas streckat i stället för i en annan färg — det syns lika
+   tydligt utan att införa en andra accentfärg i systemet. */
 .ws-element--unlocked {
-  border-color: var(--ws-accent-soft);
+  border-style: dashed;
 }
 
 /* Innehållsytan. Modifierarna följer elementtypen: bild, PDF och länk
@@ -359,7 +448,7 @@
 .ws-resize-handle {
   position: absolute;
   z-index: 10;
-  background: var(--ws-accent);
+  background: #000;
   border-radius: 1px;
   opacity: 0;
   transition: opacity var(--ws-transition);
@@ -416,10 +505,10 @@
   align-items: center;
   gap: 0.25rem;
   background: var(--ws-bg);
-  border: var(--ws-border);
-  border-radius: var(--ws-radius);
+  border: var(--ws-frame-border);
+  border-radius: var(--ws-radius-lg);
   padding: 0.25rem;
-  box-shadow: var(--ws-shadow);
+  box-shadow: var(--ws-frame-shadow-sm);
   z-index: var(--ws-z-canvas-chrome);
 }
 
@@ -527,12 +616,13 @@
   position: fixed;
   z-index: var(--ws-z-popover);
   background: var(--ws-bg);
-  border: var(--ws-border);
-  border-radius: var(--ws-radius);
-  box-shadow: var(--ws-shadow-pop);
+  border: var(--ws-frame-border);
+  border-radius: var(--ws-radius-sm);
+  box-shadow: var(--ws-frame-shadow);
   padding: 0.25rem 0;
   min-width: 10rem;
   font-size: var(--ws-font-md);
+  overflow: hidden;
 }
 
 /* Arkivlistan hänger under sin knapp i stället för att ligga fritt. */
@@ -652,13 +742,14 @@
 
 .ws-inline-input {
   font-size: var(--ws-font-md);
+  font-family: inherit;
   padding: 0.375rem 0.5rem;
-  border: var(--ws-border);
+  border: var(--ws-frame-border);
   border-radius: var(--ws-radius-sm);
   background: var(--ws-bg);
   color: var(--ws-text);
   outline: none;
-  box-shadow: var(--ws-shadow-pop);
+  box-shadow: var(--ws-frame-shadow-sm);
   min-width: 10rem;
 }
 
@@ -685,9 +776,9 @@
 
 .ws-dialog {
   background: var(--ws-bg);
-  border: var(--ws-border);
+  border: var(--ws-frame-border);
   border-radius: var(--ws-radius-lg);
-  box-shadow: var(--ws-shadow-modal);
+  box-shadow: var(--ws-frame-shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -753,46 +844,41 @@
 }
 
 /* ── Dialogknappar ── */
+/* Knapparna följer sp-btn: 2 px svart ram, och skuggan trycks in vid hover
+   i stället för att knappen byter färg. */
 .ws-btn {
   padding: 0.375rem 0.75rem;
   font-size: var(--ws-font-md);
+  font-weight: 600;
   font-family: inherit;
-  border: var(--ws-border);
+  border: var(--ws-frame-border);
   border-radius: var(--ws-radius-sm);
   background: var(--ws-bg);
   cursor: pointer;
-  color: var(--ws-text-muted);
-  transition: background-color var(--ws-transition);
+  color: var(--ws-text);
+  box-shadow: var(--ws-frame-shadow-sm);
+  transition: transform var(--ws-transition), box-shadow var(--ws-transition);
 }
 
-.ws-btn:hover {
-  background: var(--ws-bg-subtle);
+.ws-btn:hover:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: none;
 }
 
 .ws-btn--primary {
-  border: none;
-  background: var(--ws-accent);
-  color: #ffffff;
-}
-
-.ws-btn--primary:hover {
-  background: #2563eb;
+  background: var(--sp-bg-muted, #f3f4f6);
 }
 
 .ws-btn--primary:disabled {
-  background: var(--ws-border-color);
+  background: var(--ws-bg-muted);
   color: var(--ws-text-faint);
+  box-shadow: none;
   cursor: default;
 }
 
 .ws-btn--danger {
-  border: none;
-  background: var(--ws-danger);
-  color: #ffffff;
-}
-
-.ws-btn--danger:hover {
-  background: #dc2626;
+  background: #ffe4e6;
+  color: #881337;
 }
 
 /* ── Bekräftelserutans brödtext ── */
@@ -825,6 +911,7 @@
 }
 
 /* ── Notis ── */
+/* Samma form som sp-toast i schemat och temakalendern. */
 .ws-toast {
   position: fixed;
   bottom: 1rem;
@@ -834,8 +921,9 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  border-radius: var(--ws-radius);
-  box-shadow: var(--ws-shadow-modal);
+  border: var(--ws-frame-border);
+  border-radius: var(--ws-radius-lg);
+  box-shadow: var(--ws-frame-shadow);
   font-size: var(--ws-font-md);
   font-weight: 600;
   max-width: 24rem;
