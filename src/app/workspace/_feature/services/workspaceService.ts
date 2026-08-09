@@ -112,6 +112,32 @@ export const workspaceService = {
     return unwrap(res);
   },
 
+  /**
+   * Skapar och placerar flera element i en enda transaktion.
+   *
+   * Att spränga ett hjul ger en del per block. Via createElement + placeElement
+   * hade det blivit två rundturer per del, och tappas en av dem mitt i står
+   * användaren med en halvsprängd yta. Servern lägger antingen alla eller ingen.
+   */
+  async bulkPlace(
+    surfaceId: string,
+    elements: {
+      type: ElementType;
+      title: string;
+      content: unknown;
+      position_x: number;
+      position_y: number;
+      width: number;
+      height: number;
+    }[],
+  ): Promise<(SurfaceElement & { element: WorkspaceElement })[]> {
+    const res = await fetchWithAuth(`${BASE}/surfaces/${surfaceId}/bulk-place`, {
+      method: 'POST',
+      body: JSON.stringify({ elements }),
+    });
+    return unwrap(res);
+  },
+
   async updatePlacement(
     placementId: string,
     data: Partial<Pick<SurfaceElement, 'position_x' | 'position_y' | 'width' | 'height' | 'is_locked' | 'is_on_canvas' | 'z_index'>>,

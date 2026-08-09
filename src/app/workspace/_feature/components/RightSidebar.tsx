@@ -44,6 +44,7 @@ const typeIcons: Record<ElementType, React.ReactNode> = {
   image: <ImageIcon size={14} />,
   link: <LinkIcon size={14} />,
   wheel_ref: <PieChart size={14} />,
+  wheel_part: <PieChart size={14} />,
 };
 
 export default function RightSidebar({

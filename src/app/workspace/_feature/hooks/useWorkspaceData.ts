@@ -5,7 +5,9 @@ import { usePlannerNotice } from '@/hooks/usePlannerNotice';
 import { useWorkspace } from './WorkspaceContext';
 import { useWorkspaceSync } from './useWorkspaceSync';
 import { useWorkspaceHistory } from './useWorkspaceHistory';
+import { themeWheelService } from '@/services/themeWheelService';
 import { workspaceService } from '../services/workspaceService';
+import { buildWheelParts } from '../utils/wheelExplode';
 import type { ElementType, SurfaceElement, ViewportState } from '../types/workspace.types';
 import type { Point } from './useElementDrag';
 import type { Box } from './useElementResize';
@@ -21,6 +23,7 @@ import {
   MAX_ZOOM,
   FIT_PADDING_PX,
   GRID_SIZE,
+  MAX_EXPLODE_PARTS,
 } from '../types/constants';
 import { clamp, screenToCanvas, snapToGrid } from '../types/utils';
 
@@ -33,6 +36,10 @@ const SIZE_BY_TYPE: Partial<Record<ElementType, { w: number; h: number }>> = {
   link: { w: 280, h: 220 },
   // Hjulet är runt och behöver plats för sina etiketter. Se MIN_WHEEL_REF_SIZE.
   wheel_ref: { w: 380, h: 420 },
+  // Bara reserv. En sprängning måttsätter varje del efter dess egna
+  // proportioner ur hjulet; hit kommer man först om en del speglas eller
+  // kopieras till en annan yta, där geometrin inte följer med.
+  wheel_part: { w: 220, h: 220 },
 };
 
 export function useWorkspaceData() {
@@ -335,6 +342,90 @@ export function useWorkspaceData() {
       undo: async () => {
         dispatch({ type: 'REMOVE_ELEMENT', elementId: element.id });
         await track('ta bort elementet', () => workspaceService.deleteElement(element.id));
+        void loadLibrary();
+      },
+    });
+  }, [dispatch, track, pushUndo, showNotice, loadLibrary]);
+
+  /**
+   * Bryter ut ett hjuls arbetsområden som enskilda kort på den aktiva ytan.
+   *
+   * Delarna är sticklingar, inte pekare: de tar med sig allt de behöver för att
+   * rita sig själva. Hjulets ringtilldelning är global — ett nytt block någon
+   * annanstans ändrar höjden på alla band — så en levande koppling hade flyttat
+   * och skalat om delar mitt i ett arrangemang användaren byggt runt dem.
+   *
+   * Hela sprängningen går i ett anrop och registreras som ett enda ångrasteg.
+   * Fjorton separata poster hade ätit en fjärdedel av historiken.
+   */
+  const explodeWheel = useCallback(async (
+    wheelId: string,
+    viewport: ViewportState,
+    containerWidth: number,
+    containerHeight: number,
+  ) => {
+    const surfaceId = stateRef.current.activeSurfaceId;
+    if (!surfaceId) {
+      showNotice('Skapa en yta först.', 'warning');
+      return;
+    }
+
+    const wheel = await track('hämta hjulet', () => themeWheelService.getWheel(wheelId));
+    if (!wheel) return;
+
+    const drafts = buildWheelParts(wheel);
+    if (drafts.length === 0) {
+      showNotice(`${wheel.name} har inga arbetsområden att bryta ut.`, 'warning');
+      return;
+    }
+    if (drafts.length > MAX_EXPLODE_PARTS) {
+      showNotice(
+        `${wheel.name} har ${drafts.length} arbetsområden — högst ${MAX_EXPLODE_PARTS} kan brytas ut på en gång.`,
+        'warning',
+      );
+      return;
+    }
+
+    const center = screenToCanvas(
+      containerWidth / 2,
+      containerHeight / 2,
+      viewport.panX,
+      viewport.panY,
+      viewport.zoom,
+    );
+
+    const placements = await track('spränga hjulet', () =>
+      workspaceService.bulkPlace(surfaceId, drafts.map((draft) => ({
+        type: 'wheel_part' as ElementType,
+        title: draft.content.title,
+        content: draft.content,
+        position_x: snapToGrid(center.x + draft.offset.x - draft.size.width / 2, GRID_SIZE),
+        position_y: snapToGrid(center.y + draft.offset.y - draft.size.height / 2, GRID_SIZE),
+        width: draft.size.width,
+        height: draft.size.height,
+      }))),
+    );
+    if (!placements) return;
+
+    dispatch({ type: 'SET_ELEMENTS', elements: placements.map((p) => p.element) });
+    dispatch({ type: 'ADD_PLACEMENTS', placements });
+    void loadLibrary();
+    showNotice(
+      `${placements.length} ${placements.length === 1 ? 'del' : 'delar'} ur ${wheel.name} ligger på ytan.`,
+      'success',
+    );
+
+    pushUndo({
+      label: `sprängningen av ${wheel.name}`,
+      undo: async () => {
+        const elementIds = placements.map((p) => p.element_id);
+        elementIds.forEach((elementId) => dispatch({ type: 'REMOVE_ELEMENT', elementId }));
+        // Raderingen är mjuk och sker en per del — det finns ingen bulkradering.
+        // allSettled i stället för all: en del som inte går bort ska inte hindra
+        // de övriga, och den dyker i så fall upp igen vid nästa omladdning.
+        await track('ta bort delarna', () =>
+          Promise.allSettled(elementIds.map((id) => workspaceService.deleteElement(id))),
+        );
         void loadLibrary();
       },
     });
@@ -685,6 +776,7 @@ export function useWorkspaceData() {
     unarchiveSurface,
     deleteSurface,
     createAndPlaceElement,
+    explodeWheel,
     updateElementContent,
     updateElementTitle,
     movePlacement,

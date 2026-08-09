@@ -15,14 +15,16 @@ import {
   PanelLeftClose,
 } from 'lucide-react';
 import type { ElementType, WorkspaceElement } from '../types/workspace.types';
-import { TYPE_COLORS } from '../types/constants';
+import { LIBRARY_HIDDEN_TYPES, TYPE_COLORS } from '../types/constants';
 import LibraryCard from './LibraryCard';
+import ImportSection from './ImportSection';
 
 interface LeftSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   onCreateElement: (type: ElementType) => void;
   onCreateSurface: () => void;
+  onExplodeWheel: (wheelId: string) => void;
   library: WorkspaceElement[];
   onLibraryPointerDown: (element: WorkspaceElement, event: React.PointerEvent) => void;
   onDeleteElement: (elementId: string) => void;
@@ -50,11 +52,18 @@ export default function LeftSidebar({
   onToggle,
   onCreateElement,
   onCreateSurface,
+  onExplodeWheel,
   library,
   onLibraryPointerDown,
   onDeleteElement,
 }: LeftSidebarProps) {
   if (!isOpen) return null;
+
+  // Utbrutna delar göms först här, inte i loadLibrary. Filtreras de bort redan
+  // vid hämtningen försvinner de ur state, och placeFromLibrary — som slår upp
+  // i library innan den faller tillbaka på den aktiva ytans element — hittar
+  // inte längre en del som ligger på en annan yta.
+  const listed = library.filter((element) => !LIBRARY_HIDDEN_TYPES.has(element.type));
 
   return (
     <div className="ws-sidebar ws-sidebar-left">
@@ -94,16 +103,20 @@ export default function LeftSidebar({
 
       <div className="ws-divider" />
 
+      <ImportSection onExplodeWheel={onExplodeWheel} />
+
+      <div className="ws-divider" />
+
       {/*
         Biblioteket. Elementen finns oberoende av ytorna, så samma tabell kan
         dras ut på flera ytor utan att först behöva skapas på någon av dem.
       */}
       <div className="ws-sidebar-section">
         <div className="ws-sidebar-header">Bibliotek</div>
-        {library.length === 0 ? (
+        {listed.length === 0 ? (
           <p className="ws-sidebar-empty">Tomt ännu</p>
         ) : (
-          library.map((element) => (
+          listed.map((element) => (
             <LibraryCard
               key={element.id}
               element={element}

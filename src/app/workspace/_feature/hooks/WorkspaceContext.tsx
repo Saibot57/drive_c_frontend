@@ -53,6 +53,8 @@ export function workspaceReducer(
       };
     case 'ADD_PLACEMENT':
       return { ...state, placements: [...state.placements, action.placement] };
+    case 'ADD_PLACEMENTS':
+      return { ...state, placements: [...state.placements, ...action.placements] };
     case 'SET_VIEWPORT':
       return { ...state, viewport: { ...state.viewport, ...action.viewport } };
     case 'SELECT_ELEMENT':

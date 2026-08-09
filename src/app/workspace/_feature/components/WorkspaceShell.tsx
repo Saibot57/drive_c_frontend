@@ -60,6 +60,7 @@ function WorkspaceInner() {
     selectSurface,
     createSurface,
     createAndPlaceElement,
+    explodeWheel,
     updateElementContent,
     updateElementTitle,
     movePlacement,
@@ -226,6 +227,16 @@ function WorkspaceInner() {
     [createAndPlaceElement, state.viewport],
   );
 
+  const handleExplodeWheel = useCallback(
+    (wheelId: string) => {
+      const container = canvasContainerRef.current;
+      const w = container?.clientWidth ?? 800;
+      const h = container?.clientHeight ?? 600;
+      void explodeWheel(wheelId, state.viewport, w, h);
+    },
+    [explodeWheel, state.viewport],
+  );
+
   const handleContextMenu = useCallback(
     (elementId: string, placementId: string, x: number, y: number) => {
       setContextMenu({ elementId, placementId, x, y });
@@ -385,6 +396,7 @@ function WorkspaceInner() {
           onToggle={() => dispatch({ type: 'TOGGLE_LEFT_SIDEBAR' })}
           onCreateElement={handleCreateElement}
           onCreateSurface={handleSurfaceCreate}
+          onExplodeWheel={handleExplodeWheel}
           library={state.library}
           onLibraryPointerDown={handleLibraryPointerDown}
           onDeleteElement={requestDeleteElement}

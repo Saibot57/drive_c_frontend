@@ -5,6 +5,7 @@ import type { PdfContent } from '../types/pdf.types';
 import type { ImageContent } from '../types/image.types';
 import type { LinkContent } from '../types/link.types';
 import type { WheelRefContent } from '../types/wheelRef.types';
+import type { WheelPartContent } from '../types/wheelPart.types';
 import TextEditor from './editors/TextEditor';
 import TableEditor, { type TableContent } from './editors/TableEditor';
 import MindmapEditor, { type MindmapContent } from './editors/MindmapEditor';
@@ -15,6 +16,7 @@ import PdfViewer from './editors/PdfViewer';
 import ImageViewer from './editors/ImageViewer';
 import LinkEditor from './editors/LinkEditor';
 import WheelRefViewer from './editors/WheelRefViewer';
+import WheelPartViewer from './editors/WheelPartViewer';
 
 interface ElementRendererProps {
   element: WorkspaceElement;
@@ -121,6 +123,14 @@ export default function ElementRenderer({
           content={element.content as WheelRefContent | null}
           isLocked={isLocked}
           onChange={onChange}
+        />
+      );
+
+    case 'wheel_part':
+      return (
+        <WheelPartViewer
+          content={element.content as WheelPartContent | null}
+          elementId={element.id}
         />
       );
 

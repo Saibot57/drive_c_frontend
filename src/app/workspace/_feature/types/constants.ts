@@ -17,7 +17,24 @@ export const TYPE_COLORS: Record<ElementType, string> = {
   image: '#a7f3d0',
   link: '#e5e7eb',
   wheel_ref: '#f5d0fe',
+  wheel_part: '#f5d0fe',
 };
+
+/**
+ * Elementtyper som inte listas i bibliotekspanelen.
+ *
+ * En sprängning ger en del per block, och fjorton anonyma fragment hade gjort
+ * listan oläslig. Raderna finns kvar och hämtas som vanligt — filtreringen sker
+ * först när listan ritas, så att `placeFromLibrary` fortfarande hittar en del
+ * som ligger på en annan yta.
+ */
+export const LIBRARY_HIDDEN_TYPES: ReadonlySet<ElementType> = new Set<ElementType>(['wheel_part']);
+
+/**
+ * Speglar MAX_BULK_PLACE i workspace_routes.py. Kontrollen finns här bara för
+ * att kunna säga det på svenska innan anropet går iväg — servern håller gränsen.
+ */
+export const MAX_EXPLODE_PARTS = 100;
 
 export const GRID_SIZE = 16;
 export const MIN_ZOOM = 0.5;

@@ -3,7 +3,9 @@ export type ElementType =
   | 'text' | 'table' | 'mindmap' | 'list' | 'kanban' | 'sticky'
   | 'pdf' | 'image' | 'link'
   /** Skrivskyddad vy av ett hjul i temakalendern. Innehållet är bara ett id. */
-  | 'wheel_ref';
+  | 'wheel_ref'
+  /** Utbruten tårtbit ur ett hjul. Stickling — äger sin egen kopia. */
+  | 'wheel_part';
 
 // ── Backend mirrors ──
 export interface Surface {
@@ -82,6 +84,8 @@ export type WorkspaceAction =
   | { type: 'UPDATE_PLACEMENT'; placementId: string; changes: Partial<SurfaceElement> }
   | { type: 'REMOVE_PLACEMENT'; placementId: string }
   | { type: 'ADD_PLACEMENT'; placement: SurfaceElement }
+  /** En hel sprängning på en gång — annars renderas ytan om per del. */
+  | { type: 'ADD_PLACEMENTS'; placements: SurfaceElement[] }
   | { type: 'SET_VIEWPORT'; viewport: Partial<ViewportState> }
   | { type: 'SELECT_ELEMENT'; elementId: string | null }
   | { type: 'TOGGLE_LEFT_SIDEBAR' }

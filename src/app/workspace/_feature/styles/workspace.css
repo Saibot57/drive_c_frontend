@@ -1278,6 +1278,94 @@ div:hover > .kanban-card-delete {
   text-align: left;
 }
 
+/* ── Utbruten hjuldel ────────────────────────────────────────────────────── */
+
+/*
+  Delen fyller kortet. Kortet är i sin tur måttsatt efter bitens proportioner ur
+  hjulet, så all annan krom skulle förvrida den — härkomsten läggs därför
+  ovanpå i stället för bredvid.
+*/
+.ws-wheel-part {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.ws-wheel-part__canvas {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Kortet ska gå att dra i, inte bågen inuti det. */
+  pointer-events: none;
+}
+
+.ws-wheel-part__svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Syns först när man är på kortet. Resten av tiden är delen bara sig själv. */
+.ws-wheel-part__source {
+  position: absolute;
+  left: 0.25rem;
+  bottom: 0.125rem;
+  max-width: calc(100% - 0.5rem);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.5625rem;
+  line-height: 1.2;
+  color: var(--ws-text-muted);
+  background: var(--ws-surface);
+  padding: 0 0.1875rem;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+
+.ws-element:hover .ws-wheel-part__source {
+  opacity: 0.85;
+}
+
+.ws-wheel-part__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--ws-text-muted);
+  text-align: center;
+}
+
+/* Samma avvägning som för hjulet: under WHEEL_REF_TEXT_MIN_ZOOM är etiketterna
+   ändå oläsliga, och ren färg är lugnare än myrspår. */
+.ws-canvas-viewport--quiet .ws-wheel-part__canvas text {
+  display: none;
+}
+
+/* Härkomsten hör till kortet, inte till bilden. */
+.ws-exporting .ws-wheel-part__source {
+  display: none;
+}
+
+.ws-import-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-top: 0.25rem;
+}
+
+.ws-import-list__hint {
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--ws-text-muted);
+}
+
 /* Under en export ska bara innehållet med — inte redigeringens reglage. */
 .ws-exporting .ws-lock-btn,
 .ws-exporting .ws-resize-handle {
