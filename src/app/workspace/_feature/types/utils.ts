@@ -18,3 +18,24 @@ export function screenToCanvas(
     y: (screenY - panY) / zoom,
   };
 }
+
+/**
+ * Ytan en sats element upptar tillsammans, för att kunna centrera den i vyn.
+ *
+ * Satserna har olika nollpunkt — en sprängning utgår från hjulets mitt, en
+ * utrullning och en schemavecka från sitt vänstra hörn — så det går inte att
+ * räkna på en ankarpunkt. Det som fungerar för alla är att mäta det de faktiskt
+ * fyller.
+ */
+export function batchBounds(
+  items: { offset: { x: number; y: number }; size: { width: number; height: number } }[],
+): { x: number; y: number; width: number; height: number } {
+  const x = Math.min(...items.map((i) => i.offset.x));
+  const y = Math.min(...items.map((i) => i.offset.y));
+  return {
+    x,
+    y,
+    width: Math.max(...items.map((i) => i.offset.x + i.size.width)) - x,
+    height: Math.max(...items.map((i) => i.offset.y + i.size.height)) - y,
+  };
+}

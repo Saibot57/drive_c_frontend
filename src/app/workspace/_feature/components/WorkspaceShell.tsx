@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, EyeOff, StretchHorizontal } from 'lucide-react';
+import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, EyeOff, StretchHorizontal, Clock } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
@@ -18,9 +18,12 @@ import SearchOverlay from './SearchOverlay';
 import ContextMenu, { type ContextMenuItem } from './ContextMenu';
 import MirrorCopyModal from './MirrorCopyModal';
 import ConfirmDialog from './ConfirmDialog';
+import ScheduleImportModal, { type ScheduleSource } from './ScheduleImportModal';
 import type { ElementType, ViewportState, WorkspaceElement } from '../types/workspace.types';
 import type { WheelPartContent } from '../types/wheelPart.types';
+import type { ScheduleDayContent } from '../types/scheduleDay.types';
 import type { WheelPartMode } from '../utils/wheelExplode';
+import type { PlannerActivity } from '@/types/schedule';
 // sp-root bär de delade neobrutalistiska tokens som schemat och temakalendern
 // använder. Workspace läser dem i sina egna --ws-*-variabler, så att en ändring
 // i det gemensamma temat slår igenom här utan att den här filen rörs.
@@ -63,7 +66,9 @@ function WorkspaceInner() {
     createSurface,
     createAndPlaceElement,
     importWheel,
+    importScheduleDays,
     toggleStraight,
+    toggleDayRuler,
     updateElementContent,
     updateElementTitle,
     movePlacement,
@@ -85,6 +90,7 @@ function WorkspaceInner() {
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scheduleImportOpen, setScheduleImportOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ElementContextState | null>(null);
   const [mirrorCopy, setMirrorCopy] = useState<{ elementId: string; mode: 'mirror' | 'copy' } | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
@@ -240,6 +246,16 @@ function WorkspaceInner() {
     [importWheel, state.viewport],
   );
 
+  const handleImportSchedule = useCallback(
+    (activities: PlannerActivity[], days: string[], source: ScheduleSource) => {
+      const container = canvasContainerRef.current;
+      const w = container?.clientWidth ?? 800;
+      const h = container?.clientHeight ?? 600;
+      void importScheduleDays(activities, days, source, state.viewport, w, h);
+    },
+    [importScheduleDays, state.viewport],
+  );
+
   const handleContextMenu = useCallback(
     (elementId: string, placementId: string, x: number, y: number) => {
       setContextMenu({ elementId, placementId, x, y });
@@ -331,6 +347,20 @@ function WorkspaceInner() {
                 },
               ]
             : []),
+          ...(el?.type === 'schedule_day'
+            ? [
+                {
+                  label: (el.content as ScheduleDayContent | null)?.showRuler
+                    ? 'Dölj timlinjal'
+                    : 'Visa timlinjal',
+                  icon: <Clock size={13} />,
+                  onClick: () => {
+                    void toggleDayRuler(contextMenu.elementId, contextMenu.placementId);
+                    setContextMenu(null);
+                  },
+                },
+              ]
+            : []),
           { label: '', onClick: () => {}, divider: true },
           {
             label: 'Spegla till...',
@@ -416,6 +446,7 @@ function WorkspaceInner() {
           onCreateElement={handleCreateElement}
           onCreateSurface={handleSurfaceCreate}
           onImportWheel={handleImportWheel}
+          onImportSchedule={() => setScheduleImportOpen(true)}
           library={state.library}
           onLibraryPointerDown={handleLibraryPointerDown}
           onDeleteElement={requestDeleteElement}
@@ -500,6 +531,12 @@ function WorkspaceInner() {
           onClose={() => setContextMenu(null)}
         />
       )}
+
+      <ScheduleImportModal
+        isOpen={scheduleImportOpen}
+        onClose={() => setScheduleImportOpen(false)}
+        onConfirm={handleImportSchedule}
+      />
 
       {/* Element rename input */}
       {renameEl && (

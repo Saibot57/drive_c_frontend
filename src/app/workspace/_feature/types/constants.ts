@@ -18,6 +18,7 @@ export const TYPE_COLORS: Record<ElementType, string> = {
   link: '#e5e7eb',
   wheel_ref: '#f5d0fe',
   wheel_part: '#f5d0fe',
+  schedule_day: '#fde68a',
 };
 
 /**

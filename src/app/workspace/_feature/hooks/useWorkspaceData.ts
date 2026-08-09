@@ -7,9 +7,12 @@ import { useWorkspaceSync } from './useWorkspaceSync';
 import { useWorkspaceHistory } from './useWorkspaceHistory';
 import { themeWheelService } from '@/services/themeWheelService';
 import { workspaceService } from '../services/workspaceService';
-import { buildWheelParts, partsBounds, type WheelPartMode } from '../utils/wheelExplode';
+import { buildWheelParts, type WheelPartMode } from '../utils/wheelExplode';
+import { DAY_RULER_WIDTH, buildScheduleDays } from '../utils/scheduleDayImport';
+import type { PlannerActivity } from '@/types/schedule';
 import { partCardSize, partViewBox, straightSize } from '../utils/wheelPartGeometry';
 import type { WheelPartContent } from '../types/wheelPart.types';
+import type { ScheduleDayContent } from '../types/scheduleDay.types';
 import type { ElementType, SurfaceElement, ViewportState } from '../types/workspace.types';
 import type { Point } from './useElementDrag';
 import type { Box } from './useElementResize';
@@ -27,7 +30,7 @@ import {
   GRID_SIZE,
   MAX_EXPLODE_PARTS,
 } from '../types/constants';
-import { clamp, screenToCanvas, snapToGrid } from '../types/utils';
+import { batchBounds, clamp, screenToCanvas, snapToGrid } from '../types/utils';
 
 /** Storlekar som passar innehållet bättre än standardrutan. */
 const SIZE_BY_TYPE: Partial<Record<ElementType, { w: number; h: number }>> = {
@@ -350,15 +353,89 @@ export function useWorkspaceData() {
   }, [dispatch, track, pushUndo, showNotice, loadLibrary]);
 
   /**
+   * Lägger en hel sats hämtade element på den aktiva ytan.
+   *
+   * Allt går i ett anrop till bulk-place och registreras som ett enda
+   * ångrasteg. En sprängning på fjorton delar hade annars blivit 28 rundturer
+   * och ätit en fjärdedel av historiken.
+   *
+   * Satsen centreras i vyn efter den yta den faktiskt fyller, eftersom de olika
+   * hämtningarna har olika nollpunkt.
+   */
+  const placeBatch = useCallback(async (
+    items: {
+      type: ElementType;
+      title: string;
+      content: unknown;
+      size: { width: number; height: number };
+      offset: { x: number; y: number };
+    }[],
+    labels: { track: string; undo: string; done: (count: number) => string },
+    viewport: ViewportState,
+    containerWidth: number,
+    containerHeight: number,
+  ) => {
+    const surfaceId = stateRef.current.activeSurfaceId;
+    if (!surfaceId) {
+      showNotice('Skapa en yta först.', 'warning');
+      return null;
+    }
+
+    const view = screenToCanvas(
+      containerWidth / 2,
+      containerHeight / 2,
+      viewport.panX,
+      viewport.panY,
+      viewport.zoom,
+    );
+    const bounds = batchBounds(items);
+    const originX = view.x - bounds.x - bounds.width / 2;
+    const originY = view.y - bounds.y - bounds.height / 2;
+
+    const placements = await track(labels.track, () =>
+      workspaceService.bulkPlace(surfaceId, items.map((item) => ({
+        type: item.type,
+        title: item.title,
+        content: item.content,
+        position_x: snapToGrid(originX + item.offset.x, GRID_SIZE),
+        position_y: snapToGrid(originY + item.offset.y, GRID_SIZE),
+        width: item.size.width,
+        height: item.size.height,
+      }))),
+    );
+    if (!placements) return null;
+
+    dispatch({ type: 'SET_ELEMENTS', elements: placements.map((p) => p.element) });
+    dispatch({ type: 'ADD_PLACEMENTS', placements });
+    void loadLibrary();
+    showNotice(labels.done(placements.length), 'success');
+
+    pushUndo({
+      label: labels.undo,
+      undo: async () => {
+        const elementIds = placements.map((p) => p.element_id);
+        elementIds.forEach((elementId) => dispatch({ type: 'REMOVE_ELEMENT', elementId }));
+        // Raderingen är mjuk och sker en per element — det finns ingen
+        // bulkradering. allSettled i stället för all: ett element som inte går
+        // bort ska inte hindra de övriga, och det dyker i så fall upp igen vid
+        // nästa omladdning.
+        await track('ta bort dem', () =>
+          Promise.allSettled(elementIds.map((id) => workspaceService.deleteElement(id))),
+        );
+        void loadLibrary();
+      },
+    });
+
+    return placements;
+  }, [dispatch, track, pushUndo, showNotice, loadLibrary]);
+
+  /**
    * Bryter ut ett hjuls arbetsområden som enskilda kort på den aktiva ytan.
    *
    * Delarna är sticklingar, inte pekare: de tar med sig allt de behöver för att
    * rita sig själva. Hjulets ringtilldelning är global — ett nytt block någon
    * annanstans ändrar höjden på alla band — så en levande koppling hade flyttat
    * och skalat om delar mitt i ett arrangemang användaren byggt runt dem.
-   *
-   * Hela sprängningen går i ett anrop och registreras som ett enda ångrasteg.
-   * Fjorton separata poster hade ätit en fjärdedel av historiken.
    */
   const importWheel = useCallback(async (
     wheelId: string,
@@ -367,12 +444,6 @@ export function useWorkspaceData() {
     containerWidth: number,
     containerHeight: number,
   ) => {
-    const surfaceId = stateRef.current.activeSurfaceId;
-    if (!surfaceId) {
-      showNotice('Skapa en yta först.', 'warning');
-      return;
-    }
-
     const wheel = await track('hämta hjulet', () => themeWheelService.getWheel(wheelId));
     if (!wheel) return;
 
@@ -389,56 +460,67 @@ export function useWorkspaceData() {
       return;
     }
 
-    // Satsen centreras i vyn oavsett läge: en sprängning har sin nollpunkt i
-    // hjulets mitt, en utrullning i tidslinjens vänstra kant.
-    const view = screenToCanvas(
-      containerWidth / 2,
-      containerHeight / 2,
-      viewport.panX,
-      viewport.panY,
-      viewport.zoom,
-    );
-    const bounds = partsBounds(drafts);
-    const originX = view.x - bounds.x - bounds.width / 2;
-    const originY = view.y - bounds.y - bounds.height / 2;
-
-    const verb = mode === 'unroll' ? 'rulla ut hjulet' : 'spränga hjulet';
-    const placements = await track(verb, () =>
-      workspaceService.bulkPlace(surfaceId, drafts.map((draft) => ({
+    await placeBatch(
+      drafts.map((draft) => ({
         type: 'wheel_part' as ElementType,
         title: draft.content.title,
         content: draft.content,
-        position_x: snapToGrid(originX + draft.offset.x, GRID_SIZE),
-        position_y: snapToGrid(originY + draft.offset.y, GRID_SIZE),
-        width: draft.size.width,
-        height: draft.size.height,
-      }))),
-    );
-    if (!placements) return;
-
-    dispatch({ type: 'SET_ELEMENTS', elements: placements.map((p) => p.element) });
-    dispatch({ type: 'ADD_PLACEMENTS', placements });
-    void loadLibrary();
-    showNotice(
-      `${placements.length} ${placements.length === 1 ? 'del' : 'delar'} ur ${wheel.name} ligger på ytan.`,
-      'success',
-    );
-
-    pushUndo({
-      label: mode === 'unroll' ? `utrullningen av ${wheel.name}` : `sprängningen av ${wheel.name}`,
-      undo: async () => {
-        const elementIds = placements.map((p) => p.element_id);
-        elementIds.forEach((elementId) => dispatch({ type: 'REMOVE_ELEMENT', elementId }));
-        // Raderingen är mjuk och sker en per del — det finns ingen bulkradering.
-        // allSettled i stället för all: en del som inte går bort ska inte hindra
-        // de övriga, och den dyker i så fall upp igen vid nästa omladdning.
-        await track('ta bort delarna', () =>
-          Promise.allSettled(elementIds.map((id) => workspaceService.deleteElement(id))),
-        );
-        void loadLibrary();
+        size: draft.size,
+        offset: draft.offset,
+      })),
+      {
+        track: mode === 'unroll' ? 'rulla ut hjulet' : 'spränga hjulet',
+        undo: mode === 'unroll' ? `utrullningen av ${wheel.name}` : `sprängningen av ${wheel.name}`,
+        done: (count) => `${count} ${count === 1 ? 'del' : 'delar'} ur ${wheel.name} ligger på ytan.`,
       },
+      viewport,
+      containerWidth,
+      containerHeight,
+    );
+  }, [track, showNotice, placeBatch]);
+
+  /**
+   * Hämtar in valda dagar ur ett schema som skrivskyddade kort.
+   *
+   * Dagen är enheten — en hel vecka är fem kort bredvid varandra, vilket är vad
+   * som gör att man kan dra ut onsdagen och skriva bredvid den.
+   *
+   * Kopian är fryst, och det löser id-problemet i stället för att kringgå det:
+   * ett arkiv är strängen `archive_name` på raderna i planner_activity, så en
+   * levande referens hade dött tyst vid ett namnbyte. Här är namnet en etikett.
+   */
+  const importScheduleDays = useCallback(async (
+    activities: PlannerActivity[],
+    days: string[],
+    source: { archiveName: string | null; label: string },
+    viewport: ViewportState,
+    containerWidth: number,
+    containerHeight: number,
+  ) => {
+    const drafts = buildScheduleDays(activities, days, {
+      archiveName: source.archiveName,
+      sourceLabel: source.label,
     });
-  }, [dispatch, track, pushUndo, showNotice, loadLibrary]);
+    if (drafts.length === 0) return;
+
+    await placeBatch(
+      drafts.map((draft) => ({
+        type: 'schedule_day' as ElementType,
+        title: `${draft.content.day} · ${source.label}`,
+        content: draft.content,
+        size: draft.size,
+        offset: draft.offset,
+      })),
+      {
+        track: 'hämta in schemadagarna',
+        undo: `hämtningen ur ${source.label}`,
+        done: (count) => `${count} ${count === 1 ? 'dag' : 'dagar'} ur ${source.label} ligger på ytan.`,
+      },
+      viewport,
+      containerWidth,
+      containerHeight,
+    );
+  }, [placeBatch]);
 
   /**
    * Rätar ut en utbruten del, eller böjer tillbaka den.
@@ -482,6 +564,46 @@ export function useWorkspaceData() {
 
     pushUndo({
       label: after.straight ? 'uträtningen' : 'tillbakaböjningen',
+      undo: () => apply(before, beforeSize, 'ångra'),
+    });
+  }, [dispatch, track, pushUndo]);
+
+  /**
+   * Visar eller döljer timlinjalen på ett schemadagskort.
+   *
+   * Bredden följer med, annars kläms lektionerna ihop när linjalen tänds på ett
+   * kort som inte hade plats för den.
+   */
+  const toggleDayRuler = useCallback(async (elementId: string, placementId: string) => {
+    const element = stateRef.current.elements[elementId];
+    const placement = stateRef.current.placements.find((p) => p.id === placementId);
+    if (!element || element.type !== 'schedule_day' || !placement) return;
+
+    const before = element.content as ScheduleDayContent;
+    if (!before) return;
+    const after: ScheduleDayContent = { ...before, showRuler: !before.showRuler };
+    const beforeSize = { width: placement.width, height: placement.height };
+    const afterSize = {
+      width: Math.max(placement.width + (after.showRuler ? DAY_RULER_WIDTH : -DAY_RULER_WIDTH), 80),
+      height: placement.height,
+    };
+
+    const apply = async (
+      content: ScheduleDayContent,
+      size: { width: number; height: number },
+      label: string,
+    ) => {
+      dispatch({ type: 'SET_ELEMENT', element: { ...element, content } });
+      dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: size });
+      await track(label, async () => {
+        await workspaceService.updateElement(elementId, { content });
+        await workspaceService.updatePlacement(placementId, size);
+      });
+    };
+
+    await apply(after, afterSize, after.showRuler ? 'visa linjalen' : 'dölja linjalen');
+    pushUndo({
+      label: after.showRuler ? 'den visade linjalen' : 'den dolda linjalen',
       undo: () => apply(before, beforeSize, 'ångra'),
     });
   }, [dispatch, track, pushUndo]);
@@ -832,7 +954,9 @@ export function useWorkspaceData() {
     deleteSurface,
     createAndPlaceElement,
     importWheel,
+    importScheduleDays,
     toggleStraight,
+    toggleDayRuler,
     updateElementContent,
     updateElementTitle,
     movePlacement,

@@ -6,6 +6,7 @@ import type { ImageContent } from '../types/image.types';
 import type { LinkContent } from '../types/link.types';
 import type { WheelRefContent } from '../types/wheelRef.types';
 import type { WheelPartContent } from '../types/wheelPart.types';
+import type { ScheduleDayContent } from '../types/scheduleDay.types';
 import TextEditor from './editors/TextEditor';
 import TableEditor, { type TableContent } from './editors/TableEditor';
 import MindmapEditor, { type MindmapContent } from './editors/MindmapEditor';
@@ -17,6 +18,7 @@ import ImageViewer from './editors/ImageViewer';
 import LinkEditor from './editors/LinkEditor';
 import WheelRefViewer from './editors/WheelRefViewer';
 import WheelPartViewer from './editors/WheelPartViewer';
+import ScheduleDayView from './editors/ScheduleDayView';
 
 interface ElementRendererProps {
   element: WorkspaceElement;
@@ -133,6 +135,9 @@ export default function ElementRenderer({
           elementId={element.id}
         />
       );
+
+    case 'schedule_day':
+      return <ScheduleDayView content={element.content as ScheduleDayContent | null} />;
 
     default:
       return <p className="ws-sidebar-empty">Okänd elementtyp</p>;

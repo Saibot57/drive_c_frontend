@@ -26,6 +26,7 @@ interface LeftSidebarProps {
   onCreateElement: (type: ElementType) => void;
   onCreateSurface: () => void;
   onImportWheel: (wheelId: string, mode: WheelPartMode) => void;
+  onImportSchedule: () => void;
   library: WorkspaceElement[];
   onLibraryPointerDown: (element: WorkspaceElement, event: React.PointerEvent) => void;
   onDeleteElement: (elementId: string) => void;
@@ -54,6 +55,7 @@ export default function LeftSidebar({
   onCreateElement,
   onCreateSurface,
   onImportWheel,
+  onImportSchedule,
   library,
   onLibraryPointerDown,
   onDeleteElement,
@@ -104,7 +106,7 @@ export default function LeftSidebar({
 
       <div className="ws-divider" />
 
-      <ImportSection onImportWheel={onImportWheel} />
+      <ImportSection onImportWheel={onImportWheel} onImportSchedule={onImportSchedule} />
 
       <div className="ws-divider" />
 

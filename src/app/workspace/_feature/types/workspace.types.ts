@@ -5,7 +5,9 @@ export type ElementType =
   /** Skrivskyddad vy av ett hjul i temakalendern. Innehållet är bara ett id. */
   | 'wheel_ref'
   /** Utbruten tårtbit ur ett hjul. Stickling — äger sin egen kopia. */
-  | 'wheel_part';
+  | 'wheel_part'
+  /** En dag ur schemaplaneraren, skrivskyddad. Också en stickling. */
+  | 'schedule_day';
 
 // ── Backend mirrors ──
 export interface Surface {

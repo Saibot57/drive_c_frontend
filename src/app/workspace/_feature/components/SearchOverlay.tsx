@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Search, X, Type, Table2, GitBranchPlus, List, Kanban, StickyNote, FileText, ImageIcon, Link as LinkIcon, PieChart } from 'lucide-react';
+import { Search, X, Type, Table2, GitBranchPlus, List, Kanban, StickyNote, FileText, ImageIcon, Link as LinkIcon, PieChart, CalendarDays } from 'lucide-react';
 import { workspaceService } from '../services/workspaceService';
 import type { WorkspaceElement, ElementType } from '../types/workspace.types';
 
@@ -27,6 +27,7 @@ const typeIcons: Record<ElementType, React.ReactNode> = {
   link: <LinkIcon size={14} />,
   wheel_ref: <PieChart size={14} />,
   wheel_part: <PieChart size={14} />,
+  schedule_day: <CalendarDays size={14} />,
 };
 
 export default function SearchOverlay({

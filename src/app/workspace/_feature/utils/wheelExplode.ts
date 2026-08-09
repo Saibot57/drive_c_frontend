@@ -36,16 +36,6 @@ export interface WheelPartDraft {
   offset: Point;
 }
 
-/** Satsens sammanlagda yta, för att kunna centrera den i vyn. */
-export const partsBounds = (drafts: WheelPartDraft[]) => {
-  const xs = drafts.map((d) => d.offset.x);
-  const ys = drafts.map((d) => d.offset.y);
-  const right = drafts.map((d) => d.offset.x + d.size.width);
-  const bottom = drafts.map((d) => d.offset.y + d.size.height);
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  return { x, y, width: Math.max(...right) - x, height: Math.max(...bottom) - y };
-};
 
 /**
  * Hur långt delarna kastas ut från mitten vid en sprängning. 1 hade lagt

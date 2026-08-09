@@ -1,13 +1,14 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2, PieChart, Sparkles, StretchHorizontal } from 'lucide-react';
+import { CalendarDays, ChevronDown, ChevronRight, Loader2, PieChart, Sparkles, StretchHorizontal } from 'lucide-react';
 import { themeWheelService } from '@/services/themeWheelService';
 import type { ThemeWheelSummary } from '@/types/themeWheel';
 import type { WheelPartMode } from '../utils/wheelExplode';
 
 interface ImportSectionProps {
   onImportWheel: (wheelId: string, mode: WheelPartMode) => void;
+  onImportSchedule: () => void;
 }
 
 type State =
@@ -22,7 +23,7 @@ type State =
  * Listan hämtas först när sektionen öppnas. Att slå mot temakalendern varje
  * gång sidopanelen ritas vore slöseri för något de flesta aldrig klickar på.
  */
-export default function ImportSection({ onImportWheel }: ImportSectionProps) {
+export default function ImportSection({ onImportWheel, onImportSchedule }: ImportSectionProps) {
   const [state, setState] = useState<State>({ status: 'closed' });
 
   const toggle = useCallback(async () => {
@@ -41,11 +42,18 @@ export default function ImportSection({ onImportWheel }: ImportSectionProps) {
 
   return (
     <div className="ws-sidebar-section">
+      <div className="ws-sidebar-header">Hämta in</div>
+
+      <button className="ws-create-btn" onClick={onImportSchedule}>
+        <span className="ws-menu-item__icon"><CalendarDays size={14} /></span>
+        Schemadagar
+      </button>
+
       <button className="ws-create-btn" onClick={() => void toggle()}>
         <span className="ws-menu-item__icon">
           {state.status === 'closed' ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
         </span>
-        Hämta in temahjul
+        Temahjul
       </button>
 
       {state.status === 'loading' && (
