@@ -608,6 +608,55 @@ export function useWorkspaceData() {
     });
   }, [dispatch, track, pushUndo]);
 
+  /**
+   * Skriver om innehållet i ett eller flera element från deras källa.
+   *
+   * Innehållet byts, geometrin är din: position, storlek och z-index rörs inte,
+   * och arrangemangsfälten (krökt/rakt, timlinjal, tidsfönster) har redan
+   * bevarats av sammanslagningen. En uppdatering ska aldrig flytta något du
+   * placerat — det var hela skälet att välja stickling framför levande.
+   */
+  const refreshFromSource = useCallback(async (
+    items: { elementId: string; content: unknown }[],
+    sourceLabel: string,
+  ) => {
+    const before = items
+      .map(({ elementId }) => stateRef.current.elements[elementId])
+      .filter((element): element is NonNullable<typeof element> => Boolean(element))
+      .map((element) => ({ element, content: element.content }));
+    if (before.length === 0) return;
+
+    const write = async (
+      next: { elementId: string; content: unknown }[],
+      label: string,
+    ) => {
+      next.forEach(({ elementId, content }) => {
+        const element = stateRef.current.elements[elementId];
+        if (element) dispatch({ type: 'SET_ELEMENT', element: { ...element, content } });
+      });
+      await track(label, () =>
+        Promise.all(next.map(({ elementId, content }) =>
+          workspaceService.updateElement(elementId, { content }))),
+      );
+    };
+
+    await write(items, 'uppdatera från källan');
+    showNotice(
+      items.length === 1
+        ? `Uppdaterad från ${sourceLabel}.`
+        : `${items.length} kort uppdaterade från ${sourceLabel}.`,
+      'success',
+    );
+
+    pushUndo({
+      label: items.length === 1 ? 'uppdateringen' : `uppdateringen av ${items.length} kort`,
+      undo: () => write(
+        before.map(({ element, content }) => ({ elementId: element.id, content })),
+        'återställa innehållet',
+      ),
+    });
+  }, [dispatch, track, pushUndo, showNotice]);
+
   const updateElementContent = useCallback((elementId: string, content: unknown) => {
     const current = stateRef.current.elements[elementId];
     if (!current) return;
@@ -957,6 +1006,7 @@ export function useWorkspaceData() {
     importScheduleDays,
     toggleStraight,
     toggleDayRuler,
+    refreshFromSource,
     updateElementContent,
     updateElementTitle,
     movePlacement,

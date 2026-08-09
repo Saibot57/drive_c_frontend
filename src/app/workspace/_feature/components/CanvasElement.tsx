@@ -12,6 +12,7 @@ import {
 import { useElementDrag, type Point } from '../hooks/useElementDrag';
 import { useElementResize, type Box } from '../hooks/useElementResize';
 import ElementRenderer from './ElementRenderer';
+import type { ProvenanceStatus } from '../utils/provenance';
 
 type ResizeDir = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
@@ -47,9 +48,9 @@ function detectResizeZone(
 }
 
 /** Ritar sin egen ram ända ut i kanten och vill inte ha någon padding. */
-const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link', 'wheel_ref'];
+const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link', 'wheel_ref', 'wheel_part', 'schedule_day'];
 /** Har sin egen rullning inuti och ska inte kunna rullas av wrappern. */
-const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link', 'wheel_ref'];
+const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link', 'wheel_ref', 'wheel_part', 'schedule_day'];
 
 function contentClassName(type: ElementType): string {
   return [
@@ -75,6 +76,8 @@ interface CanvasElementProps {
   onToggleLock: (placementId: string) => void;
   onContentChange: (elementId: string, content: unknown) => void;
   onContextMenu?: (x: number, y: number) => void;
+  /** Härkomstens tillstånd, för sticklingar som har en källa att jämföra mot. */
+  provenance?: ProvenanceStatus;
 }
 
 const RESIZE_DIRECTIONS = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const;
@@ -92,6 +95,7 @@ export default function CanvasElement({
   onToggleLock,
   onContentChange,
   onContextMenu,
+  provenance,
 }: CanvasElementProps) {
   const { handleMouseDown: handleDragDown } = useElementDrag({
     placementId: placement.id,
@@ -172,6 +176,21 @@ export default function CanvasElement({
         onContextMenu?.(e.clientX, e.clientY);
       }}
     >
+      {/*
+        Härkomstmarkören. Tyst med flit: en prick, ingen notis och ingen dialog.
+        Sticklingen hämtar aldrig om sig själv, så det här är det enda som
+        berättar att källan gått vidare — men att berätta är inte att tjata.
+      */}
+      {(provenance === 'drifted' || provenance === 'missing') && (
+        <span
+          className={`ws-provenance-dot ws-provenance-dot--${provenance}`}
+          data-export="omit"
+          title={provenance === 'drifted'
+            ? 'Källan har ändrats sedan det här hämtades. Högerklicka för att uppdatera.'
+            : 'Källan finns inte längre.'}
+        />
+      )}
+
       {/* Lock button */}
       <button
         className="ws-lock-btn"

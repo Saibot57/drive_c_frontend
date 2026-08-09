@@ -1550,6 +1550,39 @@ div:hover > .kanban-card-delete {
   color: var(--ws-text-faint);
 }
 
+/* ── Härkomstmarkör ──────────────────────────────────────────────────────── */
+
+/*
+  En prick i kortets övre högra hörn. Den ska gå att se utan att dra blicken
+  till sig — sticklingen är fortfarande giltig, det är bara källan som gått
+  vidare. Måtten kompenseras för canvasens zoom, som ramarna, så att pricken
+  är lika stor oavsett hur långt ut man zoomat.
+*/
+.ws-provenance-dot {
+  position: absolute;
+  top: calc(5px / var(--ws-zoom));
+  right: calc(5px / var(--ws-zoom));
+  width: calc(8px / var(--ws-zoom));
+  height: calc(8px / var(--ws-zoom));
+  border-radius: 50%;
+  border: calc(1.5px / var(--ws-zoom)) solid #000;
+  z-index: var(--ws-z-canvas-chrome);
+  pointer-events: auto;
+}
+
+.ws-provenance-dot--drifted {
+  background: #fbbf24;
+}
+
+.ws-provenance-dot--missing {
+  background: var(--ws-danger);
+}
+
+/* Ett redigeringstillstånd, inte innehåll. Hör inte hemma i en exporterad bild. */
+.ws-exporting .ws-provenance-dot {
+  display: none;
+}
+
 /* Under en export ska bara innehållet med — inte redigeringens reglage. */
 .ws-exporting .ws-lock-btn,
 .ws-exporting .ws-resize-handle {

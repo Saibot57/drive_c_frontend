@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, EyeOff, StretchHorizontal, Clock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ACTIVE_THEME_WHEEL_KEY } from '@/components/theme-wheel/constants';
+import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, EyeOff, StretchHorizontal, Clock, RefreshCw, Unlink, ExternalLink } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
 import { useWorkspaceData } from '../hooks/useWorkspaceData';
+import { useProvenance } from '../hooks/useProvenance';
 import { useUndoHotkey } from '../hooks/useWorkspaceHistory';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { useWorkspaceExport } from '../hooks/useWorkspaceExport';
@@ -69,6 +72,7 @@ function WorkspaceInner() {
     importScheduleDays,
     toggleStraight,
     toggleDayRuler,
+    refreshFromSource,
     updateElementContent,
     updateElementTitle,
     movePlacement,
@@ -87,6 +91,9 @@ function WorkspaceInner() {
     renameSurface,
     deleteSurface,
   } = useWorkspaceData();
+
+  const router = useRouter();
+  const { provenance, driftedFromSameSource } = useProvenance(state.placements, state.elements);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -313,6 +320,79 @@ function WorkspaceInner() {
     [state.selectedElementId, handleZoomToContent],
   );
 
+  /**
+   * Uppdatera och öppna källan — bara för sticklingar, och bara när det finns
+   * något att göra. Att erbjuda "uppdatera" på ett kort som redan är i takt med
+   * sin källa är att be användaren gissa om något hänt.
+   */
+  const provenanceItems = useCallback((elementId: string): ContextMenuItem[] => {
+    const entry = provenance.get(elementId);
+    if (!entry) return [];
+
+    const items: ContextMenuItem[] = [];
+
+    if (entry.status === 'drifted' && entry.fresh) {
+      const siblings = driftedFromSameSource(elementId);
+      items.push({
+        label: 'Uppdatera från källan',
+        icon: <RefreshCw size={13} />,
+        onClick: () => {
+          void refreshFromSource([{ elementId, content: entry.fresh }], entry.sourceLabel);
+          setContextMenu(null);
+        },
+      });
+      if (siblings.length > 1) {
+        items.push({
+          label: `Uppdatera alla ${siblings.length} från ${entry.sourceLabel}`,
+          icon: <RefreshCw size={13} />,
+          onClick: () => {
+            void refreshFromSource(siblings, entry.sourceLabel);
+            setContextMenu(null);
+          },
+        });
+      }
+    }
+
+    if (entry.status === 'missing') {
+      items.push({
+        label: 'Källan finns inte längre',
+        icon: <Unlink size={13} />,
+        disabled: true,
+        onClick: () => {},
+      });
+    }
+
+    const element = state.elements[elementId];
+    if (element?.type === 'wheel_part') {
+      items.push({
+        label: 'Öppna i Temakalendern',
+        icon: <ExternalLink size={13} />,
+        onClick: () => {
+          const content = element.content as WheelPartContent | null;
+          // Temakalendern väljer hjul via den här nyckeln vid uppstart. Samma
+          // väg som WheelRefViewer tar.
+          try {
+            if (content?.wheelId) {
+              window.localStorage.setItem(ACTIVE_THEME_WHEEL_KEY, content.wheelId);
+            }
+          } catch {
+            // Utan lagring landar man på det senast öppnade hjulet.
+          }
+          router.push('/features/temakalender');
+        },
+      });
+    }
+    if (element?.type === 'schedule_day') {
+      items.push({
+        label: 'Öppna i Schemaplaneraren',
+        icon: <ExternalLink size={13} />,
+        onClick: () => router.push('/features/schedule'),
+      });
+    }
+
+    return items.length > 0 ? [{ label: '', onClick: () => {}, divider: true }, ...items] : [];
+  }, [provenance, driftedFromSameSource, refreshFromSource, state.elements, router]);
+
   const contextMenuItems: ContextMenuItem[] = contextMenu
     ? (() => {
         const el = state.elements[contextMenu.elementId];
@@ -361,6 +441,7 @@ function WorkspaceInner() {
                 },
               ]
             : []),
+          ...provenanceItems(contextMenu.elementId),
           { label: '', onClick: () => {}, divider: true },
           {
             label: 'Spegla till...',
@@ -487,6 +568,7 @@ function WorkspaceInner() {
                 onToggleLock={toggleLock}
                 onContentChange={updateElementContent}
                 onContextMenu={(x, y) => handleContextMenu(el.id, p.id, x, y)}
+                provenance={provenance.get(el.id)?.status}
               />
             );
           })}
