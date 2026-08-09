@@ -18,13 +18,14 @@ import type { ElementType, WorkspaceElement } from '../types/workspace.types';
 import { LIBRARY_HIDDEN_TYPES, TYPE_COLORS } from '../types/constants';
 import LibraryCard from './LibraryCard';
 import ImportSection from './ImportSection';
+import type { WheelPartMode } from '../utils/wheelExplode';
 
 interface LeftSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   onCreateElement: (type: ElementType) => void;
   onCreateSurface: () => void;
-  onExplodeWheel: (wheelId: string) => void;
+  onImportWheel: (wheelId: string, mode: WheelPartMode) => void;
   library: WorkspaceElement[];
   onLibraryPointerDown: (element: WorkspaceElement, event: React.PointerEvent) => void;
   onDeleteElement: (elementId: string) => void;
@@ -52,7 +53,7 @@ export default function LeftSidebar({
   onToggle,
   onCreateElement,
   onCreateSurface,
-  onExplodeWheel,
+  onImportWheel,
   library,
   onLibraryPointerDown,
   onDeleteElement,
@@ -103,7 +104,7 @@ export default function LeftSidebar({
 
       <div className="ws-divider" />
 
-      <ImportSection onExplodeWheel={onExplodeWheel} />
+      <ImportSection onImportWheel={onImportWheel} />
 
       <div className="ws-divider" />
 

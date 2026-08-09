@@ -7,7 +7,9 @@ import { useWorkspaceSync } from './useWorkspaceSync';
 import { useWorkspaceHistory } from './useWorkspaceHistory';
 import { themeWheelService } from '@/services/themeWheelService';
 import { workspaceService } from '../services/workspaceService';
-import { buildWheelParts } from '../utils/wheelExplode';
+import { buildWheelParts, partsBounds, type WheelPartMode } from '../utils/wheelExplode';
+import { partCardSize, partViewBox, straightSize } from '../utils/wheelPartGeometry';
+import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ElementType, SurfaceElement, ViewportState } from '../types/workspace.types';
 import type { Point } from './useElementDrag';
 import type { Box } from './useElementResize';
@@ -358,8 +360,9 @@ export function useWorkspaceData() {
    * Hela sprängningen går i ett anrop och registreras som ett enda ångrasteg.
    * Fjorton separata poster hade ätit en fjärdedel av historiken.
    */
-  const explodeWheel = useCallback(async (
+  const importWheel = useCallback(async (
     wheelId: string,
+    mode: WheelPartMode,
     viewport: ViewportState,
     containerWidth: number,
     containerHeight: number,
@@ -373,7 +376,7 @@ export function useWorkspaceData() {
     const wheel = await track('hämta hjulet', () => themeWheelService.getWheel(wheelId));
     if (!wheel) return;
 
-    const drafts = buildWheelParts(wheel);
+    const drafts = buildWheelParts(wheel, mode);
     if (drafts.length === 0) {
       showNotice(`${wheel.name} har inga arbetsområden att bryta ut.`, 'warning');
       return;
@@ -386,21 +389,27 @@ export function useWorkspaceData() {
       return;
     }
 
-    const center = screenToCanvas(
+    // Satsen centreras i vyn oavsett läge: en sprängning har sin nollpunkt i
+    // hjulets mitt, en utrullning i tidslinjens vänstra kant.
+    const view = screenToCanvas(
       containerWidth / 2,
       containerHeight / 2,
       viewport.panX,
       viewport.panY,
       viewport.zoom,
     );
+    const bounds = partsBounds(drafts);
+    const originX = view.x - bounds.x - bounds.width / 2;
+    const originY = view.y - bounds.y - bounds.height / 2;
 
-    const placements = await track('spränga hjulet', () =>
+    const verb = mode === 'unroll' ? 'rulla ut hjulet' : 'spränga hjulet';
+    const placements = await track(verb, () =>
       workspaceService.bulkPlace(surfaceId, drafts.map((draft) => ({
         type: 'wheel_part' as ElementType,
         title: draft.content.title,
         content: draft.content,
-        position_x: snapToGrid(center.x + draft.offset.x - draft.size.width / 2, GRID_SIZE),
-        position_y: snapToGrid(center.y + draft.offset.y - draft.size.height / 2, GRID_SIZE),
+        position_x: snapToGrid(originX + draft.offset.x, GRID_SIZE),
+        position_y: snapToGrid(originY + draft.offset.y, GRID_SIZE),
         width: draft.size.width,
         height: draft.size.height,
       }))),
@@ -416,7 +425,7 @@ export function useWorkspaceData() {
     );
 
     pushUndo({
-      label: `sprängningen av ${wheel.name}`,
+      label: mode === 'unroll' ? `utrullningen av ${wheel.name}` : `sprängningen av ${wheel.name}`,
       undo: async () => {
         const elementIds = placements.map((p) => p.element_id);
         elementIds.forEach((elementId) => dispatch({ type: 'REMOVE_ELEMENT', elementId }));
@@ -430,6 +439,52 @@ export function useWorkspaceData() {
       },
     });
   }, [dispatch, track, pushUndo, showNotice, loadLibrary]);
+
+  /**
+   * Rätar ut en utbruten del, eller böjer tillbaka den.
+   *
+   * Kortet måste måttsättas om samtidigt. En krökt tårtbits rätblock har inget
+   * med en rak stapels proportioner att göra, så utan det hade uträtningen
+   * lämnat en stapel utsträckt över en yta gjord för en båge. Innehåll och
+   * geometri ändras därför tillsammans och ångras tillsammans.
+   */
+  const toggleStraight = useCallback(async (elementId: string, placementId: string) => {
+    const element = stateRef.current.elements[elementId];
+    const placement = stateRef.current.placements.find((p) => p.id === placementId);
+    if (!element || element.type !== 'wheel_part' || !placement) return;
+
+    const before = element.content as WheelPartContent;
+    if (!before) return;
+    const after: WheelPartContent = { ...before, straight: !before.straight };
+
+    // Måttet som ångras är det kortet faktiskt hade, inte det naturliga —
+    // användaren kan ha dragit i det efteråt.
+    const beforeSize = { width: placement.width, height: placement.height };
+
+    const apply = async (
+      content: WheelPartContent,
+      size: { width: number; height: number },
+      label: string,
+    ) => {
+      dispatch({ type: 'SET_ELEMENT', element: { ...element, content } });
+      dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: size });
+      await track(label, async () => {
+        await workspaceService.updateElement(elementId, { content });
+        await workspaceService.updatePlacement(placementId, size);
+      });
+    };
+
+    await apply(
+      after,
+      naturalPartSize(after),
+      after.straight ? 'räta ut delen' : 'böja tillbaka delen',
+    );
+
+    pushUndo({
+      label: after.straight ? 'uträtningen' : 'tillbakaböjningen',
+      undo: () => apply(before, beforeSize, 'ångra'),
+    });
+  }, [dispatch, track, pushUndo]);
 
   const updateElementContent = useCallback((elementId: string, content: unknown) => {
     const current = stateRef.current.elements[elementId];
@@ -776,7 +831,8 @@ export function useWorkspaceData() {
     unarchiveSurface,
     deleteSurface,
     createAndPlaceElement,
-    explodeWheel,
+    importWheel,
+    toggleStraight,
     updateElementContent,
     updateElementTitle,
     movePlacement,
@@ -791,6 +847,11 @@ export function useWorkspaceData() {
     mirrorElement,
     copyElement,
   };
+}
+
+/** Måttet en del vill ha i sitt nuvarande läge. */
+function naturalPartSize(content: WheelPartContent): { width: number; height: number } {
+  return content.straight ? straightSize(content) : partCardSize(partViewBox(content).box);
 }
 
 function getDefaultContent(type: ElementType): unknown {

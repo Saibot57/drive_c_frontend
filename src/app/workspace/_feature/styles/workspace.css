@@ -1319,7 +1319,7 @@ div:hover > .kanban-card-delete {
   font-size: 0.5625rem;
   line-height: 1.2;
   color: var(--ws-text-muted);
-  background: var(--ws-surface);
+  background: var(--ws-bg);
   padding: 0 0.1875rem;
   border-radius: 2px;
   opacity: 0;
@@ -1360,10 +1360,29 @@ div:hover > .kanban-card-delete {
   margin-top: 0.25rem;
 }
 
-.ws-import-list__hint {
-  margin-left: auto;
-  display: inline-flex;
-  color: var(--ws-text-muted);
+.ws-import-row {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+}
+
+.ws-import-row:hover {
+  background: var(--ws-bg-hover);
+}
+
+.ws-import-row__name {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  color: var(--ws-text);
 }
 
 /* Under en export ska bara innehållet med — inte redigeringens reglage. */

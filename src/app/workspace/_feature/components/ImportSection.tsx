@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2, PieChart, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, PieChart, Sparkles, StretchHorizontal } from 'lucide-react';
 import { themeWheelService } from '@/services/themeWheelService';
 import type { ThemeWheelSummary } from '@/types/themeWheel';
+import type { WheelPartMode } from '../utils/wheelExplode';
 
 interface ImportSectionProps {
-  onExplodeWheel: (wheelId: string) => void;
+  onImportWheel: (wheelId: string, mode: WheelPartMode) => void;
 }
 
 type State =
@@ -21,7 +22,7 @@ type State =
  * Listan hämtas först när sektionen öppnas. Att slå mot temakalendern varje
  * gång sidopanelen ritas vore slöseri för något de flesta aldrig klickar på.
  */
-export default function ImportSection({ onExplodeWheel }: ImportSectionProps) {
+export default function ImportSection({ onImportWheel }: ImportSectionProps) {
   const [state, setState] = useState<State>({ status: 'closed' });
 
   const toggle = useCallback(async () => {
@@ -44,7 +45,7 @@ export default function ImportSection({ onExplodeWheel }: ImportSectionProps) {
         <span className="ws-menu-item__icon">
           {state.status === 'closed' ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
         </span>
-        Spräng temahjul
+        Hämta in temahjul
       </button>
 
       {state.status === 'loading' && (
@@ -61,19 +62,37 @@ export default function ImportSection({ onExplodeWheel }: ImportSectionProps) {
         ) : (
           <div className="ws-import-list">
             {state.wheels.map((wheel) => (
-              <button
-                key={wheel.id}
-                className="ws-menu-item"
-                title={`Bryt ut arbetsområdena i ${wheel.name} som enskilda kort`}
-                onClick={() => {
-                  onExplodeWheel(wheel.id);
-                  setState({ status: 'closed' });
-                }}
-              >
-                <span className="ws-menu-item__icon"><PieChart size={13} /></span>
-                {wheel.name}
-                <span className="ws-import-list__hint"><Sparkles size={12} /></span>
-              </button>
+              <div key={wheel.id} className="ws-import-row">
+                <span className="ws-import-row__name" title={wheel.name}>
+                  <PieChart size={13} />
+                  {wheel.name}
+                </span>
+                {/*
+                  Två lägen, inte ett med en efterföljande växel. Ett "räta ut
+                  alla" på en yta man redan möblerat hade flyttat kort man själv
+                  placerat.
+                */}
+                <button
+                  className="ws-icon-btn"
+                  title="Spräng — delarna behåller sin form och kastas ut från mitten"
+                  onClick={() => {
+                    onImportWheel(wheel.id, 'explode');
+                    setState({ status: 'closed' });
+                  }}
+                >
+                  <Sparkles size={13} />
+                </button>
+                <button
+                  className="ws-icon-btn"
+                  title="Rulla ut — terminen som en rak tidslinje"
+                  onClick={() => {
+                    onImportWheel(wheel.id, 'unroll');
+                    setState({ status: 'closed' });
+                  }}
+                >
+                  <StretchHorizontal size={13} />
+                </button>
+              </div>
             ))}
           </div>
         )

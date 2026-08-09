@@ -43,6 +43,13 @@ export interface WheelPartContent {
   lane: string;
   weekCount: number;
   /**
+   * Hjulets startvecka och startår, för att kunna skriva ut riktiga
+   * kalenderveckor på en uträtad stapel. Valfria: delar som bröts ut innan
+   * fälten fanns saknar dem och visar då inget veckospann.
+   */
+  wheelStartWeek?: number;
+  wheelStartYear?: number;
+  /**
    * Hjulets ringantal och vilka ringar som hade delområden. Behövs för att
    * `buildWheelMetrics()` ska ge tillbaka exakt de radier delen ritades med —
    * ringhöjden beror på hela hjulet, inte på den enskilda ringen.

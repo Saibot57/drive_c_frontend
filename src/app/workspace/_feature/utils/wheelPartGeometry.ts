@@ -21,6 +21,7 @@ import {
   weekSpanAngles,
   CHILD_INSET_PX,
 } from '@/utils/themeWheelGeometry';
+import { buildWheelWeeks } from '@/utils/themeWheelWeeks';
 import type { BlockLane } from '@/utils/themeWheelLayout';
 import type { WheelPartContent } from '../types/wheelPart.types';
 
@@ -147,3 +148,72 @@ export const partCenter = (box: Box): Point => ({
   x: box.x + box.width / 2,
   y: box.y + box.height / 2,
 });
+
+// ── Rakt läge ──────────────────────────────────────────────────────────────
+
+/**
+ * Bredden en vecka får när ett hjul rätas ut.
+ *
+ * Att räta ut är polära koordinater lästa kartesiskt: vinkeln blir x, radien
+ * blir y. Bredden är därför *inte* båglängden. Två block över samma veckor men
+ * i olika ringar är olika långa i hjulet — ytterringen har större omkrets — och
+ * just den skillnaden är vad en linjär läsning ska göra sig av med. Alla veckor
+ * lika breda är hela poängen.
+ */
+export const STRAIGHT_PX_PER_WEEK = 48;
+
+/** Antal veckor delen täcker, inklusive i båda ändar. */
+export const partWeeks = (content: WheelPartContent): number =>
+  content.endWeek - content.startWeek + 1;
+
+/**
+ * Delens mått rakt.
+ *
+ * Höjden tas direkt ur `blockRadii`, alltså radiens tjocklek. Det ger banden
+ * samma inbördes tjocklek som i hjulet och behåller delområdenas indrag i sin
+ * förälder — nästlingen överlever uträtningen utan att räknas om.
+ *
+ * Måtten skalas medvetet aldrig upp mot ett minimimått, till skillnad från
+ * `partCardSize`. En uppskalning hade dragit med sig bredden, och då gäller inte
+ * längre samma veckobredd för alla staplar. Ett tunt band blir hellre en tunn
+ * stapel som användaren kan dra större, än ett som ljuger om veckorna.
+ */
+export const straightSize = (content: WheelPartContent): { width: number; height: number } => {
+  const metrics = partMetrics(content);
+  const { inner, outer } = blockRadii(metrics, content.ring, content.lane as BlockLane);
+  return {
+    width: partWeeks(content) * STRAIGHT_PX_PER_WEEK,
+    height: Math.round(outer - inner),
+  };
+};
+
+/** Var delen hamnar när hela hjulet rullas ut: vinkel → x, radie → y. */
+export const unrollOffset = (content: WheelPartContent): Point => {
+  const metrics = partMetrics(content);
+  const { inner } = blockRadii(metrics, content.ring, content.lane as BlockLane);
+  return {
+    x: content.startWeek * STRAIGHT_PX_PER_WEEK,
+    y: Math.round(inner - metrics.hubRadius),
+  };
+};
+
+/**
+ * "v.34–37". Null för delar som bröts ut innan hjulets start sparades — hellre
+ * inget spann än ett påhittat.
+ */
+export const partWeekLabel = (content: WheelPartContent): string | null => {
+  if (content.wheelStartWeek === undefined || content.wheelStartYear === undefined) return null;
+
+  const weeks = buildWheelWeeks(content.wheelStartWeek, content.wheelStartYear, content.weekCount);
+  const first = weeks[content.startWeek];
+  const last = weeks[content.endWeek];
+  if (!first || !last) return null;
+
+  return first.index === last.index ? first.label : `${first.label}–${last.week}`;
+};
+
+/** Lovveckorna som ligger inom delens spann, som index räknat från dess start. */
+export const partHolidayOffsets = (content: WheelPartContent): number[] =>
+  (content.holidayWeeks ?? [])
+    .filter((week) => week >= content.startWeek && week <= content.endWeek)
+    .map((week) => week - content.startWeek);

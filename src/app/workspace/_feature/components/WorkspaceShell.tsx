@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, EyeOff } from 'lucide-react';
+import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, EyeOff, StretchHorizontal } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
@@ -19,6 +19,8 @@ import ContextMenu, { type ContextMenuItem } from './ContextMenu';
 import MirrorCopyModal from './MirrorCopyModal';
 import ConfirmDialog from './ConfirmDialog';
 import type { ElementType, ViewportState, WorkspaceElement } from '../types/workspace.types';
+import type { WheelPartContent } from '../types/wheelPart.types';
+import type { WheelPartMode } from '../utils/wheelExplode';
 // sp-root bär de delade neobrutalistiska tokens som schemat och temakalendern
 // använder. Workspace läser dem i sina egna --ws-*-variabler, så att en ändring
 // i det gemensamma temat slår igenom här utan att den här filen rörs.
@@ -60,7 +62,8 @@ function WorkspaceInner() {
     selectSurface,
     createSurface,
     createAndPlaceElement,
-    explodeWheel,
+    importWheel,
+    toggleStraight,
     updateElementContent,
     updateElementTitle,
     movePlacement,
@@ -227,14 +230,14 @@ function WorkspaceInner() {
     [createAndPlaceElement, state.viewport],
   );
 
-  const handleExplodeWheel = useCallback(
-    (wheelId: string) => {
+  const handleImportWheel = useCallback(
+    (wheelId: string, mode: WheelPartMode) => {
       const container = canvasContainerRef.current;
       const w = container?.clientWidth ?? 800;
       const h = container?.clientHeight ?? 600;
-      void explodeWheel(wheelId, state.viewport, w, h);
+      void importWheel(wheelId, mode, state.viewport, w, h);
     },
-    [explodeWheel, state.viewport],
+    [importWheel, state.viewport],
   );
 
   const handleContextMenu = useCallback(
@@ -312,6 +315,22 @@ function WorkspaceInner() {
               });
             },
           },
+          // Bara för utbrutna hjuldelar. Uträtningen måttsätter om kortet, så
+          // den går genom toggleStraight och inte genom en ren innehållsändring.
+          ...(el?.type === 'wheel_part'
+            ? [
+                {
+                  label: (el.content as WheelPartContent | null)?.straight
+                    ? 'Böj tillbaka'
+                    : 'Räta ut',
+                  icon: <StretchHorizontal size={13} />,
+                  onClick: () => {
+                    void toggleStraight(contextMenu.elementId, contextMenu.placementId);
+                    setContextMenu(null);
+                  },
+                },
+              ]
+            : []),
           { label: '', onClick: () => {}, divider: true },
           {
             label: 'Spegla till...',
@@ -396,7 +415,7 @@ function WorkspaceInner() {
           onToggle={() => dispatch({ type: 'TOGGLE_LEFT_SIDEBAR' })}
           onCreateElement={handleCreateElement}
           onCreateSurface={handleSurfaceCreate}
-          onExplodeWheel={handleExplodeWheel}
+          onImportWheel={handleImportWheel}
           library={state.library}
           onLibraryPointerDown={handleLibraryPointerDown}
           onDeleteElement={requestDeleteElement}
