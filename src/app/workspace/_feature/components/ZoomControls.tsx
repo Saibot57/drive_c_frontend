@@ -1,6 +1,6 @@
 'use client';
 
-import { Minus, Plus, RotateCcw } from 'lucide-react';
+import { Maximize2, Minus, Plus, RotateCcw } from 'lucide-react';
 import type { ViewportState } from '../types/workspace.types';
 import { clamp } from '../types/utils';
 import { MIN_ZOOM, MAX_ZOOM, DEFAULT_ZOOM } from '../types/constants';
@@ -8,11 +8,14 @@ import { MIN_ZOOM, MAX_ZOOM, DEFAULT_ZOOM } from '../types/constants';
 interface ZoomControlsProps {
   viewport: ViewportState;
   onViewportChange: (viewport: Partial<ViewportState>) => void;
+  /** Ramar in allt som ligger på ytan. */
+  onZoomToContent?: () => void;
 }
 
 export default function ZoomControls({
   viewport,
   onViewportChange,
+  onZoomToContent,
 }: ZoomControlsProps) {
   const step = 0.1;
 
@@ -39,6 +42,15 @@ export default function ZoomControls({
       <button className="ws-zoom-btn" onClick={reset} title="Återställ vy">
         <RotateCcw size={12} />
       </button>
+      {onZoomToContent && (
+        <button
+          className="ws-zoom-btn"
+          onClick={onZoomToContent}
+          title="Visa allt (Ctrl+0)"
+        >
+          <Maximize2 size={12} />
+        </button>
+      )}
     </div>
   );
 }

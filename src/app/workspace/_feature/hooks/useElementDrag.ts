@@ -34,7 +34,7 @@ export function useElementDrag({
   const latest = useRef<Point>({ x: startX, y: startY });
 
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.PointerEvent) => {
       if (e.button !== 0) return;
       e.stopPropagation();
       dragging.current = true;
@@ -46,7 +46,7 @@ export function useElementDrag({
       };
       latest.current = { x: startX, y: startY };
 
-      const handleMove = (ev: MouseEvent) => {
+      const handleMove = (ev: PointerEvent) => {
         if (!dragging.current) return;
         const dx = (ev.clientX - origin.current.mouseX) / zoom;
         const dy = (ev.clientY - origin.current.mouseY) / zoom;
@@ -58,8 +58,8 @@ export function useElementDrag({
 
       const handleUp = () => {
         dragging.current = false;
-        window.removeEventListener('mousemove', handleMove);
-        window.removeEventListener('mouseup', handleUp);
+        window.removeEventListener('pointermove', handleMove);
+        window.removeEventListener('pointerup', handleUp);
 
         const from = { x: origin.current.elX, y: origin.current.elY };
         const to = latest.current;
@@ -69,8 +69,8 @@ export function useElementDrag({
         }
       };
 
-      window.addEventListener('mousemove', handleMove);
-      window.addEventListener('mouseup', handleUp);
+      window.addEventListener('pointermove', handleMove);
+      window.addEventListener('pointerup', handleUp);
     },
     [zoom, gridSize, startX, startY, onMove, onMoveEnd, placementId],
   );

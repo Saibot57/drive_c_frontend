@@ -13,10 +13,14 @@ interface CanvasAreaProps {
   elements: Record<string, WorkspaceElement>;
   selectedElementId: string | null;
   onSelectElement: (elementId: string | null) => void;
+  /** Ramar in allt på ytan. Ctrl+0. */
+  onZoomToContent?: () => void;
   /** Sant medan ett bibliotekskort dras. Aktiverar släppzonen. */
   isLibraryDragging?: boolean;
   /** Släpp av ett bibliotekskort, i canvasens koordinater. */
   onLibraryDrop?: (canvasX: number, canvasY: number) => void;
+  /** Elementet som bär transformen. Exporten ställer om det tillfälligt. */
+  viewportRef?: React.RefObject<HTMLDivElement>;
   children?: React.ReactNode;
 }
 
@@ -25,19 +29,38 @@ export default function CanvasArea({
   onViewportChange,
   selectedElementId,
   onSelectElement,
+  onZoomToContent,
   isLibraryDragging = false,
   onLibraryDrop,
+  viewportRef,
   children,
 }: CanvasAreaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      // Only pan on middle-click or left-click on canvas background
+  // Aktiva pekare. En räcker för panorering, två blir nyp-zoom.
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointers.current.size === 2) {
+        // Andra fingret ner: sluta panorera och börja nypa.
+        const [a, b] = Array.from(pointers.current.values());
+        pinch.current = {
+          distance: Math.hypot(a.x - b.x, a.y - b.y),
+          zoom: viewport.zoom,
+        };
+        setIsPanning(false);
+        panStart.current = null;
+        return;
+      }
+
+      // Mittenknapp, eller vänster/finger direkt på bakgrunden.
       if (e.button === 1 || (e.button === 0 && e.target === containerRef.current)) {
-        e.preventDefault();
         setIsPanning(true);
         panStart.current = {
           x: e.clientX,
@@ -48,25 +71,56 @@ export default function CanvasArea({
         onSelectElement(null);
       }
     },
-    [viewport.panX, viewport.panY, onSelectElement],
+    [viewport.panX, viewport.panY, viewport.zoom, onSelectElement],
   );
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (pointers.current.has(e.pointerId)) {
+        pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+
+      // Nyp-zoom mot mittpunkten mellan fingrarna.
+      if (pointers.current.size === 2 && pinch.current) {
+        const [a, b] = Array.from(pointers.current.values());
+        const distance = Math.hypot(a.x - b.x, a.y - b.y);
+        if (distance <= 0) return;
+
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const midX = (a.x + b.x) / 2 - rect.left;
+        const midY = (a.y + b.y) / 2 - rect.top;
+
+        const newZoom = clamp(
+          pinch.current.zoom * (distance / pinch.current.distance),
+          MIN_ZOOM,
+          MAX_ZOOM,
+        );
+        const ratio = newZoom / viewport.zoom;
+        onViewportChange({
+          zoom: newZoom,
+          panX: midX - ratio * (midX - viewport.panX),
+          panY: midY - ratio * (midY - viewport.panY),
+        });
+        return;
+      }
+
       if (!isPanning || !panStart.current) return;
-      const dx = e.clientX - panStart.current.x;
-      const dy = e.clientY - panStart.current.y;
       onViewportChange({
-        panX: panStart.current.panX + dx,
-        panY: panStart.current.panY + dy,
+        panX: panStart.current.panX + (e.clientX - panStart.current.x),
+        panY: panStart.current.panY + (e.clientY - panStart.current.y),
       });
     },
-    [isPanning, onViewportChange],
+    [isPanning, onViewportChange, viewport],
   );
 
-  const handleMouseUp = useCallback(() => {
-    setIsPanning(false);
-    panStart.current = null;
+  const endPointer = useCallback((e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    if (pointers.current.size === 0) {
+      setIsPanning(false);
+      panStart.current = null;
+    }
   }, []);
 
   const handleWheel = useCallback(
@@ -95,6 +149,8 @@ export default function CanvasArea({
   // eftersom det bara är den här komponenten som känner till canvasens rect.
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      endPointer(e);
+
       if (!isLibraryDragging || !onLibraryDrop) return;
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -107,7 +163,7 @@ export default function CanvasArea({
       );
       onLibraryDrop(point.x, point.y);
     },
-    [isLibraryDragging, onLibraryDrop, viewport],
+    [endPointer, isLibraryDragging, onLibraryDrop, viewport],
   );
 
   const classNames = [
@@ -122,14 +178,15 @@ export default function CanvasArea({
     <div
       ref={containerRef}
       className={classNames}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={endPointer}
+      onPointerLeave={endPointer}
       onWheel={handleWheel}
     >
       <div
+        ref={viewportRef}
         className={`ws-canvas-viewport ${
           viewport.zoom < WHEEL_REF_TEXT_MIN_ZOOM ? 'ws-canvas-viewport--quiet' : ''
         }`}
@@ -143,7 +200,11 @@ export default function CanvasArea({
         {children}
       </div>
 
-      <ZoomControls viewport={viewport} onViewportChange={onViewportChange} />
+      <ZoomControls
+        viewport={viewport}
+        onViewportChange={onViewportChange}
+        onZoomToContent={onZoomToContent}
+      />
     </div>
   );
 }

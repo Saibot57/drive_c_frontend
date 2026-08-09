@@ -127,7 +127,7 @@ export default function CanvasElement({
     .filter(Boolean)
     .join(' ');
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button === 0 && e.ctrlKey && !placement.is_locked) {
       const rect = e.currentTarget.getBoundingClientRect();
       const localX = e.clientX - rect.left;
@@ -165,7 +165,7 @@ export default function CanvasElement({
         e.stopPropagation();
         onSelect();
       }}
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -200,7 +200,7 @@ export default function CanvasElement({
           <div
             key={dir}
             className={`ws-resize-handle ws-resize-handle--${dir}`}
-            onMouseDown={handleResizeStart(dir)}
+            onPointerDown={handleResizeStart(dir)}
           />
         ))}
     </div>

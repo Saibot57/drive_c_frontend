@@ -333,6 +333,9 @@
   background-image: radial-gradient(circle, var(--ws-canvas-dot) 1px, transparent 1px);
   background-size: 24px 24px;
   cursor: grab;
+  /* Utan den här tar webbläsarens egen panorering och zoom över på pekskärm,
+     och våra pointermove-händelser slutar komma mitt i en gest. */
+  touch-action: none;
 }
 
 .ws-canvas-container--panning {
@@ -360,6 +363,7 @@
  */
 .ws-element {
   position: absolute;
+  touch-action: none;
   background: var(--ws-bg);
   border: calc(var(--ws-frame-width) / var(--ws-zoom)) solid #000;
   border-radius: var(--ws-radius-lg);
@@ -1272,4 +1276,15 @@ div:hover > .kanban-card-delete {
   align-items: stretch;
   overflow-y: auto;
   text-align: left;
+}
+
+/* Under en export ska bara innehållet med — inte redigeringens reglage. */
+.ws-exporting .ws-lock-btn,
+.ws-exporting .ws-resize-handle {
+  display: none !important;
+}
+
+/* Markeringen är ett redigeringstillstånd och hör inte hemma i en bild. */
+.ws-exporting .ws-element--selected {
+  box-shadow: none;
 }

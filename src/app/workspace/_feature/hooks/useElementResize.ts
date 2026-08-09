@@ -43,7 +43,7 @@ export function useElementResize({
   const latest = useRef<Box | null>(null);
 
   const handleResizeStart = useCallback(
-    (direction: Direction) => (e: React.MouseEvent) => {
+    (direction: Direction) => (e: React.PointerEvent) => {
       e.stopPropagation();
       e.preventDefault();
       resizing.current = true;
@@ -57,7 +57,7 @@ export function useElementResize({
       const from: Box = { x: startElX, y: startElY, width: startW, height: startH };
       latest.current = from;
 
-      const handleMove = (ev: MouseEvent) => {
+      const handleMove = (ev: PointerEvent) => {
         if (!resizing.current) return;
         const dx = (ev.clientX - startMouseX) / zoom;
         const dy = (ev.clientY - startMouseY) / zoom;
@@ -92,8 +92,8 @@ export function useElementResize({
 
       const handleUp = () => {
         resizing.current = false;
-        window.removeEventListener('mousemove', handleMove);
-        window.removeEventListener('mouseup', handleUp);
+        window.removeEventListener('pointermove', handleMove);
+        window.removeEventListener('pointerup', handleUp);
 
         const to = latest.current;
         if (
@@ -105,8 +105,8 @@ export function useElementResize({
         }
       };
 
-      window.addEventListener('mousemove', handleMove);
-      window.addEventListener('mouseup', handleUp);
+      window.addEventListener('pointermove', handleMove);
+      window.addEventListener('pointerup', handleUp);
     },
     [placementId, zoom, gridSize, currentWidth, currentHeight, currentX, currentY, onResize, onMove, onResizeEnd, minWidth, minHeight],
   );

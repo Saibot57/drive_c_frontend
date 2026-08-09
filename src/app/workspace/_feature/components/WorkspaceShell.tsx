@@ -7,6 +7,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
 import { useWorkspaceData } from '../hooks/useWorkspaceData';
 import { useUndoHotkey } from '../hooks/useWorkspaceHistory';
+import { useHotkeys } from '@/hooks/useHotkeys';
+import { useWorkspaceExport } from '../hooks/useWorkspaceExport';
 import TopToolbar from './TopToolbar';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
@@ -43,6 +45,7 @@ function WorkspaceInner() {
     state,
     dispatch,
     plannerNotice,
+    showNotice,
     dismissNotice,
     saveStatus,
     canUndo,
@@ -50,6 +53,10 @@ function WorkspaceInner() {
     loadSurfaces,
     loadLibrary,
     placeFromLibrary,
+    saveViewport,
+    zoomToContent,
+    centerOnElement,
+    bringToFront,
     selectSurface,
     createSurface,
     createAndPlaceElement,
@@ -82,6 +89,15 @@ function WorkspaceInner() {
     { element: WorkspaceElement; x: number; y: number } | null
   >(null);
   const renameElRef = useRef<HTMLInputElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  const activeSurface = state.surfaces.find((s) => s.id === state.activeSurfaceId);
+  const { exportImage, exportPdf } = useWorkspaceExport({
+    viewportRef,
+    placements: state.placements,
+    surfaceName: activeSurface?.name ?? 'workspace',
+    showNotice: (message, tone) => showNotice(message, tone),
+  });
 
   useUndoHotkey(handleUndo);
 
@@ -130,8 +146,17 @@ function WorkspaceInner() {
     async (surfaceId: string, elementId: string) => {
       await selectSurface(surfaceId);
       dispatch({ type: 'SELECT_ELEMENT', elementId });
+      // Att markera en träff som ligger utanför skärmen hjälper ingen.
+      const el = canvasContainerRef.current;
+      const sidebars =
+        (state.isLeftSidebarOpen ? 208 : 0) + (state.isRightSidebarOpen ? 224 : 0);
+      centerOnElement(
+        elementId,
+        (el?.clientWidth ?? 1200) - sidebars,
+        el?.clientHeight ?? 700,
+      );
     },
-    [selectSurface, dispatch],
+    [selectSurface, dispatch, centerOnElement, state.isLeftSidebarOpen, state.isRightSidebarOpen],
   );
 
   useEffect(() => {
@@ -140,9 +165,28 @@ function WorkspaceInner() {
   }, [loadSurfaces, loadLibrary]);
 
   const handleViewportChange = useCallback(
-    (vp: Partial<ViewportState>) => dispatch({ type: 'SET_VIEWPORT', viewport: vp }),
-    [dispatch],
+    (vp: Partial<ViewportState>) => {
+      dispatch({ type: 'SET_VIEWPORT', viewport: vp });
+      saveViewport({ ...state.viewport, ...vp });
+    },
+    [dispatch, saveViewport, state.viewport],
   );
+
+  /** Canvasens mått, för det som ska centreras eller ramas in. */
+  const canvasSize = useCallback(() => {
+    const el = canvasContainerRef.current;
+    const sidebars =
+      (state.isLeftSidebarOpen ? 208 : 0) + (state.isRightSidebarOpen ? 224 : 0);
+    return {
+      width: (el?.clientWidth ?? 1200) - sidebars,
+      height: el?.clientHeight ?? 700,
+    };
+  }, [state.isLeftSidebarOpen, state.isRightSidebarOpen]);
+
+  const handleZoomToContent = useCallback(() => {
+    const { width, height } = canvasSize();
+    zoomToContent(width, height);
+  }, [canvasSize, zoomToContent]);
 
   const handleSelectElement = useCallback(
     (elementId: string | null) => {
@@ -210,6 +254,34 @@ function WorkspaceInner() {
     }
     void deleteElement(elementId);
   }, [state.elements, state.library, deleteElement]);
+
+  /**
+   * Ctrl+Z ligger i useUndoHotkey. Resten här. useHotkeys hoppar över
+   * inmatningsfält som standard, så Delete raderar aldrig ett element medan
+   * man skriver i det.
+   */
+  useHotkeys(
+    [
+      { key: 'f', ctrl: true, handler: () => setSearchOpen(true) },
+      { key: '0', ctrl: true, handler: () => handleZoomToContent() },
+      {
+        key: 'Escape',
+        handler: () => {
+          setContextMenu(null);
+          setSearchOpen(false);
+          dispatch({ type: 'SELECT_ELEMENT', elementId: null });
+        },
+      },
+      {
+        key: 'Delete',
+        handler: () => {
+          if (state.selectedElementId) requestDeleteElement(state.selectedElementId);
+        },
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.selectedElementId, handleZoomToContent],
+  );
 
   const contextMenuItems: ContextMenuItem[] = contextMenu
     ? (() => {
@@ -291,6 +363,8 @@ function WorkspaceInner() {
         onUnarchiveSurface={unarchiveSurface}
         onDeleteSurface={requestDeleteSurface}
         onRenameSurface={renameSurface}
+        onExportPdf={exportPdf}
+        onExportImage={exportImage}
       />
 
       {/* Main area */}
@@ -323,6 +397,8 @@ function WorkspaceInner() {
           elements={state.elements}
           selectedElementId={state.selectedElementId}
           onSelectElement={handleSelectElement}
+          viewportRef={viewportRef}
+          onZoomToContent={handleZoomToContent}
           isLibraryDragging={libraryDrag !== null}
           onLibraryDrop={(x, y) => {
             if (libraryDrag) void placeFromLibrary(libraryDrag.element.id, x, y);
@@ -338,7 +414,10 @@ function WorkspaceInner() {
                 element={el}
                 isSelected={state.selectedElementId === el.id}
                 zoom={state.viewport.zoom}
-                onSelect={() => handleSelectElement(el.id)}
+                onSelect={() => {
+                  handleSelectElement(el.id);
+                  bringToFront(p.id);
+                }}
                 onMove={movePlacement}
                 onResize={resizePlacement}
                 onMoveEnd={commitMove}

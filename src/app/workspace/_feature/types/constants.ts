@@ -52,6 +52,17 @@ export const DEBOUNCE_CONTENT_MS = 500;
  */
 export const UNDO_NOTICE_MS = 8000;
 
+/** Vyn sparas trögare än geometrin — den är billig att förlora. */
+export const DEBOUNCE_VIEWPORT_MS = 700;
+
+/** Marginal runt innehållet när man zoomar till allt. */
+export const FIT_PADDING_PX = 64;
+
+/** Marginal runt innehållet i en export. */
+export const EXPORT_PADDING_PX = 32;
+/** Uppskalning vid rastrering. 2x räcker för skärm och tryck i A4. */
+export const EXPORT_SCALE = 2;
+
 // Ctrl-assisted resize: screen-pixel distance from an edge that counts as "near".
 export const CTRL_RESIZE_THRESHOLD_PX = 24;
 // Fraction of the element's smaller dimension kept as a center "drag" zone,

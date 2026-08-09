@@ -14,10 +14,15 @@ import {
   DEFAULT_ELEMENT_HEIGHT,
   DEBOUNCE_POSITION_MS,
   DEBOUNCE_CONTENT_MS,
+  DEBOUNCE_VIEWPORT_MS,
   UNDO_NOTICE_MS,
+  DEFAULT_ZOOM,
+  MIN_ZOOM,
+  MAX_ZOOM,
+  FIT_PADDING_PX,
   GRID_SIZE,
 } from '../types/constants';
-import { screenToCanvas, snapToGrid } from '../types/utils';
+import { clamp, screenToCanvas, snapToGrid } from '../types/utils';
 
 /** Storlekar som passar innehållet bättre än standardrutan. */
 const SIZE_BY_TYPE: Partial<Record<ElementType, { w: number; h: number }>> = {
@@ -55,6 +60,47 @@ export function useWorkspaceData() {
     timers.current[key] = setTimeout(() => { void track(label, fn); }, delay);
   }, [track]);
 
+  // ── Vy ──
+
+  /** Återställer den vy ytan senast lämnades i. */
+  const applyStoredViewport = useCallback((surfaceId: string) => {
+    const surface = stateRef.current.surfaces.find((s) => s.id === surfaceId);
+    if (!surface) return;
+    dispatch({
+      type: 'SET_VIEWPORT',
+      viewport: {
+        panX: surface.viewport_x ?? 0,
+        panY: surface.viewport_y ?? 0,
+        zoom: surface.viewport_zoom || DEFAULT_ZOOM,
+      },
+    });
+  }, [dispatch]);
+
+  /**
+   * Panorering och zoom sparas fördröjt. En dragning ger hundratals ändringar,
+   * och vyn är inte värd ett anrop per musrörelse.
+   */
+  const saveViewport = useCallback((viewport: ViewportState) => {
+    const surfaceId = stateRef.current.activeSurfaceId;
+    if (!surfaceId) return;
+    debounced(`viewport-${surfaceId}`, 'spara vyn', () =>
+      workspaceService.updateSurface(surfaceId, {
+        viewport_x: viewport.panX,
+        viewport_y: viewport.panY,
+        viewport_zoom: viewport.zoom,
+      }),
+      DEBOUNCE_VIEWPORT_MS);
+    dispatch({
+      type: 'UPDATE_SURFACE',
+      surfaceId,
+      changes: {
+        viewport_x: viewport.panX,
+        viewport_y: viewport.panY,
+        viewport_zoom: viewport.zoom,
+      },
+    });
+  }, [debounced, dispatch]);
+
   // ── Ytor ──
 
   const loadSurfaceElements = useCallback(async (surfaceId: string) => {
@@ -77,6 +123,7 @@ export function useWorkspaceData() {
     if (surfaces.length > 0) {
       if (!stateRef.current.activeSurfaceId) {
         dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId: surfaces[0].id });
+        applyStoredViewport(surfaces[0].id);
         await loadSurfaceElements(surfaces[0].id);
       }
       return;
@@ -91,15 +138,16 @@ export function useWorkspaceData() {
     dispatch({ type: 'ADD_SURFACE', surface });
     dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId: surface.id });
     dispatch({ type: 'SET_PLACEMENTS', placements: [] });
-  }, [dispatch, loadSurfaceElements, track]);
+  }, [dispatch, loadSurfaceElements, track, applyStoredViewport]);
 
   const selectSurface = useCallback(async (surfaceId: string) => {
     if (surfaceId === stateRef.current.activeSurfaceId) return;
     dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId });
+    applyStoredViewport(surfaceId);
     // Ångra-stacken pekar på element som inte längre syns.
     clearHistory();
     await loadSurfaceElements(surfaceId);
-  }, [dispatch, loadSurfaceElements, clearHistory]);
+  }, [dispatch, loadSurfaceElements, clearHistory, applyStoredViewport]);
 
   const createSurface = useCallback(async (name: string) => {
     const surface = await track('skapa ytan', () => workspaceService.createSurface(name));
@@ -343,6 +391,94 @@ export function useWorkspaceData() {
     });
   }, [pushUndo, movePlacement]);
 
+  /**
+   * Lyfter ett element överst. Backend har alltid tagit emot z_index på
+   * placeringen — klienten skickade det bara aldrig, så staplingsordningen
+   * satt fast i den ordning elementen råkade skapas.
+   */
+  const bringToFront = useCallback((placementId: string) => {
+    const placements = stateRef.current.placements;
+    const target = placements.find((p) => p.id === placementId);
+    if (!target) return;
+
+    const top = Math.max(...placements.map((p) => p.z_index), 0);
+    if (target.z_index === top && placements.length > 1) return;
+
+    const previous = target.z_index;
+    const next = top + 1;
+    dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: { z_index: next } });
+    debounced(`z-${placementId}`, 'ändra staplingsordningen', () =>
+      workspaceService.updatePlacement(placementId, { z_index: next }),
+      DEBOUNCE_POSITION_MS);
+
+    pushUndo({
+      label: 'staplingsordningen',
+      undo: () => {
+        dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: { z_index: previous } });
+        debounced(`z-${placementId}`, 'ändra staplingsordningen', () =>
+          workspaceService.updatePlacement(placementId, { z_index: previous }),
+          DEBOUNCE_POSITION_MS);
+      },
+    });
+  }, [dispatch, debounced, pushUndo]);
+
+  /**
+   * Ramar in allt som ligger på ytan. Utan den här går ett element som hamnat
+   * långt ut inte att hitta tillbaka till — det finns ingen kant att stöta i.
+   */
+  const zoomToContent = useCallback((containerWidth: number, containerHeight: number) => {
+    const onCanvas = stateRef.current.placements.filter((p) => p.is_on_canvas);
+    if (onCanvas.length === 0) {
+      dispatch({ type: 'SET_VIEWPORT', viewport: { panX: 0, panY: 0, zoom: DEFAULT_ZOOM } });
+      showNotice('Ytan är tom.', 'warning');
+      return;
+    }
+
+    const minX = Math.min(...onCanvas.map((p) => p.position_x));
+    const minY = Math.min(...onCanvas.map((p) => p.position_y));
+    const maxX = Math.max(...onCanvas.map((p) => p.position_x + p.width));
+    const maxY = Math.max(...onCanvas.map((p) => p.position_y + p.height));
+
+    const pad = FIT_PADDING_PX * 2;
+    const zoom = clamp(
+      Math.min(
+        (containerWidth - pad) / Math.max(maxX - minX, 1),
+        (containerHeight - pad) / Math.max(maxY - minY, 1),
+      ),
+      MIN_ZOOM,
+      MAX_ZOOM,
+    );
+
+    const viewport = {
+      zoom,
+      panX: (containerWidth - (maxX - minX) * zoom) / 2 - minX * zoom,
+      panY: (containerHeight - (maxY - minY) * zoom) / 2 - minY * zoom,
+    };
+    dispatch({ type: 'SET_VIEWPORT', viewport });
+    saveViewport(viewport);
+  }, [dispatch, showNotice, saveViewport]);
+
+  /** Centrerar vyn på ett element, t.ex. efter en sökträff. */
+  const centerOnElement = useCallback((
+    elementId: string,
+    containerWidth: number,
+    containerHeight: number,
+  ) => {
+    const placement = stateRef.current.placements.find(
+      (p) => p.element_id === elementId && p.is_on_canvas,
+    );
+    if (!placement) return;
+
+    const zoom = stateRef.current.viewport.zoom;
+    const viewport = {
+      zoom,
+      panX: containerWidth / 2 - (placement.position_x + placement.width / 2) * zoom,
+      panY: containerHeight / 2 - (placement.position_y + placement.height / 2) * zoom,
+    };
+    dispatch({ type: 'SET_VIEWPORT', viewport });
+    saveViewport(viewport);
+  }, [dispatch, saveViewport]);
+
   const commitResize = useCallback((placementId: string, from: Box) => {
     pushUndo({
       label: 'storleksändringen',
@@ -529,6 +665,7 @@ export function useWorkspaceData() {
     state,
     dispatch,
     plannerNotice,
+    showNotice,
     dismissNotice,
     saveStatus,
     canUndo,
@@ -537,6 +674,10 @@ export function useWorkspaceData() {
     loadSurfaceElements,
     loadLibrary,
     placeFromLibrary,
+    saveViewport,
+    zoomToContent,
+    centerOnElement,
+    bringToFront,
     selectSurface,
     createSurface,
     renameSurface,

@@ -44,7 +44,11 @@ export const workspaceService = {
     return unwrap<Surface>(res);
   },
 
-  async updateSurface(id: string, data: Partial<Pick<Surface, 'name' | 'sort_order' | 'is_archived'>>): Promise<Surface> {
+  async updateSurface(
+    id: string,
+    data: Partial<Pick<Surface,
+      'name' | 'sort_order' | 'is_archived' | 'viewport_x' | 'viewport_y' | 'viewport_zoom'>>,
+  ): Promise<Surface> {
     const res = await fetchWithAuth(`${BASE}/surfaces/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

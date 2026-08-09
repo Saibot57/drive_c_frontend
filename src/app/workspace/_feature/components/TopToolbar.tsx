@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Archive, Search, ArchiveRestore, Trash2, Pencil, Undo2 } from 'lucide-react';
+import { Plus, Archive, Search, ArchiveRestore, Trash2, Pencil, Undo2, Download, Image as ImageIcon } from 'lucide-react';
 import type { Surface } from '../types/workspace.types';
 import type { SaveStatus } from '../hooks/useWorkspaceSync';
 import SaveIndicator from './SaveIndicator';
@@ -19,6 +19,8 @@ interface TopToolbarProps {
   onUnarchiveSurface?: (id: string) => void;
   onDeleteSurface?: (id: string) => void;
   onRenameSurface?: (id: string, name: string) => void;
+  onExportPdf?: () => void;
+  onExportImage?: (format: 'png' | 'jpeg') => void;
 }
 
 export default function TopToolbar({
@@ -34,15 +36,19 @@ export default function TopToolbar({
   onUnarchiveSurface,
   onDeleteSurface,
   onRenameSurface,
+  onExportPdf,
+  onExportImage,
 }: TopToolbarProps) {
   const activeSurfaces = surfaces.filter((s) => !s.is_archived);
   const archivedSurfaces = surfaces.filter((s) => s.is_archived);
 
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [tabContextMenu, setTabContextMenu] = useState<{ surfaceId: string; x: number; y: number } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const archiveRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,6 +73,9 @@ export default function TopToolbar({
       }
       if (tabMenuRef.current && !tabMenuRef.current.contains(e.target as Node)) {
         setTabContextMenu(null);
+      }
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -171,6 +180,43 @@ export default function TopToolbar({
         >
           <Undo2 size={14} />
         </button>
+
+        {onExportPdf && onExportImage && (
+          <div className="ws-archive-anchor" ref={exportRef}>
+            <button
+              className="ws-toggle-btn"
+              onClick={() => setExportOpen((open) => !open)}
+              title="Exportera ytan"
+            >
+              <Download size={14} />
+            </button>
+            {exportOpen && (
+              <div className="ws-popover ws-popover--anchored">
+                <button
+                  className="ws-menu-item"
+                  onClick={() => { onExportPdf(); setExportOpen(false); }}
+                >
+                  <span className="ws-menu-item__icon"><Download size={13} /></span>
+                  Spara PDF
+                </button>
+                <button
+                  className="ws-menu-item"
+                  onClick={() => { onExportImage('png'); setExportOpen(false); }}
+                >
+                  <span className="ws-menu-item__icon"><ImageIcon size={13} /></span>
+                  Spara PNG
+                </button>
+                <button
+                  className="ws-menu-item"
+                  onClick={() => { onExportImage('jpeg'); setExportOpen(false); }}
+                >
+                  <span className="ws-menu-item__icon"><ImageIcon size={13} /></span>
+                  Spara JPG
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="ws-archive-anchor" ref={archiveRef}>
           <button

@@ -12,6 +12,10 @@ export interface Surface {
   name: string;
   sort_order: number;
   is_archived: boolean;
+  /** Vyn hör till ytan, så man kommer tillbaka dit man var. */
+  viewport_x: number;
+  viewport_y: number;
+  viewport_zoom: number;
   created_at: string;
   updated_at: string;
   /** Antal placeringar på ytan. Används i bekräftelsen vid radering. */
