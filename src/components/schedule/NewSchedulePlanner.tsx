@@ -894,8 +894,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               <FeatureNavigation />
            </div>
            
-           <div className="flex-1 max-w-md w-full relative mr-auto">
-              <Input 
+           <div className="flex-1 max-w-md w-full relative">
+              <Input
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
                 placeholder="Filter: 'Lärare'+'ämne'; -Ämne"
@@ -907,6 +907,19 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               >
                 <Search className="h-5 w-5" />
               </div>
+           </div>
+
+           {/* Vilket schema som är aktivt syns annars bara i arkivlistan, som
+               ofta är hopfälld. Autospar skriver hit, därför står namnet framme. */}
+           <div
+             role="status"
+             className="mr-auto hidden min-w-0 shrink items-center gap-1.5 text-xs font-bold text-gray-500 cursor-help lg:flex"
+             title={activeArchiveName
+               ? `Aktivt schema: ${activeArchiveName}. Ändringar sparas hit.`
+               : 'Inget arkiv är aktivt. Ändringar sparas i huvudschemat.'}
+           >
+             <Archive size={12} className="shrink-0 opacity-60" />
+             <span className="truncate">{activeArchiveName ?? 'Huvudschema'}</span>
            </div>
 
            <div className="flex gap-2 flex-wrap">
