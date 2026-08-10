@@ -1005,30 +1005,40 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               >
                 <Search className="h-5 w-5" />
               </div>
-              {isPlanningMode && (
-                /* Absolut placerad så toolbaren inte hoppar när läget slår om. */
-                <p className="absolute left-0 top-full z-[70] mt-1 truncate text-xs font-bold text-gray-600">
-                  Planeringstid för {planningLabel}
-                  {planningQuery.ignoredWords.length > 0 && (
-                    <span className="font-normal text-gray-400">
-                      {' '}· ignorerar {planningQuery.ignoredWords.join(', ')}
-                    </span>
-                  )}
-                </p>
-              )}
            </div>
 
            {/* Vilket schema som är aktivt syns annars bara i arkivlistan, som
-               ofta är hopfälld. Autospar skriver hit, därför står namnet framme. */}
-           <div
-             role="status"
-             className="mr-auto hidden min-w-0 shrink items-center gap-1.5 text-xs font-bold text-gray-500 cursor-help lg:flex"
-             title={activeArchiveName
-               ? `Aktivt schema: ${activeArchiveName}. Ändringar sparas hit.`
-               : 'Inget arkiv är aktivt. Ändringar sparas i huvudschemat.'}
-           >
-             <Archive size={12} className="shrink-0 opacity-60" />
-             <span className="truncate">{activeArchiveName ?? 'Huvudschema'}</span>
+               ofta är hopfälld. Autospar skriver hit, därför står namnet framme.
+               Planeringsraden hänger under samma kolumn: två korta rader ryms i
+               verktygsfältets höjd, så inget hoppar när läget slår om. */}
+           {/* På mobil är arkivnamnet dolt, så kolumnen får bara ta plats när
+               planeringsraden finns – annars blir den en tom lucka i flexen. */}
+           <div className={`mr-auto min-w-0 shrink flex-col gap-0.5 lg:max-w-[280px] ${isPlanningMode ? 'flex' : 'hidden lg:flex'}`}>
+             <div
+               role="status"
+               className="hidden min-w-0 items-center gap-1.5 text-xs font-bold text-gray-500 cursor-help lg:flex"
+               title={activeArchiveName
+                 ? `Aktivt schema: ${activeArchiveName}. Ändringar sparas hit.`
+                 : 'Inget arkiv är aktivt. Ändringar sparas i huvudschemat.'}
+             >
+               <Archive size={12} className="shrink-0 opacity-60" />
+               <span className="truncate">{activeArchiveName ?? 'Huvudschema'}</span>
+             </div>
+             {isPlanningMode && (
+               <p
+                 className="min-w-0 truncate text-xs font-bold text-gray-600"
+                 title={planningQuery.ignoredWords.length > 0
+                   ? `Planeringstid för ${planningLabel}. Ignorerar ${planningQuery.ignoredWords.join(', ')}.`
+                   : `Planeringstid för ${planningLabel}`}
+               >
+                 Planeringstid för {planningLabel}
+                 {planningQuery.ignoredWords.length > 0 && (
+                   <span className="font-normal text-gray-400">
+                     {' '}· ignorerar {planningQuery.ignoredWords.join(', ')}
+                   </span>
+                 )}
+               </p>
+             )}
            </div>
 
            <div className="flex gap-2 flex-wrap">
