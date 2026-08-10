@@ -80,7 +80,7 @@ function TeacherAvailabilityRow({ teacher, days, onChange }: TeacherAvailability
     <div className="border-2 border-black rounded p-2 bg-white">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-bold text-sm truncate">{teacher}</p>
+          <p className="font-bold text-sm break-words">{teacher}</p>
           <p className="text-[11px] text-gray-500 truncate">{summary}</p>
         </div>
         <Button

@@ -851,7 +851,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           {teacherStats.length === 0 ? <span className="text-gray-400 italic">Ingen lärare angiven</span> :
             teacherStats.map(([teacher, minutes]) => (
               <div key={teacher} className="flex justify-between gap-2">
-                <span className="truncate" title={teacher}>{teacher}</span>
+                <span className="min-w-0 break-words" title={teacher}>{teacher}</span>
                 <span className="font-mono font-bold shrink-0">{formatMinutes(minutes)}</span>
               </div>
             ))

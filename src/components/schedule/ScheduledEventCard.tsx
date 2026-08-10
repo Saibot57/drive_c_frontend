@@ -4,6 +4,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Edit2, FileText, Trash2 } from 'lucide-react';
 import { ScheduledEntry } from '@/types/schedule';
+import { splitTeacherNames } from '@/utils/scheduleStats';
 import { EVENT_GAP_PX, getPositionStyles, MIN_HEIGHT_PX } from '@/utils/scheduleTime';
 
 type ScheduledEventCardProps = {
@@ -56,6 +57,7 @@ export function ScheduledEventCard({
   const widthPercentage = 100 / Math.max(columnCount, 1);
   const leftPercentage = widthPercentage * columnIndex;
   const assignmentUrl = extractUrl(entry.category);
+  const teacherNames = splitTeacherNames(entry.teacher);
 
   if (hidden) return null;
 
@@ -119,10 +121,14 @@ export function ScheduledEventCard({
         {!isShortDuration && (
           <p className={`font-bold leading-tight truncate ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>{entry.title}</p>
         )}
-        {adjustedHeight > 30 && entry.teacher && (
-          <p className={`text-gray-700 truncate leading-tight font-semibold ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
-            {entry.teacher}
-          </p>
+        {adjustedHeight > 30 && teacherNames.length > 0 && (
+          /* Lärarnamn kortas aldrig av med "…" – varje namn får en egen rad och
+             bryts vid behov över flera rader. */
+          <div className={`shrink-0 text-gray-700 leading-tight font-semibold ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
+            {teacherNames.map((name, index) => (
+              <p key={`${name}-${index}`} className="break-words">{name}</p>
+            ))}
+          </div>
         )}
         {adjustedHeight > 30 && entry.room && (
           <p className={`text-gray-700 truncate leading-tight ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
