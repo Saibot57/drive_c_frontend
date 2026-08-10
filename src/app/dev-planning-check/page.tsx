@@ -25,9 +25,17 @@ const mk = (teacher: string, day: string, s: string, e: string) => {
 /** Lunchen ligger som en egen post utan lärare, precis som i det riktiga schemat. */
 const lunch = (day: string) => ({ ...mk('', day, '11:30', '12:15'), title: 'Lunch' });
 
+/** ATP gäller hela kollegiet – "alla" under lärare. */
+const atp = { ...mk('alla', 'Onsdag', '14:00', '15:00'), title: 'ATP' };
+
+/** Personalpost som ska gå att utesluta ur en export. */
+const akMote = { ...mk('Hanna', 'Torsdag', '15:00', '16:00'), title: 'AK MÖTE' };
+
 const ACTIVITIES = [
   lunch('Måndag'),
   lunch('Onsdag'),
+  atp,
+  akMote,
   mk('Tobias', 'Måndag', '08:00', '09:30'),
   mk('Tobias', 'Måndag', '11:00', '12:00'),
   mk('Hanna', 'Måndag', '14:00', '15:00'),

@@ -22,6 +22,8 @@ type ScheduledEventCardProps = {
   isHighlighted?: boolean;
   /** Färgen att visa. Kan skilja sig från entry.color när en färgregel slår till. */
   color?: string;
+  /** Syns på skärmen men döljs i PDF/bild av regeln under `.pdf-export`. */
+  excludedFromExport?: boolean;
 };
 
 const extractUrl = (value?: string) => {
@@ -43,7 +45,8 @@ export function ScheduledEventCard({
   dragDisabled = false,
   isSelected = false,
   isHighlighted = false,
-  color
+  color,
+  excludedFromExport = false
 }: ScheduledEventCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
@@ -81,6 +84,7 @@ export function ScheduledEventCard({
         zIndex: isDragging ? 50 : 10
       }}
       data-instance-id={entry.instanceId}
+      data-export-exclude={excludedFromExport ? 'true' : undefined}
       className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >

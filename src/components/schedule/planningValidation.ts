@@ -1,12 +1,37 @@
+import {
+  excludeMatchFixtures,
+  excludeParseFixtures
+} from '@/components/schedule/__fixtures__/exportExclusions';
 import { planningFixtures } from '@/components/schedule/__fixtures__/planningTime';
 import { DEFAULT_PLANNING_MIN_GAP_MINUTES } from '@/components/schedule/constants';
+import { matchesExcludeList, parseExcludeList } from '@/utils/exportExclusions';
 import { computePlanningForDay, parsePlanningQuery } from '@/utils/planningTime';
+import { collectTeacherNames } from '@/utils/scheduleStats';
 import { minutesToTime } from '@/utils/scheduleTime';
 
 const assertCondition = (condition: boolean, message: string) => {
   if (!condition) {
     throw new Error(message);
   }
+};
+
+/** Uteslutningslistan tar bort innehåll ur en utskrift, så den ska vara exakt. */
+const runExcludeFixtures = () => {
+  excludeParseFixtures.forEach(fixture => {
+    const actual = parseExcludeList(fixture.input);
+    assertCondition(
+      actual.join('|') === fixture.expected.join('|'),
+      `[exclude fixtures] ${fixture.name}: förväntade [${fixture.expected.join(', ')}], fick [${actual.join(', ')}]`
+    );
+  });
+
+  excludeMatchFixtures.forEach(fixture => {
+    const actual = matchesExcludeList(fixture.title, fixture.patterns);
+    assertCondition(
+      actual === fixture.expected,
+      `[exclude fixtures] ${fixture.name}: förväntade ${fixture.expected}, fick ${actual}`
+    );
+  });
 };
 
 /**
@@ -16,9 +41,14 @@ const assertCondition = (condition: boolean, message: string) => {
 export const runPlanningFixtureValidation = () => {
   if (process.env.NODE_ENV === 'production') return;
 
+  runExcludeFixtures();
+
   planningFixtures.forEach(fixture => {
     const day = fixture.day ?? 'Måndag';
-    const query = parsePlanningQuery(fixture.query, fixture.teachers);
+    // Samma mängd som planeraren räknar fram: debug-menyns lista plus namnen i
+    // schemat. Det är den "alla" expanderar till.
+    const allTeachers = collectTeacherNames(fixture.entries, fixture.teachers);
+    const query = parsePlanningQuery(fixture.query, allTeachers);
     const expectPlanning = fixture.expectedPlanning ?? true;
 
     assertCondition(

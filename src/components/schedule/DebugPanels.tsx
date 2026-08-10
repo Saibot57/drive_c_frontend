@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ColorTriggerRule, TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
+import { parseExcludeList } from '@/utils/exportExclusions';
 import { sanitizePlanningMinGap } from '@/utils/planningTime';
 import { blocksWholeDay } from '@/utils/scheduleRules';
 
@@ -226,12 +227,14 @@ type HiddenSettingsPanelProps = {
   teacherAvailability: TeacherAvailability;
   colorTriggers: ColorTriggerRule[];
   planningMinGap: number;
+  exportExcludes: string[];
   onSave: (
     nextTeachers: string[],
     nextRooms: string[],
     nextAvailability: TeacherAvailability,
     nextColorTriggers: ColorTriggerRule[],
-    nextPlanningMinGap: number
+    nextPlanningMinGap: number,
+    nextExportExcludes: string[]
   ) => void;
 };
 
@@ -243,6 +246,7 @@ export function HiddenSettingsPanel({
   teacherAvailability,
   colorTriggers,
   planningMinGap,
+  exportExcludes,
   onSave
 }: HiddenSettingsPanelProps) {
   const [teacherText, setTeacherText] = useState('');
@@ -250,6 +254,7 @@ export function HiddenSettingsPanel({
   const [availability, setAvailability] = useState<TeacherAvailability>({});
   const [triggers, setTriggers] = useState<ColorTriggerRule[]>([]);
   const [minGapText, setMinGapText] = useState('');
+  const [excludeText, setExcludeText] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -258,7 +263,8 @@ export function HiddenSettingsPanel({
     setAvailability(teacherAvailability);
     setTriggers(colorTriggers);
     setMinGapText(String(planningMinGap));
-  }, [open, rooms, teachers, teacherAvailability, colorTriggers, planningMinGap]);
+    setExcludeText(exportExcludes.join('; '));
+  }, [open, rooms, teachers, teacherAvailability, colorTriggers, planningMinGap, exportExcludes]);
 
   // Raderna följer textrutan direkt, så en nyss tillagd lärare går att
   // ställa in utan att man behöver spara och öppna panelen igen.
@@ -270,7 +276,8 @@ export function HiddenSettingsPanel({
       sanitizeHiddenList(roomText),
       availability,
       triggers,
-      sanitizePlanningMinGap(minGapText)
+      sanitizePlanningMinGap(minGapText),
+      parseExcludeList(excludeText)
     );
     onOpenChange(false);
   };
@@ -368,6 +375,23 @@ export function HiddenSettingsPanel({
               </p>
             </div>
             <ColorTriggerList triggers={triggers} onChange={setTriggers} />
+
+            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+              <Label htmlFor="export-excludes">Uteslut från nästa print/export</Label>
+              <Textarea
+                id="export-excludes"
+                value={excludeText}
+                onChange={event => setExcludeText(event.target.value)}
+                placeholder="ATP; AK MÖTE"
+                className="mt-1 h-20 resize-none"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Titlar separerade med semikolon eller radbrytning. De syns kvar i
+                schemat men saknas i filen. Hela titeln måste stämma, med{' '}
+                <code>*</code> som jokertecken: <code>AK*</code> tar både AK MÖTE
+                och AK-planering. <strong>Listan töms när du exporterat.</strong>
+              </p>
+            </div>
           </div>
         </div>
 

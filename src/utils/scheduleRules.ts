@@ -4,7 +4,7 @@ import {
   TeacherAvailability,
   TeacherDayBlock
 } from '@/types/schedule';
-import { splitTeacherNames } from '@/utils/scheduleStats';
+import { isAllTeachersField, splitTeacherNames } from '@/utils/scheduleStats';
 import { checkOverlap, timeToMinutes } from '@/utils/scheduleTime';
 
 /** Posten som är på väg in i schemat, oavsett om den kommer från en byggsten eller flyttas. */
@@ -26,7 +26,8 @@ export type PlacementVerdict = {
 
 // --- Ämnesregler ---
 
-const wildcardMatch = (pattern: string, text: string): boolean => {
+/** Mönster där `*` betyder "vad som helst". Skiftlägesokänsligt, hela strängen. */
+export const wildcardMatch = (pattern: string, text: string): boolean => {
   const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp('^' + escaped.replace(/\*/g, '.*') + '$', 'i');
   return regex.test(text);
@@ -134,12 +135,16 @@ const matchingBlock = (
 /**
  * Letar efter lärare som inte är tillgängliga när posten ska ligga.
  * Lärarfältet kan innehålla flera namn separerade med komma; alla prövas.
+ * Står "alla" där prövas hela lärarmängden i stället.
  */
 export const findAvailabilityWarning = (
   candidate: PlacementCandidate,
-  availability: TeacherAvailability
+  availability: TeacherAvailability,
+  allTeachers: string[] = []
 ): string | null => {
-  const teachers = splitTeacherNames(candidate.teacher);
+  const teachers = isAllTeachersField(candidate.teacher)
+    ? allTeachers
+    : splitTeacherNames(candidate.teacher);
   if (teachers.length === 0) return null;
 
   const byKey = new Map<string, Record<string, TeacherDayBlock[]>>();
@@ -152,19 +157,31 @@ export const findAvailabilityWarning = (
   const endMinutes = timeToMinutes(candidate.endTime);
   const dayLabel = candidate.day.toLocaleLowerCase('sv');
 
-  const phrases = teachers.reduce<string[]>((collected, teacher) => {
+  const conflicts = teachers.reduce<{ teacher: string; when: string }[]>((collected, teacher) => {
     const blocks = byKey.get(normalizeTeacherKey(teacher))?.[candidate.day];
     if (!blocks) return collected;
 
     const block = matchingBlock(blocks, startMinutes, endMinutes);
     if (!block) return collected;
 
-    const when = block === 'all' ? dayLabel : `${dayLabel} ${DAY_PART_LABEL[block]}`;
-    collected.push(`${teacher} är inte tillgänglig ${when}`);
+    collected.push({
+      teacher,
+      when: block === 'all' ? dayLabel : `${dayLabel} ${DAY_PART_LABEL[block]}`
+    });
     return collected;
   }, []);
 
-  return phrases.length > 0 ? phrases.join('. ') : null;
+  if (conflicts.length === 0) return null;
+
+  // En "alla"-post kan krocka med halva kollegiet. Fem hopfogade meningar läser
+  // ingen, så längre listor summeras i stället.
+  if (conflicts.length > 3) {
+    return `${conflicts[0].teacher} och ${conflicts.length - 1} andra är inte tillgängliga ${dayLabel}`;
+  }
+
+  return conflicts
+    .map(conflict => `${conflict.teacher} är inte tillgänglig ${conflict.when}`)
+    .join('. ');
 };
 
 /** Samlad bedömning av en placering: hårda ämnesregler och mjuka lärarregler. */
@@ -172,8 +189,9 @@ export const evaluatePlacement = (
   candidate: PlacementCandidate,
   schedule: ScheduledEntry[],
   rules: RestrictionRule[],
-  availability: TeacherAvailability
+  availability: TeacherAvailability,
+  allTeachers: string[] = []
 ): PlacementVerdict => ({
   blocked: findRestrictionConflict(candidate, schedule, rules),
-  warning: findAvailabilityWarning(candidate, availability)
+  warning: findAvailabilityWarning(candidate, availability, allTeachers)
 });

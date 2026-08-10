@@ -3,8 +3,9 @@ import { ScheduledEntry, TeacherAvailability } from '@/types/schedule';
 export type PlanningFixture = {
   name: string;
   entries: ScheduledEntry[];
-  /** Sökrutans innehåll, tolkat mot lärarlistan nedan. */
+  /** Sökrutans innehåll. Tolkas mot lärarmängden: listan nedan plus schemat. */
   query: string;
+  /** Debug-menyns lärarlista. Namn ur schemat läggs till automatiskt. */
   teachers: string[];
   availability?: TeacherAvailability;
   minGapMinutes?: number;
@@ -167,12 +168,24 @@ export const planningFixtures: PlanningFixture[] = [
     expectedPlanning: false
   },
   {
-    name: 'Okänt namn ihop med känt namn ignoreras',
+    name: 'Namn som bara finns i schemat är också sökbart',
     teachers: ['Tobias Lundh'],
     query: 'Tobias Kalle planering',
     entries: [
       entry('Tobias', '08:00', '10:00'),
       entry('Kalle', '10:00', '14:00')
+    ],
+    // Kalle står inte i debug-menyn men i schemat, och ingår därför i
+    // lärarmängden. Snittet av Tobias och Kalle är tomt.
+    expectedBlocks: []
+  },
+  {
+    name: 'Ord som inte är någon lärare ignoreras',
+    teachers: ['Tobias Lundh'],
+    query: 'Tobias Kalle planering',
+    entries: [
+      entry('Tobias', '08:00', '10:00'),
+      entry('Hanna', '10:00', '14:00')
     ],
     expectedBlocks: [['10:00', '14:00']]
   },
@@ -231,5 +244,69 @@ export const planningFixtures: PlanningFixture[] = [
     query: 'tobias planering',
     entries: [named('Lunch', '', '11:30', '12:15')],
     expectedBlocks: []
+  },
+
+  // --- "alla" under lärare ---
+  {
+    name: '"alla" under lärare äter allas planeringstid',
+    teachers: ['Tobias Lundh', 'Hanna Berg'],
+    query: 'tobias planering',
+    entries: [
+      entry('Hanna', '08:00', '15:00'),
+      named('ATP', 'alla', '13:00', '14:00')
+    ],
+    expectedBlocks: [['08:00', '13:00'], ['14:00', '15:00']]
+  },
+  {
+    name: '"ALLA" med versaler räknas också',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [
+      entry('Hanna', '08:00', '15:00'),
+      named('Konferens', 'ALLA', '08:00', '10:00')
+    ],
+    expectedBlocks: [['10:00', '15:00']]
+  },
+  {
+    name: '"alla" bland andra namn i fältet räknas',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [
+      entry('Hanna', '08:00', '15:00'),
+      named('ATP', 'Hanna, alla', '13:00', '14:00')
+    ],
+    expectedBlocks: [['08:00', '13:00'], ['14:00', '15:00']]
+  },
+  {
+    name: 'Ett namn som bara innehåller alla är ingen "alla"-post',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [
+      entry('Hanna', '08:00', '15:00'),
+      named('Möte', 'Allan', '13:00', '14:00')
+    ],
+    expectedBlocks: [['08:00', '15:00']]
+  },
+  {
+    name: '"alla planering" ger tiden då hela kollegiet är fritt',
+    teachers: ['Tobias Lundh', 'Hanna Berg'],
+    query: 'alla planering',
+    entries: [
+      entry('Tobias', '08:00', '10:00'),
+      entry('Hanna', '10:00', '11:00'),
+      entry('Sara', '14:00', '16:00')
+    ],
+    // Sara ligger i mängden via schemat, så hennes pass räknas också.
+    expectedBlocks: [['11:00', '14:00']]
+  },
+  {
+    name: '"alla planering" plockar upp lärare som bara finns i schemat',
+    teachers: [],
+    query: 'alla planering',
+    entries: [
+      entry('Sara', '08:00', '09:00'),
+      entry('Hanna', '10:00', '15:00')
+    ],
+    expectedBlocks: [['09:00', '10:00']]
   }
 ];

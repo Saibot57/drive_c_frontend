@@ -41,6 +41,40 @@ export const splitTeacherNames = (value: unknown): string[] => {
     .filter(Boolean);
 };
 
+/** Namnet i lärarfältet som betyder "varje lärare". Skiftlägesokänsligt. */
+export const ALL_TEACHERS_TOKEN = 'alla';
+
+const normalizeTeacherName = (value: string) => value.trim().toLocaleLowerCase('sv');
+
+/** Sant när fältet räknar upp "alla", ensamt eller bland andra namn. */
+export const isAllTeachersField = (value: unknown): boolean => (
+  splitTeacherNames(value).some(name => normalizeTeacherName(name) === ALL_TEACHERS_TOKEN)
+);
+
+/**
+ * Varje lärare som finns: de som står i debug-menyns lista plus de som
+ * förekommer i något lärarfält i schemat. Mängden är vad "alla" expanderar
+ * till, så ordet självt räknas inte som en lärare. Samma namn med olika
+ * versaler slås ihop, och första stavningen vi såg blir etiketten.
+ */
+export const collectTeacherNames = (
+  entries: ScheduledEntry[],
+  listed: string[] = []
+): string[] => {
+  const seen = new Map<string, string>();
+
+  const add = (name: string) => {
+    const key = normalizeTeacherName(name);
+    if (!key || key === ALL_TEACHERS_TOKEN) return;
+    if (!seen.has(key)) seen.set(key, name.trim());
+  };
+
+  listed.forEach(add);
+  entries.forEach(entry => splitTeacherNames(entry.teacher).forEach(add));
+
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, 'sv'));
+};
+
 type Grouped = {
   /** Första stavningen vi såg – används som etikett i listan. */
   label: string;

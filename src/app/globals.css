@@ -126,6 +126,13 @@
   padding-top: 6px;
 }
 
+/* Uteslutna poster syns på skärmen men inte i filen. Regeln gäller båda
+   exportvägarna: html2canvas läser det levande elementet, och vektorvägen
+   klonar det och tar med dokumentets stilar. */
+.pdf-export [data-export-exclude="true"] {
+  display: none !important;
+}
+
 .pdf-export .scheduled-event-card p,
 .pdf-export .scheduled-event-card span {
   line-height: 1.4;

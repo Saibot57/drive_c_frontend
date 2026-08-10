@@ -1,7 +1,12 @@
 import { DEFAULT_PLANNING_MIN_GAP_MINUTES, PLANNER_DAYS } from '@/components/schedule/constants';
 import { ScheduledEntry, TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
 import { blocksWholeDay, FORENOON_END_MINUTES } from '@/utils/scheduleRules';
-import { splitTeacherNames, TimeInterval } from '@/utils/scheduleStats';
+import {
+  ALL_TEACHERS_TOKEN,
+  isAllTeachersField,
+  splitTeacherNames,
+  TimeInterval
+} from '@/utils/scheduleStats';
 import { END_HOUR, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
 
 /** Ordet som slår om filterrutan från vanlig sökning till planeringsvy. */
@@ -34,13 +39,26 @@ export type PlanningQuery = {
   teachers: string[];
   /** Ord som varken var nyckelordet eller träffade en lärare. */
   ignoredWords: string[];
+  /** Kort etikett för verktygsfältet: "alla lärare" i stället för tolv namn. */
+  label: string;
 };
+
+/**
+ * Lärarmängden kan innehålla samma person i två stavningar: "Tobias" ur schemat
+ * och "Tobias Lundh" ur debug-menyn. Bara för etiketten behålls den längsta, så
+ * det står en person och inte två. Beräkningen får behålla båda – där är en
+ * dubblett harmlös, medan en felaktig sammanslagning kunde tappa en spärr.
+ */
+const collapseNameVariants = (names: string[]): string[] => names.filter(name => (
+  !names.some(other => other !== name && normalize(other).includes(normalize(name)))
+));
 
 const noPlanning = (): PlanningQuery => ({
   isPlanning: false,
   terms: [],
   teachers: [],
-  ignoredWords: []
+  ignoredWords: [],
+  label: ''
 });
 
 /**
@@ -48,6 +66,10 @@ const noPlanning = (): PlanningQuery => ({
  * Nyckelordet ensamt räcker inte – det krävs minst ett ord som pekar ut en
  * lärare, så en kurs som faktiskt heter "Planering" fortfarande går att
  * filtrera fram på vanligt vis.
+ *
+ * `teachers` är hela lärarmängden, alltså debug-menyns lista plus namnen som
+ * förekommer i schemat. Ordet "alla" pekar ut dem samtliga, så "alla planering"
+ * ger tiden då hela kollegiet är fritt.
  */
 export const parsePlanningQuery = (query: string, teachers: string[]): PlanningQuery => {
   if (!query.trim()) return noPlanning();
@@ -58,9 +80,25 @@ export const parsePlanningQuery = (query: string, teachers: string[]): PlanningQ
   const terms: string[] = [];
   const matchedTeachers: string[] = [];
   const ignoredWords: string[] = [];
+  let usedEveryone = false;
+
+  const addTeacher = (teacher: string) => {
+    if (!matchedTeachers.includes(teacher)) matchedTeachers.push(teacher);
+  };
 
   words.forEach(word => {
     if (normalize(word) === PLANNING_KEYWORD) return;
+
+    if (normalize(word) === ALL_TEACHERS_TOKEN) {
+      // Namnen blir både sökbegrepp och nycklar, så snittet räknas mot varje
+      // lärares egna poster och egna spärrar.
+      teachers.forEach(teacher => {
+        addTeacher(teacher);
+        if (!terms.includes(teacher)) terms.push(teacher);
+      });
+      usedEveryone = teachers.length > 0;
+      return;
+    }
 
     const hits = teachers.filter(teacher => namesOverlap(teacher, word));
     if (hits.length === 0) {
@@ -69,14 +107,18 @@ export const parsePlanningQuery = (query: string, teachers: string[]): PlanningQ
     }
 
     terms.push(word);
-    hits.forEach(teacher => {
-      if (!matchedTeachers.includes(teacher)) matchedTeachers.push(teacher);
-    });
+    hits.forEach(addTeacher);
   });
 
   if (matchedTeachers.length === 0) return noPlanning();
 
-  return { isPlanning: true, terms, teachers: matchedTeachers, ignoredWords };
+  return {
+    isPlanning: true,
+    terms,
+    teachers: matchedTeachers,
+    ignoredWords,
+    label: usedEveryone ? 'alla lärare' : collapseNameVariants(matchedTeachers).join(', ')
+  };
 };
 
 // --- Intervallräkning ---
@@ -129,8 +171,15 @@ export const subtractIntervals = (frame: TimeInterval, cuts: TimeInterval[]): Ti
  */
 const NON_PLANNING_TITLE = 'lunch';
 
-const isNonPlanningEntry = (entry: ScheduledEntry): boolean => (
-  typeof entry.title === 'string' && normalize(entry.title).includes(NON_PLANNING_TITLE)
+/**
+ * Poster som tar allas tid, oavsett vem du söker på: lunchen, och poster med
+ * "alla" under lärare (ATP, konferens). Den lärare du söker på ligger per
+ * definition i lärarmängden, så en "alla"-post är alltid upptagen för hen –
+ * mängden behöver inte skickas hit.
+ */
+const cutsForEveryone = (entry: ScheduledEntry): boolean => (
+  (typeof entry.title === 'string' && normalize(entry.title).includes(NON_PLANNING_TITLE))
+  || isAllTeachersField(entry.teacher)
 );
 
 export type PlanningDayResult = {
@@ -159,7 +208,8 @@ const emptyDay = (isDayOff = false): PlanningDayResult => ({
  * Arbetsdagens ram sätts av dagens första och sista post i hela schemat, inte
  * bara av de sökta lärarnas egna poster: slutar alla 15:00 är 15:00–17:00 inte
  * planeringstid. Ur ramen klipps de sökta lärarnas egna poster, deras spärrar
- * från debug-menyn och lunchen. Halvdagsspärrar delar dagen hårt vid 12:00.
+ * från debug-menyn, lunchen och poster som gäller alla. Halvdagsspärrar delar
+ * dagen hårt vid 12:00.
  */
 export const computePlanningForDay = (
   { schedule, query, availability, minGapMinutes }: PlanningParams,
@@ -206,7 +256,7 @@ export const computePlanningForDay = (
   dayEntries.forEach(entry => {
     const names = splitTeacherNames(entry.teacher);
     const isBusy = names.some(name => query.terms.some(term => namesOverlap(name, term)));
-    if (!isBusy && !isNonPlanningEntry(entry)) return;
+    if (!isBusy && !cutsForEveryone(entry)) return;
     cuts.push({ start: timeToMinutes(entry.startTime), end: timeToMinutes(entry.endTime) });
   });
 

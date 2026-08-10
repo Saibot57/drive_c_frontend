@@ -48,7 +48,15 @@ import { computePlanningByDay, parsePlanningQuery } from '@/utils/planningTime';
 import { runPlanningFixtureValidation } from '@/components/schedule/planningValidation';
 import { createColorResolver } from '@/utils/colorTriggers';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
-import { formatMinutes, mergeIntervalMinutes, totalMinutesByTeacher, totalMinutesByTitle } from '@/utils/scheduleStats';
+import {
+  collectTeacherNames,
+  formatMinutes,
+  isAllTeachersField,
+  mergeIntervalMinutes,
+  totalMinutesByTeacher,
+  totalMinutesByTitle
+} from '@/utils/scheduleStats';
+import { matchesExcludeList } from '@/utils/exportExclusions';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
 import { DraggableSourceCard } from '@/components/schedule/DraggableSourceCard';
 import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
@@ -82,9 +90,18 @@ import '@/styles/schedule-theme.css';
 
 // --- Helper: Conflict Check & Filtering ---
 
-const advancedFilterMatch = (item: PlannerCourse | ScheduledEntry, filterQuery: string): boolean => {
+const advancedFilterMatch = (
+  item: PlannerCourse | ScheduledEntry,
+  filterQuery: string,
+  allTeacherNames: string[] = []
+): boolean => {
   if (!filterQuery.trim()) return true;
-  const searchString = `${item.title} ${item.teacher} ${item.room} ${item.category || ''}`.toLowerCase();
+  // "alla" under lärare söks som om varje namn stod där, men ordet självt
+  // behålls så att "alla" fortfarande hittar posterna.
+  const teacherText = isAllTeachersField(item.teacher)
+    ? `${item.teacher} ${allTeacherNames.join(' ')}`
+    : item.teacher;
+  const searchString = `${item.title} ${teacherText} ${item.room} ${item.category || ''}`.toLowerCase();
   const blocks = filterQuery.toLowerCase().split(';');
   return blocks.some(block => {
     const parts = block.trim().split('+'); 
@@ -168,9 +185,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     teacherAvailability,
     colorTriggers,
     planningMinGap,
+    exportExcludes,
     applyTeacherAvailability,
     applyColorTriggers,
     applyPlanningMinGap,
+    clearExportExcludes,
     isHiddenSettingsOpen,
     setIsHiddenSettingsOpen,
     handleHiddenSettingsSave
@@ -245,6 +264,18 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     showNotice
   });
 
+  // --- Lärarmängden ---
+
+  /**
+   * Vad "alla" under lärare expanderar till: debug-menyns lista plus varje namn
+   * som förekommer i schemat. Mängden räknas om löpande, så en post med "alla"
+   * täcker en nyinlagd lärare utan att posten redigeras.
+   */
+  const allTeacherNames = useMemo(
+    () => collectTeacherNames(schedule, teachers),
+    [schedule, teachers]
+  );
+
   // --- Planeringsvy ---
 
   /**
@@ -253,8 +284,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
    * och statistiken skulle tömmas, eftersom ingen kurs heter så.
    */
   const planningQuery = useMemo(
-    () => parsePlanningQuery(filterQuery, teachers),
-    [filterQuery, teachers]
+    () => parsePlanningQuery(filterQuery, allTeacherNames),
+    [filterQuery, allTeacherNames]
   );
   const isPlanningMode = planningQuery.isPlanning;
 
@@ -275,9 +306,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const filterMatch = useCallback(
     (item: PlannerCourse | ScheduledEntry, query: string) => (
-      isPlanningMode ? true : advancedFilterMatch(item, query)
+      isPlanningMode ? true : advancedFilterMatch(item, query, allTeacherNames)
     ),
-    [isPlanningMode]
+    [isPlanningMode, allTeacherNames]
   );
 
   /**
@@ -285,8 +316,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
    * placeringen, lärarreglerna varnar bara.
    */
   const validatePlacement = useCallback((candidate: PlacementCandidate) => (
-    evaluatePlacement(candidate, schedule, restrictions, teacherAvailability)
-  ), [schedule, restrictions, teacherAvailability]);
+    evaluatePlacement(candidate, schedule, restrictions, teacherAvailability, allTeacherNames)
+  ), [schedule, restrictions, teacherAvailability, allTeacherNames]);
 
   /**
    * Färgreglerna gäller när kortet ritas, så ett ändrat ord slår igenom direkt
@@ -326,7 +357,42 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     isPlanningMode
   });
 
-  const { handleExportPDF, handleExportImage } = useScheduleExport({ schedule });
+  // --- Uteslutning ur nästa export ---
+
+  const isExcludedFromExport = useCallback(
+    (entry: ScheduledEntry) => matchesExcludeList(entry.title, exportExcludes),
+    [exportExcludes]
+  );
+
+  /**
+   * Listan gäller bara en export. Notisen finns för att en tyst borttagen post
+   * är obehaglig – man upptäcker den först när utskriften ligger på bordet.
+   */
+  const handleExportComplete = useCallback(() => {
+    if (exportExcludes.length === 0) return;
+
+    const removed = schedule.filter(entry => isExcludedFromExport(entry)).length;
+    clearExportExcludes();
+
+    if (removed === 0) {
+      showNotice(
+        `Inget i schemat matchade ${exportExcludes.join(', ')}. Listan är tömd.`,
+        'warning'
+      );
+      return;
+    }
+
+    showNotice(
+      `Uteslöt ${removed} post${removed === 1 ? '' : 'er'} ur exporten. Listan är tömd.`,
+      'success'
+    );
+  }, [clearExportExcludes, exportExcludes, isExcludedFromExport, schedule, showNotice]);
+
+  const { handleExportPDF, handleExportImage } = useScheduleExport({
+    schedule,
+    isExcludedFromExport,
+    onExportComplete: handleExportComplete
+  });
 
   // --- Keyboard Placement (hook must be at top level) ---
   const {
@@ -493,7 +559,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     return totals;
   }, [schedule]);
 
-  const planningLabel = planningQuery.teachers.join(', ');
+  const planningLabel = planningQuery.label;
 
   const dayHeaderTooltips = useMemo(() => {
     const tooltips: Record<string, string> = {};
@@ -1041,7 +1107,20 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
              )}
            </div>
 
-           <div className="flex gap-2 flex-wrap">
+           <div className="flex gap-2 flex-wrap items-center">
+              {/* En dold inställning som tyst plockar bort innehåll ur en PDF är
+                  obehaglig – man upptäcker det först när utskriften ligger på
+                  bordet. Därför står den framme intill knappen den påverkar. */}
+              {exportExcludes.length > 0 && (
+                <span
+                  role="status"
+                  className="flex items-center gap-1 rounded border-2 border-black bg-rose-200 px-2 py-1 text-xs font-bold cursor-help"
+                  title={`Nästa export hoppar över: ${exportExcludes.join(', ')}. Listan töms när du exporterat. Ändras i dolda inställningar (Ctrl + Shift + K).`}
+                >
+                  <ShieldAlert size={12} className="shrink-0" />
+                  Utesluter {exportExcludes.length}
+                </span>
+              )}
               <div className="relative" ref={pdfMenuRef}>
                 <Button
                   variant="neutral"
@@ -1372,7 +1451,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                      entry: selectedEntry
                                    });
                                  }}
-                                 hidden={!advancedFilterMatch(entry, filterQuery)}
+                                 hidden={!filterMatch(entry, filterQuery)}
                                   dragDisabled={isMobileDragDisabled}
                                   columnIndex={columnIndex}
                                   columnCount={columnCount}
@@ -1381,6 +1460,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                   isHighlighted={highlightedIds.has(entry.instanceId)}
                                   color={resolveColor(entry.title, entry.color)}
+                                  excludedFromExport={isExcludedFromExport(entry)}
                                />
                               );
                               });
@@ -1434,7 +1514,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                      entry: selectedEntry
                                    });
                                  }}
-                                 hidden={!advancedFilterMatch(entry, filterQuery)}
+                                 hidden={!filterMatch(entry, filterQuery)}
                                  dragDisabled={isMobileDragDisabled}
                                  columnIndex={columnIndex}
                                  columnCount={columnCount}
@@ -1443,6 +1523,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                  isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                  isHighlighted={highlightedIds.has(entry.instanceId)}
                                  color={resolveColor(entry.title, entry.color)}
+                                  excludedFromExport={isExcludedFromExport(entry)}
                                />
                              );
                            });
@@ -1680,6 +1761,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         teacherAvailability={teacherAvailability}
         colorTriggers={colorTriggers}
         planningMinGap={planningMinGap}
+        exportExcludes={exportExcludes}
         onSave={handleHiddenSettingsSave}
       />
       <CategoryDebugPanel

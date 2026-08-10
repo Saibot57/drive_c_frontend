@@ -10,9 +10,20 @@ import { exportElementToVectorPdf } from '@/utils/vectorPdfExport';
 
 type UseScheduleExportParams = {
   schedule: ScheduledEntry[];
+  /**
+   * Poster som är dolda i filen. Själva döljandet sköts av CSS under
+   * `.pdf-export`, men höjdklippningen räknar på datan och måste veta.
+   */
+  isExcludedFromExport?: (entry: ScheduledEntry) => boolean;
+  /** Körs först när filen faktiskt är skapad, så en kraschad export rensar inget. */
+  onExportComplete?: () => void;
 };
 
-export const useScheduleExport = ({ schedule }: UseScheduleExportParams) => {
+export const useScheduleExport = ({
+  schedule,
+  isExcludedFromExport,
+  onExportComplete
+}: UseScheduleExportParams) => {
   const captureScheduleCanvas = useCallback(async () => {
     const element = document.getElementById('schedule-canvas');
     if (!element) return null;
@@ -39,7 +50,12 @@ export const useScheduleExport = ({ schedule }: UseScheduleExportParams) => {
   }, []);
 
   const computeClipHeightPx = useCallback(() => {
-    const maxEndMinutes = schedule.reduce((latestEndMinutes, entry) => {
+    // En utesluten post ska inte lämna ett tomt fält sist i filen.
+    const included = isExcludedFromExport
+      ? schedule.filter(entry => !isExcludedFromExport(entry))
+      : schedule;
+
+    const maxEndMinutes = included.reduce((latestEndMinutes, entry) => {
       const endMinutes = timeToMinutes(entry.endTime);
       return Number.isFinite(endMinutes)
         ? Math.max(latestEndMinutes, endMinutes)
@@ -53,7 +69,7 @@ export const useScheduleExport = ({ schedule }: UseScheduleExportParams) => {
     const topOffsetPx = 16;
     const safetyMarginPx = 8;
     return contentHeightPx + topOffsetPx + safetyMarginPx;
-  }, [schedule]);
+  }, [schedule, isExcludedFromExport]);
 
   const handleExportPDF = useCallback(async (pageSize?: 'a4' | 'a3') => {
     const exportElement = document.getElementById('schedule-canvas');
@@ -67,6 +83,7 @@ export const useScheduleExport = ({ schedule }: UseScheduleExportParams) => {
         clipHeightPx,
         pageSize: size,
       });
+      onExportComplete?.();
       return;
     }
 
@@ -80,7 +97,8 @@ export const useScheduleExport = ({ schedule }: UseScheduleExportParams) => {
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
     pdf.addImage(imageData, 'PNG', margin, margin, pdfWidth, pdfHeight);
     pdf.save('schema.pdf');
-  }, [captureScheduleCanvas, computeClipHeightPx]);
+    onExportComplete?.();
+  }, [captureScheduleCanvas, computeClipHeightPx, onExportComplete]);
 
   const handleExportImage = useCallback(async (type: 'png' | 'jpeg') => {
     const canvas = await captureScheduleCanvas();
@@ -92,7 +110,8 @@ export const useScheduleExport = ({ schedule }: UseScheduleExportParams) => {
     link.href = dataUrl;
     link.download = type === 'png' ? 'schema.png' : 'schema.jpg';
     link.click();
-  }, [captureScheduleCanvas]);
+    onExportComplete?.();
+  }, [captureScheduleCanvas, onExportComplete]);
 
   return {
     handleExportPDF,
