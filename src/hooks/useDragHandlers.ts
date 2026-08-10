@@ -18,6 +18,8 @@ type UseDragHandlersParams = {
   resolveColor: (title: string, fallbackColor: string) => string;
   isMobileDragDisabled: boolean;
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
+  /** I planeringsvyn ritas inga poster, så en ny post skulle annars försvinna tyst. */
+  isPlanningMode?: boolean;
 };
 
 type DropTimeResult = {
@@ -32,7 +34,8 @@ export const useDragHandlers = ({
   validatePlacement,
   resolveColor,
   isMobileDragDisabled,
-  showNotice
+  showNotice,
+  isPlanningMode = false
 }: UseDragHandlersParams) => {
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [ghostPlacement, setGhostPlacement] = useState<GhostPlacement | null>(null);
@@ -163,6 +166,9 @@ export const useDragHandlers = ({
         duration: computed.itemDuration
       };
       commitSchedule(prev => [...prev, newEntry]);
+      if (isPlanningMode) {
+        showNotice('Posten lades till – töm filtret för att se den.', 'warning');
+      }
       return;
     }
 
@@ -191,7 +197,7 @@ export const useDragHandlers = ({
           : existing
       ));
     }
-  }, [commitSchedule, computeDropTime, showNotice, validatePlacement]);
+  }, [commitSchedule, computeDropTime, isPlanningMode, showNotice, validatePlacement]);
 
   const handleDragCancel = useCallback(() => {
     setActiveDragItem(null);

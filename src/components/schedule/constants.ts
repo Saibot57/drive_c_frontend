@@ -22,8 +22,12 @@ export const TEACHERS_KEY = 'app.teachers.v1';
 export const ROOMS_KEY = 'app.rooms.v1';
 export const TEACHER_AVAILABILITY_KEY = 'app.teacher_availability.v1';
 export const COLOR_TRIGGERS_KEY = 'app.color_triggers.v1';
+export const PLANNING_MIN_GAP_KEY = 'app.planning_min_gap.v1';
 export const SIDEBAR_SECTIONS_KEY = 'app.planner_sections.v1';
 export const ACTIVE_ARCHIVE_NAME_KEY = 'active_archive_name';
+
+/** Kortare luckor än så räknas inte som planeringstid. Ställs om i debug-menyn. */
+export const DEFAULT_PLANNING_MIN_GAP_MINUTES = 45;
 
 export const PLANNER_NOTICE_DISMISS_MS = 2600;
 export const TITLE_HOLD_OPEN_MS = 700;

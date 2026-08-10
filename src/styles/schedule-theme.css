@@ -124,6 +124,18 @@
   box-shadow: var(--sp-event-shadow);
 }
 
+/* Streckad kant och neutral botten – ingen kursfärg använder det, så ett
+   planeringsblock går aldrig att förväxla med en lektion. */
+.sp-planning-card {
+  border: 2px dashed rgba(0, 0, 0, 0.55);
+  background: #f8fafc;
+}
+
+.sp-planning-dayoff {
+  border: var(--sp-border);
+  background: #fecdd3;
+}
+
 .sp-source-card {
   border: var(--sp-border-thin);
 }

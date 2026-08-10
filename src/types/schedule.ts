@@ -85,4 +85,6 @@ export interface PersistedPlannerState {
   restrictions: RestrictionRule[];
   teacherAvailability?: TeacherAvailability;
   colorTriggers?: ColorTriggerRule[];
+  /** Minsta lucka som räknas som planeringstid, i minuter. */
+  planningMinGap?: number;
 }

@@ -19,12 +19,15 @@ type UseKeyboardPlacementOptions = {
   commitSchedule: (updater: (prev: ScheduledEntry[]) => ScheduledEntry[]) => void;
   validatePlacement: (candidate: PlacementCandidate) => PlacementVerdict;
   showNotice: (msg: string, tone: 'success' | 'warning' | 'error') => void;
+  /** I planeringsvyn ritas inga poster, så en ny post skulle annars försvinna tyst. */
+  isPlanningMode?: boolean;
 };
 
 export function useKeyboardPlacement({
   commitSchedule,
   validatePlacement,
   showNotice,
+  isPlanningMode = false,
 }: UseKeyboardPlacementOptions) {
   const [kbPlacement, setKbPlacement] = useState<{
     course: PlannerCourse;
@@ -161,6 +164,10 @@ export function useKeyboardPlacement({
               };
               commitSchedule(prev => [...prev, newEntry]);
               setKbPlacement(null);
+              if (isPlanningMode) {
+                showNotice('Posten lades till – töm filtret för att se den.', 'warning');
+                return;
+              }
               showNotice(warning ?? 'Post placerad', warning ? 'warning' : 'success');
             },
           },
@@ -171,7 +178,7 @@ export function useKeyboardPlacement({
           },
         ]
       : [],
-    [kbPlacement, commitSchedule, showNotice, validatePlacement],
+    [kbPlacement, commitSchedule, isPlanningMode, showNotice, validatePlacement],
   );
 
   return {

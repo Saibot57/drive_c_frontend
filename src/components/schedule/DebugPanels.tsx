@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ColorTriggerRule, TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
+import { sanitizePlanningMinGap } from '@/utils/planningTime';
 import { blocksWholeDay } from '@/utils/scheduleRules';
 
 const sanitizeHiddenList = (input: string) => {
@@ -224,11 +225,13 @@ type HiddenSettingsPanelProps = {
   rooms: string[];
   teacherAvailability: TeacherAvailability;
   colorTriggers: ColorTriggerRule[];
+  planningMinGap: number;
   onSave: (
     nextTeachers: string[],
     nextRooms: string[],
     nextAvailability: TeacherAvailability,
-    nextColorTriggers: ColorTriggerRule[]
+    nextColorTriggers: ColorTriggerRule[],
+    nextPlanningMinGap: number
   ) => void;
 };
 
@@ -239,12 +242,14 @@ export function HiddenSettingsPanel({
   rooms,
   teacherAvailability,
   colorTriggers,
+  planningMinGap,
   onSave
 }: HiddenSettingsPanelProps) {
   const [teacherText, setTeacherText] = useState('');
   const [roomText, setRoomText] = useState('');
   const [availability, setAvailability] = useState<TeacherAvailability>({});
   const [triggers, setTriggers] = useState<ColorTriggerRule[]>([]);
+  const [minGapText, setMinGapText] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -252,14 +257,21 @@ export function HiddenSettingsPanel({
     setRoomText(rooms.join('\n'));
     setAvailability(teacherAvailability);
     setTriggers(colorTriggers);
-  }, [open, rooms, teachers, teacherAvailability, colorTriggers]);
+    setMinGapText(String(planningMinGap));
+  }, [open, rooms, teachers, teacherAvailability, colorTriggers, planningMinGap]);
 
   // Raderna följer textrutan direkt, så en nyss tillagd lärare går att
   // ställa in utan att man behöver spara och öppna panelen igen.
   const teacherRows = useMemo(() => sanitizeHiddenList(teacherText), [teacherText]);
 
   const handleSave = () => {
-    onSave(teacherRows, sanitizeHiddenList(roomText), availability, triggers);
+    onSave(
+      teacherRows,
+      sanitizeHiddenList(roomText),
+      availability,
+      triggers,
+      sanitizePlanningMinGap(minGapText)
+    );
     onOpenChange(false);
   };
 
@@ -321,6 +333,28 @@ export function HiddenSettingsPanel({
                 ))}
               </div>
             )}
+
+            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+              <Label htmlFor="planning-min-gap">Kortaste planeringspass</Label>
+              <div className="mt-1 flex items-center gap-2">
+                <Input
+                  id="planning-min-gap"
+                  type="number"
+                  min={0}
+                  max={240}
+                  step={5}
+                  value={minGapText}
+                  onChange={event => setMinGapText(event.target.value)}
+                  className="h-9 w-24"
+                />
+                <span className="text-xs text-gray-500">minuter</span>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Söker du t.ex. &quot;Tobias planering&quot; visas bara luckor som är minst
+                så här långa. Spärrade dagar ovan räknas som lediga och ger ingen
+                planeringstid alls.
+              </p>
+            </div>
           </div>
 
           <div className="flex min-h-0 flex-col">

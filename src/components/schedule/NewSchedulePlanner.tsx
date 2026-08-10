@@ -44,12 +44,15 @@ import {
   EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
+import { computePlanningByDay, parsePlanningQuery } from '@/utils/planningTime';
+import { runPlanningFixtureValidation } from '@/components/schedule/planningValidation';
 import { createColorResolver } from '@/utils/colorTriggers';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 import { formatMinutes, mergeIntervalMinutes, totalMinutesByTeacher, totalMinutesByTitle } from '@/utils/scheduleStats';
 import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
 import { DraggableSourceCard } from '@/components/schedule/DraggableSourceCard';
 import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
+import { PlanningBlockCard, PlanningDayOffLabel } from '@/components/schedule/PlanningBlockCard';
 import { DayColumn } from '@/components/schedule/DayColumn';
 import { CategoryDebugPanel, HiddenSettingsPanel } from '@/components/schedule/DebugPanels';
 import { ScheduleModals } from '@/components/schedule/ScheduleModals';
@@ -164,8 +167,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     rooms,
     teacherAvailability,
     colorTriggers,
+    planningMinGap,
     applyTeacherAvailability,
     applyColorTriggers,
+    applyPlanningMinGap,
     isHiddenSettingsOpen,
     setIsHiddenSettingsOpen,
     handleHiddenSettingsSave
@@ -179,6 +184,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     restrictions?: RestrictionRule[];
     teacherAvailability?: unknown;
     colorTriggers?: unknown;
+    planningMinGap?: unknown;
   } | null>(null);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [isClearScheduleConfirmOpen, setIsClearScheduleConfirmOpen] = useState(false);
@@ -239,6 +245,41 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     showNotice
   });
 
+  // --- Planeringsvy ---
+
+  /**
+   * "Tobias planering" är inte en textsökning utan en fråga om frånvaron av
+   * poster. Därför kopplar det läget bort filtret överallt annars: byggstenarna
+   * och statistiken skulle tömmas, eftersom ingen kurs heter så.
+   */
+  const planningQuery = useMemo(
+    () => parsePlanningQuery(filterQuery, teachers),
+    [filterQuery, teachers]
+  );
+  const isPlanningMode = planningQuery.isPlanning;
+
+  const planningByDay = useMemo(() => {
+    if (!isPlanningMode) return null;
+    return computePlanningByDay({
+      schedule,
+      query: planningQuery,
+      availability: teacherAvailability,
+      minGapMinutes: planningMinGap
+    });
+  }, [isPlanningMode, planningQuery, schedule, teacherAvailability, planningMinGap]);
+
+  const planningWeekMinutes = useMemo(() => {
+    if (!planningByDay) return 0;
+    return Object.values(planningByDay).reduce((sum, day) => sum + day.totalMinutes, 0);
+  }, [planningByDay]);
+
+  const filterMatch = useCallback(
+    (item: PlannerCourse | ScheduledEntry, query: string) => (
+      isPlanningMode ? true : advancedFilterMatch(item, query)
+    ),
+    [isPlanningMode]
+  );
+
   /**
    * Gemensam bedömning för alla vägar in i schemat. Ämnesreglerna stoppar
    * placeringen, lärarreglerna varnar bara.
@@ -281,7 +322,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     validatePlacement,
     resolveColor,
     isMobileDragDisabled,
-    showNotice
+    showNotice,
+    isPlanningMode
   });
 
   const { handleExportPDF, handleExportImage } = useScheduleExport({ schedule });
@@ -291,7 +333,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     kbPlacementGhost,
     startPlacement: startKbPlacement,
     isKbPlacementActive,
-  } = useKeyboardPlacement({ commitSchedule, validatePlacement, showNotice });
+  } = useKeyboardPlacement({ commitSchedule, validatePlacement, showNotice, isPlanningMode });
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
@@ -334,6 +376,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     runLayoutFixtureValidation();
+    runPlanningFixtureValidation();
   }, []);
 
   useHotkeys(
@@ -397,8 +440,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Statistics
   const visibleSchedule = useMemo(
-    () => schedule.filter(entry => advancedFilterMatch(entry, filterQuery)),
-    [schedule, filterQuery]
+    () => schedule.filter(entry => filterMatch(entry, filterQuery)),
+    [schedule, filterQuery, filterMatch]
   );
 
   const scheduleStats = useMemo(() => totalMinutesByTitle(visibleSchedule), [visibleSchedule]);
@@ -450,9 +493,28 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     return totals;
   }, [schedule]);
 
+  const planningLabel = planningQuery.teachers.join(', ');
+
   const dayHeaderTooltips = useMemo(() => {
     const tooltips: Record<string, string> = {};
     PLANNER_DAYS.forEach(day => {
+      if (planningByDay) {
+        const result = planningByDay[day];
+        if (result.isDayOff) {
+          tooltips[day] = `${planningLabel}: ledig dag`;
+          return;
+        }
+        if (result.blocks.length === 0) {
+          tooltips[day] = `${planningLabel}: ingen planeringstid`;
+          return;
+        }
+        tooltips[day] = [
+          `${planningLabel}: ${formatMinutes(result.totalMinutes)} planering`,
+          ...result.blocks.map(block => `${minutesToTime(block.start)}–${minutesToTime(block.end)}`)
+        ].join('\n');
+        return;
+      }
+
       const entries = Object.entries(daySubjectTotals[day] ?? {});
       if (entries.length === 0) {
         tooltips[day] = 'Inget schemalagt';
@@ -465,19 +527,20 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       tooltips[day] = [`Totalt: ${formatMinutes(totalMinutes)}`, ...lines].join('\n');
     });
     return tooltips;
-  }, [daySubjectTotals]);
+  }, [daySubjectTotals, planningByDay, planningLabel]);
 
   // --- JSON Import/Export Handlers ---
 
   const handleExportJSON = () => {
     const dataToSave: PersistedPlannerState = {
-      version: 7,
+      version: 8,
       timestamp: new Date().toISOString(),
       courses,
       schedule,
       restrictions,
       teacherAvailability,
-      colorTriggers
+      colorTriggers,
+      planningMinGap
     };
     const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -504,7 +567,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             schedule: sanitizeScheduleImport(parsed.schedule),
             restrictions: parsed.restrictions,
             teacherAvailability: parsed.teacherAvailability,
-            colorTriggers: parsed.colorTriggers
+            colorTriggers: parsed.colorTriggers,
+            planningMinGap: parsed.planningMinGap
           });
           setIsImportConfirmOpen(true);
         } else {
@@ -531,9 +595,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     if (pendingImportData.colorTriggers) {
       applyColorTriggers(pendingImportData.colorTriggers);
     }
+    if (pendingImportData.planningMinGap !== undefined) {
+      applyPlanningMinGap(pendingImportData.planningMinGap);
+    }
     setIsImportConfirmOpen(false);
     setPendingImportData(null);
-  }, [applyColorTriggers, applyTeacherAvailability, commitSchedule, pendingImportData, setManualCourses]);
+  }, [applyColorTriggers, applyPlanningMinGap, applyTeacherAvailability, commitSchedule, pendingImportData, setManualCourses]);
 
   const handleAddRestrictionRule = useCallback(() => {
     if (!newRule.subjectA || !newRule.subjectB) return;
@@ -752,7 +819,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     onDeleteWeek: handleDeleteWeek,
     onStartPlacement: startKbPlacement,
     hasCopiedContent: !!copiedEntryContent,
-    advancedFilterMatch,
+    advancedFilterMatch: filterMatch,
   });
 
   // --- Render ---
@@ -775,7 +842,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       )}
       <div className="flex-1 min-h-0 overflow-y-auto pr-2">
         {courses.map((c, idx) => {
-          const visibleIdx = courses.filter((cc, ii) => ii < idx && advancedFilterMatch(cc, filterQuery)).length;
+          const visibleIdx = courses.filter((cc, ii) => ii < idx && filterMatch(cc, filterQuery)).length;
           return (
             <DraggableSourceCard
               key={c.id}
@@ -784,7 +851,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               onDelete={handleDeleteCourse}
               isDerived={derivedCourseKeys.has(buildCourseDedupeKey(c)) && !manualCourseKeys.has(buildCourseDedupeKey(c))}
               dragDisabled={isMobileDragDisabled}
-              hidden={!advancedFilterMatch(c, filterQuery)}
+              hidden={!filterMatch(c, filterQuery)}
               isSelected={activeZone === 'courses' && selectedCourseIndex === visibleIdx}
               color={resolveColor(c.title, c.color)}
             />
@@ -803,7 +870,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         title={sections.stats ? 'Fäll ihop tid' : 'Fäll ut tid'}
         className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity"
       >
-        <BarChart3 size={18} /> Tid (Filtrerat)
+        <BarChart3 size={18} /> {isPlanningMode ? 'Tid (Planering)' : 'Tid (Filtrerat)'}
         {sections.stats
           ? <ChevronUp size={16} className="text-gray-400" />
           : <ChevronDown size={16} className="text-gray-400" />}
@@ -811,8 +878,39 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     </h2>
   );
 
+  const planningStatsContent = planningByDay && (
+    <div className="mb-3 shrink-0 border-b-2 border-gray-100 pb-3">
+      <p className="mb-1 text-[10px] font-bold uppercase text-gray-400">
+        Planering – {planningLabel}
+      </p>
+      <div className="space-y-1 text-xs">
+        {PLANNER_DAYS.map(day => {
+          const result = planningByDay[day];
+          const value = result.isDayOff
+            ? 'Ledig'
+            : result.totalMinutes === 0
+              ? '–'
+              : formatMinutes(result.totalMinutes);
+          return (
+            <div key={day} className="flex justify-between gap-2">
+              <span className="truncate">{day}</span>
+              <span className={`font-mono font-bold shrink-0 ${result.isDayOff ? 'text-rose-600' : ''}`}>
+                {value}
+              </span>
+            </div>
+          );
+        })}
+        <div className="flex justify-between gap-2 border-t border-gray-200 pt-1">
+          <span className="font-bold">Veckan</span>
+          <span className="font-mono font-bold shrink-0">{formatMinutes(planningWeekMinutes)}</span>
+        </div>
+      </div>
+    </div>
+  );
+
   const statsContent = (
     <>
+      {planningStatsContent}
       <button
         type="button"
         onClick={() => toggleSection('subjects')}
@@ -898,15 +996,26 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               <Input
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
-                placeholder="Filter: 'Lärare'+'ämne'; -Ämne"
+                placeholder="Filter: 'Lärare'+'ämne'; -Ämne · Tobias planering"
                 className="sp-input pl-10 rounded-xl"
               />
               <div
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-help"
-                title={"Sökguide:\n+ = Kräver båda (ex: matte+hanna)\n; = ELLER-sökning (ex: idrott;musik)\n- = Exkludera (ex: -engelska)"}
+                title={"Sökguide:\n+ = Kräver båda (ex: matte+hanna)\n; = ELLER-sökning (ex: idrott;musik)\n- = Exkludera (ex: -engelska)\n\nNamn + ordet \"planering\" visar i stället lärarens fria tid\n(ex: tobias planering). Flera namn ger gemensam fri tid."}
               >
                 <Search className="h-5 w-5" />
               </div>
+              {isPlanningMode && (
+                /* Absolut placerad så toolbaren inte hoppar när läget slår om. */
+                <p className="absolute left-0 top-full z-[70] mt-1 truncate text-xs font-bold text-gray-600">
+                  Planeringstid för {planningLabel}
+                  {planningQuery.ignoredWords.length > 0 && (
+                    <span className="font-normal text-gray-400">
+                      {' '}· ignorerar {planningQuery.ignoredWords.join(', ')}
+                    </span>
+                  )}
+                </p>
+              )}
            </div>
 
            {/* Vilket schema som är aktivt syns annars bara i arkivlistan, som
@@ -1221,6 +1330,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                            isPlacementMode={isKbPlacementActive}
                          >
                             {(() => {
+                              if (planningByDay) {
+                                const result = planningByDay[day];
+                                if (result.isDayOff) return <PlanningDayOffLabel />;
+                                return result.blocks.map(block => (
+                                  <PlanningBlockCard key={`${day}-${block.start}`} block={block} />
+                                ));
+                              }
+
                               const dayEntries = schedule.filter(e => e.day === day);
                               const lastEndTime = dayEntries.reduce((latest, entry) => {
                                 const endMinutes = timeToMinutes(entry.endTime);
@@ -1274,6 +1391,15 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                          className="min-w-0"
                        >
                          {(() => {
+                           if (planningByDay) {
+                             const result = planningByDay[mobileSelectedDay];
+                             if (!result) return null;
+                             if (result.isDayOff) return <PlanningDayOffLabel />;
+                             return result.blocks.map(block => (
+                               <PlanningBlockCard key={`${mobileSelectedDay}-${block.start}`} block={block} />
+                             ));
+                           }
+
                            const dayEntries = schedule.filter(e => e.day === mobileSelectedDay);
                            const lastEndTime = dayEntries.reduce((latest, entry) => {
                              const endMinutes = timeToMinutes(entry.endTime);
@@ -1543,6 +1669,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         rooms={rooms}
         teacherAvailability={teacherAvailability}
         colorTriggers={colorTriggers}
+        planningMinGap={planningMinGap}
         onSave={handleHiddenSettingsSave}
       />
       <CategoryDebugPanel
