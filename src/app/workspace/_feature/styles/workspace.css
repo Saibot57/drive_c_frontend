@@ -1292,12 +1292,18 @@ div:hover > .kanban-card-delete {
   border-radius: 0;
   /* Skuggan ritas av ett filter och sträcker sig utanför rutan. */
   overflow: visible;
-  /*
-    Pekaren släpps igenom hela vägen och fångas av formen i stället. SVG
-    träfftestar mot pathens fyllning, så hålet i en båge blir riktig tom yta —
-    en lapp inuti kurvan går att klicka på, och delen ligger inte i vägen för
-    den. Draget överlever, eftersom pointer-events inte påverkar bubbling.
-  */
+}
+
+/*
+  Pekaren släpps igenom hela vägen och fångas av formen i stället. SVG
+  träfftestar mot pathens fyllning, så hålet i en båge blir riktig tom yta —
+  en lapp inuti kurvan går att klicka på, och delen ligger inte i vägen för
+  den. Draget överlever, eftersom pointer-events inte påverkar bubbling.
+
+  Gäller bara tårtbiten. En rubrik är också låddlös, men den är text i en
+  rektangel och måste kunna tas emot av just den rektangeln.
+*/
+.ws-element--shape-hit {
   pointer-events: none;
 }
 
@@ -1672,11 +1678,202 @@ div:hover > .kanban-card-delete {
 
 /* Under en export ska bara innehållet med — inte redigeringens reglage. */
 .ws-exporting .ws-lock-btn,
-.ws-exporting .ws-resize-handle {
+.ws-exporting .ws-resize-handle,
+.ws-exporting .ws-heading-bar {
   display: none !important;
 }
 
 /* Markeringen är ett redigeringstillstånd och hör inte hemma i en bild. */
 .ws-exporting .ws-element--selected {
   box-shadow: none;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Rubriker
+   ────────────────────────────────────────────────────────────── */
+
+/*
+  Rubriken är text utan kort. Storleken kommer inline från nivån och
+  typsnittet — allt annat om formen bor här.
+*/
+.ws-heading {
+  width: 100%;
+  /* Bryts där bredden tar slut. Det är därför bredden går att dra i. */
+  overflow-wrap: break-word;
+  line-height: 1.15;
+  padding: 0;
+  outline: none;
+  /* Rubriken flyttas som ett kort; markören ska inte lova en textmarkering
+     som ett enkelklick inte ger. Redigeringsläget sätter tillbaka den. */
+  cursor: default;
+}
+
+.ws-heading--editing {
+  cursor: text;
+}
+
+/*
+  Utan kort finns ingen ram att markera med. Konturen dyker upp först när man
+  pekar på rubriken eller har valt den, så att ytan är ren i vila. Bredden
+  ligger redan där från .ws-element — bara färgen saknas.
+*/
+.ws-element--bare:has(.ws-heading):hover,
+.ws-element--bare:has(.ws-heading).ws-element--selected {
+  border-color: rgba(0, 0, 0, 0.35);
+  border-style: dashed;
+}
+
+/* Konturen är ett redigeringstillstånd, som markeringen. */
+.ws-exporting .ws-element--bare:has(.ws-heading) {
+  border-color: transparent;
+}
+
+/* ── Verktygsraden ── */
+
+/*
+  Svävar ovanför rubriken i stället för att ligga i den — ett verktygsfält
+  inuti elementet hade återinfört exakt den låda rubriken inte ska ha.
+
+  Motskalas mot canvasens zoom av samma skäl som ramarna: raden är ett reglage
+  och ska vara lika stor att träffa vid 0.5x som vid 1.5x. Till skillnad från
+  ramarna räknas inget mått om för hand — hela raden skalas i ett svep.
+*/
+.ws-heading-bar {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 8px;
+  z-index: var(--ws-z-canvas-chrome);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--ws-bg);
+  border: var(--ws-frame-border);
+  border-radius: var(--ws-radius-lg);
+  box-shadow: var(--ws-frame-shadow-sm);
+  white-space: nowrap;
+  cursor: default;
+  transform: scale(calc(1 / var(--ws-zoom)));
+  transform-origin: bottom left;
+}
+
+.ws-heading-bar__btn {
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--ws-radius-sm);
+  cursor: pointer;
+  color: var(--ws-text-subtle);
+  font-size: var(--ws-font-md);
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1;
+  transition: background-color var(--ws-transition), color var(--ws-transition);
+}
+
+.ws-heading-bar__btn:hover {
+  background: var(--ws-bg-hover);
+  color: var(--ws-text);
+}
+
+/* Inre skugga i stället för ram: en riktig ram hade gjort knappen 2 px större
+   och fått raden att hoppa varje gång man bytte nivå. */
+.ws-heading-bar__btn--active {
+  background: var(--ws-bg-muted);
+  color: var(--ws-text);
+  box-shadow: inset 0 0 0 1px #000;
+}
+
+.ws-heading-bar__sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 3px;
+  background: var(--ws-border-color);
+}
+
+.ws-heading-bar__color {
+  position: relative;
+  display: flex;
+}
+
+.ws-heading-bar__swatch {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0 0.125rem;
+  padding: 0;
+  border: 1px solid #000;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+/* ── Färgpaletten ── */
+
+.ws-heading-palette {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--ws-z-popover);
+  width: 10.5rem;
+  padding: 0.5rem;
+  background: var(--ws-bg);
+  border: var(--ws-frame-border);
+  border-radius: var(--ws-radius-sm);
+  box-shadow: var(--ws-frame-shadow);
+}
+
+.ws-heading-palette__grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.25rem;
+}
+
+.ws-heading-palette__dot {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.ws-heading-palette__dot--active {
+  box-shadow: 0 0 0 2px #000;
+}
+
+.ws-heading-palette__label {
+  margin: 0.5rem 0 0.25rem;
+  font-size: var(--ws-font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ws-text-faint);
+}
+
+.ws-heading-palette__custom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--ws-divider-color);
+  font-size: var(--ws-font-sm);
+  color: var(--ws-text-subtle);
+  cursor: pointer;
+}
+
+.ws-heading-palette__custom input {
+  width: 1.75rem;
+  height: 1.5rem;
+  padding: 0;
+  background: none;
+  border: 1px solid #000;
+  border-radius: 0.25rem;
+  cursor: pointer;
 }

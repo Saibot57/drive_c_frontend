@@ -7,7 +7,9 @@ export type ElementType =
   /** Utbruten tårtbit ur ett hjul. Stickling — äger sin egen kopia. */
   | 'wheel_part'
   /** En dag ur schemaplaneraren, skrivskyddad. Också en stickling. */
-  | 'schedule_day';
+  | 'schedule_day'
+  /** Fristående rubrik utan kort. Strukturerar ytan, bär inget innehåll. */
+  | 'heading';
 
 // ── Backend mirrors ──
 export interface Surface {

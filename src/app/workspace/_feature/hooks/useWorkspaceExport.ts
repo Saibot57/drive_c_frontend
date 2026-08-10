@@ -79,6 +79,14 @@ export function useWorkspaceExport({
       // Låsknappar och storlekshandtag hör till redigeringen, inte till bilden.
       viewport.classList.add('ws-exporting');
 
+      /*
+       * Rubrikerna använder fyra typsnitt som laddas först när de behövs.
+       * html2canvas ritar det som finns just nu och byter tyst till ett
+       * reservtypsnitt för det som inte hunnit fram — bilden blir fel utan
+       * något felmeddelande, och det upptäcks först när man tittar på PDF:en.
+       */
+      await document.fonts.ready;
+
       const html2canvas = (await import('html2canvas')).default;
       return await html2canvas(viewport, {
         width,

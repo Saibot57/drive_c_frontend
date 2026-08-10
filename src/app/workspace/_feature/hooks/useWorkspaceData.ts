@@ -13,6 +13,8 @@ import type { PlannerActivity } from '@/types/schedule';
 import { partCardSize, partViewBox, straightSize } from '../utils/wheelPartGeometry';
 import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent } from '../types/scheduleDay.types';
+import type { HeadingContent } from '../types/heading.types';
+import { DEFAULT_HEADING } from '../components/editors/HeadingEditor';
 import type { ElementType, SurfaceElement, ViewportState } from '../types/workspace.types';
 import type { Point } from './useElementDrag';
 import type { Box } from './useElementResize';
@@ -29,6 +31,8 @@ import {
   FIT_PADDING_PX,
   GRID_SIZE,
   MAX_EXPLODE_PARTS,
+  HEADING_DEFAULT_WIDTH,
+  HEADING_INITIAL_HEIGHT,
 } from '../types/constants';
 import { batchBounds, clamp, screenToCanvas, snapToGrid } from '../types/utils';
 
@@ -45,6 +49,8 @@ const SIZE_BY_TYPE: Partial<Record<ElementType, { w: number; h: number }>> = {
   // proportioner ur hjulet; hit kommer man först om en del speglas eller
   // kopieras till en annan yta, där geometrin inte följer med.
   wheel_part: { w: 220, h: 220 },
+  // Höjden är bara en startgissning — den mäts om så fort rubriken ritats.
+  heading: { w: HEADING_DEFAULT_WIDTH, h: HEADING_INITIAL_HEIGHT },
 };
 
 export function useWorkspaceData() {
@@ -314,7 +320,12 @@ export function useWorkspaceData() {
 
     const size = SIZE_BY_TYPE[type] ?? { w: DEFAULT_ELEMENT_WIDTH, h: DEFAULT_ELEMENT_HEIGHT };
     const element = await track('skapa elementet', () =>
-      workspaceService.createElement(type, 'Untitled', getDefaultContent(type)),
+      // Rubriken speglar sin text i titeln, så den startar med sin egen.
+      workspaceService.createElement(
+        type,
+        type === 'heading' ? DEFAULT_HEADING.text : 'Untitled',
+        getDefaultContent(type),
+      ),
     );
     if (!element) return;
     dispatch({ type: 'SET_ELEMENT', element });
@@ -660,12 +671,30 @@ export function useWorkspaceData() {
   const updateElementContent = useCallback((elementId: string, content: unknown) => {
     const current = stateRef.current.elements[elementId];
     if (!current) return;
-    dispatch({ type: 'SET_ELEMENT', element: { ...current, content } });
+
+    /*
+     * Rubriken har ingen titel skild från sin text. Sökningen matchar bara
+     * `title` i grundläget, och högerpanelen listar samma fält — utan den här
+     * speglingen hade varje rubrik hetat "Untitled" på båda ställena. Det
+     * ryms i samma PUT, så det kostar inget extra anrop.
+     */
+    const headingTitle =
+      current.type === 'heading'
+        ? (content as HeadingContent)?.text?.trim() || 'Rubrik'
+        : null;
+
+    dispatch({
+      type: 'SET_ELEMENT',
+      element: { ...current, content, ...(headingTitle ? { title: headingTitle } : {}) },
+    });
     // Innehållsändringar hamnar medvetet inte i ångra-stacken: redigerarna är
     // textfält och contenteditable som har webbläsarens egen ångring, och två
     // konkurrerande Ctrl+Z hade tagit ut varandra.
     debounced(`content-${elementId}`, 'spara innehållet', () =>
-      workspaceService.updateElement(elementId, { content }), DEBOUNCE_CONTENT_MS);
+      workspaceService.updateElement(elementId, {
+        content,
+        ...(headingTitle ? { title: headingTitle } : {}),
+      }), DEBOUNCE_CONTENT_MS);
   }, [dispatch, debounced]);
 
   const updateElementTitle = useCallback((elementId: string, title: string) => {
@@ -1048,6 +1077,8 @@ function getDefaultContent(type: ElementType): unknown {
       };
     case 'sticky':
       return { text: '', color: '#fef9c3' };
+    case 'heading':
+      return DEFAULT_HEADING;
     case 'pdf':
       return { source: null };
     case 'image':

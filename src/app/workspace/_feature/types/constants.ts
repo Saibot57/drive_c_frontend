@@ -1,4 +1,5 @@
 import type { ElementType } from './workspace.types';
+import type { HeadingFont, HeadingLevel } from './heading.types';
 
 /**
  * En färg per elementtyp, ur samma pastellfamilj som schemaplanerarens
@@ -19,6 +20,7 @@ export const TYPE_COLORS: Record<ElementType, string> = {
   wheel_ref: '#f5d0fe',
   wheel_part: '#f5d0fe',
   schedule_day: '#fde68a',
+  heading: '#fca5a5',
 };
 
 /**
@@ -29,7 +31,13 @@ export const TYPE_COLORS: Record<ElementType, string> = {
  * först när listan ritas, så att `placeFromLibrary` fortfarande hittar en del
  * som ligger på en annan yta.
  */
-export const LIBRARY_HIDDEN_TYPES: ReadonlySet<ElementType> = new Set<ElementType>(['wheel_part']);
+export const LIBRARY_HIDDEN_TYPES: ReadonlySet<ElementType> = new Set<ElementType>([
+  'wheel_part',
+  // Rubriker är ytmöbler, inte återanvändbart innehåll. Tjugo stycken
+  // "AVDELNING 2" i biblioteket hade dränkt allt man faktiskt vill dra ut.
+  // De går fortfarande att spegla till en annan yta via högerklick.
+  'heading',
+]);
 
 /**
  * Speglar MAX_BULK_PLACE i workspace_routes.py. Kontrollen finns här bara för
@@ -60,6 +68,81 @@ export const MIN_WHEEL_REF_SIZE = 280;
  * bokstäver som ändå inte går att läsa.
  */
 export const WHEEL_REF_TEXT_MIN_ZOOM = 0.7;
+
+/* ── Rubriker ────────────────────────────────────────────────────────────── */
+
+/**
+ * Tre nivåer, tre fasta storlekar. Rubriken går att dra bredare så att texten
+ * bryter där man vill, men aldrig större — det är nivån som bestämmer, annars
+ * slutar rubrikerna vara jämförbara mellan ytorna.
+ */
+export const HEADING_SIZES: Record<HeadingLevel, number> = { 1: 48, 2: 32, 3: 22 };
+
+/** Nivåns förval. Archivo Black har ingen egen nivå och väljs för hand. */
+export const HEADING_LEVEL_FONT: Record<HeadingLevel, HeadingFont> = {
+  1: 'bangers',
+  2: 'monument',
+  3: 'redhat',
+};
+
+/**
+ * Optisk utjämning, mätt och inte gissad. Versalhöjden vid 100 px är
+ * Bangers 74, Monument 70, Archivo 68,8, Red Hat 70 — alltså nästan lika.
+ * Det som ser ut som en storleksskillnad mellan typsnitten är bredden
+ * (Monument tar 63 % mer plats per tecken än Red Hat, Bangers 19 % mindre),
+ * och bredd löses med bredd, inte med teckenstorlek.
+ *
+ * Kvar blir därför bara Bangers, som dessutom är versalt hela vägen och får
+ * mer massa än sin versalhöjd antyder.
+ */
+export const HEADING_FONT_OPTICAL: Record<HeadingFont, number> = {
+  bangers: 0.95,
+  monument: 1,
+  archivo: 1,
+  redhat: 1,
+};
+
+/** Variablerna sätts på body av RootLayoutBase via next/font. */
+export const HEADING_FONT_STACK: Record<HeadingFont, string> = {
+  bangers: 'var(--font-bangers), system-ui, sans-serif',
+  monument: 'var(--font-monument), system-ui, sans-serif',
+  archivo: 'var(--font-archivo), system-ui, sans-serif',
+  redhat: 'var(--font-redhat), system-ui, sans-serif',
+};
+
+export const HEADING_FONT_LABELS: Record<HeadingFont, string> = {
+  bangers: 'Bangers',
+  monument: 'Monument',
+  archivo: 'Archivo',
+  redhat: 'Red Hat',
+};
+
+export const HEADING_FONT_ORDER: HeadingFont[] = ['bangers', 'monument', 'archivo', 'redhat'];
+
+export const HEADING_DEFAULT_COLOR = '#000000';
+
+/**
+ * Textfärger, inte bakgrundsfärger. Pastellerna som fungerar under en
+ * notislapp är oläsliga som bokstäver mot den ljusa canvasen, så den här
+ * paletten är mörka varianter av samma familj.
+ */
+export const HEADING_COLORS: string[] = [
+  '#000000', '#374151', '#7f1d1d', '#9a3412', '#854d0e',
+  '#166534', '#115e59', '#1e3a8a', '#5b21b6', '#831843',
+];
+
+/** Egna färger sparas separat från schemaplanerarens — de är inte utbytbara. */
+export const HEADING_RECENT_COLORS_KEY = 'app.ws_heading_colors.v1';
+export const HEADING_RECENT_COLORS_MAX = 6;
+
+/**
+ * Tilltaget så att en normallång rubrik ryms på en rad även i Monument, som är
+ * det bredaste av de fyra. Bredden går att dra ner för den som vill bryta.
+ */
+export const HEADING_DEFAULT_WIDTH = 520;
+/** Bara en startgissning. Höjden mäts och skrivs tillbaka så fort den ritats. */
+export const HEADING_INITIAL_HEIGHT = 64;
+export const MIN_HEADING_WIDTH = 80;
 
 export const DEBOUNCE_POSITION_MS = 300;
 export const DEBOUNCE_CONTENT_MS = 500;

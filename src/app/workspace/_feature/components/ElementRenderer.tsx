@@ -7,6 +7,7 @@ import type { LinkContent } from '../types/link.types';
 import type { WheelRefContent } from '../types/wheelRef.types';
 import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent } from '../types/scheduleDay.types';
+import type { HeadingContent } from '../types/heading.types';
 import type { ProvenanceStatus } from '../utils/provenance';
 import TextEditor from './editors/TextEditor';
 import TableEditor, { type TableContent } from './editors/TableEditor';
@@ -20,6 +21,7 @@ import LinkEditor from './editors/LinkEditor';
 import WheelRefViewer from './editors/WheelRefViewer';
 import WheelPartViewer from './editors/WheelPartViewer';
 import ScheduleDayView from './editors/ScheduleDayView';
+import HeadingEditor from './editors/HeadingEditor';
 
 interface ElementRendererProps {
   element: WorkspaceElement;
@@ -144,6 +146,16 @@ export default function ElementRenderer({
 
     case 'schedule_day':
       return <ScheduleDayView content={element.content as ScheduleDayContent | null} />;
+
+    case 'heading':
+      return (
+        <HeadingEditor
+          content={element.content as HeadingContent | null}
+          isLocked={isLocked}
+          isSelected={isSelected}
+          onChange={onChange}
+        />
+      );
 
     default:
       return <p className="ws-sidebar-empty">Okänd elementtyp</p>;

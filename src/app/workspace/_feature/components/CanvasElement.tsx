@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Lock, Unlock } from 'lucide-react';
 import type { ElementType, SurfaceElement, WorkspaceElement } from '../types/workspace.types';
 import {
@@ -8,6 +9,7 @@ import {
   CTRL_RESIZE_CENTER_FRACTION,
   TYPE_COLORS,
   MIN_WHEEL_REF_SIZE,
+  MIN_HEADING_WIDTH,
 } from '../types/constants';
 import { useElementDrag, type Point } from '../hooks/useElementDrag';
 import { useElementResize, type Box } from '../hooks/useElementResize';
@@ -48,11 +50,28 @@ function detectResizeZone(
 }
 
 /** Ritar sin egen ram ända ut i kanten och vill inte ha någon padding. */
-const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link', 'wheel_ref', 'wheel_part', 'schedule_day'];
+const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link', 'wheel_ref', 'wheel_part', 'schedule_day', 'heading'];
 /** Har sin egen rullning inuti och ska inte kunna rullas av wrappern. */
 const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link', 'wheel_ref', 'schedule_day'];
 /** Ritas utan kort: formen är elementet, och rektangeln runt den var en lögn. */
-const BARE_TYPES: ElementType[] = ['wheel_part'];
+const BARE_TYPES: ElementType[] = ['wheel_part', 'heading'];
+
+/**
+ * Rektangeln tar inte emot pekaren — det gör formen inuti. Gäller tårtbiten,
+ * vars path träfftestas mot sin fyllning så att hålet i bågen blir tom yta.
+ * En rubrik är tvärtom text i en rektangel och måste gå att klicka på, så den
+ * är låddlös utan att vara genomsläpplig.
+ */
+const SHAPE_HIT_TYPES: ElementType[] = ['wheel_part'];
+
+/**
+ * Höjden följer innehållet och kan inte dras. Rubriker har fast teckenstorlek
+ * per nivå; det enda som ändrar höjden är hur många rader texten bryts på.
+ */
+const AUTO_HEIGHT_TYPES: ElementType[] = ['heading'];
+
+/** Bara bredden går att dra på en rubrik — höjden är inte användarens att sätta. */
+const WIDTH_ONLY_DIRECTIONS = ['e', 'w'] as const;
 
 function contentClassName(type: ElementType): string {
   return [
@@ -99,6 +118,8 @@ export default function CanvasElement({
   onContextMenu,
   provenance,
 }: CanvasElementProps) {
+  const isAutoHeight = AUTO_HEIGHT_TYPES.includes(element.type);
+
   const { handleMouseDown: handleDragDown } = useElementDrag({
     placementId: placement.id,
     zoom,
@@ -120,14 +141,46 @@ export default function CanvasElement({
     onResize,
     onMove,
     onResizeEnd,
-    // Hjulet tappar sina etiketter långt före de andra typerna.
-    minWidth: element.type === 'wheel_ref' ? MIN_WHEEL_REF_SIZE : undefined,
+    // Hjulet tappar sina etiketter långt före de andra typerna. Rubriken har
+    // inget innehåll att klämma sönder och får krympa till ett enda ord.
+    minWidth: element.type === 'wheel_ref'
+      ? MIN_WHEEL_REF_SIZE
+      : element.type === 'heading'
+        ? MIN_HEADING_WIDTH
+        : undefined,
     minHeight: element.type === 'wheel_ref' ? MIN_WHEEL_REF_SIZE : undefined,
   });
+
+  /*
+   * Höjden mäts ur DOM:en och skrivs tillbaka. Den styr ingenting visuellt —
+   * rutan är `height: auto` — men exportens bildruta räknas ut ur
+   * position_y + height, så en inaktuell höjd hade klippt rubriken i PDF:en.
+   * Eftersom det sparade värdet aldrig matas tillbaka till DOM-höjden kan det
+   * här inte bli en loop; tröskeln finns bara för att avrundning inte ska
+   * utlösa sparningar i onödan.
+   */
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isAutoHeight) return;
+    const node = rootRef.current;
+    if (!node) return;
+
+    const observer = new ResizeObserver(() => {
+      // getBoundingClientRect är i skärmpixlar; canvasen är skalad.
+      const measured = Math.ceil(node.getBoundingClientRect().height / zoom);
+      if (measured > 0 && Math.abs(measured - placement.height) > 1) {
+        onResize(placement.id, placement.width, measured);
+      }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isAutoHeight, zoom, placement.id, placement.width, placement.height, onResize]);
 
   const classNames = [
     'ws-element',
     BARE_TYPES.includes(element.type) && 'ws-element--bare',
+    SHAPE_HIT_TYPES.includes(element.type) && 'ws-element--shape-hit',
+    isAutoHeight && 'ws-element--auto-height',
     isSelected && 'ws-element--selected',
     !placement.is_locked && 'ws-element--unlocked',
   ]
@@ -139,13 +192,18 @@ export default function CanvasElement({
       const rect = e.currentTarget.getBoundingClientRect();
       const localX = e.clientX - rect.left;
       const localY = e.clientY - rect.top;
-      const dir = detectResizeZone(
+      const detected = detectResizeZone(
         localX,
         localY,
         rect.width,
         rect.height,
         CTRL_RESIZE_THRESHOLD_PX,
       );
+      // Auto-höjd har ingen lodrät storlek att ta i: 'ne' blir 'e', 'n' blir
+      // ingenting alls och faller tillbaka på ett vanligt drag.
+      const dir = isAutoHeight && detected
+        ? ((detected.replace(/[ns]/g, '') || null) as ResizeDir | null)
+        : detected;
       if (dir) {
         onSelect();
         handleResizeStart(dir)(e);
@@ -157,12 +215,14 @@ export default function CanvasElement({
 
   return (
     <div
+      ref={rootRef}
       className={classNames}
       style={{
         left: placement.position_x,
         top: placement.position_y,
         width: placement.width,
-        height: placement.height,
+        // Auto-höjd låter texten bestämma; det sparade måttet är bara ett eko.
+        height: isAutoHeight ? undefined : placement.height,
         zIndex: placement.z_index,
         // Listen överst på kortet. Färgen är data om elementtypen, som
         // notislappens färg — därför inline och inte i CSS-filen.
@@ -219,7 +279,7 @@ export default function CanvasElement({
 
       {/* Resize handles — only when selected and unlocked */}
       {isSelected && !placement.is_locked &&
-        RESIZE_DIRECTIONS.map((dir) => (
+        (isAutoHeight ? WIDTH_ONLY_DIRECTIONS : RESIZE_DIRECTIONS).map((dir) => (
           <div
             key={dir}
             className={`ws-resize-handle ws-resize-handle--${dir}`}

@@ -12,6 +12,7 @@ import {
   Link as LinkIcon,
   Layers,
   PieChart,
+  Heading,
   PanelLeftClose,
 } from 'lucide-react';
 import type { ElementType, WorkspaceElement } from '../types/workspace.types';
@@ -43,6 +44,7 @@ const elementButtons: { type: ElementType; label: string; icon: React.ReactNode 
   { type: 'image', label: 'Bild', icon: <ImageIcon size={16} /> },
   { type: 'link', label: 'Länk', icon: <LinkIcon size={16} /> },
   { type: 'wheel_ref', label: 'Temahjul', icon: <PieChart size={16} /> },
+  { type: 'heading', label: 'Rubrik', icon: <Heading size={16} /> },
 ];
 
 const typeIcons: Record<ElementType, React.ReactNode> = Object.fromEntries(
