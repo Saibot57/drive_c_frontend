@@ -87,4 +87,7 @@ export interface PersistedPlannerState {
   colorTriggers?: ColorTriggerRule[];
   /** Minsta lucka som räknas som planeringstid, i minuter. */
   planningMinGap?: number;
+  /** Arbetsdagens gränser i planeringsvyn, minuter från midnatt. `null` = standard. */
+  planningStartMinutes?: number | null;
+  planningEndMinutes?: number | null;
 }

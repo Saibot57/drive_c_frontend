@@ -9,6 +9,9 @@ export type PlanningFixture = {
   teachers: string[];
   availability?: TeacherAvailability;
   minGapMinutes?: number;
+  /** Ramens gränser i minuter. Utelämnade = standard. */
+  planningStartMinutes?: number | null;
+  planningEndMinutes?: number | null;
   day?: string;
   expectedBlocks: [string, string][];
   expectedDayOff?: boolean;
@@ -143,11 +146,12 @@ export const planningFixtures: PlanningFixture[] = [
     expectedDayOff: true
   },
   {
-    name: 'Lärare utan egna poster är fri hela ramen',
+    name: 'Lärare utan egna poster är fri hela ramen, som börjar 08:00',
     teachers: ['Tobias Lundh'],
     query: 'tobias planering',
     entries: [entry('Hanna', '09:00', '14:00')],
-    expectedBlocks: [['09:00', '14:00']]
+    // Ramen börjar vid rutnätet, inte vid dagens första lektion.
+    expectedBlocks: [['08:00', '14:00']]
   },
   {
     name: 'Komma i lärarfältet räknas som två lärare',
@@ -239,11 +243,12 @@ export const planningFixtures: PlanningFixture[] = [
     expectedBlocks: []
   },
   {
-    name: 'En dag med bara lunch ger ingen planeringstid',
+    name: 'En dag med bara lunch ger morgonen fram till lunchen',
     teachers: ['Tobias Lundh'],
     query: 'tobias planering',
     entries: [named('Lunch', '', '11:30', '12:15')],
-    expectedBlocks: []
+    // Ramen är 08:00 till lunchens slut, och lunchen klipps ur den.
+    expectedBlocks: [['08:00', '11:30']]
   },
 
   // --- "alla" under lärare ---
@@ -308,5 +313,101 @@ export const planningFixtures: PlanningFixture[] = [
       entry('Hanna', '10:00', '15:00')
     ],
     expectedBlocks: [['09:00', '10:00']]
+  },
+
+  // --- Arbetsdagens gränser ---
+  {
+    name: 'Morgonen före egna första lektionen är planeringstid',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [entry('Tobias', '10:00', '14:00')],
+    expectedBlocks: [['08:00', '10:00']]
+  },
+  {
+    name: '"till" förlänger förbi sista lektionen',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    planningEndMinutes: 16 * 60 + 30,
+    entries: [entry('Tobias', '08:00', '15:00')],
+    expectedBlocks: [['15:00', '16:30']]
+  },
+  {
+    name: '"till" kapar också',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    planningEndMinutes: 15 * 60,
+    entries: [
+      entry('Tobias', '08:00', '11:00'),
+      entry('Hanna', '11:00', '16:00')
+    ],
+    // Utan gränsen hade blocket gått till 16:00.
+    expectedBlocks: [['11:00', '15:00']]
+  },
+  {
+    name: '"från" flyttar början',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    planningStartMinutes: 8 * 60 + 30,
+    entries: [entry('Hanna', '08:00', '15:00')],
+    expectedBlocks: [['08:30', '15:00']]
+  },
+  {
+    name: 'Tom dag får planeringstid när "till" är satt',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    planningEndMinutes: 16 * 60 + 30,
+    entries: [],
+    expectedBlocks: [['08:00', '16:30']]
+  },
+  {
+    name: 'Tom dag utan "till" ger fortfarande ingenting',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [],
+    // Början är känd, men det finns inget slut att räkna mot.
+    expectedBlocks: []
+  },
+  {
+    name: 'Gränser utanför rutnätet klamras till 08–17',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    planningStartMinutes: 6 * 60,
+    planningEndMinutes: 18 * 60 + 30,
+    entries: [entry('Tobias', '08:00', '15:00')],
+    expectedBlocks: [['15:00', '17:00']]
+  },
+  {
+    name: '"från" efter "till" ger ingen planeringstid',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    planningStartMinutes: 15 * 60,
+    planningEndMinutes: 12 * 60,
+    entries: [entry('Hanna', '08:00', '16:00')],
+    expectedBlocks: []
   }
+];
+
+export type PlanningTimeParseFixture = {
+  input: unknown;
+  /** Minuter från midnatt, eller null när standarden ska gälla. */
+  expected: number | null;
+};
+
+export const planningTimeParseFixtures: PlanningTimeParseFixture[] = [
+  { input: '16:00', expected: 16 * 60 },
+  { input: '16', expected: 16 * 60 },
+  { input: '16.30', expected: 16 * 60 + 30 },
+  { input: '8:05', expected: 8 * 60 + 5 },
+  { input: '  16:00  ', expected: 16 * 60 },
+  { input: '', expected: null },
+  { input: '   ', expected: null },
+  { input: 'abc', expected: null },
+  { input: '16:00:00', expected: null },
+  { input: '25:00', expected: null },
+  { input: '16:75', expected: null },
+  { input: null, expected: null },
+  { input: undefined, expected: null },
+  // Utanför rutnätet dras in till kanten.
+  { input: '18:30', expected: 17 * 60 },
+  { input: '06:00', expected: 8 * 60 }
 ];

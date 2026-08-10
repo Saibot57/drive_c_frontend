@@ -5,7 +5,9 @@ import {
   COLOR_TRIGGERS_KEY,
   DEFAULT_PLANNING_MIN_GAP_MINUTES,
   EXPORT_EXCLUDE_KEY,
+  PLANNING_END_TIME_KEY,
   PLANNING_MIN_GAP_KEY,
+  PLANNING_START_TIME_KEY,
   ROOMS_KEY,
   TEACHERS_KEY,
   TEACHER_AVAILABILITY_KEY
@@ -14,7 +16,7 @@ import { useHotkeys } from '@/hooks/useHotkeys';
 import { ColorTriggerRule, TeacherAvailability } from '@/types/schedule';
 import { sanitizeColorTriggers } from '@/utils/colorTriggers';
 import { sanitizeExcludeList } from '@/utils/exportExclusions';
-import { sanitizePlanningMinGap } from '@/utils/planningTime';
+import { sanitizePlanningMinGap, sanitizePlanningTime } from '@/utils/planningTime';
 import { sanitizeTeacherAvailability } from '@/utils/scheduleRules';
 
 /** Behåller bara lärare som fortfarande står i lärarlistan. */
@@ -36,6 +38,9 @@ export const useHiddenSettings = () => {
   const [planningMinGap, setPlanningMinGap] = useState(DEFAULT_PLANNING_MIN_GAP_MINUTES);
   /** Titlar som nästa export hoppar över. Töms när exporten är gjord. */
   const [exportExcludes, setExportExcludes] = useState<string[]>([]);
+  /** Ramens gränser i minuter. `null` = standard. */
+  const [planningStartMinutes, setPlanningStartMinutes] = useState<number | null>(null);
+  const [planningEndMinutes, setPlanningEndMinutes] = useState<number | null>(null);
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -47,6 +52,8 @@ export const useHiddenSettings = () => {
       const storedTriggers = window.localStorage.getItem(COLOR_TRIGGERS_KEY);
       const storedMinGap = window.localStorage.getItem(PLANNING_MIN_GAP_KEY);
       const storedExcludes = window.localStorage.getItem(EXPORT_EXCLUDE_KEY);
+      const storedStart = window.localStorage.getItem(PLANNING_START_TIME_KEY);
+      const storedEnd = window.localStorage.getItem(PLANNING_END_TIME_KEY);
       const parsedTeachers = storedTeachers ? JSON.parse(storedTeachers) : [];
       const parsedRooms = storedRooms ? JSON.parse(storedRooms) : [];
       setTeachers(Array.isArray(parsedTeachers) ? parsedTeachers.filter(item => typeof item === 'string') : []);
@@ -57,6 +64,8 @@ export const useHiddenSettings = () => {
       setColorTriggers(sanitizeColorTriggers(storedTriggers ? JSON.parse(storedTriggers) : []));
       setPlanningMinGap(sanitizePlanningMinGap(storedMinGap ? JSON.parse(storedMinGap) : undefined));
       setExportExcludes(sanitizeExcludeList(storedExcludes ? JSON.parse(storedExcludes) : []));
+      setPlanningStartMinutes(sanitizePlanningTime(storedStart ? JSON.parse(storedStart) : null));
+      setPlanningEndMinutes(sanitizePlanningTime(storedEnd ? JSON.parse(storedEnd) : null));
     } catch (error) {
       console.warn('Kunde inte läsa lärare/salar.', error);
     }
@@ -109,6 +118,20 @@ export const useHiddenSettings = () => {
     }
   }, []);
 
+  const persistPlanningFrame = useCallback((nextStart: unknown, nextEnd: unknown) => {
+    const start = sanitizePlanningTime(nextStart);
+    const end = sanitizePlanningTime(nextEnd);
+    setPlanningStartMinutes(start);
+    setPlanningEndMinutes(end);
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(PLANNING_START_TIME_KEY, JSON.stringify(start));
+      window.localStorage.setItem(PLANNING_END_TIME_KEY, JSON.stringify(end));
+    } catch (error) {
+      console.warn('Kunde inte spara planeringsramen.', error);
+    }
+  }, []);
+
   /** Körs när en export är gjord: listan gäller bara nästa export. */
   const clearExportExcludes = useCallback(() => {
     persistExportExcludes([]);
@@ -127,13 +150,19 @@ export const useHiddenSettings = () => {
     persistPlanningMinGap(next);
   }, [persistPlanningMinGap]);
 
+  const applyPlanningFrame = useCallback((nextStart: unknown, nextEnd: unknown) => {
+    persistPlanningFrame(nextStart, nextEnd);
+  }, [persistPlanningFrame]);
+
   const handleHiddenSettingsSave = useCallback((
     nextTeachers: string[],
     nextRooms: string[],
     nextAvailability: TeacherAvailability,
     nextColorTriggers: ColorTriggerRule[],
     nextPlanningMinGap: number,
-    nextExportExcludes: string[]
+    nextExportExcludes: string[],
+    nextPlanningStart: number | null,
+    nextPlanningEnd: number | null
   ) => {
     setTeachers(nextTeachers);
     setRooms(nextRooms);
@@ -141,6 +170,7 @@ export const useHiddenSettings = () => {
     persistColorTriggers(sanitizeColorTriggers(nextColorTriggers));
     persistPlanningMinGap(nextPlanningMinGap);
     persistExportExcludes(nextExportExcludes);
+    persistPlanningFrame(nextPlanningStart, nextPlanningEnd);
     if (typeof window === 'undefined') return;
     try {
       window.localStorage.setItem(TEACHERS_KEY, JSON.stringify(nextTeachers));
@@ -148,7 +178,13 @@ export const useHiddenSettings = () => {
     } catch (error) {
       console.warn('Kunde inte spara lärare/salar.', error);
     }
-  }, [persistAvailability, persistColorTriggers, persistExportExcludes, persistPlanningMinGap]);
+  }, [
+    persistAvailability,
+    persistColorTriggers,
+    persistExportExcludes,
+    persistPlanningFrame,
+    persistPlanningMinGap
+  ]);
 
   return {
     teachers,
@@ -157,9 +193,12 @@ export const useHiddenSettings = () => {
     colorTriggers,
     planningMinGap,
     exportExcludes,
+    planningStartMinutes,
+    planningEndMinutes,
     applyTeacherAvailability,
     applyColorTriggers,
     applyPlanningMinGap,
+    applyPlanningFrame,
     clearExportExcludes,
     isHiddenSettingsOpen,
     setIsHiddenSettingsOpen,

@@ -186,9 +186,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     colorTriggers,
     planningMinGap,
     exportExcludes,
+    planningStartMinutes,
+    planningEndMinutes,
     applyTeacherAvailability,
     applyColorTriggers,
     applyPlanningMinGap,
+    applyPlanningFrame,
     clearExportExcludes,
     isHiddenSettingsOpen,
     setIsHiddenSettingsOpen,
@@ -204,6 +207,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     teacherAvailability?: unknown;
     colorTriggers?: unknown;
     planningMinGap?: unknown;
+    planningStartMinutes?: unknown;
+    planningEndMinutes?: unknown;
   } | null>(null);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [isClearScheduleConfirmOpen, setIsClearScheduleConfirmOpen] = useState(false);
@@ -295,9 +300,19 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       schedule,
       query: planningQuery,
       availability: teacherAvailability,
-      minGapMinutes: planningMinGap
+      minGapMinutes: planningMinGap,
+      planningStartMinutes,
+      planningEndMinutes
     });
-  }, [isPlanningMode, planningQuery, schedule, teacherAvailability, planningMinGap]);
+  }, [
+    isPlanningMode,
+    planningQuery,
+    schedule,
+    teacherAvailability,
+    planningMinGap,
+    planningStartMinutes,
+    planningEndMinutes
+  ]);
 
   const planningWeekMinutes = useMemo(() => {
     if (!planningByDay) return 0;
@@ -388,9 +403,22 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     );
   }, [clearExportExcludes, exportExcludes, isExcludedFromExport, schedule, showNotice]);
 
+  /**
+   * Ett planeringsblock kan sträcka sig förbi sista lektionen när ramens slut är
+   * satt för hand. Då måste filen klippas efter blocket, inte efter lektionen.
+   */
+  const planningExportEndMinutes = useMemo(() => {
+    if (!planningByDay) return undefined;
+    const latest = Object.values(planningByDay).reduce((max, result) => (
+      result.blocks.reduce((inner, block) => Math.max(inner, block.end), max)
+    ), 0);
+    return latest > 0 ? latest : undefined;
+  }, [planningByDay]);
+
   const { handleExportPDF, handleExportImage } = useScheduleExport({
     schedule,
     isExcludedFromExport,
+    extraEndMinutes: planningExportEndMinutes,
     onExportComplete: handleExportComplete
   });
 
@@ -599,14 +627,16 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleExportJSON = () => {
     const dataToSave: PersistedPlannerState = {
-      version: 8,
+      version: 9,
       timestamp: new Date().toISOString(),
       courses,
       schedule,
       restrictions,
       teacherAvailability,
       colorTriggers,
-      planningMinGap
+      planningMinGap,
+      planningStartMinutes,
+      planningEndMinutes
     };
     const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -634,7 +664,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             restrictions: parsed.restrictions,
             teacherAvailability: parsed.teacherAvailability,
             colorTriggers: parsed.colorTriggers,
-            planningMinGap: parsed.planningMinGap
+            planningMinGap: parsed.planningMinGap,
+            planningStartMinutes: parsed.planningStartMinutes,
+            planningEndMinutes: parsed.planningEndMinutes
           });
           setIsImportConfirmOpen(true);
         } else {
@@ -664,9 +696,26 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     if (pendingImportData.planningMinGap !== undefined) {
       applyPlanningMinGap(pendingImportData.planningMinGap);
     }
+    if (
+      pendingImportData.planningStartMinutes !== undefined
+      || pendingImportData.planningEndMinutes !== undefined
+    ) {
+      applyPlanningFrame(
+        pendingImportData.planningStartMinutes,
+        pendingImportData.planningEndMinutes
+      );
+    }
     setIsImportConfirmOpen(false);
     setPendingImportData(null);
-  }, [applyColorTriggers, applyPlanningMinGap, applyTeacherAvailability, commitSchedule, pendingImportData, setManualCourses]);
+  }, [
+    applyColorTriggers,
+    applyPlanningFrame,
+    applyPlanningMinGap,
+    applyTeacherAvailability,
+    commitSchedule,
+    pendingImportData,
+    setManualCourses
+  ]);
 
   const handleAddRestrictionRule = useCallback(() => {
     if (!newRule.subjectA || !newRule.subjectB) return;
@@ -1762,6 +1811,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         colorTriggers={colorTriggers}
         planningMinGap={planningMinGap}
         exportExcludes={exportExcludes}
+        planningStartMinutes={planningStartMinutes}
+        planningEndMinutes={planningEndMinutes}
         onSave={handleHiddenSettingsSave}
       />
       <CategoryDebugPanel

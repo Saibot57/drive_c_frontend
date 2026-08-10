@@ -15,6 +15,11 @@ export const PLANNING_KEYWORD = 'planering';
 const GRID_START_MINUTES = START_HOUR * 60;
 const GRID_END_MINUTES = END_HOUR * 60;
 
+/** Tider utanför rutnätet går inte att rita, så de dras in till kanten. */
+const clampToGrid = (minutes: number) => (
+  Math.min(GRID_END_MINUTES, Math.max(GRID_START_MINUTES, minutes))
+);
+
 const normalize = (value: string) => value.trim().toLocaleLowerCase('sv');
 
 /**
@@ -194,6 +199,10 @@ type PlanningParams = {
   query: PlanningQuery;
   availability: TeacherAvailability;
   minGapMinutes: number;
+  /** Ramens början. `null` = rutnätets början, alltså 08:00. */
+  planningStartMinutes?: number | null;
+  /** Ramens slut. `null` = dagens sista lektion, som förut. */
+  planningEndMinutes?: number | null;
 };
 
 const emptyDay = (isDayOff = false): PlanningDayResult => ({
@@ -205,14 +214,23 @@ const emptyDay = (isDayOff = false): PlanningDayResult => ({
 /**
  * Räknar ut de sammanhängande luckor där samtliga sökta lärare är fria.
  *
- * Arbetsdagens ram sätts av dagens första och sista post i hela schemat, inte
- * bara av de sökta lärarnas egna poster: slutar alla 15:00 är 15:00–17:00 inte
- * planeringstid. Ur ramen klipps de sökta lärarnas egna poster, deras spärrar
- * från debug-menyn, lunchen och poster som gäller alla. Halvdagsspärrar delar
- * dagen hårt vid 12:00.
+ * Arbetsdagen börjar när rutnätet börjar och slutar med dagens sista post i
+ * hela schemat, inte bara de sökta lärarnas: slutar alla 15:00 är 15:00–17:00
+ * inte planeringstid. Båda gränserna går att sätta för hand i debug-menyn, och
+ * en satt gräns är hård – den både förlänger och kapar.
+ *
+ * Ur ramen klipps de sökta lärarnas egna poster, deras spärrar från debug-menyn,
+ * lunchen och poster som gäller alla. Halvdagsspärrar delar dagen hårt vid 12:00.
  */
 export const computePlanningForDay = (
-  { schedule, query, availability, minGapMinutes }: PlanningParams,
+  {
+    schedule,
+    query,
+    availability,
+    minGapMinutes,
+    planningStartMinutes = null,
+    planningEndMinutes = null
+  }: PlanningParams,
   day: string
 ): PlanningDayResult => {
   if (!query.isPlanning) return emptyDay();
@@ -241,17 +259,19 @@ export const computePlanningForDay = (
   if (isDayOff) return emptyDay(true);
 
   const dayEntries = schedule.filter(entry => entry.day === day);
-  if (dayEntries.length === 0) return emptyDay();
 
-  const frameStart = Math.max(
-    GRID_START_MINUTES,
-    Math.min(...dayEntries.map(entry => timeToMinutes(entry.startTime)))
-  );
-  const frameEnd = Math.min(
-    GRID_END_MINUTES,
-    Math.max(...dayEntries.map(entry => timeToMinutes(entry.endTime)))
-  );
-  if (frameEnd <= frameStart) return emptyDay();
+  const frameStart = clampToGrid(planningStartMinutes ?? GRID_START_MINUTES);
+
+  // Utan satt sluttid och utan poster finns inget slut att räkna mot, och då
+  // finns ingen planeringstid – till skillnad från början, som alltid är känd.
+  const lastEntryEnd = dayEntries.length > 0
+    ? Math.max(...dayEntries.map(entry => timeToMinutes(entry.endTime)))
+    : null;
+  const frameEnd = planningEndMinutes ?? lastEntryEnd;
+  if (frameEnd === null) return emptyDay();
+
+  const clampedEnd = clampToGrid(frameEnd);
+  if (clampedEnd <= frameStart) return emptyDay();
 
   dayEntries.forEach(entry => {
     const names = splitTeacherNames(entry.teacher);
@@ -260,7 +280,7 @@ export const computePlanningForDay = (
     cuts.push({ start: timeToMinutes(entry.startTime), end: timeToMinutes(entry.endTime) });
   });
 
-  const blocks = subtractIntervals({ start: frameStart, end: frameEnd }, cuts)
+  const blocks = subtractIntervals({ start: frameStart, end: clampedEnd }, cuts)
     .filter(block => block.end - block.start >= minGapMinutes);
 
   return {
@@ -276,6 +296,30 @@ export const computePlanningByDay = (params: PlanningParams): Record<string, Pla
     result[day] = computePlanningForDay(params, day);
   });
   return result;
+};
+
+/**
+ * Läser ett klockslag ur debug-menyn till minuter. "16", "16:00" och "16.00"
+ * duger alla; tomt och skräp ger `null`, vilket betyder att standarden gäller.
+ * Resultatet klamras till rutnätet.
+ */
+export const sanitizePlanningTime = (input: unknown): number | null => {
+  if (typeof input === 'number') {
+    return Number.isFinite(input) ? clampToGrid(Math.round(input)) : null;
+  }
+  if (typeof input !== 'string') return null;
+
+  const text = input.trim();
+  if (!text) return null;
+
+  const match = text.match(/^(\d{1,2})(?:[:.](\d{1,2}))?$/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = match[2] ? Number(match[2]) : 0;
+  if (hours > 23 || minutes > 59) return null;
+
+  return clampToGrid(hours * 60 + minutes);
 };
 
 /** Tröskeln kommer från localStorage eller en importerad fil och kan vara skräp. */

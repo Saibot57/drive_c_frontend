@@ -15,6 +15,11 @@ type UseScheduleExportParams = {
    * `.pdf-export`, men höjdklippningen räknar på datan och måste veta.
    */
   isExcludedFromExport?: (entry: ScheduledEntry) => boolean;
+  /**
+   * Senaste sluttid som måste rymmas utöver posterna, i minuter. Planeringsblock
+   * kan sträcka sig förbi sista lektionen när ramen är satt för hand.
+   */
+  extraEndMinutes?: number;
   /** Körs först när filen faktiskt är skapad, så en kraschad export rensar inget. */
   onExportComplete?: () => void;
 };
@@ -22,6 +27,7 @@ type UseScheduleExportParams = {
 export const useScheduleExport = ({
   schedule,
   isExcludedFromExport,
+  extraEndMinutes,
   onExportComplete
 }: UseScheduleExportParams) => {
   const captureScheduleCanvas = useCallback(async () => {
@@ -60,7 +66,7 @@ export const useScheduleExport = ({
       return Number.isFinite(endMinutes)
         ? Math.max(latestEndMinutes, endMinutes)
         : latestEndMinutes;
-    }, Number.NEGATIVE_INFINITY);
+    }, Number.isFinite(extraEndMinutes) ? (extraEndMinutes as number) : Number.NEGATIVE_INFINITY);
 
     if (!Number.isFinite(maxEndMinutes)) return undefined;
     const nextFullHour = Math.ceil(maxEndMinutes / 60) * 60;
@@ -69,7 +75,7 @@ export const useScheduleExport = ({
     const topOffsetPx = 16;
     const safetyMarginPx = 8;
     return contentHeightPx + topOffsetPx + safetyMarginPx;
-  }, [schedule, isExcludedFromExport]);
+  }, [schedule, isExcludedFromExport, extraEndMinutes]);
 
   const handleExportPDF = useCallback(async (pageSize?: 'a4' | 'a3') => {
     const exportElement = document.getElementById('schedule-canvas');

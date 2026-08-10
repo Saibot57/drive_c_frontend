@@ -2,10 +2,17 @@ import {
   excludeMatchFixtures,
   excludeParseFixtures
 } from '@/components/schedule/__fixtures__/exportExclusions';
-import { planningFixtures } from '@/components/schedule/__fixtures__/planningTime';
+import {
+  planningFixtures,
+  planningTimeParseFixtures
+} from '@/components/schedule/__fixtures__/planningTime';
 import { DEFAULT_PLANNING_MIN_GAP_MINUTES } from '@/components/schedule/constants';
 import { matchesExcludeList, parseExcludeList } from '@/utils/exportExclusions';
-import { computePlanningForDay, parsePlanningQuery } from '@/utils/planningTime';
+import {
+  computePlanningForDay,
+  parsePlanningQuery,
+  sanitizePlanningTime
+} from '@/utils/planningTime';
 import { collectTeacherNames } from '@/utils/scheduleStats';
 import { minutesToTime } from '@/utils/scheduleTime';
 
@@ -43,6 +50,14 @@ export const runPlanningFixtureValidation = () => {
 
   runExcludeFixtures();
 
+  planningTimeParseFixtures.forEach(fixture => {
+    const actual = sanitizePlanningTime(fixture.input);
+    assertCondition(
+      actual === fixture.expected,
+      `[planning time] ${JSON.stringify(fixture.input)}: förväntade ${fixture.expected}, fick ${actual}`
+    );
+  });
+
   planningFixtures.forEach(fixture => {
     const day = fixture.day ?? 'Måndag';
     // Samma mängd som planeraren räknar fram: debug-menyns lista plus namnen i
@@ -60,7 +75,9 @@ export const runPlanningFixtureValidation = () => {
       schedule: fixture.entries,
       query,
       availability: fixture.availability ?? {},
-      minGapMinutes: fixture.minGapMinutes ?? DEFAULT_PLANNING_MIN_GAP_MINUTES
+      minGapMinutes: fixture.minGapMinutes ?? DEFAULT_PLANNING_MIN_GAP_MINUTES,
+      planningStartMinutes: fixture.planningStartMinutes ?? null,
+      planningEndMinutes: fixture.planningEndMinutes ?? null
     }, day);
 
     assertCondition(
