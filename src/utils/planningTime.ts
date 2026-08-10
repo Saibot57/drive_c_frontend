@@ -122,6 +122,17 @@ export const subtractIntervals = (frame: TimeInterval, cuts: TimeInterval[]): Ti
 
 // --- Planeringstid ---
 
+/**
+ * Poster vars titel innehåller det här är ingens planeringstid och klipps bort
+ * oavsett vem som står på dem. Lunchpass har oftast tomt lärarfält, så en regel
+ * som krävde namnmatchning hade varit verkningslös.
+ */
+const NON_PLANNING_TITLE = 'lunch';
+
+const isNonPlanningEntry = (entry: ScheduledEntry): boolean => (
+  typeof entry.title === 'string' && normalize(entry.title).includes(NON_PLANNING_TITLE)
+);
+
 export type PlanningDayResult = {
   blocks: TimeInterval[];
   /** Hela dagen är spärrad för minst en av lärarna – dagen är ledig, inte fri. */
@@ -147,8 +158,8 @@ const emptyDay = (isDayOff = false): PlanningDayResult => ({
  *
  * Arbetsdagens ram sätts av dagens första och sista post i hela schemat, inte
  * bara av de sökta lärarnas egna poster: slutar alla 15:00 är 15:00–17:00 inte
- * planeringstid. Ur ramen klipps de sökta lärarnas egna poster och deras
- * spärrar från debug-menyn. Halvdagsspärrar delar dagen hårt vid 12:00.
+ * planeringstid. Ur ramen klipps de sökta lärarnas egna poster, deras spärrar
+ * från debug-menyn och lunchen. Halvdagsspärrar delar dagen hårt vid 12:00.
  */
 export const computePlanningForDay = (
   { schedule, query, availability, minGapMinutes }: PlanningParams,
@@ -195,7 +206,7 @@ export const computePlanningForDay = (
   dayEntries.forEach(entry => {
     const names = splitTeacherNames(entry.teacher);
     const isBusy = names.some(name => query.terms.some(term => namesOverlap(name, term)));
-    if (!isBusy) return;
+    if (!isBusy && !isNonPlanningEntry(entry)) return;
     cuts.push({ start: timeToMinutes(entry.startTime), end: timeToMinutes(entry.endTime) });
   });
 

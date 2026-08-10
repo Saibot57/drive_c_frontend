@@ -40,6 +40,18 @@ const entry = (
   };
 };
 
+/** Poster med egen titel, för lunchen som klipps oavsett lärare. */
+const named = (
+  title: string,
+  teacher: string,
+  startTime: string,
+  endTime: string,
+  day = 'Måndag'
+): ScheduledEntry => ({
+  ...entry(teacher, startTime, endTime, day),
+  title
+});
+
 export const planningFixtures: PlanningFixture[] = [
   {
     name: 'Luckor mellan egna lektioner, ramen slutar med sista posten',
@@ -170,5 +182,54 @@ export const planningFixtures: PlanningFixture[] = [
     query: 'tobias planering',
     entries: [entry('Hanna', '07:00', '18:00')],
     expectedBlocks: [['08:00', '17:00']]
+  },
+  {
+    name: 'Lunch utan lärare klipps ändå och delar dagen',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [
+      entry('Hanna', '08:00', '16:00'),
+      named('Lunch', '', '11:30', '12:15')
+    ],
+    expectedBlocks: [['08:00', '11:30'], ['12:15', '16:00']]
+  },
+  {
+    name: 'Lunchrast matchar också',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [
+      entry('Hanna', '08:00', '16:00'),
+      named('Lunchrast', '', '11:00', '11:45')
+    ],
+    expectedBlocks: [['08:00', '11:00'], ['11:45', '16:00']]
+  },
+  {
+    name: 'Lunch med lärare på posten klipps oavsett vem det är',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [
+      entry('Hanna', '08:00', '16:00'),
+      named('lunch', 'Hanna', '12:00', '13:00')
+    ],
+    expectedBlocks: [['08:00', '12:00'], ['13:00', '16:00']]
+  },
+  {
+    name: 'Lunch kan krympa en lucka under tröskeln',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [
+      entry('Tobias', '08:00', '11:00'),
+      named('Lunch', '', '11:00', '11:30'),
+      entry('Tobias', '12:00', '15:00')
+    ],
+    // 11:30–12:00 är bara 30 min och faller på 45-minuterströskeln.
+    expectedBlocks: []
+  },
+  {
+    name: 'En dag med bara lunch ger ingen planeringstid',
+    teachers: ['Tobias Lundh'],
+    query: 'tobias planering',
+    entries: [named('Lunch', '', '11:30', '12:15')],
+    expectedBlocks: []
   }
 ];
