@@ -50,7 +50,9 @@ function detectResizeZone(
 /** Ritar sin egen ram ända ut i kanten och vill inte ha någon padding. */
 const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link', 'wheel_ref', 'wheel_part', 'schedule_day'];
 /** Har sin egen rullning inuti och ska inte kunna rullas av wrappern. */
-const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link', 'wheel_ref', 'wheel_part', 'schedule_day'];
+const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link', 'wheel_ref', 'schedule_day'];
+/** Ritas utan kort: formen är elementet, och rektangeln runt den var en lögn. */
+const BARE_TYPES: ElementType[] = ['wheel_part'];
 
 function contentClassName(type: ElementType): string {
   return [
@@ -125,6 +127,7 @@ export default function CanvasElement({
 
   const classNames = [
     'ws-element',
+    BARE_TYPES.includes(element.type) && 'ws-element--bare',
     isSelected && 'ws-element--selected',
     !placement.is_locked && 'ws-element--unlocked',
   ]
@@ -181,7 +184,7 @@ export default function CanvasElement({
         Sticklingen hämtar aldrig om sig själv, så det här är det enda som
         berättar att källan gått vidare — men att berätta är inte att tjata.
       */}
-      {(provenance === 'drifted' || provenance === 'missing') && (
+      {(provenance === 'drifted' || provenance === 'missing') && !BARE_TYPES.includes(element.type) && (
         <span
           className={`ws-provenance-dot ws-provenance-dot--${provenance}`}
           data-export="omit"
@@ -210,6 +213,7 @@ export default function CanvasElement({
           isLocked={placement.is_locked}
           isSelected={isSelected}
           onChange={(content) => onContentChange(element.id, content)}
+          provenance={provenance}
         />
       </div>
 

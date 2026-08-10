@@ -1278,6 +1278,83 @@ div:hover > .kanban-card-delete {
   text-align: left;
 }
 
+/* ── Kort utan kort ──────────────────────────────────────────────────────── */
+
+/*
+  En hjuldel ÄR sin form. Rektangeln runt den var en lögn: en båge över en
+  månad fyller under halva sitt omslutande rätblock, och resten var vitt som
+  låg i vägen för allt annat på ytan.
+*/
+.ws-element--bare {
+  background: transparent;
+  /* Färgen bort, men bredden kvar — annars flyttar innehållet två pixlar. */
+  border-color: transparent;
+  border-radius: 0;
+  /* Skuggan ritas av ett filter och sträcker sig utanför rutan. */
+  overflow: visible;
+  /*
+    Pekaren släpps igenom hela vägen och fångas av formen i stället. SVG
+    träfftestar mot pathens fyllning, så hålet i en båge blir riktig tom yta —
+    en lapp inuti kurvan går att klicka på, och delen ligger inte i vägen för
+    den. Draget överlever, eftersom pointer-events inte påverkar bubbling.
+  */
+  pointer-events: none;
+}
+
+/* Typfärgslisten och kortskuggorna hör till rektangeln som inte finns. */
+.ws-element--bare::before {
+  content: none;
+}
+
+.ws-element--bare,
+.ws-element--bare:hover,
+.ws-element--bare.ws-element--selected {
+  box-shadow: none;
+}
+
+/*
+  Den hårda skuggan följer alfakanalen i stället för en låda, så en krökt del
+  får en krökt skugga. Samma mått som --ws-frame-shadow, och kompenserat för
+  canvasens zoom av samma skäl som ramarna.
+*/
+.ws-element--bare .ws-wheel-part__svg {
+  filter: drop-shadow(
+    calc(4px / var(--ws-zoom)) calc(4px / var(--ws-zoom)) 0 rgba(0, 0, 0, 1)
+  );
+}
+
+/*
+  Innehållsytan rullar normalt, och overflow: auto klipper — vilket hade kapat
+  skuggan vid formens kant. Här finns inget att rulla ändå.
+*/
+.ws-element--bare .ws-element__content {
+  overflow: visible;
+}
+
+/*
+  Bara formen tar emot pekaren. Text, milstolpar och prickar har alla
+  pointer-events="none" i SVG:n, så kvar blir tårtbitens egen path.
+  pointer-events: none på föräldern hindrar inte ett barn från att sätta auto.
+*/
+.ws-element--bare .ws-wheel-part__canvas path {
+  pointer-events: auto;
+}
+
+/*
+  Reglagen sitter i ett hörn som nu är tomt luftrum, så de visas först när
+  delen är vald. Handtagen ritas bara då ändå.
+*/
+.ws-element--bare .ws-lock-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ws-element--bare.ws-element--selected .ws-lock-btn,
+.ws-element--bare.ws-element--selected .ws-resize-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* ── Utbruten hjuldel ────────────────────────────────────────────────────── */
 
 /*
@@ -1328,6 +1405,16 @@ div:hover > .kanban-card-delete {
 }
 
 .ws-element:hover .ws-wheel-part__source {
+  opacity: 0.85;
+}
+
+/*
+  Ett genomskinligt kort blir aldrig :hover — pointer-events: none ser till det.
+  Formen kan däremot hovras, så etiketten hänger på den i stället, och alltid
+  när delen är vald.
+*/
+.ws-element--bare:has(.ws-wheel-part__canvas path:hover) .ws-wheel-part__source,
+.ws-element--bare.ws-element--selected .ws-wheel-part__source {
   opacity: 0.85;
 }
 

@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import type { ThemeBlock } from '@/types/themeWheel';
 import type { BlockLane, BlockPlacement } from '@/utils/themeWheelLayout';
-import { fitFontSize, truncateToWidth } from '@/utils/themeWheelGeometry';
+import { fitFontSize, polar, truncateToWidth } from '@/utils/themeWheelGeometry';
 import { getMutedTextColor, getReadableTextColor } from '@/utils/readableTextColor';
 import {
   COMMENT_FONT_SIZE,
@@ -17,8 +17,10 @@ import {
 } from '@/components/theme-wheel/constants';
 import { WheelBlock } from '@/components/theme-wheel/WheelBlock';
 import type { WheelPartContent } from '../../types/wheelPart.types';
+import type { ProvenanceStatus } from '../../utils/provenance';
 import {
   STRAIGHT_PX_PER_WEEK,
+  partAngles,
   partHolidayOffsets,
   partMetrics,
   partViewBox,
@@ -31,6 +33,42 @@ interface WheelPartViewerProps {
   content: WheelPartContent | null;
   /** Prefix för id:n i SVG:n, så att två delar på samma yta inte krockar. */
   elementId: string;
+  /** Markeringen ritas på formens kontur — kortet har ingen ram att bära den. */
+  isSelected?: boolean;
+  /** Ritas som en prick *på* bågen. Kortets hörn är tomt luftrum här. */
+  provenance?: ProvenanceStatus;
+}
+
+/** Färgerna motsvarar .ws-provenance-dot i workspace.css. */
+const PROVENANCE_FILL: Partial<Record<ProvenanceStatus, string>> = {
+  drifted: '#fbbf24',
+  missing: '#e11d48',
+};
+
+/** Prickens radie, i samma enheter som formen ritas i. */
+const DOT_RADIUS = 6;
+
+function ProvenanceDot({ x, y, status }: { x: number; y: number; status: ProvenanceStatus }) {
+  const fill = PROVENANCE_FILL[status];
+  if (!fill) return null;
+  return (
+    <circle
+      cx={x}
+      cy={y}
+      r={DOT_RADIUS}
+      fill={fill}
+      stroke={WHEEL_STROKE}
+      strokeWidth={1.5}
+      pointerEvents="none"
+      data-export="omit"
+    >
+      <title>
+        {status === 'drifted'
+          ? 'Källan har ändrats sedan det här hämtades. Högerklicka för att uppdatera.'
+          : 'Källan finns inte längre.'}
+      </title>
+    </circle>
+  );
 }
 
 /**
@@ -39,18 +77,29 @@ interface WheelPartViewerProps {
  * Innehållet är en stickling och behöver varken hämtas eller kunna saknas, så
  * till skillnad från WheelRefViewer finns här inga tillstånd att hantera.
  */
-export default function WheelPartViewer({ content, elementId }: WheelPartViewerProps) {
+export default function WheelPartViewer({
+  content,
+  elementId,
+  isSelected = false,
+  provenance,
+}: WheelPartViewerProps) {
   if (!content) {
     return <div className="ws-wheel-part__state">Delen saknar innehåll.</div>;
   }
 
   return (
     <div className="ws-wheel-part">
-      {/* pointer-events av: kortet ska gå att dra i, inte formen inuti det. */}
+      {/*
+        Kortet är genomskinligt och släpper igenom pekaren; formen fångar den i
+        stället, och SVG träfftestar mot pathens fyllning. Hålet i en båge blir
+        därför riktig tom yta — man kan lägga en lapp inuti kurvan och klicka på
+        den. Draget överlever ändå, eftersom pointer-events inte påverkar
+        bubbling: händelsen träffar bågen och bubblar upp till kortet.
+      */}
       <div className="ws-wheel-part__canvas">
         {content.straight
-          ? <StraightPart content={content} elementId={elementId} />
-          : <CurvedPart content={content} elementId={elementId} />}
+          ? <StraightPart content={content} elementId={elementId} isSelected={isSelected} provenance={provenance} />
+          : <CurvedPart content={content} elementId={elementId} isSelected={isSelected} provenance={provenance} />}
       </div>
 
       {/*
@@ -72,7 +121,17 @@ export default function WheelPartViewer({ content, elementId }: WheelPartViewerP
  * koordinatsystem. Det är vad som garanterar att en del ser exakt likadan ut på
  * ytan som i hjulet, utan en andra ritrutin att hålla i synk.
  */
-function CurvedPart({ content, elementId }: { content: WheelPartContent; elementId: string }) {
+function CurvedPart({
+  content,
+  elementId,
+  isSelected,
+  provenance,
+}: {
+  content: WheelPartContent;
+  elementId: string;
+  isSelected: boolean;
+  provenance?: ProvenanceStatus;
+}) {
   const model = useMemo(() => {
     const block: ThemeBlock = {
       instanceId: content.instanceId,
@@ -94,7 +153,13 @@ function CurvedPart({ content, elementId }: { content: WheelPartContent; element
       endWeek: content.endWeek,
     };
 
-    return { metrics: partMetrics(content), viewBox: partViewBox(content).viewBox, block, placement };
+    const metrics = partMetrics(content);
+    const { shape, start, end } = partAngles(content, metrics);
+    // Pricken sitter mitt på bandet, strax innanför ytterkanten. Där finns det
+    // alltid färg att sitta på, oavsett hur bred eller smal tårtbiten är.
+    const dot = polar(metrics, shape.outer - DOT_RADIUS - 3, (start + end) / 2);
+
+    return { metrics, viewBox: partViewBox(content).viewBox, block, placement, dot };
   }, [content]);
 
   return (
@@ -105,14 +170,20 @@ function CurvedPart({ content, elementId }: { content: WheelPartContent; element
       role="img"
       aria-label={`${content.title}, ur ${content.sourceName}`}
     >
-      {/* Alla pekarhanterare utelämnade — då är WheelBlock skrivskyddad. */}
+      {/*
+        Alla pekarhanterare utelämnade — då är WheelBlock skrivskyddad.
+        isSelected tjocknar konturen, vilket är markeringen nu när kortet inte
+        har någon ram att bära den på.
+      */}
       <WheelBlock
         block={model.block}
         placement={model.placement}
         weekCount={content.weekCount}
         metrics={model.metrics}
         idPrefix={elementId}
+        isSelected={isSelected}
       />
+      {provenance && <ProvenanceDot x={model.dot.x} y={model.dot.y} status={provenance} />}
     </svg>
   );
 }
@@ -128,7 +199,17 @@ const STRAIGHT_TEXT_PADDING = 12;
  * Veckoskiljare och lovskraffering hör hemma här och inte i hjulet: det är
  * först på en rak tidslinje man kan följa var i spannet man befinner sig.
  */
-function StraightPart({ content, elementId }: { content: WheelPartContent; elementId: string }) {
+function StraightPart({
+  content,
+  elementId,
+  isSelected,
+  provenance,
+}: {
+  content: WheelPartContent;
+  elementId: string;
+  isSelected: boolean;
+  provenance?: ProvenanceStatus;
+}) {
   const { width, height } = straightSize(content);
   const weeks = partWeeks(content);
   const holidays = partHolidayOffsets(content);
@@ -184,7 +265,7 @@ function StraightPart({ content, elementId }: { content: WheelPartContent; eleme
         height={Math.max(height - WHEEL_STROKE_WIDTH, 0)}
         fill={content.color}
         stroke={WHEEL_STROKE}
-        strokeWidth={WHEEL_STROKE_WIDTH}
+        strokeWidth={isSelected ? 2.6 : WHEEL_STROKE_WIDTH}
       >
         <title>{[content.title, weekLabel, content.comment].filter(Boolean).join('\n')}</title>
       </rect>
@@ -259,6 +340,10 @@ function StraightPart({ content, elementId }: { content: WheelPartContent; eleme
         >
           <title>{content.milestone?.label}</title>
         </circle>
+      )}
+
+      {provenance && (
+        <ProvenanceDot x={width - DOT_RADIUS - 3} y={DOT_RADIUS + 3} status={provenance} />
       )}
     </svg>
   );

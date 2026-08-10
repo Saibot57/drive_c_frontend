@@ -33,11 +33,20 @@ export interface Box {
 }
 
 /**
- * Riktningarna där en båge vidrör sitt omslutande rätblock. I hjulets
- * koordinatsystem är 0° klockan tolv och vinkeln växer medurs, så bågen når
- * längst upp vid 0°, längst till höger vid 90°, och så vidare.
+ * Bågen vidrör sitt omslutande rätblock var nittionde grad: längst upp vid 0°,
+ * längst till höger vid 90°, och så vidare. `weekSpanAngles` håller sig inom
+ * [0°, 360°), men funktionen får inte anta det — ett spann som vridits kan
+ * ligga var som helst, och en fast lista [0, 90, 180, 270] hade då missat
+ * korsningarna och kapat delen.
  */
-const AXIS_DEGREES = [0, 90, 180, 270];
+const axisCrossings = (startDegrees: number, endDegrees: number): number[] => {
+  const crossings: number[] = [];
+  for (let k = Math.floor(startDegrees / 90); k <= Math.ceil(endDegrees / 90); k++) {
+    const degrees = k * 90;
+    if (degrees >= startDegrees && degrees <= endDegrees) crossings.push(degrees);
+  }
+  return crossings;
+};
 
 /**
  * Det omslutande rätblocket för en tårtbit.
@@ -65,10 +74,8 @@ export const sectorBoundingBox = (
     polar(metrics, innerRadius, endDegrees),
   ];
 
-  AXIS_DEGREES.forEach((degrees) => {
-    if (degrees >= startDegrees && degrees <= endDegrees) {
-      points.push(polar(metrics, outerRadius, degrees));
-    }
+  axisCrossings(startDegrees, endDegrees).forEach((degrees) => {
+    points.push(polar(metrics, outerRadius, degrees));
   });
 
   const xs = points.map((p) => p.x);

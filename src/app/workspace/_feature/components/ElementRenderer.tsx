@@ -7,6 +7,7 @@ import type { LinkContent } from '../types/link.types';
 import type { WheelRefContent } from '../types/wheelRef.types';
 import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent } from '../types/scheduleDay.types';
+import type { ProvenanceStatus } from '../utils/provenance';
 import TextEditor from './editors/TextEditor';
 import TableEditor, { type TableContent } from './editors/TableEditor';
 import MindmapEditor, { type MindmapContent } from './editors/MindmapEditor';
@@ -26,6 +27,8 @@ interface ElementRendererProps {
   /** Passed through to PdfViewer for click-to-focus pointer-events handling. */
   isSelected: boolean;
   onChange: (content: unknown) => void;
+  /** Ritas inne i formen för hjuldelar, som inte har något kort att bära den på. */
+  provenance?: ProvenanceStatus;
 }
 
 export default function ElementRenderer({
@@ -33,6 +36,7 @@ export default function ElementRenderer({
   isLocked,
   isSelected,
   onChange,
+  provenance,
 }: ElementRendererProps) {
   switch (element.type) {
     case 'text':
@@ -133,6 +137,8 @@ export default function ElementRenderer({
         <WheelPartViewer
           content={element.content as WheelPartContent | null}
           elementId={element.id}
+          isSelected={isSelected}
+          provenance={provenance}
         />
       );
 
