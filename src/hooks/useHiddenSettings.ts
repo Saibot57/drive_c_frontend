@@ -142,6 +142,28 @@ export const useHiddenSettings = () => {
     persistAvailability(sanitizeTeacherAvailability(next));
   }, [persistAvailability]);
 
+  /**
+   * Sätter listorna vid import utan att röra spärrarna. Skiljer sig från
+   * handleHiddenSettingsSave med flit: den beskär tillgängligheten mot
+   * lärarlistan, vilket vid en import skulle slänga precis det som importeras.
+   */
+  const applyTeachersAndRooms = useCallback((nextTeachers: unknown, nextRooms: unknown) => {
+    const toNameList = (value: unknown) => (
+      Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+    );
+    const teacherList = toNameList(nextTeachers);
+    const roomList = toNameList(nextRooms);
+    setTeachers(teacherList);
+    setRooms(roomList);
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(TEACHERS_KEY, JSON.stringify(teacherList));
+      window.localStorage.setItem(ROOMS_KEY, JSON.stringify(roomList));
+    } catch (error) {
+      console.warn('Kunde inte spara lärare/salar.', error);
+    }
+  }, []);
+
   const applyColorTriggers = useCallback((next: unknown) => {
     persistColorTriggers(sanitizeColorTriggers(next));
   }, [persistColorTriggers]);
@@ -196,6 +218,7 @@ export const useHiddenSettings = () => {
     planningStartMinutes,
     planningEndMinutes,
     applyTeacherAvailability,
+    applyTeachersAndRooms,
     applyColorTriggers,
     applyPlanningMinGap,
     applyPlanningFrame,

@@ -35,6 +35,32 @@ export interface PlannerActivity {
   category?: string;
 }
 
+/** Vem som har ett delat schema öppet just nu. */
+export interface ArchiveLock {
+  userId: string;
+  username: string;
+  acquiredAt: string | null;
+  /** Sant när det är den egna fliken som håller låset. */
+  isMine: boolean;
+}
+
+/**
+ * Ett namngivet schema så som listan visar det. Till skillnad från förr är
+ * namnet inte nyckeln — två personer kan ha varsin "v.35", och en delad "v.35"
+ * kan ligga bredvid din egen.
+ */
+export interface PlannerArchiveSummary {
+  id: string;
+  name: string;
+  ownerId: string;
+  ownerUsername: string | null;
+  isOwner: boolean;
+  /** Användarnamnen som schemat delats med. Tomt för ett schema bara du ser. */
+  sharedWith: string[];
+  lock: ArchiveLock | null;
+  updatedAt: string | null;
+}
+
 // --- Nya typer för Schema-planeraren (Timeline Version) ---
 
 export interface PlannerCourse {
@@ -83,6 +109,13 @@ export interface PersistedPlannerState {
   courses: PlannerCourse[];
   schedule: ScheduledEntry[];
   restrictions: RestrictionRule[];
+  /**
+   * Lärar- och sallistorna. Saknades till och med version 9, vilket gjorde en
+   * mailad fil ofullständig: mottagaren fick spärrarna men inte namnen de
+   * hänger på, och nästa sparning i debugmenyn rensade då bort spärrarna.
+   */
+  teachers?: string[];
+  rooms?: string[];
   teacherAvailability?: TeacherAvailability;
   colorTriggers?: ColorTriggerRule[];
   /** Minsta lucka som räknas som planeringstid, i minuter. */

@@ -20,6 +20,8 @@ type UseDragHandlersParams = {
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
   /** I planeringsvyn ritas inga poster, så en ny post skulle annars försvinna tyst. */
   isPlanningMode?: boolean;
+  /** Någon annan har det delade schemat öppet. Då går inget att flytta. */
+  isReadOnly?: boolean;
 };
 
 type DropTimeResult = {
@@ -35,7 +37,8 @@ export const useDragHandlers = ({
   resolveColor,
   isMobileDragDisabled,
   showNotice,
-  isPlanningMode = false
+  isPlanningMode = false,
+  isReadOnly = false
 }: UseDragHandlersParams) => {
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [ghostPlacement, setGhostPlacement] = useState<GhostPlacement | null>(null);
@@ -45,6 +48,9 @@ export const useDragHandlers = ({
     useSensor(KeyboardSensor)
   );
   const mobileSensors = useSensors(useSensor(KeyboardSensor));
+  // Läsläget stänger av dragandet via kortens `dragDisabled`, inte genom att
+  // byta sensoruppsättning: dnd-kit använder sensorlistan som beroendelista
+  // internt, och en lista som ändrar längd ger varningar och tappade lyssnare.
   const sensors = isMobileDragDisabled ? mobileSensors : desktopSensors;
 
   const computeDropTime = useCallback((event: any): DropTimeResult | null => {
@@ -134,6 +140,11 @@ export const useDragHandlers = ({
     setActiveDragItem(null);
     setGhostPlacement(null);
 
+    if (isReadOnly) {
+      showNotice('Någon annan har schemat öppet. Ta över det för att kunna ändra.', 'warning');
+      return;
+    }
+
     const computed = computeDropTime(event);
     if (!computed) return;
 
@@ -197,7 +208,7 @@ export const useDragHandlers = ({
           : existing
       ));
     }
-  }, [commitSchedule, computeDropTime, isPlanningMode, showNotice, validatePlacement]);
+  }, [commitSchedule, computeDropTime, isPlanningMode, isReadOnly, showNotice, validatePlacement]);
 
   const handleDragCancel = useCallback(() => {
     setActiveDragItem(null);

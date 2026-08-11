@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { generateBoxColor } from '@/config/colorManagement';
-import { ColorTriggerRule, PlannerCourse, RestrictionRule, ScheduledEntry } from '@/types/schedule';
+import { ColorTriggerRule, PlannerArchiveSummary, PlannerCourse, RestrictionRule, ScheduledEntry } from '@/types/schedule';
 import { findColorTrigger } from '@/utils/colorTriggers';
 
 type ScheduleModalsProps = {
@@ -40,17 +40,22 @@ type ScheduleModalsProps = {
   onImportConfirmOpenChange: (open: boolean) => void;
   onCancelImport: () => void;
   onConfirmImport: () => void;
-  overwriteWeekName: string | null;
-  onOverwriteWeekNameChange: (value: string | null) => void;
+  overwriteArchive: PlannerArchiveSummary | null;
+  onOverwriteArchiveChange: (value: PlannerArchiveSummary | null) => void;
   onConfirmOverwriteWeek: () => void;
-  deleteWeekName: string | null;
-  onDeleteWeekNameChange: (value: string | null) => void;
+  deleteArchive: PlannerArchiveSummary | null;
+  onDeleteArchiveChange: (value: PlannerArchiveSummary | null) => void;
   onConfirmDeleteWeek: () => void;
-  shareWeekName: string | null;
-  onShareWeekNameChange: (value: string | null) => void;
+  shareArchive: PlannerArchiveSummary | null;
+  onShareArchiveChange: (value: PlannerArchiveSummary | null) => void;
   shareRecipient: string;
   onShareRecipientChange: (value: string) => void;
   onConfirmShareWeek: () => void;
+  onRemoveShare: (username: string) => void;
+  onLeaveShare: (archive: PlannerArchiveSummary, username: string) => void;
+  onSendCopy: () => void;
+  /** Inloggat användarnamn — behövs för att kunna lämna en delning. */
+  currentUsername: string | null;
   isSharing: boolean;
   deleteCourseName: string | null;
   onDeleteCourseNameChange: (value: string | null) => void;
@@ -93,16 +98,20 @@ export function ScheduleModals({
   onImportConfirmOpenChange,
   onCancelImport,
   onConfirmImport,
-  overwriteWeekName,
-  onOverwriteWeekNameChange,
+  overwriteArchive,
+  onOverwriteArchiveChange,
   onConfirmOverwriteWeek,
-  deleteWeekName,
-  onDeleteWeekNameChange,
-  shareWeekName,
-  onShareWeekNameChange,
+  deleteArchive,
+  onDeleteArchiveChange,
+  shareArchive,
+  onShareArchiveChange,
   shareRecipient,
   onShareRecipientChange,
   onConfirmShareWeek,
+  onRemoveShare,
+  onLeaveShare,
+  onSendCopy,
+  currentUsername,
   isSharing,
   onConfirmDeleteWeek,
   deleteCourseName,
@@ -380,59 +389,136 @@ export function ScheduleModals({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(overwriteWeekName)} onOpenChange={(open) => { if (!open) onOverwriteWeekNameChange(null); }}>
+      <Dialog open={Boolean(overwriteArchive)} onOpenChange={(open) => { if (!open) onOverwriteArchiveChange(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ersätta befintlig vecka?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-700">Vecka &quot;{overwriteWeekName}&quot; finns redan. Vill du skriva över den?</p>
+          <p className="text-sm text-gray-700">Vecka &quot;{overwriteArchive?.name}&quot; finns redan. Vill du skriva över den?</p>
           <DialogFooter>
-            <Button variant="neutral" onClick={() => onOverwriteWeekNameChange(null)}>Avbryt</Button>
+            <Button variant="neutral" onClick={() => onOverwriteArchiveChange(null)}>Avbryt</Button>
             <Button onClick={onConfirmOverwriteWeek}>Skriv över</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(deleteWeekName)} onOpenChange={(open) => { if (!open) onDeleteWeekNameChange(null); }}>
+      <Dialog open={Boolean(deleteArchive)} onOpenChange={(open) => { if (!open) onDeleteArchiveChange(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Radera vecka?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-700">Radera vecka &quot;{deleteWeekName}&quot;?</p>
+          <p className="text-sm text-gray-700">Radera vecka &quot;{deleteArchive?.name}&quot;?</p>
+          {/* Radering av ett delat schema drabbar fler än en. */}
+          {deleteArchive && deleteArchive.sharedWith.length > 0 && (
+            <p className="text-sm font-bold text-rose-800">
+              Schemat är delat med {deleteArchive.sharedWith.join(', ')}. Det försvinner för dem också.
+            </p>
+          )}
           <DialogFooter>
-            <Button variant="neutral" onClick={() => onDeleteWeekNameChange(null)}>Avbryt</Button>
+            <Button variant="neutral" onClick={() => onDeleteArchiveChange(null)}>Avbryt</Button>
             <Button className="bg-rose-200 hover:bg-rose-300" onClick={onConfirmDeleteWeek}>Radera</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(shareWeekName)} onOpenChange={(open) => { if (!open) onShareWeekNameChange(null); }}>
+      <Dialog open={Boolean(shareArchive)} onOpenChange={(open) => { if (!open) onShareArchiveChange(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Dela vecka</DialogTitle>
+            <DialogTitle>Dela &quot;{shareArchive?.name}&quot;</DialogTitle>
           </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); onConfirmShareWeek(); }} className="space-y-3">
-            <div>
-              <Label>Användarnamn</Label>
-              <Input
-                value={shareRecipient}
-                onChange={(e) => onShareRecipientChange(e.target.value)}
-                placeholder="t.ex. Anna"
-                autoFocus
-                autoComplete="off"
-              />
-            </div>
-            <p className="text-xs text-gray-600">
-              &quot;{shareWeekName}&quot; kopieras till mottagarens arkiv. De får en egen version
-              att redigera — dina senare ändringar följer inte med.
-            </p>
-            <DialogFooter>
-              <Button type="button" variant="neutral" onClick={() => onShareWeekNameChange(null)}>Avbryt</Button>
-              <Button type="submit" disabled={isSharing || !shareRecipient.trim()}>
-                {isSharing ? 'Delar…' : 'Dela'}
+
+          <div className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); onConfirmShareWeek(); }} className="space-y-3">
+              <div>
+                <Label>Användarnamn</Label>
+                <Input
+                  value={shareRecipient}
+                  onChange={(e) => onShareRecipientChange(e.target.value)}
+                  placeholder="t.ex. hanna"
+                  autoFocus
+                  autoComplete="off"
+                />
+              </div>
+              <p className="text-xs text-gray-600">
+                Ni arbetar i <strong>samma</strong> schema. Ändringar syns för alla nästa gång
+                de öppnar det. En i taget — den som har schemat öppet håller det låst.
+              </p>
+              <Button type="submit" className="w-full" disabled={isSharing || !shareRecipient.trim()}>
+                {isSharing ? 'Delar…' : 'Ge tillgång'}
               </Button>
-            </DialogFooter>
-          </form>
+            </form>
+
+            {shareArchive && (
+              <div className="space-y-2 border-t-2 border-black pt-3">
+                <Label className="text-xs font-bold uppercase text-gray-500">Har tillgång</Label>
+                <p className="text-sm">
+                  {shareArchive.ownerUsername ?? 'Okänd'}
+                  <span className="text-gray-500"> — äger schemat</span>
+                </p>
+                {shareArchive.sharedWith.length === 0 ? (
+                  <p className="text-sm italic text-gray-500">Ingen annan än du ännu.</p>
+                ) : (
+                  shareArchive.sharedWith.map((username) => (
+                    <div key={username} className="flex items-center justify-between gap-2">
+                      <span className="text-sm">{username}</span>
+                      {shareArchive.isOwner && (
+                        <Button
+                          size="sm"
+                          variant="neutral"
+                          className="h-7 bg-rose-100 hover:bg-rose-200 text-rose-800"
+                          disabled={isSharing}
+                          onClick={() => onRemoveShare(username)}
+                        >
+                          Ta bort
+                        </Button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Den gamla engångskopian finns kvar: den är rätt verktyg när
+                kollegan ska bygga något eget utifrån veckan i stället för att
+                arbeta i den. Backend hämtar kopian ur den egna uppsättningen,
+                så den erbjuds bara för scheman man äger. */}
+            {shareArchive?.isOwner && (
+              <div className="space-y-2 border-t-2 border-black pt-3">
+                <Label className="text-xs font-bold uppercase text-gray-500">Eller skicka en kopia</Label>
+                <p className="text-xs text-gray-600">
+                  Mottagaren får en egen version att göra vad de vill med. Dina senare
+                  ändringar följer inte med.
+                </p>
+                <Button
+                  type="button"
+                  variant="neutral"
+                  className="w-full"
+                  disabled={isSharing || !shareRecipient.trim()}
+                  onClick={onSendCopy}
+                >
+                  Skicka kopia till {shareRecipient.trim() || '…'}
+                </Button>
+              </div>
+            )}
+
+            {shareArchive && !shareArchive.isOwner && currentUsername && (
+              <div className="border-t-2 border-black pt-3">
+                <Button
+                  type="button"
+                  variant="neutral"
+                  className="w-full bg-rose-100 hover:bg-rose-200 text-rose-800"
+                  disabled={isSharing}
+                  onClick={() => onLeaveShare(shareArchive, currentUsername)}
+                >
+                  Lämna schemat
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="neutral" onClick={() => onShareArchiveChange(null)}>Stäng</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

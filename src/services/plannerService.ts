@@ -1,5 +1,5 @@
 import { fetchWithAuth } from './authService';
-import type { PlannerActivity } from '@/types/schedule';
+import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
 
 import { API_URL } from '@/config/api';
 const PLANNER_API_URL = `${API_URL}/planner`;
@@ -13,6 +13,36 @@ type ShareArchiveResult = {
   archiveName: string;
   recipient: string;
   count: number;
+};
+
+/** Kastas när någon annan har schemat öppet, så anroparen kan gå i läsläge. */
+export class ArchiveLockedError extends Error {
+  holder: string;
+
+  constructor(message: string, holder: string) {
+    super(message);
+    this.name = 'ArchiveLockedError';
+    this.holder = holder;
+  }
+}
+
+type ArchiveActivitiesResult = {
+  archive: PlannerArchiveSummary;
+  activities: PlannerActivity[];
+};
+
+const unwrap = (payload: any) => (
+  payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload
+);
+
+/** Backend svarar 409 när låset sitter hos någon annan. */
+const assertNotLocked = async (response: Response) => {
+  if (response.status !== 409) return;
+  const payload = await response.json().catch(() => null);
+  throw new ArchiveLockedError(
+    payload?.error || 'Någon annan har schemat öppet.',
+    payload?.data?.lockedBy || 'Någon annan',
+  );
 };
 
 type PlannerSyncPayload = {
@@ -152,18 +182,139 @@ export const plannerService = {
     };
   },
 
+  /**
+   * Namnen på de egna schemana. Används av workspace-importen, provenance och
+   * Command Center, som läser arkiv via de namnbaserade endpointerna och därför
+   * inte kan nå någon annans schema. Planeraren själv går på id.
+   */
   async getPlannerArchiveNames(): Promise<string[]> {
+    const archives = await plannerService.listArchives();
+    return archives.filter(archive => archive.isOwner).map(archive => archive.name);
+  },
+
+  // --- Delade scheman ---
+  //
+  // Namnbaserat räckte så länge alla scheman var privata. Ett delat schema kan
+  // heta samma sak som ett eget, så allt härifrån och ner går på id.
+
+  async listArchives(): Promise<PlannerArchiveSummary[]> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives`);
     if (!response.ok) {
-      throw new Error('Kunde inte hämta planeringsarkiv.');
+      throw new Error('Kunde inte hämta scheman.');
     }
-    const payload = await response.json();
-    if (Array.isArray(payload?.data)) {
-      return payload.data as string[];
+    const archives = unwrap(await response.json());
+    return Array.isArray(archives) ? (archives as PlannerArchiveSummary[]) : [];
+  },
+
+  async createArchive(name: string): Promise<PlannerArchiveSummary> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Kunde inte skapa schemat.');
     }
-    if (Array.isArray(payload)) {
-      return payload as string[];
+    return unwrap(payload) as PlannerArchiveSummary;
+  },
+
+  async getArchiveActivities(archiveId: string): Promise<ArchiveActivitiesResult> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/activities`);
+    if (!response.ok) {
+      throw new Error('Kunde inte hämta schemat.');
     }
-    return [];
+    const result = unwrap(await response.json());
+    return {
+      archive: result?.archive,
+      activities: Array.isArray(result?.activities) ? result.activities : [],
+    };
+  },
+
+  async saveArchiveActivities(
+    archiveId: string,
+    activities: PlannerActivity[],
+  ): Promise<ArchiveActivitiesResult> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/activities`, {
+      method: 'PUT',
+      body: JSON.stringify({ activities }),
+    });
+    await assertNotLocked(response);
+    if (!response.ok) {
+      throw new Error('Kunde inte spara schemat.');
+    }
+    const result = unwrap(await response.json());
+    return {
+      archive: result?.archive,
+      activities: Array.isArray(result?.activities) ? result.activities : [],
+    };
+  },
+
+  async deleteArchive(archiveId: string): Promise<void> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}`, {
+      method: 'DELETE',
+    });
+    await assertNotLocked(response);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || 'Kunde inte ta bort schemat.');
+    }
+  },
+
+  /**
+   * Tar låset. `acquired: false` betyder att någon annan har det — skicka
+   * `force` för att ta över, men först efter att användaren fått veta vem.
+   */
+  async acquireArchiveLock(
+    archiveId: string,
+    options: { force?: boolean } = {},
+  ): Promise<{ acquired: boolean; archive: PlannerArchiveSummary }> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/lock`, {
+      method: 'POST',
+      body: JSON.stringify({ force: Boolean(options.force) }),
+    });
+    if (!response.ok) {
+      throw new Error('Kunde inte öppna schemat.');
+    }
+    return unwrap(await response.json());
+  },
+
+  async releaseArchiveLock(archiveId: string): Promise<void> {
+    await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/lock`, { method: 'DELETE' });
+  },
+
+  /**
+   * Släpper låset när fliken stängs. Vanlig fetch hinner avbrytas vid unload,
+   * så anropet måste märkas som keepalive för att komma iväg.
+   */
+  releaseArchiveLockOnUnload(archiveId: string): void {
+    void fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/lock`, {
+      method: 'DELETE',
+      keepalive: true,
+    }).catch(() => undefined);
+  },
+
+  async addArchiveShare(archiveId: string, username: string): Promise<PlannerArchiveSummary> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/shares`, {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      // Backend skickar en läsbar orsak (okänd användare, redan delad, för
+      // många delningar) — visa den i stället för en generisk text.
+      throw new Error(payload?.error || 'Kunde inte dela schemat.');
+    }
+    return unwrap(payload) as PlannerArchiveSummary;
+  },
+
+  async removeArchiveShare(archiveId: string, username: string): Promise<void> {
+    const response = await fetchWithAuth(
+      `${PLANNER_API_URL}/archives/${archiveId}/shares/${encodeURIComponent(username)}`,
+      { method: 'DELETE' },
+    );
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || 'Kunde inte ta bort delningen.');
+    }
   },
 };

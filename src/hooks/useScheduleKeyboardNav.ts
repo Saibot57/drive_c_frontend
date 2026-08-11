@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
-import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
+import { PlannerArchiveSummary, PlannerCourse, ScheduledEntry } from '@/types/schedule';
 import { PLANNER_DAYS } from '@/components/schedule/constants';
 import { timeToMinutes } from '@/utils/scheduleTime';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,7 +12,7 @@ export type ActiveZone = 'courses' | 'grid' | 'archive';
 type UseScheduleKeyboardNavOptions = {
   courses: PlannerCourse[];
   schedule: ScheduledEntry[];
-  sortedWeekNames: string[];
+  sortedArchives: PlannerArchiveSummary[];
   filterQuery: string;
   isSidebarCollapsed: boolean;
   isRightSidebarCollapsed: boolean;
@@ -27,9 +27,9 @@ type UseScheduleKeyboardNavOptions = {
   onCopyContent: (entry: ScheduledEntry) => void;
   onPasteContent: (entry: ScheduledEntry) => void;
   onOpenContextMenu: (entry: ScheduledEntry) => void;
-  onLoadWeek: (name: string) => void;
-  onDuplicateWeek: (name: string) => void;
-  onDeleteWeek: (name: string) => void;
+  onLoadWeek: (archiveId: string) => void;
+  onDuplicateWeek: (archive: PlannerArchiveSummary) => void;
+  onDeleteWeek: (archive: PlannerArchiveSummary) => void;
   // Placement
   onStartPlacement: (course: PlannerCourse) => void;
   hasCopiedContent: boolean;
@@ -47,7 +47,7 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
   const {
     courses,
     schedule,
-    sortedWeekNames,
+    sortedArchives,
     filterQuery,
     isSidebarCollapsed,
     isRightSidebarCollapsed,
@@ -119,13 +119,13 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
             if (dayEntries.length > 0) {
               setSelectedEventId(dayEntries[0].instanceId);
             }
-          } else if (nextZone === 'archive' && sortedWeekNames.length > 0) {
+          } else if (nextZone === 'archive' && sortedArchives.length > 0) {
             setSelectedArchiveIndex(0);
           }
         },
       },
     ],
-    [activeZone, isSidebarCollapsed, isRightSidebarCollapsed, visibleCourses, schedule, sortedWeekNames, gridDayIndex],
+    [activeZone, isSidebarCollapsed, isRightSidebarCollapsed, visibleCourses, schedule, sortedArchives, gridDayIndex],
   );
 
   // --- Course sidebar navigation ---
@@ -458,7 +458,7 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
             handler: () => {
               setSelectedArchiveIndex(prev => {
                 if (prev === null) return 0;
-                return Math.min(prev + 1, sortedWeekNames.length - 1);
+                return Math.min(prev + 1, sortedArchives.length - 1);
               });
             },
           },
@@ -467,7 +467,7 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
             handler: () => {
               setSelectedArchiveIndex(prev => {
                 if (prev === null) return 0;
-                return Math.min(prev + 1, sortedWeekNames.length - 1);
+                return Math.min(prev + 1, sortedArchives.length - 1);
               });
             },
           },
@@ -492,24 +492,24 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
           {
             key: 'Enter',
             handler: () => {
-              if (selectedArchiveIndex !== null && sortedWeekNames[selectedArchiveIndex]) {
-                onLoadWeek(sortedWeekNames[selectedArchiveIndex]);
+              if (selectedArchiveIndex !== null && sortedArchives[selectedArchiveIndex]) {
+                onLoadWeek(sortedArchives[selectedArchiveIndex].id);
               }
             },
           },
           {
             key: 'd',
             handler: () => {
-              if (selectedArchiveIndex !== null && sortedWeekNames[selectedArchiveIndex]) {
-                onDuplicateWeek(sortedWeekNames[selectedArchiveIndex]);
+              if (selectedArchiveIndex !== null && sortedArchives[selectedArchiveIndex]) {
+                onDuplicateWeek(sortedArchives[selectedArchiveIndex]);
               }
             },
           },
           {
             key: 'Delete',
             handler: () => {
-              if (selectedArchiveIndex !== null && sortedWeekNames[selectedArchiveIndex]) {
-                onDeleteWeek(sortedWeekNames[selectedArchiveIndex]);
+              if (selectedArchiveIndex !== null && sortedArchives[selectedArchiveIndex]) {
+                onDeleteWeek(sortedArchives[selectedArchiveIndex]);
               }
             },
           },
@@ -522,7 +522,7 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
           },
         ]
       : [],
-    [activeZone, selectedArchiveIndex, sortedWeekNames, onLoadWeek, onDuplicateWeek, onDeleteWeek],
+    [activeZone, selectedArchiveIndex, sortedArchives, onLoadWeek, onDuplicateWeek, onDeleteWeek],
   );
 
   return {

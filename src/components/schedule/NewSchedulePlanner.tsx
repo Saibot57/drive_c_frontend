@@ -10,6 +10,7 @@ import {
   Archive,
   Copy,
   Download,
+  Lock,
   RefreshCcw,
   Trash2,
   Plus,
@@ -62,6 +63,7 @@ import { DraggableSourceCard } from '@/components/schedule/DraggableSourceCard';
 import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
 import { PlanningBlockCard, PlanningDayOffLabel } from '@/components/schedule/PlanningBlockCard';
 import { DayColumn } from '@/components/schedule/DayColumn';
+import { ArchiveCard } from '@/components/schedule/ArchiveCard';
 import { CategoryDebugPanel, HiddenSettingsPanel } from '@/components/schedule/DebugPanels';
 import { ScheduleModals } from '@/components/schedule/ScheduleModals';
 import { FindReplacePanel } from '@/components/schedule/FindReplacePanel';
@@ -77,6 +79,7 @@ import { useHiddenSettings } from '@/hooks/useHiddenSettings';
 import { usePlannerSections } from '@/hooks/usePlannerSections';
 import { useCourseManager } from '@/hooks/useCourseManager';
 import { useArchiveManager } from '@/hooks/useArchiveManager';
+import { useAuth } from '@/contexts/AuthContext';
 import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/components/schedule/courseUtils';
 import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
@@ -146,6 +149,9 @@ const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
 
 export default function NewSchedulePlanner() {
   const { plannerNotice, showNotice } = usePlannerNotice();
+  // Behövs för att kunna lämna ett schema någon annan äger — backend vill ha
+  // användarnamnet, och det är bara det egna man får ta bort.
+  const { user } = useAuth();
   const { schedule, commitSchedule } = useScheduleHistory();
   const {
     manualCourses,
@@ -189,6 +195,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     planningStartMinutes,
     planningEndMinutes,
     applyTeacherAvailability,
+    applyTeachersAndRooms,
     applyColorTriggers,
     applyPlanningMinGap,
     applyPlanningFrame,
@@ -204,6 +211,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     courses: PlannerCourse[];
     schedule: ScheduledEntry[];
     restrictions?: RestrictionRule[];
+    teachers?: unknown;
+    rooms?: unknown;
     teacherAvailability?: unknown;
     colorTriggers?: unknown;
     planningMinGap?: unknown;
@@ -227,28 +236,40 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const jsonMenuRef = useRef<HTMLDivElement>(null);
 
   const {
-    sortedWeekNames,
+    ownArchives,
+    sharedArchives,
+    sortedArchives,
+    ownArchiveNames,
+    initialArchiveId,
+    activeArchive,
+    activeArchiveId,
+    activeArchiveName,
+    isReadOnly,
+    lockHolder,
+    handleTakeOverLock,
+    markLockLost,
     weekName,
     setWeekName,
-    activeArchiveName,
-    setActiveArchiveName,
-    overwriteWeekName,
-    setOverwriteWeekName,
-    deleteWeekName,
-    setDeleteWeekName,
+    overwriteArchive,
+    setOverwriteArchive,
+    deleteArchive,
+    setDeleteArchive,
     handleSaveWeek,
     handleLoadWeek,
     handleDeleteWeek,
     handleConfirmDeleteWeek,
     handleDuplicateWeek,
     handleConfirmOverwriteWeek,
-    shareWeekName,
-    setShareWeekName,
+    shareArchive,
+    setShareArchive,
     shareRecipient,
     setShareRecipient,
     isSharing,
     handleShareWeek,
     handleConfirmShareWeek,
+    handleRemoveShare,
+    handleLeaveShare,
+    handleSendCopy,
     newScheduleName,
     setNewScheduleName,
     isNewScheduleDialogOpen,
@@ -262,10 +283,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     showNotice
   });
 
-  const { loadedArchiveName } = usePlannerSync({
+  usePlannerSync({
     schedule,
     commitSchedule,
-    activeArchiveName,
+    activeArchiveId,
+    initialArchiveId,
+    isReadOnly,
+    onLockLost: markLockLost,
     showNotice
   });
 
@@ -350,8 +374,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     isAtLastMobileDay,
     handleMobileArchiveStep
   } = useMobileNavigation({
-    activeArchiveName,
-    sortedWeekNames,
+    activeArchiveId,
+    sortedArchives,
     handleLoadWeek
   });
 
@@ -369,7 +393,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     resolveColor,
     isMobileDragDisabled,
     showNotice,
-    isPlanningMode
+    isPlanningMode,
+    isReadOnly
   });
 
   // --- Uteslutning ur nästa export ---
@@ -478,10 +503,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     [],
   );
 
-  useEffect(() => {
-    if (!loadedArchiveName) return;
-    setActiveArchiveName(loadedArchiveName);
-  }, [loadedArchiveName, setActiveArchiveName]);
+  // Vilket schema sidan öppnar i avgörs numera i useArchiveManager, som både
+  // läser localStorage och tar låset. Ingen efterhandssynk behövs här.
 
   useEffect(() => {
     if (!isPdfMenuOpen && !isImageExportMenuOpen && !isJsonMenuOpen) return;
@@ -627,11 +650,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleExportJSON = () => {
     const dataToSave: PersistedPlannerState = {
-      version: 9,
+      version: 10,
       timestamp: new Date().toISOString(),
       courses,
       schedule,
       restrictions,
+      teachers,
+      rooms,
       teacherAvailability,
       colorTriggers,
       planningMinGap,
@@ -662,6 +687,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             courses: sanitizeManualCourses(parsed.courses),
             schedule: sanitizeScheduleImport(parsed.schedule),
             restrictions: parsed.restrictions,
+            teachers: parsed.teachers,
+            rooms: parsed.rooms,
             teacherAvailability: parsed.teacherAvailability,
             colorTriggers: parsed.colorTriggers,
             planningMinGap: parsed.planningMinGap,
@@ -686,6 +713,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     commitSchedule(() => pendingImportData.schedule, { clearHistory: true });
     if (pendingImportData.restrictions) {
       setRestrictions(pendingImportData.restrictions);
+    }
+    // Före listorna: spärrarna hänger på lärarnamnen, och utan namnen i listan
+    // rensas de bort första gången mottagaren sparar debugmenyn.
+    if (pendingImportData.teachers !== undefined || pendingImportData.rooms !== undefined) {
+      applyTeachersAndRooms(pendingImportData.teachers, pendingImportData.rooms);
     }
     if (pendingImportData.teacherAvailability) {
       applyTeacherAvailability(pendingImportData.teacherAvailability);
@@ -712,6 +744,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     applyPlanningFrame,
     applyPlanningMinGap,
     applyTeacherAvailability,
+    applyTeachersAndRooms,
     commitSchedule,
     pendingImportData,
     setManualCourses
@@ -893,7 +926,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   } = useScheduleKeyboardNav({
     courses,
     schedule,
-    sortedWeekNames,
+    sortedArchives,
     filterQuery,
     isSidebarCollapsed,
     isRightSidebarCollapsed,
@@ -965,7 +998,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               onEdit={(c) => { setManualColor(true); setEditingCourse(c); setIsCourseModalOpen(true); }}
               onDelete={handleDeleteCourse}
               isDerived={derivedCourseKeys.has(buildCourseDedupeKey(c)) && !manualCourseKeys.has(buildCourseDedupeKey(c))}
-              dragDisabled={isMobileDragDisabled}
+              dragDisabled={isMobileDragDisabled || isReadOnly}
               hidden={!filterMatch(c, filterQuery)}
               isSelected={activeZone === 'courses' && selectedCourseIndex === visibleIdx}
               color={resolveColor(c.title, c.color)}
@@ -1157,6 +1190,28 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
            </div>
 
            <div className="flex gap-2 flex-wrap items-center">
+              {/* Läsläget måste synas där ändringarna görs, inte i arkivlistan.
+                  Utan den här raden ser det ut som att allt fungerar ända tills
+                  man upptäcker att inget sparats. */}
+              {isReadOnly && (
+                <span
+                  role="status"
+                  className="flex items-center gap-1.5 rounded border-2 border-black bg-amber-200 px-2 py-1 text-xs font-bold"
+                  title={`${lockHolder} har schemat öppet. Ändringar du gör här sparas inte. Ta över för att kunna redigera — då läses schemat om, så du utgår från ${lockHolder}s senaste version.`}
+                >
+                  <Lock size={12} className="shrink-0" />
+                  <span className="whitespace-nowrap">{lockHolder} redigerar</span>
+                  <Button
+                    size="sm"
+                    variant="neutral"
+                    className="h-6 shrink-0 bg-white px-2 text-xs"
+                    onClick={handleTakeOverLock}
+                  >
+                    Ta över
+                  </Button>
+                </span>
+              )}
+
               {/* En dold inställning som tyst plockar bort innehåll ur en PDF är
                   obehaglig – man upptäcker det först när utskriften ligger på
                   bordet. Därför står den framme intill knappen den påverkar. */}
@@ -1501,7 +1556,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                    });
                                  }}
                                  hidden={!filterMatch(entry, filterQuery)}
-                                  dragDisabled={isMobileDragDisabled}
+                                  dragDisabled={isMobileDragDisabled || isReadOnly}
                                   columnIndex={columnIndex}
                                   columnCount={columnCount}
                                   isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
@@ -1564,7 +1619,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                    });
                                  }}
                                  hidden={!filterMatch(entry, filterQuery)}
-                                 dragDisabled={isMobileDragDisabled}
+                                 dragDisabled={isMobileDragDisabled || isReadOnly}
                                  columnIndex={columnIndex}
                                  columnCount={columnCount}
                                  isLastOfDay={timeToMinutes(entry.endTime) === lastEndTime}
@@ -1647,56 +1702,47 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   </div>
 
                   <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                    {sortedWeekNames.length === 0 ? (
+                    {sortedArchives.length === 0 ? (
                       <p className="text-sm text-gray-500 italic">Inga sparade veckor ännu.</p>
                     ) : (
-                      sortedWeekNames.map((name, idx) => (
-                        <div
-                          key={name}
-                          className={`sp-archive-card p-3 flex items-center gap-2 ${activeZone === 'archive' && selectedArchiveIndex === idx ? 'sp-ring' : ''}`}
-                        >
-                          <Button
-                            type="button"
-                            variant="noShadow"
-                            onClick={() => handleLoadWeek(name)}
-                            className="h-auto flex-1 min-w-0 justify-start whitespace-normal border-0 bg-transparent p-0 text-left shadow-none hover:translate-x-0 hover:translate-y-0 hover:bg-transparent"
-                          >
-                            <span className="font-bold text-sm break-words leading-tight">{name}{activeArchiveName === name ? ' • aktiv' : ''}</span>
-                          </Button>
-                          <div className="flex shrink-0 gap-2">
-                            <Button
-                              size="sm"
-                              variant="neutral"
-                              onClick={() => handleDuplicateWeek(name)}
-                              className="h-8 w-8 p-0 sp-btn bg-indigo-100 hover:bg-indigo-200"
-                              aria-label={`Duplicera ${name}`}
-                              title={`Duplicera ${name}`}
-                            >
-                              <Copy size={14}/>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="neutral"
-                              onClick={() => handleShareWeek(name)}
-                              className="h-8 w-8 p-0 sp-btn bg-emerald-100 hover:bg-emerald-200"
-                              aria-label={`Dela ${name}`}
-                              title={`Dela ${name}`}
-                            >
-                              <Share2 size={14}/>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="neutral"
-                              onClick={() => handleDeleteWeek(name)}
-                              className="h-8 w-8 p-0 sp-btn bg-rose-100 hover:bg-rose-200 text-rose-800"
-                              aria-label={`Ta bort ${name}`}
-                              title={`Ta bort ${name}`}
-                            >
-                              <Trash2 size={14}/>
-                            </Button>
-                          </div>
-                        </div>
-                      ))
+                      <>
+                        {ownArchives.map((archive) => (
+                          <ArchiveCard
+                            key={archive.id}
+                            archive={archive}
+                            index={sortedArchives.indexOf(archive)}
+                            isActive={activeArchiveId === archive.id}
+                            activeZone={activeZone}
+                            selectedArchiveIndex={selectedArchiveIndex}
+                            onLoad={handleLoadWeek}
+                            onDuplicate={handleDuplicateWeek}
+                            onShare={handleShareWeek}
+                            onDelete={handleDeleteWeek}
+                          />
+                        ))}
+
+                        {sharedArchives.length > 0 && (
+                          <>
+                            <Label className="block pt-3 text-xs font-bold uppercase text-gray-500">
+                              Delade med mig
+                            </Label>
+                            {sharedArchives.map((archive) => (
+                              <ArchiveCard
+                                key={archive.id}
+                                archive={archive}
+                                index={sortedArchives.indexOf(archive)}
+                                isActive={activeArchiveId === archive.id}
+                                activeZone={activeZone}
+                                selectedArchiveIndex={selectedArchiveIndex}
+                                onLoad={handleLoadWeek}
+                                onDuplicate={handleDuplicateWeek}
+                                onShare={handleShareWeek}
+                                onDelete={handleDeleteWeek}
+                              />
+                            ))}
+                          </>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -1852,17 +1898,21 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         }}
         onCancelImport={() => setIsImportConfirmOpen(false)}
         onConfirmImport={handleConfirmImport}
-        overwriteWeekName={overwriteWeekName}
-        onOverwriteWeekNameChange={setOverwriteWeekName}
+        overwriteArchive={overwriteArchive}
+        onOverwriteArchiveChange={setOverwriteArchive}
         onConfirmOverwriteWeek={handleConfirmOverwriteWeek}
-        deleteWeekName={deleteWeekName}
-        onDeleteWeekNameChange={setDeleteWeekName}
+        deleteArchive={deleteArchive}
+        onDeleteArchiveChange={setDeleteArchive}
         onConfirmDeleteWeek={handleConfirmDeleteWeek}
-        shareWeekName={shareWeekName}
-        onShareWeekNameChange={setShareWeekName}
+        shareArchive={shareArchive}
+        onShareArchiveChange={setShareArchive}
         shareRecipient={shareRecipient}
         onShareRecipientChange={setShareRecipient}
         onConfirmShareWeek={handleConfirmShareWeek}
+        onRemoveShare={handleRemoveShare}
+        onLeaveShare={handleLeaveShare}
+        onSendCopy={handleSendCopy}
+        currentUsername={user?.username ?? null}
         isSharing={isSharing}
         deleteCourseName={deleteCourseName}
         onDeleteCourseNameChange={(_value) => { setDeleteCourseId(null); }}
@@ -1878,7 +1928,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         newScheduleName={newScheduleName}
         onNewScheduleNameChange={setNewScheduleName}
         onConfirmCreateNewSchedule={handleCreateNewSchedule}
-        newScheduleNameExists={sortedWeekNames.includes(newScheduleName.trim())}
+        newScheduleNameExists={ownArchiveNames.includes(newScheduleName.trim())}
       />
 
       <FindReplacePanel

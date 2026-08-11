@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { PLANNER_DAYS, AUTOSAVE_DELAY_MS, ACTIVE_ARCHIVE_NAME_KEY } from '@/components/schedule/constants';
+import { PLANNER_DAYS, AUTOSAVE_DELAY_MS } from '@/components/schedule/constants';
 import { generateBoxColor } from '@/config/colorManagement';
-import { plannerService } from '@/services/plannerService';
+import { ArchiveLockedError, plannerService } from '@/services/plannerService';
 import { PlannerActivity, ScheduledEntry } from '@/types/schedule';
 import { minutesToTime, timeToMinutes } from '@/utils/scheduleTime';
 
@@ -14,7 +14,18 @@ type UsePlannerSyncParams = {
     updater: (prev: ScheduledEntry[]) => ScheduledEntry[],
     options?: { clearHistory?: boolean }
   ) => void;
-  activeArchiveName: string | null;
+  /** Öppet schema, eller null för huvudschemat. */
+  activeArchiveId: string | null;
+  /**
+   * undefined tills arkivhanteraren avgjort vilket schema sidan öppnar i.
+   * Innan dess laddas ingenting — annars hämtas huvudschemat i onödan och
+   * skriver över det arkiv som var på väg in.
+   */
+  initialArchiveId: string | null | undefined;
+  /** Sant när någon annan har låset. Då sparas ingenting. */
+  isReadOnly: boolean;
+  /** Anropas när backend nekade en sparning för att låset bytt ägare. */
+  onLockLost: (holder: string) => void;
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
 };
 
@@ -79,20 +90,18 @@ export const mapScheduleToPlannerActivities = (entries: ScheduledEntry[]): Plann
 export const usePlannerSync = ({
   schedule,
   commitSchedule,
-  activeArchiveName,
+  activeArchiveId,
+  initialArchiveId,
+  isReadOnly,
+  onLockLost,
   showNotice
 }: UsePlannerSyncParams) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [loadStatus, setLoadStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
-  const [loadedArchiveName, setLoadedArchiveName] = useState<string | null>(null);
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
-  // Gate: block autosave until archive context is consistent after page load.
-  // If no archive in localStorage, starts true (no blocking needed).
-  const initialArchiveResolvedRef = useRef(
-    typeof window === 'undefined' || !window.localStorage.getItem(ACTIVE_ARCHIVE_NAME_KEY)
-  );
+  const hasLoadedRef = useRef(false);
 
   const areEntriesEquivalent = useCallback((a: ScheduledEntry, b: ScheduledEntry) => (
     a.instanceId === b.instanceId
@@ -120,29 +129,26 @@ export const usePlannerSync = ({
     commitSchedule(() => reconciledSchedule);
   }, [areEntriesEquivalent, commitSchedule, schedule]);
 
+  // Väntar in arkivhanteraren och laddar sedan en gång. Efter det byter
+  // handleLoadWeek schema, så den här ska inte köra om.
   useEffect(() => {
+    if (initialArchiveId === undefined) return;
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+
     const loadPlannerActivities = async () => {
       try {
-        const storedArchiveName = window.localStorage.getItem(ACTIVE_ARCHIVE_NAME_KEY);
-        const activities = storedArchiveName
-          ? await plannerService.getPlannerArchive(storedArchiveName)
+        const activities = initialArchiveId
+          ? (await plannerService.getArchiveActivities(initialArchiveId)).activities
           : await plannerService.getPlannerActivities();
-        const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
-        commitSchedule(() => mappedSchedule, { clearHistory: true });
-        if (storedArchiveName) {
-          setLoadedArchiveName(storedArchiveName);
-        }
+        commitSchedule(() => mapPlannerActivitiesToSchedule(activities), { clearHistory: true });
         setLoadStatus('loaded');
       } catch (error) {
         console.error('Planner load failed', error);
-        // Don't clear localStorage — the archive likely still exists in DB.
-        // Next page load will retry. User can manually switch if needed.
-        showNotice('Kunde inte ladda arkivet. Visar huvudschemat istället.', 'warning');
-        // Fallback: try loading main schedule instead of showing error
+        showNotice('Kunde inte ladda schemat. Visar huvudschemat istället.', 'warning');
         try {
           const activities = await plannerService.getPlannerActivities();
-          const mappedSchedule = mapPlannerActivitiesToSchedule(activities);
-          commitSchedule(() => mappedSchedule, { clearHistory: true });
+          commitSchedule(() => mapPlannerActivitiesToSchedule(activities), { clearHistory: true });
           setLoadStatus('loaded');
         } catch (fallbackError) {
           console.error('Planner fallback load failed', fallbackError);
@@ -152,19 +158,23 @@ export const usePlannerSync = ({
     };
 
     loadPlannerActivities();
-  }, [commitSchedule, showNotice]);
+  }, [commitSchedule, initialArchiveId, showNotice]);
 
-  // Resolve the autosave gate once archive context is consistent
-  useEffect(() => {
-    if (initialArchiveResolvedRef.current) return;
-    if (loadStatus !== 'loaded') return;
-    if (loadedArchiveName && activeArchiveName === loadedArchiveName) {
-      initialArchiveResolvedRef.current = true;
+  /**
+   * Skriver hela schemat dit det hör hemma. Kastar ArchiveLockedError när
+   * någon annan hunnit ta låset.
+   */
+  const pushSchedule = useCallback(async () => {
+    const payload = mapScheduleToPlannerActivities(schedule);
+    if (activeArchiveId) {
+      await plannerService.saveArchiveActivities(activeArchiveId, payload);
+      // Ingen avstämning för scheman: de får nya id vid varje sparning, så en
+      // avstämning skulle byta instanceId under händerna på användaren.
+      return;
     }
-    if (!loadedArchiveName) {
-      initialArchiveResolvedRef.current = true;
-    }
-  }, [activeArchiveName, loadStatus, loadedArchiveName]);
+    const response = await plannerService.syncActivities(payload);
+    reconcileSyncedActivities(response.activities);
+  }, [activeArchiveId, reconcileSyncedActivities, schedule]);
 
   const handleSyncToCloud = useCallback(async () => {
     if (isSavingRef.current) return;
@@ -172,25 +182,19 @@ export const usePlannerSync = ({
     setIsSaving(true);
     setSaveStatus('saving');
     try {
-      const payload = mapScheduleToPlannerActivities(schedule);
-      let syncedActivities: PlannerActivity[] = [];
-      if (activeArchiveName) {
-        syncedActivities = await plannerService.savePlannerArchive(activeArchiveName, payload);
-      } else {
-        const response = await plannerService.syncActivities(payload);
-        syncedActivities = response.activities;
-      }
-      if (!activeArchiveName) {
-        reconcileSyncedActivities(syncedActivities);
-      }
+      await pushSchedule();
       setSaveStatus('saved');
       showNotice(
-        activeArchiveName
-          ? `"${activeArchiveName}" uppdaterades i arkivet.`
-          : 'Schema synkat till molnet.',
+        activeArchiveId ? 'Schemat uppdaterades.' : 'Schema synkat till molnet.',
         'success'
       );
     } catch (error) {
+      if (error instanceof ArchiveLockedError) {
+        setSaveStatus('error');
+        onLockLost(error.holder);
+        showNotice(error.message, 'warning');
+        return;
+      }
       console.error('Cloud sync failed', error);
       setSaveStatus('error');
       showNotice('Kunde inte synka schemat.', 'error');
@@ -198,12 +202,13 @@ export const usePlannerSync = ({
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [activeArchiveName, reconcileSyncedActivities, schedule, showNotice]);
+  }, [activeArchiveId, onLockLost, pushSchedule, showNotice]);
 
   const performAutosave = useCallback(async () => {
     if (loadStatus !== 'loaded') return;
     if (schedule.length === 0) return;
-    if (!initialArchiveResolvedRef.current) return;
+    // Läsläge: den andres arbete ska inte skrivas över av en autospar härifrån.
+    if (isReadOnly) return;
     if (isSavingRef.current) {
       pendingSaveRef.current = true;
       return;
@@ -214,19 +219,17 @@ export const usePlannerSync = ({
     setSaveStatus('saving');
 
     try {
-      const payload = mapScheduleToPlannerActivities(schedule);
-      let syncedActivities: PlannerActivity[] = [];
-      if (activeArchiveName) {
-        syncedActivities = await plannerService.savePlannerArchive(activeArchiveName, payload);
-      } else {
-        const response = await plannerService.syncActivities(payload);
-        syncedActivities = response.activities;
-      }
-      if (!activeArchiveName) {
-        reconcileSyncedActivities(syncedActivities);
-      }
+      await pushSchedule();
       setSaveStatus('saved');
     } catch (error) {
+      if (error instanceof ArchiveLockedError) {
+        // Någon tog över medan sidan stod öppen. Autosparet tystnar och
+        // användaren får veta i stället för att fortsätta skriva i blindo.
+        setSaveStatus('error');
+        onLockLost(error.holder);
+        showNotice(error.message, 'warning');
+        return;
+      }
       console.error('Autosave failed', error);
       setSaveStatus('error');
     } finally {
@@ -239,7 +242,7 @@ export const usePlannerSync = ({
         }, 0);
       }
     }
-  }, [activeArchiveName, loadStatus, reconcileSyncedActivities, schedule]);
+  }, [isReadOnly, loadStatus, onLockLost, pushSchedule, schedule.length, showNotice]);
 
   useEffect(() => {
     if (loadStatus !== 'loaded') return;
@@ -248,13 +251,12 @@ export const usePlannerSync = ({
     }, AUTOSAVE_DELAY_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [activeArchiveName, loadStatus, performAutosave, schedule]);
+  }, [activeArchiveId, loadStatus, performAutosave, schedule]);
 
   return {
     isSaving,
     saveStatus,
     loadStatus,
-    loadedArchiveName,
     handleSyncToCloud
   };
 };

@@ -27,7 +27,13 @@ export const EXPORT_EXCLUDE_KEY = 'app.export_exclude.v1';
 export const PLANNING_START_TIME_KEY = 'app.planning_start_time.v1';
 export const PLANNING_END_TIME_KEY = 'app.planning_end_time.v1';
 export const SIDEBAR_SECTIONS_KEY = 'app.planner_sections.v1';
+/**
+ * Kvar för att kunna flytta över den som redan har ett aktivt schema. Namnet
+ * duger inte längre som nyckel när ett delat schema kan heta samma sak som ett
+ * eget, så det läses en sista gång och byts mot id:t nedan.
+ */
 export const ACTIVE_ARCHIVE_NAME_KEY = 'active_archive_name';
+export const ACTIVE_ARCHIVE_ID_KEY = 'active_archive_id';
 
 /** Kortare luckor än så räknas inte som planeringstid. Ställs om i debug-menyn. */
 export const DEFAULT_PLANNING_MIN_GAP_MINUTES = 45;

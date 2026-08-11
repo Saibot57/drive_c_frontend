@@ -47,6 +47,33 @@ const ACTIVITIES = [
   mk('Hanna', 'Fredag', '08:00', '12:00')
 ];
 
+/** Eget schema, delat vidare till en kollega. */
+const OWN_ARCHIVE = {
+  id: 'arch-egen',
+  name: 'v.35',
+  ownerId: 'u-tobias',
+  ownerUsername: 'tobias',
+  isOwner: true,
+  sharedWith: ['hanna'],
+  lock: { userId: 'u-tobias', username: 'tobias', acquiredAt: null, isMine: true },
+  updatedAt: null
+};
+
+/**
+ * Kollegans schema, delat hit — och hon sitter i det. Öppna det i listan för
+ * att se läsläget: bannern i verktygsfältet, och att korten inte går att dra.
+ */
+const SHARED_ARCHIVE = {
+  id: 'arch-hannas',
+  name: 'v.36',
+  ownerId: 'u-hanna',
+  ownerUsername: 'hanna',
+  isOwner: false,
+  sharedWith: ['tobias'],
+  lock: { userId: 'u-hanna', username: 'hanna', acquiredAt: null, isMine: false },
+  updatedAt: null
+};
+
 /**
  * Stubbar backend så planeraren går att titta på utan inloggning.
  *
@@ -55,6 +82,9 @@ const ACTIVITIES = [
  * 401-hantering. Med fetch stubbad till 200 behövs ingen token – och `authToken`
  * är nyckeln `AuthContext` läser, så en påhittad token här hade fått den
  * riktiga appen att tro att du var inloggad i samma webbläsare.
+ *
+ * Följden av att inte vara inloggad: `useAuth().user` är null, så knappen
+ * "Lämna schemat" i delningsrutan ritas inte här. Den kräver den riktiga appen.
  */
 const installStub = () => {
   if (typeof window === 'undefined') return true;
@@ -63,6 +93,8 @@ const installStub = () => {
     'app.teacher_availability.v1',
     JSON.stringify({ 'Tobias Lundh': { 'Fredag': ['all'], 'Torsdag': ['fm'] } })
   );
+  // Med bara det gamla namnet satt provas även övergången till id-nyckeln.
+  localStorage.removeItem('active_archive_id');
   localStorage.setItem('active_archive_name', 'v.35');
 
   const json = (data: unknown) => new Response(
@@ -70,9 +102,33 @@ const installStub = () => {
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
 
-  window.fetch = async (input: RequestInfo | URL) => {
+  const archiveOf = (url: string) => (
+    url.includes(SHARED_ARCHIVE.id) ? SHARED_ARCHIVE : OWN_ARCHIVE
+  );
+
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(typeof input === 'string' ? input : (input as Request).url ?? input);
-    if (url.includes('/planner/archives')) return json(['v.35']);
+    const method = (init?.method ?? 'GET').toUpperCase();
+
+    if (url.includes('/lock')) {
+      const archive = archiveOf(url);
+      if (method === 'DELETE') {
+        archive.lock = null as never;
+        return json({ message: 'Released' });
+      }
+      // Hannas schema är låst från början, så läsläget går att titta på. Ett
+      // medvetet övertagande (force) släpps igenom, precis som i backend.
+      const held = Boolean(archive.lock) && !archive.lock.isMine;
+      const force = Boolean(init?.body && String(init.body).includes('"force":true'));
+      if (held && !force) return json({ acquired: false, archive });
+      archive.lock = { userId: 'u-tobias', username: 'tobias', acquiredAt: null, isMine: true };
+      return json({ acquired: true, archive });
+    }
+    if (url.includes('/planner/archives/')) {
+      if (method === 'PUT') return json({ archive: archiveOf(url), count: ACTIVITIES.length, activities: ACTIVITIES });
+      return json({ archive: archiveOf(url), activities: ACTIVITIES });
+    }
+    if (url.includes('/planner/archives')) return json([OWN_ARCHIVE, SHARED_ARCHIVE]);
     if (url.includes('/planner/activities')) return json(ACTIVITIES);
     return json([]);
   };
