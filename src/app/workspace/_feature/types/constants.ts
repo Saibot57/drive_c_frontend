@@ -64,6 +64,27 @@ export const EDITABLE_TYPES: ReadonlySet<ElementType> = new Set<ElementType>([
 export const MAX_EXPLODE_PARTS = 100;
 
 export const GRID_SIZE = 16;
+
+/* ── Tangentbordsstyrning av canvasen ────────────────────────────────────── */
+
+/**
+ * Ett piltryck kör vyn så här långt, i skärmpixlar — fyra rutor vid full zoom.
+ * Skärmpixlar och inte canvaspixlar, så att farten känns lika oavsett zoom.
+ * Håller man tangenten nere sköter tangentbordets repetition resten.
+ */
+export const PAN_STEP_PX = 64;
+
+/** Shift ger ett längre kliv, både för vyn och för ett markerat kort. */
+export const KEYBOARD_FAST_FACTOR = 4;
+
+/** Luft mellan innehållets kant och skärmkanten efter ett Alt-hopp. */
+export const EMPTY_JUMP_MARGIN_PX = 32;
+
+/**
+ * Så länge efter det sista piltrycket läggs ångra-posten för en tangentflytt.
+ * En post per tryck hade fyllt stacken — en serie tryck är en förflyttning.
+ */
+export const KEYBOARD_MOVE_COMMIT_MS = 600;
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 1.5;
 export const DEFAULT_ZOOM = 1;

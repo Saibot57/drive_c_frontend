@@ -9,6 +9,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
 import { useWorkspaceData } from '../hooks/useWorkspaceData';
 import { useProvenance } from '../hooks/useProvenance';
+import { useCanvasKeyboard } from '../hooks/useCanvasKeyboard';
 import { useUndoHotkey } from '../hooks/useWorkspaceHistory';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { useWorkspaceExport } from '../hooks/useWorkspaceExport';
@@ -211,6 +212,21 @@ function WorkspaceInner() {
     const { width, height } = canvasSize();
     zoomToContent(width, height);
   }, [canvasSize, zoomToContent]);
+
+  /*
+   * Piltangenterna: kör runt på canvasen när inget är markerat, flytta kortet
+   * när något är det, och Alt+pil för att hoppa ut ur innehållet. Esc släpper
+   * markeringen — den ligger bland hotkeys längre ner.
+   */
+  useCanvasKeyboard({
+    viewport: state.viewport,
+    onViewportChange: handleViewportChange,
+    canvasSize,
+    placements: state.placements,
+    selectedElementId: state.selectedElementId,
+    movePlacement,
+    commitMove,
+  });
 
   const handleSelectElement = useCallback(
     (elementId: string | null) => {
