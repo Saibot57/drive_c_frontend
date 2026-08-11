@@ -17,6 +17,8 @@ interface HeadingEditorProps {
   /** Styr verktygsraden — den ska bara finnas när rubriken är vald. */
   isSelected: boolean;
   onChange: (content: HeadingContent) => void;
+  /** Räknare från högerklickets "Redigera". Ett nytt värde öppnar redigeringen. */
+  editSignal?: number;
 }
 
 export const DEFAULT_HEADING: HeadingContent = { text: 'Rubrik', level: 1 };
@@ -41,6 +43,7 @@ export default function HeadingEditor({
   isLocked,
   isSelected,
   onChange,
+  editSignal,
 }: HeadingEditorProps) {
   const content: HeadingContent = raw?.level ? raw : DEFAULT_HEADING;
   const ref = useRef<HTMLDivElement>(null);
@@ -72,11 +75,24 @@ export default function HeadingEditor({
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
-  }, [isEditing]);
+    // editSignal finns med för att "Redigera" ska nå fram även på en rubrik som
+    // redan är i redigeringsläge men tappat markören. Utan den hade effekten
+    // inte körts om, eftersom isEditing redan var true.
+  }, [isEditing, editSignal]);
 
   useEffect(() => {
     if (isLocked) setIsEditing(false);
   }, [isLocked]);
+
+  /*
+   * Menyvalet "Redigera" gör samma sak som dubbelklicket. Signalen är odefinierad
+   * tills den begärts första gången, så det här öppnar ingenting av sig självt.
+   * Ett lås som slår till efter signalen fångas av effekten ovan.
+   */
+  useEffect(() => {
+    if (editSignal === undefined) return;
+    setIsEditing(true);
+  }, [editSignal]);
 
   return (
     <>

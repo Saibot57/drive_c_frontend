@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { Link as LinkIcon, ExternalLink, Pencil, Check, X } from 'lucide-react';
 import type { LinkContent } from '../../types/link.types';
 
@@ -9,6 +9,8 @@ interface LinkEditorProps {
   isLocked: boolean;
   isSelected: boolean;
   onChange: (content: LinkContent) => void;
+  /** Räknare från högerklickets "Redigera". Ett nytt värde öppnar formuläret. */
+  editSignal?: number;
 }
 
 function normalizeUrl(raw: string): string {
@@ -26,7 +28,7 @@ function hostnameFromUrl(url: string): string {
   }
 }
 
-export default function LinkEditor({ content, isLocked, isSelected, onChange }: LinkEditorProps) {
+export default function LinkEditor({ content, isLocked, isSelected, onChange, editSignal }: LinkEditorProps) {
   const url = content?.url ?? '';
   const title = content?.title ?? '';
   const description = content?.description ?? '';
@@ -70,6 +72,19 @@ export default function LinkEditor({ content, isLocked, isSelected, onChange }: 
     setThumbInput(thumbnailUrl);
     setEditing(true);
   }, [url, title, description, thumbnailUrl]);
+
+  /*
+   * Menyvalet "Redigera" gör samma sak som pennknappen. Signalen jämförs mot ett
+   * ref i stället för att bara ligga i effektens beroenden: startEditing byter
+   * identitet varje gång innehållet ändras, och en effekt som lyssnade på den
+   * hade öppnat formuläret igen mitt i skrivandet.
+   */
+  const handledEditSignal = useRef(editSignal);
+  useEffect(() => {
+    if (editSignal === handledEditSignal.current) return;
+    handledEditSignal.current = editSignal;
+    startEditing();
+  }, [editSignal, startEditing]);
 
   const interactive = isSelected;
   const pointerStyle: React.CSSProperties = interactive

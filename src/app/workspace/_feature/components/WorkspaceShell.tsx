@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ACTIVE_THEME_WHEEL_KEY } from '@/components/theme-wheel/constants';
-import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, EyeOff, StretchHorizontal, Clock, RefreshCw, Unlink, ExternalLink } from 'lucide-react';
+import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, SquarePen, EyeOff, StretchHorizontal, Clock, RefreshCw, Unlink, ExternalLink } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
@@ -22,6 +22,7 @@ import ContextMenu, { type ContextMenuItem } from './ContextMenu';
 import MirrorCopyModal from './MirrorCopyModal';
 import ConfirmDialog from './ConfirmDialog';
 import ScheduleImportModal, { type ScheduleSource } from './ScheduleImportModal';
+import { EDITABLE_TYPES } from '../types/constants';
 import type { ElementType, ViewportState, WorkspaceElement } from '../types/workspace.types';
 import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent } from '../types/scheduleDay.types';
@@ -102,6 +103,12 @@ function WorkspaceInner() {
   const [mirrorCopy, setMirrorCopy] = useState<{ elementId: string; mode: 'mirror' | 'copy' } | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [renameEl, setRenameEl] = useState<{ elementId: string; x: number; y: number; value: string } | null>(null);
+  /**
+   * En engångssignal till kortet som ska öppnas för redigering. Räknaren finns
+   * för att samma element ska gå att välja "Redigera" på två gånger i rad — ett
+   * oförändrat värde hade inte nått fram andra gången.
+   */
+  const [editRequest, setEditRequest] = useState<{ elementId: string; nonce: number } | null>(null);
   const [libraryDrag, setLibraryDrag] = useState<
     { element: WorkspaceElement; x: number; y: number } | null
   >(null);
@@ -270,6 +277,23 @@ function WorkspaceInner() {
     [],
   );
 
+  /**
+   * "Redigera" i högerklick-menyn: markera kortet, lägg det överst och öppna
+   * innehållet för skrivning. Samma sak som dubbelklicket eller pennknappen gör
+   * på de typer som har en sådan gest — menyvalet finns för att man inte ska
+   * behöva minnas vilken gest varje elementtyp vill ha.
+   */
+  const requestEdit = useCallback((elementId: string, placementId: string) => {
+    const placement = state.placements.find((p) => p.id === placementId);
+    dispatch({ type: 'SELECT_ELEMENT', elementId });
+    bringToFront(placementId);
+    // Ett låst kort går inte att skriva i, så låset öppnas. Det sker inte i
+    // tysthet: hänglåset på kortet byter ikon och toggleLock lägger en
+    // ångra-post, så vägen tillbaka är Ctrl+Z eller samma hänglås.
+    if (placement?.is_locked) void toggleLock(placementId);
+    setEditRequest((current) => ({ elementId, nonce: (current?.nonce ?? 0) + 1 }));
+  }, [state.placements, dispatch, bringToFront, toggleLock]);
+
   const requestDeleteElement = useCallback((elementId: string) => {
     // Elementet kan komma från biblioteket och ligga på en annan yta än den
     // som visas, så det räcker inte att titta i state.elements.
@@ -399,6 +423,14 @@ function WorkspaceInner() {
         const surfaceCount = el?.surface_count ?? 1;
         const otherSurfaces = state.surfaces.filter((s) => !s.is_archived).length <= 1;
         return [
+          {
+            label: 'Redigera',
+            icon: <SquarePen size={13} />,
+            // Ett kort som bara visar en källa — ett hjul, en hjuldel, en
+            // schemadag, en PDF, en bild — har inget att sätta markören i.
+            disabled: !el || !EDITABLE_TYPES.has(el.type),
+            onClick: () => requestEdit(contextMenu.elementId, contextMenu.placementId),
+          },
           {
             label: 'Byt namn',
             icon: <Pencil size={13} />,
@@ -569,6 +601,7 @@ function WorkspaceInner() {
                 onContentChange={updateElementContent}
                 onContextMenu={(x, y) => handleContextMenu(el.id, p.id, x, y)}
                 provenance={provenance.get(el.id)?.status}
+                editSignal={editRequest?.elementId === el.id ? editRequest.nonce : undefined}
               />
             );
           })}

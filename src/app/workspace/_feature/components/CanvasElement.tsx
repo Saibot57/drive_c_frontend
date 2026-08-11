@@ -73,6 +73,35 @@ const AUTO_HEIGHT_TYPES: ElementType[] = ['heading'];
 /** Bara bredden går att dra på en rubrik — höjden är inte användarens att sätta. */
 const WIDTH_ONLY_DIRECTIONS = ['e', 'w'] as const;
 
+/**
+ * Har ett eget redigeringsläge och fokuserar sig själv när det öppnas: rubriken
+ * blir contentEditable först vid dubbelklick, länken visar sitt formulär först
+ * vid pennknappen. De får signalen vidare i stället för fokus härifrån, för
+ * fältet finns inte att fokusera förrän de öppnat det.
+ */
+const SELF_EDITING_TYPES: ElementType[] = ['heading', 'link'];
+
+/** Fält som tar text. En listas kryssruta är också ett <input>, men inte det. */
+const TEXTUAL_INPUT_TYPES = ['text', 'search', 'url'];
+
+/**
+ * Det första fält på kortet som går att skriva i.
+ *
+ * Urvalet görs på DOM-egenskaperna och inte i selektorn, eftersom flera av
+ * editorerna skriver sina fält utan type-attribut — `input[type="text"]` hade
+ * missat dem, medan `node.type` ger "text" ändå.
+ */
+const editableField = (root: HTMLElement | null): HTMLElement | null => {
+  const candidates = root?.querySelectorAll<HTMLElement>('textarea, input, [contenteditable]') ?? [];
+  return Array.from(candidates).find(node => {
+    if (node instanceof HTMLTextAreaElement) return !node.readOnly && !node.disabled;
+    if (node instanceof HTMLInputElement) {
+      return !node.readOnly && !node.disabled && TEXTUAL_INPUT_TYPES.includes(node.type);
+    }
+    return node.isContentEditable;
+  }) ?? null;
+};
+
 function contentClassName(type: ElementType): string {
   return [
     'ws-element__content',
@@ -99,6 +128,8 @@ interface CanvasElementProps {
   onContextMenu?: (x: number, y: number) => void;
   /** Härkomstens tillstånd, för sticklingar som har en källa att jämföra mot. */
   provenance?: ProvenanceStatus;
+  /** Räknare från högerklickets "Redigera". Ett nytt värde öppnar redigeringen. */
+  editSignal?: number;
 }
 
 const RESIZE_DIRECTIONS = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const;
@@ -117,6 +148,7 @@ export default function CanvasElement({
   onContentChange,
   onContextMenu,
   provenance,
+  editSignal,
 }: CanvasElementProps) {
   const isAutoHeight = AUTO_HEIGHT_TYPES.includes(element.type);
 
@@ -175,6 +207,25 @@ export default function CanvasElement({
     observer.observe(node);
     return () => observer.disconnect();
   }, [isAutoHeight, zoom, placement.id, placement.width, placement.height, onResize]);
+
+  /*
+   * "Redigera" i högerklick-menyn. De flesta typerna har sina fält framme så
+   * fort kortet är olåst — det som saknas är markören, och att hitta rätt ruta
+   * med musen i ett kort med tolv tabellceller är just det menyvalet ska slippa.
+   */
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (editSignal === undefined || SELF_EDITING_TYPES.includes(element.type)) return;
+    const field = editableField(contentRef.current);
+    if (!field) return;
+    field.focus();
+    // Markören sist i det som redan står: menyvalet ska öppna för att skriva
+    // vidare, inte markera texten och riskera att nästa tangent ersätter den.
+    if (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) {
+      const end = field.value.length;
+      field.setSelectionRange(end, end);
+    }
+  }, [editSignal, element.type]);
 
   const classNames = [
     'ws-element',
@@ -267,13 +318,14 @@ export default function CanvasElement({
       </button>
 
       {/* Content */}
-      <div className={contentClassName(element.type)}>
+      <div ref={contentRef} className={contentClassName(element.type)}>
         <ElementRenderer
           element={element}
           isLocked={placement.is_locked}
           isSelected={isSelected}
           onChange={(content) => onContentChange(element.id, content)}
           provenance={provenance}
+          editSignal={editSignal}
         />
       </div>
 

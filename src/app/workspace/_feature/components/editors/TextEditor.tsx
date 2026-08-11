@@ -26,6 +26,11 @@ export default function TextEditor({
   onChange,
 }: TextEditorProps) {
   const editor = useEditor({
+    // Tiptap 3 vägrar skapa editorn under första renderingen i en Next-app om
+    // det här inte är satt: i dev kastar den och tar hela canvasen med sig så
+    // fort ett textkort ritas. Editorn skapas i stället efter monteringen, och
+    // `if (!editor) return null` nedan täcker rutan innan dess.
+    immediatelyRender: false,
     extensions: [StarterKit],
     content: content ?? { type: 'doc', content: [{ type: 'paragraph' }] },
     editable: !isLocked,

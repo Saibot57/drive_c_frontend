@@ -40,6 +40,24 @@ export const LIBRARY_HIDDEN_TYPES: ReadonlySet<ElementType> = new Set<ElementTyp
 ]);
 
 /**
+ * Typer med ett innehåll man kan sätta markören i, och därmed de enda där
+ * högerklickets "Redigera" har något att göra. De övriga korten visar en källa
+ * — ett hjul, en utbruten hjuldel, en schemadag, en PDF, en bild — och den byts
+ * genom kortets egna reglage, inte genom att börja skriva. Menyvalet finns kvar
+ * men gråat för dem, så att menyn ser likadan ut på alla element.
+ */
+export const EDITABLE_TYPES: ReadonlySet<ElementType> = new Set<ElementType>([
+  'text',
+  'sticky',
+  'table',
+  'list',
+  'kanban',
+  'mindmap',
+  'heading',
+  'link',
+]);
+
+/**
  * Speglar MAX_BULK_PLACE i workspace_routes.py. Kontrollen finns här bara för
  * att kunna säga det på svenska innan anropet går iväg — servern håller gränsen.
  */

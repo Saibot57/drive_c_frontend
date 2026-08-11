@@ -31,6 +31,12 @@ interface ElementRendererProps {
   onChange: (content: unknown) => void;
   /** Ritas inne i formen för hjuldelar, som inte har något kort att bära den på. */
   provenance?: ProvenanceStatus;
+  /**
+   * Räknare från högerklickets "Redigera". Går bara till de typer som gömmer
+   * sina fält bakom ett eget redigeringsläge — de övriga har fälten framme och
+   * får bara fokus, vilket CanvasElement sköter.
+   */
+  editSignal?: number;
 }
 
 export default function ElementRenderer({
@@ -39,6 +45,7 @@ export default function ElementRenderer({
   isSelected,
   onChange,
   provenance,
+  editSignal,
 }: ElementRendererProps) {
   switch (element.type) {
     case 'text':
@@ -122,6 +129,7 @@ export default function ElementRenderer({
           isLocked={isLocked}
           isSelected={isSelected}
           onChange={onChange}
+          editSignal={editSignal}
         />
       );
 
@@ -154,6 +162,7 @@ export default function ElementRenderer({
           isLocked={isLocked}
           isSelected={isSelected}
           onChange={onChange}
+          editSignal={editSignal}
         />
       );
 
