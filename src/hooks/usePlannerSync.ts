@@ -24,6 +24,12 @@ type UsePlannerSyncParams = {
   initialArchiveId: string | null | undefined;
   /** Sant när någon annan har låset. Då sparas ingenting. */
   isReadOnly: boolean;
+  /**
+   * Stegas när schemat i vyn ersatts med något som kommer från servern —
+   * arkivbyte, övertaget lås, duplicering. Signalen behövs för att autosparet
+   * inte ska skriva tillbaka det som just hämtats.
+   */
+  serverSyncToken: number;
   /** Anropas när backend nekade en sparning för att låset bytt ägare. */
   onLockLost: (holder: string) => void;
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
@@ -87,12 +93,23 @@ export const mapScheduleToPlannerActivities = (entries: ScheduledEntry[]): Plann
   }))
 );
 
+/**
+ * Exakt det som skulle skickas till servern, som en jämförbar sträng.
+ *
+ * Bygger på samma avbildning som sparningen, så två scheman räknas som lika
+ * precis när de skulle ge samma payload — varken mer eller mindre.
+ */
+const scheduleSignature = (entries: ScheduledEntry[]) => (
+  JSON.stringify(mapScheduleToPlannerActivities(entries))
+);
+
 export const usePlannerSync = ({
   schedule,
   commitSchedule,
   activeArchiveId,
   initialArchiveId,
   isReadOnly,
+  serverSyncToken,
   onLockLost,
   showNotice
 }: UsePlannerSyncParams) => {
@@ -102,6 +119,12 @@ export const usePlannerSync = ({
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
   const hasLoadedRef = useRef(false);
+  /**
+   * Vad servern senast bekräftat. Utan den skrev autosparet om hela schemat en
+   * sekund efter varje sidladdning, trots att ingenting ändrats — vilket både
+   * kostade rader i databasen och bytte identitet på posterna.
+   */
+  const lastSavedSignatureRef = useRef<string | null>(null);
 
   const areEntriesEquivalent = useCallback((a: ScheduledEntry, b: ScheduledEntry) => (
     a.instanceId === b.instanceId
@@ -141,14 +164,18 @@ export const usePlannerSync = ({
         const activities = initialArchiveId
           ? (await plannerService.getArchiveActivities(initialArchiveId)).activities
           : await plannerService.getPlannerActivities();
-        commitSchedule(() => mapPlannerActivitiesToSchedule(activities), { clearHistory: true });
+        const loaded = mapPlannerActivitiesToSchedule(activities);
+        commitSchedule(() => loaded, { clearHistory: true });
+        lastSavedSignatureRef.current = scheduleSignature(loaded);
         setLoadStatus('loaded');
       } catch (error) {
         console.error('Planner load failed', error);
         showNotice('Kunde inte ladda schemat. Visar huvudschemat istället.', 'warning');
         try {
           const activities = await plannerService.getPlannerActivities();
-          commitSchedule(() => mapPlannerActivitiesToSchedule(activities), { clearHistory: true });
+          const loaded = mapPlannerActivitiesToSchedule(activities);
+          commitSchedule(() => loaded, { clearHistory: true });
+          lastSavedSignatureRef.current = scheduleSignature(loaded);
           setLoadStatus('loaded');
         } catch (fallbackError) {
           console.error('Planner fallback load failed', fallbackError);
@@ -160,19 +187,33 @@ export const usePlannerSync = ({
     loadPlannerActivities();
   }, [commitSchedule, initialArchiveId, showNotice]);
 
+  // Schemat kom just från servern och är därmed redan sparat. Utan det här
+  // skulle ett arkivbyte skriva tillbaka den nyss hämtade veckan direkt.
+  useEffect(() => {
+    lastSavedSignatureRef.current = scheduleSignature(schedule);
+    // Bara token i beroendelistan med flit: schemat läses som det ser ut i
+    // samma rendering som bytet, vilket är precis det servern gav oss. Att
+    // lägga till schedule här skulle göra effekten till en kapplöpning med
+    // användarens egna ändringar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverSyncToken]);
+
   /**
    * Skriver hela schemat dit det hör hemma. Kastar ArchiveLockedError när
    * någon annan hunnit ta låset.
    */
   const pushSchedule = useCallback(async () => {
     const payload = mapScheduleToPlannerActivities(schedule);
+    const signature = JSON.stringify(payload);
     if (activeArchiveId) {
       await plannerService.saveArchiveActivities(activeArchiveId, payload);
-      // Ingen avstämning för scheman: de får nya id vid varje sparning, så en
-      // avstämning skulle byta instanceId under händerna på användaren.
+      lastSavedSignatureRef.current = signature;
+      // Ingen avstämning för scheman. Posternas id är stabila numera, men
+      // klienten har redan exakt det som sparades.
       return;
     }
     const response = await plannerService.syncActivities(payload);
+    lastSavedSignatureRef.current = signature;
     reconcileSyncedActivities(response.activities);
   }, [activeArchiveId, reconcileSyncedActivities, schedule]);
 
@@ -209,6 +250,10 @@ export const usePlannerSync = ({
     if (schedule.length === 0) return;
     // Läsläge: den andres arbete ska inte skrivas över av en autospar härifrån.
     if (isReadOnly) return;
+    // Ingen skillnad mot det servern redan har. Den vanligaste träffen är
+    // sidladdningen: schemat läses in, autosparet vaknar en sekund senare och
+    // skulle annars skriva tillbaka precis det som just lästes.
+    if (scheduleSignature(schedule) === lastSavedSignatureRef.current) return;
     if (isSavingRef.current) {
       pendingSaveRef.current = true;
       return;
@@ -242,7 +287,7 @@ export const usePlannerSync = ({
         }, 0);
       }
     }
-  }, [isReadOnly, loadStatus, onLockLost, pushSchedule, schedule.length, showNotice]);
+  }, [isReadOnly, loadStatus, onLockLost, pushSchedule, schedule, showNotice]);
 
   useEffect(() => {
     if (loadStatus !== 'loaded') return;

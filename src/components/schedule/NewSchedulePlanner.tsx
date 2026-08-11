@@ -241,6 +241,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     sortedArchives,
     ownArchiveNames,
     initialArchiveId,
+    serverSyncToken,
     activeArchive,
     activeArchiveId,
     activeArchiveName,
@@ -289,6 +290,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     activeArchiveId,
     initialArchiveId,
     isReadOnly,
+    serverSyncToken,
     onLockLost: markLockLost,
     showNotice
   });

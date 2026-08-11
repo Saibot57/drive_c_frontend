@@ -73,6 +73,12 @@ export const useArchiveManager = ({
   const [initialArchiveId, setInitialArchiveId] = useState<string | null | undefined>(undefined);
   /** Sant när arkivlistan inte gick att hämta. Då lämnas localStorage ifred. */
   const [archiveContextFailed, setArchiveContextFailed] = useState(false);
+  /**
+   * Räknare som stegas varje gång schemat ersatts med något som kommer från
+   * servern. Autosparet lyssnar på den för att veta att det som nu ligger i
+   * vyn redan är sparat, och därför inte behöver skrivas tillbaka.
+   */
+  const [serverSyncToken, setServerSyncToken] = useState(0);
   const [weekName, setWeekName] = useState('');
   const [overwriteArchive, setOverwriteArchive] = useState<PlannerArchiveSummary | null>(null);
   const [deleteArchive, setDeleteArchive] = useState<PlannerArchiveSummary | null>(null);
@@ -206,6 +212,7 @@ export const useArchiveManager = ({
   const loadArchiveEntries = useCallback(async (archiveId: string) => {
     const { archive, activities } = await plannerService.getArchiveActivities(archiveId);
     commitSchedule(() => mapPlannerActivitiesToSchedule(activities), { clearHistory: true });
+    setServerSyncToken(token => token + 1);
     upsertArchive(archive);
   }, [commitSchedule, mapPlannerActivitiesToSchedule, upsertArchive]);
 
@@ -344,6 +351,7 @@ export const useArchiveManager = ({
       setActiveArchiveId(created.id);
       setWeekName(duplicateName);
       commitSchedule(() => mapPlannerActivitiesToSchedule(duplicatedEntries), { clearHistory: true });
+      setServerSyncToken(token => token + 1);
       showNotice(`"${archive.name}" duplicerades till "${duplicateName}".`, 'success');
     } catch (error) {
       console.error('Archive duplication failed', error);
@@ -487,6 +495,7 @@ export const useArchiveManager = ({
     sortedArchives,
     ownArchiveNames,
     initialArchiveId,
+    serverSyncToken,
     activeArchive,
     activeArchiveId,
     activeArchiveName,
