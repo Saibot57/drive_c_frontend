@@ -227,6 +227,20 @@ export default function CanvasElement({
     }
   }, [editSignal, element.type]);
 
+  /*
+   * Vilande hörn på ett omarkerat kort. Rubriken har ingen lodrät storlek att ta
+   * i, och de kortlösa typerna har ingen rektangel vars hörn betyder något — där
+   * står handtagen kvar bakom markeringen som förut.
+   */
+  const standbyDirections: readonly ResizeDir[] =
+    isAutoHeight || BARE_TYPES.includes(element.type) ? [] : ['se'];
+
+  const resizeDirections: readonly ResizeDir[] = placement.is_locked
+    ? []
+    : isSelected
+      ? (isAutoHeight ? WIDTH_ONLY_DIRECTIONS : RESIZE_DIRECTIONS)
+      : standbyDirections;
+
   const classNames = [
     'ws-element',
     BARE_TYPES.includes(element.type) && 'ws-element--bare',
@@ -329,15 +343,24 @@ export default function CanvasElement({
         />
       </div>
 
-      {/* Resize handles — only when selected and unlocked */}
-      {isSelected && !placement.is_locked &&
-        (isAutoHeight ? WIDTH_ONLY_DIRECTIONS : RESIZE_DIRECTIONS).map((dir) => (
-          <div
-            key={dir}
-            className={`ws-resize-handle ws-resize-handle--${dir}`}
-            onPointerDown={handleResizeStart(dir)}
-          />
-        ))}
+      {/*
+        Handtag. Hela uppsättningen på det markerade kortet; på ett omarkerat men
+        olåst kort står hörnet nere till höger kvar, så att en storleksändring är
+        ett grepp och inte klick-sikta-dra.
+      */}
+      {resizeDirections.map((dir) => (
+        <div
+          key={dir}
+          className={`ws-resize-handle ws-resize-handle--${dir}${isSelected ? '' : ' ws-resize-handle--standby'}`}
+          onPointerDown={(e) => {
+            // Att ta i hörnet på ett omarkerat kort markerar det också, som
+            // vilket annat grepp som helst. Resize-starten stoppar händelsen, så
+            // kortets eget onClick hinner aldrig göra det.
+            if (!isSelected) onSelect();
+            handleResizeStart(dir)(e);
+          }}
+        />
+      ))}
     </div>
   );
 }

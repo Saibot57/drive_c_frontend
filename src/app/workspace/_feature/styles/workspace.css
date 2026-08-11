@@ -498,7 +498,59 @@
 .ws-resize-handle--nw { top: -4px; left: -4px; cursor: nwse-resize; }
 .ws-resize-handle--ne { top: -4px; right: -4px; cursor: nesw-resize; }
 .ws-resize-handle--sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
-.ws-resize-handle--se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+
+/*
+  Hörnet nere till höger är det man faktiskt drar i, så där är greppytan större
+  än pricken som visar var den sitter. Åtta pixlar är fyra skärmpixlar vid 50 %
+  zoom, och det är inget mål att sikta på — därför divideras måtten med
+  --ws-zoom, precis som kanterna och skuggorna, så att ytan är lika stor på
+  skärmen hur långt ut man än har zoomat.
+
+  Pricken ligger kvar centrerad över hörnet: greppytan hänger med halva sin
+  bredd utanför kortet, så att den bara äter en dryg dotthalva av innehållet i
+  hörnet i stället för hela.
+*/
+.ws-resize-handle--se {
+  --ws-grip: calc(26px / var(--ws-zoom));
+  --ws-grip-dot: calc(10px / var(--ws-zoom));
+  width: var(--ws-grip);
+  height: var(--ws-grip);
+  right: calc(var(--ws-grip) / -2);
+  bottom: calc(var(--ws-grip) / -2);
+  /* Själva ytan är osynlig; pricken ritas av ::after i mitten. */
+  background: transparent;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: nwse-resize;
+}
+
+.ws-resize-handle--se::after {
+  content: '';
+  width: var(--ws-grip-dot);
+  height: var(--ws-grip-dot);
+  border-radius: 50%;
+  background: #000;
+}
+
+/*
+  Vilande grepp: hörnet står framme på varje olåst kort, inte bara på det som är
+  markerat. Att behöva klicka fram handtagen först och sedan träffa dem var hela
+  svårigheten. Pricken tänds när pekaren är på kortet — ytan går att ta i även
+  innan dess, men en prick per kort hela tiden hade blivit ett brus.
+*/
+.ws-resize-handle--standby {
+  opacity: 0;
+}
+
+.ws-element:hover .ws-resize-handle--standby {
+  opacity: 0.55;
+}
+
+.ws-resize-handle--standby:hover {
+  opacity: 1;
+}
 
 /* ── Zoomkontroller ── */
 .ws-zoom-controls {
