@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { notFound } from 'next/navigation';
 import NewSchedulePlanner from '@/components/schedule/NewSchedulePlanner';
 
-const mk = (teacher: string, day: string, s: string, e: string) => {
+const mk = (teacher: string, day: string, s: string, e: string, notes = '') => {
   const [sh, sm] = s.split(':').map(Number);
   const [eh, em] = e.split(':').map(Number);
   return {
@@ -12,7 +12,7 @@ const mk = (teacher: string, day: string, s: string, e: string) => {
     title: `Lektion ${teacher}`,
     teacher,
     room: 'A12',
-    notes: '',
+    notes,
     day,
     startTime: s,
     endTime: e,
@@ -36,7 +36,9 @@ const ACTIVITIES = [
   lunch('Onsdag'),
   atp,
   akMote,
-  mk('Tobias', 'Måndag', '08:00', '09:30'),
+  // Den enda posten med anteckningar från början — källan när "kopiera
+  // anteckningar" och gummibandsmarkeringen ska provas.
+  mk('Tobias', 'Måndag', '08:00', '09:30', 'Prov kap 4'),
   mk('Tobias', 'Måndag', '11:00', '12:00'),
   mk('Hanna', 'Måndag', '14:00', '15:00'),
   mk('Hanna', 'Tisdag', '09:00', '10:00'),

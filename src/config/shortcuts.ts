@@ -42,8 +42,21 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Shift', 'D'], description: 'Duplicera och placera' },
       { keys: ['c'], description: 'Kopiera innehåll' },
       { keys: ['v'], description: 'Klistra in innehåll' },
+      { keys: ['Shift', 'C'], description: 'Kopiera anteckningar' },
+      { keys: ['Shift', 'V'], description: 'Klistra in anteckningar' },
+      { keys: ['Shift', 'A'], description: 'Kopiera anteckningar och markera' },
       { keys: ['m'], description: 'Öppna kontextmeny' },
       { keys: ['Escape'], description: 'Avmarkera / Avbryt' },
+    ],
+  },
+  {
+    label: 'Schema — Markera anteckningar',
+    shortcuts: [
+      { keys: ['←', '→'], description: 'Bredda ramen en dag' },
+      { keys: ['↑', '↓'], description: 'Flytta ramens kant 15 min' },
+      { keys: ['Shift', '↑↓'], description: 'Flytta ramens kant en timme' },
+      { keys: ['Enter'], description: 'Klistra in i ramen' },
+      { keys: ['Escape'], description: 'Avbryt' },
     ],
   },
   {

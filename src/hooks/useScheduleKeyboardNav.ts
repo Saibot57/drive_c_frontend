@@ -26,6 +26,9 @@ type UseScheduleKeyboardNavOptions = {
   onDuplicateAndPlace: (entry: ScheduledEntry) => void;
   onCopyContent: (entry: ScheduledEntry) => void;
   onPasteContent: (entry: ScheduledEntry) => void;
+  onCopyNotes: (entry: ScheduledEntry) => void;
+  onPasteNotes: (entry: ScheduledEntry) => void;
+  onStartNotesMarquee: (entry: ScheduledEntry) => void;
   onOpenContextMenu: (entry: ScheduledEntry) => void;
   onLoadWeek: (archiveId: string) => void;
   onDuplicateWeek: (archive: PlannerArchiveSummary) => void;
@@ -33,6 +36,15 @@ type UseScheduleKeyboardNavOptions = {
   // Placement
   onStartPlacement: (course: PlannerCourse) => void;
   hasCopiedContent: boolean;
+  hasCopiedNotes: boolean;
+  /**
+   * Sant medan ett eget tangentbordsläge äger piltangenterna — i dag
+   * anteckningsramen. Utan pausen får samma tryck två mottagare: Enter både
+   * klistrar in i ramen och öppnar posteditorn, och pilarna flyttar både ramen
+   * och markören i rutnätet. (useHotkeys `stopPropagation` hjälper inte, varje
+   * hook har en egen lyssnare på window.)
+   */
+  isSuspended?: boolean;
   // Advanced filter
   advancedFilterMatch: (item: PlannerCourse | ScheduledEntry, query: string) => boolean;
 };
@@ -60,12 +72,17 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
     onDuplicateAndPlace,
     onCopyContent,
     onPasteContent,
+    onCopyNotes,
+    onPasteNotes,
+    onStartNotesMarquee,
     onOpenContextMenu,
     onLoadWeek,
     onDuplicateWeek,
     onDeleteWeek,
     onStartPlacement,
     hasCopiedContent,
+    hasCopiedNotes,
+    isSuspended = false,
     advancedFilterMatch,
   } = options;
 
@@ -91,7 +108,7 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
 
   // Tab to switch zones
   useHotkeys(
-    [
+    isSuspended ? [] : [
       {
         key: 'Tab',
         handler: (e) => {
@@ -125,12 +142,12 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
         },
       },
     ],
-    [activeZone, isSidebarCollapsed, isRightSidebarCollapsed, visibleCourses, schedule, sortedArchives, gridDayIndex],
+    [activeZone, isSuspended, isSidebarCollapsed, isRightSidebarCollapsed, visibleCourses, schedule, sortedArchives, gridDayIndex],
   );
 
   // --- Course sidebar navigation ---
   useHotkeys(
-    activeZone === 'courses'
+    activeZone === 'courses' && !isSuspended
       ? [
           {
             key: 'ArrowDown',
@@ -213,12 +230,12 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
           },
         ]
       : [],
-    [activeZone, selectedCourseIndex, visibleCourses, onEditCourse, onDeleteCourse, onNewCourse, onStartPlacement],
+    [activeZone, isSuspended, selectedCourseIndex, visibleCourses, onEditCourse, onDeleteCourse, onNewCourse, onStartPlacement],
   );
 
   // --- Grid navigation ---
   useHotkeys(
-    activeZone === 'grid'
+    activeZone === 'grid' && !isSuspended
       ? [
           // Down / j - next entry in current day
           {
@@ -420,6 +437,33 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
               if (entry && hasCopiedContent) onPasteContent(entry);
             },
           },
+          // Shift+C - kopiera anteckningar
+          {
+            key: 'C',
+            shift: true,
+            handler: () => {
+              const entry = getSelectedEntry();
+              if (entry) onCopyNotes(entry);
+            },
+          },
+          // Shift+V - klistra in anteckningar
+          {
+            key: 'V',
+            shift: true,
+            handler: () => {
+              const entry = getSelectedEntry();
+              if (entry && hasCopiedNotes) onPasteNotes(entry);
+            },
+          },
+          // Shift+A - kopiera anteckningar och markera med ramen
+          {
+            key: 'A',
+            shift: true,
+            handler: () => {
+              const entry = getSelectedEntry();
+              if (entry) onStartNotesMarquee(entry);
+            },
+          },
           // m - open context menu
           {
             key: 'm',
@@ -446,12 +490,12 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
           },
         ]
       : [],
-    [activeZone, selectedEventId, gridDayIndex, schedule, getSelectedEntry, hasCopiedContent, onEditEntry, onRemoveEntry, onDuplicateParallel, onDuplicateAndPlace, onCopyContent, onPasteContent, onOpenContextMenu],
+    [activeZone, isSuspended, selectedEventId, gridDayIndex, schedule, getSelectedEntry, hasCopiedContent, hasCopiedNotes, onEditEntry, onRemoveEntry, onDuplicateParallel, onDuplicateAndPlace, onCopyContent, onPasteContent, onCopyNotes, onPasteNotes, onStartNotesMarquee, onOpenContextMenu],
   );
 
   // --- Archive sidebar navigation ---
   useHotkeys(
-    activeZone === 'archive'
+    activeZone === 'archive' && !isSuspended
       ? [
           {
             key: 'ArrowDown',
@@ -522,7 +566,7 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
           },
         ]
       : [],
-    [activeZone, selectedArchiveIndex, sortedArchives, onLoadWeek, onDuplicateWeek, onDeleteWeek],
+    [activeZone, isSuspended, selectedArchiveIndex, sortedArchives, onLoadWeek, onDuplicateWeek, onDeleteWeek],
   );
 
   return {

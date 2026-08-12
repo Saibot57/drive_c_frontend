@@ -30,6 +30,9 @@ export function DayColumn({
   return (
     <div
       ref={setNodeRef}
+      /* Gummibandsmarkeringen mäter kolumnens plats härifrån när den styrs med
+         piltangenter, så att ramen hamnar på samma ställe som ett musdrag. */
+      data-day={day}
       className={`relative flex-1 min-w-[140px] sp-day-column transition-colors ${isOver ? 'sp-day-column-active' : ''} ${isPlacementMode ? 'cursor-crosshair' : ''} ${className}`}
       style={{ height: `${(END_HOUR - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}
     >

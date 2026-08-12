@@ -87,6 +87,7 @@ import { useScheduleExport } from '@/hooks/useScheduleExport';
 import { useMobileNavigation } from '@/hooks/useMobileNavigation';
 import { useScheduleKeyboardNav } from '@/hooks/useScheduleKeyboardNav';
 import { useKeyboardPlacement } from '@/hooks/useKeyboardPlacement';
+import { useNotesMarquee } from '@/hooks/useNotesMarquee';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import '@/styles/schedule-theme.css';
@@ -190,6 +191,13 @@ export default function NewSchedulePlanner() {
   const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [copiedEntryContent, setCopiedEntryContent] = useState<{ teacher: string; room: string; notes?: string; category?: string; color?: string } | null>(null);
+  /**
+   * Eget urklipp för enbart anteckningar. Skilt från `copiedEntryContent` med
+   * flit: "kopiera innehåll" tar med lärare, sal, färg och kategori, och den
+   * som vill flytta en anteckningstext till tio poster vill sällan flytta
+   * färgen med den.
+   */
+  const [copiedNotes, setCopiedNotes] = useState<string | null>(null);
 const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
@@ -489,6 +497,76 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     startPlacement: startKbPlacement,
     isKbPlacementActive,
   } = useKeyboardPlacement({ commitSchedule, validatePlacement, showNotice, isPlanningMode });
+
+  // --- Anteckningar till flera poster ---
+
+  const scheduleCanvasRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Alla poster inom ramen skrivs i ett enda anrop, så att hela svepet blir ett
+   * steg i ångra-historiken i stället för ett per post.
+   */
+  const applyNotesToEntries = useCallback((instanceIds: string[], notes: string) => {
+    if (instanceIds.length === 0) {
+      showNotice('Inga poster i markeringen.', 'warning');
+      return;
+    }
+    const targets = new Set(instanceIds);
+    commitSchedule(prev => prev.map(entry => (
+      targets.has(entry.instanceId) ? { ...entry, notes } : entry
+    )));
+    showNotice(
+      `Anteckningar inklistrade i ${instanceIds.length} post${instanceIds.length === 1 ? '' : 'er'}.`,
+      'success'
+    );
+  }, [commitSchedule, showNotice]);
+
+  const {
+    isMarqueeActive,
+    marqueeRect,
+    marqueeContentSize,
+    markedIds,
+    startMarquee,
+    marqueeHandlers,
+  } = useNotesMarquee({
+    containerRef: scheduleCanvasRef,
+    onSelect: (instanceIds) => {
+      if (copiedNotes === null) return;
+      applyNotesToEntries(instanceIds, copiedNotes);
+    },
+  });
+
+  /**
+   * Samma två åtgärder nås både från kontextmenyn och från tangentbordet.
+   * Menyn kan gråa ut ett val, ett tangenttryck kan inte — därför sitter
+   * kontrollen av tomma anteckningar här och inte i knappen.
+   */
+  const handleCopyNotes = useCallback((entry: ScheduledEntry) => {
+    if (!entry.notes?.trim()) {
+      showNotice('Posten har inga anteckningar att kopiera.', 'warning');
+      return;
+    }
+    setCopiedNotes(entry.notes);
+    showNotice('Anteckningar kopierade', 'success');
+  }, [showNotice]);
+
+  const handleCopyNotesAndMark = useCallback((entry: ScheduledEntry) => {
+    if (!entry.notes?.trim()) {
+      showNotice('Posten har inga anteckningar att kopiera.', 'warning');
+      return;
+    }
+    setCopiedNotes(entry.notes);
+    startMarquee({
+      day: entry.day,
+      startMinutes: timeToMinutes(entry.startTime),
+      endMinutes: timeToMinutes(entry.endTime),
+    });
+  }, [showNotice, startMarquee]);
+
+  const handlePasteNotes = useCallback((entry: ScheduledEntry) => {
+    if (copiedNotes === null) return;
+    applyNotesToEntries([entry.instanceId], copiedNotes);
+  }, [applyNotesToEntries, copiedNotes]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
@@ -989,6 +1067,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       );
       showNotice('Innehåll inklistrat', 'success');
     },
+    onCopyNotes: handleCopyNotes,
+    onPasteNotes: handlePasteNotes,
+    onStartNotesMarquee: handleCopyNotesAndMark,
     onOpenContextMenu: (entry) => {
       const el = document.querySelector(`[data-instance-id="${entry.instanceId}"]`);
       if (el) {
@@ -1003,6 +1084,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     onDeleteWeek: handleDeleteWeek,
     onStartPlacement: startKbPlacement,
     hasCopiedContent: !!copiedEntryContent,
+    hasCopiedNotes: copiedNotes !== null,
+    // Ramen äger piltangenterna och Enter så länge den är uppe.
+    isSuspended: isMarqueeActive,
     advancedFilterMatch: filterMatch,
   });
 
@@ -1472,7 +1556,34 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
           {/* Main Schedule Area */}
           <div className={`sp-grid flex-1 flex flex-col h-full ${activeZone === 'grid' ? 'sp-ring' : ''}`}>
-             <div className="flex-1 overflow-y-auto relative" id="schedule-canvas">
+             <div className="flex-1 overflow-y-auto relative" id="schedule-canvas" ref={scheduleCanvasRef}>
+                {isMarqueeActive && marqueeContentSize && (
+                  /* Ligger ovanpå korten och sväljer varje pekarhändelse. Det är
+                     så dnd-kit hindras från att börja dra ett kort mitt i en
+                     markering — sensorerna rörs inte, de får bara aldrig något
+                     pointerdown. `touch-none` gör att gesten fungerar likadant
+                     med finger som med mus. */
+                  <div
+                    /* z-70 och inte z-60: dagrubriken är klistrad med z-60 och
+                       kommer senare i DOM:en, så vid samma nivå hade den
+                       strippen legat överst och svalt början av draget. */
+                    className="absolute left-0 top-0 z-[70] cursor-crosshair select-none touch-none"
+                    style={{ width: `${marqueeContentSize.width}px`, height: `${marqueeContentSize.height}px` }}
+                    {...marqueeHandlers}
+                  >
+                    {marqueeRect && (
+                      <div
+                        className="absolute border-2 border-sky-600 bg-sky-500/20 pointer-events-none"
+                        style={{
+                          left: `${marqueeRect.left}px`,
+                          top: `${marqueeRect.top}px`,
+                          width: `${marqueeRect.width}px`,
+                          height: `${marqueeRect.height}px`,
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
                 <div className="schedule-desktop-header hidden lg:flex sticky top-0 z-[60] pl-[50px] sp-day-header">
                    {PLANNER_DAYS.map(day => (
                      <div
@@ -1599,6 +1710,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   showLayoutDebug={showLayoutDebug}
                                   isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                   isHighlighted={highlightedIds.has(entry.instanceId)}
+                                  isNotesTarget={markedIds.has(entry.instanceId)}
                                   color={resolveColor(entry.title, entry.color)}
                                   excludedFromExport={isExcludedFromExport(entry)}
                                />
@@ -1662,6 +1774,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                  showLayoutDebug={showLayoutDebug}
                                  isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                  isHighlighted={highlightedIds.has(entry.instanceId)}
+                                 isNotesTarget={markedIds.has(entry.instanceId)}
                                  color={resolveColor(entry.title, entry.color)}
                                   excludedFromExport={isExcludedFromExport(entry)}
                                />
@@ -1865,6 +1978,40 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             </button>
           )}
           <button
+            className="px-3 py-2 text-left text-sm sp-menu-item"
+            disabled={!contextMenu.entry.notes?.trim()}
+            title={contextMenu.entry.notes?.trim() ? undefined : 'Posten har inga anteckningar'}
+            onClick={() => {
+              handleCopyNotes(contextMenu.entry);
+              setContextMenu(null);
+            }}
+          >
+            Kopiera anteckningar
+          </button>
+          <button
+            className="px-3 py-2 text-left text-sm sp-menu-item"
+            disabled={!contextMenu.entry.notes?.trim()}
+            title={contextMenu.entry.notes?.trim() ? undefined : 'Posten har inga anteckningar'}
+            onClick={() => {
+              const entry = contextMenu.entry;
+              setContextMenu(null);
+              handleCopyNotesAndMark(entry);
+            }}
+          >
+            Kopiera anteckningar och dra
+          </button>
+          {copiedNotes !== null && (
+            <button
+              className="px-3 py-2 text-left text-sm sp-menu-item"
+              onClick={() => {
+                handlePasteNotes(contextMenu.entry);
+                setContextMenu(null);
+              }}
+            >
+              Klistra in anteckningar
+            </button>
+          )}
+          <button
             className="px-3 py-2 text-left text-sm text-rose-700 sp-menu-item"
             onClick={() => {
               commitSchedule(p => p.filter(e => e.instanceId !== contextMenu.entry.instanceId));
@@ -1875,6 +2022,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           </button>
         </div>
         </>
+      )}
+
+      {isMarqueeActive && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
+          Markera posterna som ska få anteckningarna: dra en ram, eller ←→ dag,
+          ↑↓ tid (Shift = timme). Enter klistrar in, Esc avbryter.
+        </div>
       )}
 
       {isKbPlacementActive && kbPlacementGhost && (

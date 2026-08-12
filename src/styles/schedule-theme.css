@@ -108,6 +108,17 @@
   background: var(--sp-menu-hover);
 }
 
+/* Ett avstängt menyval får hover-bakgrund i alla webbläsare om den inte
+   nollas — det ser klickbart ut fast klicket inte gör något. */
+.sp-menu-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sp-menu-item:disabled:hover {
+  background: transparent;
+}
+
 .sp-toast {
   border: var(--sp-border);
   border-radius: var(--sp-radius);
