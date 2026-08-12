@@ -53,7 +53,6 @@ type ScheduleModalsProps = {
   onConfirmShareWeek: () => void;
   onRemoveShare: (username: string) => void;
   onLeaveShare: (archive: PlannerArchiveSummary, username: string) => void;
-  onSendCopy: () => void;
   /** Inloggat användarnamn — behövs för att kunna lämna en delning. */
   currentUsername: string | null;
   isSharing: boolean;
@@ -110,7 +109,6 @@ export function ScheduleModals({
   onConfirmShareWeek,
   onRemoveShare,
   onLeaveShare,
-  onSendCopy,
   currentUsername,
   isSharing,
   onConfirmDeleteWeek,
@@ -475,29 +473,6 @@ export function ScheduleModals({
                     </div>
                   ))
                 )}
-              </div>
-            )}
-
-            {/* Den gamla engångskopian finns kvar: den är rätt verktyg när
-                kollegan ska bygga något eget utifrån veckan i stället för att
-                arbeta i den. Backend hämtar kopian ur den egna uppsättningen,
-                så den erbjuds bara för scheman man äger. */}
-            {shareArchive?.isOwner && (
-              <div className="space-y-2 border-t-2 border-black pt-3">
-                <Label className="text-xs font-bold uppercase text-gray-500">Eller skicka en kopia</Label>
-                <p className="text-xs text-gray-600">
-                  Mottagaren får en egen version att göra vad de vill med. Dina senare
-                  ändringar följer inte med.
-                </p>
-                <Button
-                  type="button"
-                  variant="neutral"
-                  className="w-full"
-                  disabled={isSharing || !shareRecipient.trim()}
-                  onClick={onSendCopy}
-                >
-                  Skicka kopia till {shareRecipient.trim() || '…'}
-                </Button>
               </div>
             )}
 

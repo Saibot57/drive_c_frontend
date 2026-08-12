@@ -16,7 +16,6 @@ type UseDragHandlersParams = {
   validatePlacement: (candidate: PlacementCandidate) => PlacementVerdict;
   /** Ger förhandsvisningen samma färg som den placerade posten kommer att få. */
   resolveColor: (title: string, fallbackColor: string) => string;
-  isMobileDragDisabled: boolean;
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
   /** I planeringsvyn ritas inga poster, så en ny post skulle annars försvinna tyst. */
   isPlanningMode?: boolean;
@@ -35,7 +34,6 @@ export const useDragHandlers = ({
   commitSchedule,
   validatePlacement,
   resolveColor,
-  isMobileDragDisabled,
   showNotice,
   isPlanningMode = false,
   isReadOnly = false
@@ -43,15 +41,18 @@ export const useDragHandlers = ({
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [ghostPlacement, setGhostPlacement] = useState<GhostPlacement | null>(null);
 
-  const desktopSensors = useSensors(
+  // Sensoruppsättningen är avsiktligt konstant. dnd-kit skickar listan vidare
+  // som beroendelista till en useEffect, och en lista som byter längd mellan
+  // renderingar ger både React-varning och lyssnare som aldrig kopplas om —
+  // dragandet slutar helt enkelt fungera tills sidan laddas om.
+  //
+  // Både läsläget och mobilspärren stängs i stället av där de hör hemma: korten
+  // får `dragDisabled`, som blir `disabled` på useDraggable. Ett avstängt kort
+  // startar aldrig ett drag, oavsett vilka sensorer som lyssnar.
+  const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
-  const mobileSensors = useSensors(useSensor(KeyboardSensor));
-  // Läsläget stänger av dragandet via kortens `dragDisabled`, inte genom att
-  // byta sensoruppsättning: dnd-kit använder sensorlistan som beroendelista
-  // internt, och en lista som ändrar längd ger varningar och tappade lyssnare.
-  const sensors = isMobileDragDisabled ? mobileSensors : desktopSensors;
 
   const computeDropTime = useCallback((event: any): DropTimeResult | null => {
     const { active, over } = event;

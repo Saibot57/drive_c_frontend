@@ -152,7 +152,16 @@ export default function NewSchedulePlanner() {
   // Behövs för att kunna lämna ett schema någon annan äger — backend vill ha
   // användarnamnet, och det är bara det egna man får ta bort.
   const { user } = useAuth();
-  const { schedule, commitSchedule } = useScheduleHistory();
+  /**
+   * Läsläget avgörs först när arkivhanteraren svarat, en bit ned. Refen låter
+   * det som ligger ovanför fråga efter svaret när det väl behövs.
+   */
+  const isReadOnlyRef = useRef(false);
+  // Den ogarderade skrivvägen. Bara inläsningar från servern använder den
+  // direkt — allt användaren gör går via commitSchedule längre ned.
+  const { schedule, commitSchedule: applyScheduleFromServer } = useScheduleHistory({
+    canEdit: () => !isReadOnlyRef.current
+  });
   const {
     manualCourses,
     setManualCourses,
@@ -270,7 +279,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleConfirmShareWeek,
     handleRemoveShare,
     handleLeaveShare,
-    handleSendCopy,
     newScheduleName,
     setNewScheduleName,
     isNewScheduleDialogOpen,
@@ -278,7 +286,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleCreateNewSchedule
   } = useArchiveManager({
     schedule,
-    commitSchedule,
+    commitSchedule: applyScheduleFromServer,
     mapPlannerActivitiesToSchedule,
     mapScheduleToPlannerActivities,
     showNotice
@@ -286,7 +294,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   usePlannerSync({
     schedule,
-    commitSchedule,
+    commitSchedule: applyScheduleFromServer,
     activeArchiveId,
     initialArchiveId,
     isReadOnly,
@@ -294,6 +302,33 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     onLockLost: markLockLost,
     showNotice
   });
+
+  isReadOnlyRef.current = isReadOnly;
+
+  /**
+   * Allt användaren själv gör med schemat går genom den här. Spärren sitter på
+   * ett ställe i stället för i varje knapp, av två skäl: den kan inte glömmas
+   * bort i en ny redigeringsväg, och den kan inte gälla av misstag för de
+   * inläsningar som ska passera — de använder applyScheduleFromServer.
+   *
+   * Att bara stänga av dragandet räckte inte. Posteditorn, radera, sök och
+   * ersätt, JSON-importen och piltangenterna ändrade fortfarande vyn, och
+   * eftersom autosparet ändå tiger i läsläge såg det ut som arbete som sedan
+   * försvann vid nästa omladdning.
+   */
+  const commitSchedule = useCallback((
+    updater: (prev: ScheduledEntry[]) => ScheduledEntry[],
+    options?: { clearHistory?: boolean }
+  ) => {
+    if (isReadOnlyRef.current) {
+      showNotice(
+        `${lockHolder ?? 'Någon annan'} har schemat öppet. Tryck "Ta över" för att kunna ändra.`,
+        'warning'
+      );
+      return;
+    }
+    applyScheduleFromServer(updater, options);
+  }, [applyScheduleFromServer, lockHolder, showNotice]);
 
   // --- Lärarmängden ---
 
@@ -393,7 +428,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     commitSchedule,
     validatePlacement,
     resolveColor,
-    isMobileDragDisabled,
     showNotice,
     isPlanningMode,
     isReadOnly
@@ -1913,7 +1947,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onConfirmShareWeek={handleConfirmShareWeek}
         onRemoveShare={handleRemoveShare}
         onLeaveShare={handleLeaveShare}
-        onSendCopy={handleSendCopy}
         currentUsername={user?.username ?? null}
         isSharing={isSharing}
         deleteCourseName={deleteCourseName}

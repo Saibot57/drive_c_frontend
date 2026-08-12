@@ -8,10 +8,23 @@ type CommitOptions = {
   clearHistory?: boolean;
 };
 
-export const useScheduleHistory = () => {
+type UseScheduleHistoryOptions = {
+  /**
+   * Frågas innan en ångring körs. Skickas som funktion och inte som värde:
+   * läsläget avgörs längre ned i planeraren än där historiken skapas, så svaret
+   * finns inte än när hooken anropas — det läses först när tangenten trycks.
+   */
+  canEdit?: () => boolean;
+};
+
+export const useScheduleHistory = ({ canEdit }: UseScheduleHistoryOptions = {}) => {
   const [schedule, setSchedule] = useState<ScheduledEntry[]>([]);
   const scheduleHistoryRef = useRef<ScheduledEntry[][]>([]);
   const scheduleFutureRef = useRef<ScheduledEntry[][]>([]);
+  // Via en ref, så att en ny funktionsidentitet per rendering inte tvingar
+  // fram en omregistrering av tangentgenvägen.
+  const canEditRef = useRef(canEdit);
+  canEditRef.current = canEdit;
 
   const commitSchedule = useCallback((
     updater: (prev: ScheduledEntry[]) => ScheduledEntry[],
@@ -36,6 +49,10 @@ export const useScheduleHistory = () => {
   }, []);
 
   const handleUndo = useCallback(() => {
+    // Ctrl+Z går inte genom commitSchedule och skulle annars vara den enda
+    // vägen som ändrade ett schema man bara har läsrätt till.
+    if (canEditRef.current && !canEditRef.current()) return;
+
     const history = scheduleHistoryRef.current;
     if (history.length === 0) return;
 

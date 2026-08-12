@@ -463,31 +463,6 @@ export const useArchiveManager = ({
     }
   }, [showNotice]);
 
-  /** Den gamla engångskopian. Finns kvar för att starta något eget ur en mall. */
-  const handleSendCopy = useCallback(async () => {
-    if (!shareArchiveLive) return;
-    const recipient = shareRecipient.trim();
-    if (!recipient) {
-      showNotice('Ange vem du vill skicka kopian till.', 'warning');
-      return;
-    }
-
-    setIsSharing(true);
-    try {
-      const result = await plannerService.shareArchive(shareArchiveLive.name, recipient);
-      setShareRecipient('');
-      showNotice(
-        `En kopia av "${shareArchiveLive.name}" skickades till ${result.recipient} som "${result.archiveName}".`,
-        'success'
-      );
-    } catch (error) {
-      console.error('Archive copy failed', error);
-      showNotice(error instanceof Error ? error.message : 'Kunde inte skicka kopian.', 'error');
-    } finally {
-      setIsSharing(false);
-    }
-  }, [shareArchiveLive, shareRecipient, showNotice]);
-
   return {
     archives,
     ownArchives,
@@ -524,7 +499,6 @@ export const useArchiveManager = ({
     handleConfirmShareWeek,
     handleRemoveShare,
     handleLeaveShare,
-    handleSendCopy,
     newScheduleName,
     setNewScheduleName,
     isNewScheduleDialogOpen,
