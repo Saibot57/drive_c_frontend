@@ -2062,8 +2062,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
       {isMarqueeActive && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
-          Markera posterna som ska få anteckningarna: dra en ram, eller ←→ dag,
-          ↑↓ lektion (Shift = 15 min). Enter klistrar in, Esc avbryter.
+          Markera posterna som ska få anteckningarna: dra en ram, eller stega med
+          ←→ ↑↓ (Shift = dag / 15 min). Enter klistrar in, Esc avbryter.
         </div>
       )}
 

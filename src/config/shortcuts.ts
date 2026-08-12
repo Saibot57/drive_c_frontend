@@ -52,9 +52,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     label: 'Schema — Markera anteckningar',
     shortcuts: [
-      { keys: ['←', '→'], description: 'Bredda ramen en dag' },
-      { keys: ['↑', '↓'], description: 'Utöka ramen en lektion' },
-      { keys: ['Shift', '↑↓'], description: 'Flytta ramens kant 15 min' },
+      { keys: ['←', '→'], description: 'En spalt / dag i sidled' },
+      { keys: ['↑', '↓'], description: 'En lektion i höjdled' },
+      { keys: ['Shift', '←→'], description: 'Hela dagar, hoppa över spalter' },
+      { keys: ['Shift', '↑↓'], description: 'Flytta kanten 15 min' },
       { keys: ['Enter'], description: 'Klistra in i ramen' },
       { keys: ['Escape'], description: 'Avbryt' },
     ],

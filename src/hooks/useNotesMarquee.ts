@@ -2,7 +2,6 @@
 
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
 import { END_HOUR, EVENT_GAP_PX, PIXELS_PER_MINUTE, SNAP_MINUTES, START_HOUR } from '@/utils/scheduleTime';
 
 /** Ramens läge i rullningsytans egna koordinater, inte skärmens. */
@@ -12,8 +11,6 @@ type Point = { x: number; y: number };
 
 type MeasuredCard = {
   instanceId: string;
-  /** Dagen kortet står i, för att kunna stega lektionsvis inom ramens dagar. */
-  day: string;
   left: number;
   top: number;
   right: number;
@@ -22,15 +19,20 @@ type MeasuredCard = {
 
 type ColumnBox = { day: string; left: number; right: number; top: number };
 
-/** Var ramen började och var den står nu, i dagar och minuter. */
+/**
+ * Ramens fasta och rörliga kant. Sidled mäts i pixlar och inte i dagar, för
+ * att parallella lektioner delar dagkolumnen mellan sig — och hur många
+ * spalter en dag har varierar med tiden på dagen, eftersom `buildDayLayout`
+ * räknar per överlappsgrupp och inte per dag.
+ */
 type KeyRange = {
-  anchorDay: number;
-  cursorDay: number;
+  anchorX: number;
+  cursorX: number;
   anchorMinutes: number;
   cursorMinutes: number;
 };
 
-/** Startpunkten som kontextmenyn ger: postens egen ruta. */
+/** Startpunkten som kontextmenyn ger: postens tid, och dess dag i sin helhet. */
 export type MarqueeSeed = {
   day: string;
   startMinutes: number;
@@ -45,7 +47,11 @@ type UseNotesMarqueeOptions = {
 };
 
 const clampMinutes = (value: number) => Math.min(Math.max(value, START_HOUR * 60), END_HOUR * 60);
-const clampDay = (value: number) => Math.min(Math.max(value, 0), PLANNER_DAYS.length - 1);
+
+/** Två uppsättningar id:n som betyder samma markering. */
+const sameSelection = (a: string[], b: Set<string>) => (
+  a.length === b.size && a.every(id => b.has(id))
+);
 
 /**
  * Gummibandsmarkering över schemarutnätet, för att peka ut flera poster på en
@@ -53,11 +59,17 @@ const clampDay = (value: number) => Math.min(Math.max(value, 0), PLANNER_DAYS.le
  * första bekräftelsen — ett mussläpp eller Enter.
  *
  * Ramen går att styra på två sätt, och de möts i samma pixelrektangel med
- * flit: musen ger den direkt, piltangenterna räknar fram den ur dagar och
- * minuter genom att mäta dagkolumnernas verkliga plats. Att i stället låta
- * tangentbordet välja poster på tid-och-dag-vis hade gett två skilda svar på
- * frågan "vad ligger i ramen" — och de hade börjat glida isär vid första
- * överlappande posten.
+ * flit: musen ger den direkt, piltangenterna snäpper den till kortens kanter.
+ * Att i stället låta tangentbordet välja poster på tid-och-dag-vis hade gett
+ * två skilda svar på frågan "vad ligger i ramen" — och de hade börjat glida
+ * isär vid första parallella lektionen.
+ *
+ * Piltangenterna stegar tills *markeringen* ändras, inte ett fast avstånd.
+ * Kanterna ligger tätt — ett kort är indraget några pixlar i sin spalt, och
+ * en lektions slut kan ligga mitt i nästa — så ett steg per kant hade gett
+ * tryck som såg verkningslösa ut. Nu betyder ett tryck alltid en post till
+ * eller en post färre, och när det inte finns fler går kanten till rutnätets
+ * gräns.
  *
  * Två saker till är avsiktliga och bör inte "förenklas" bort:
  *
@@ -68,7 +80,7 @@ const clampDay = (value: number) => Math.min(Math.max(value, 0), PLANNER_DAYS.le
  * fortfarande låtit klick nå kortens redigera- och raderaknappar.
  *
  * Träffbestämningen görs mot kortens verkliga DOM-rutor, inte mot tid och dag.
- * Då sköter sig kolumnuppdelningen vid överlapp av sig själv, och ett kort som
+ * Då sköter sig spaltuppdelningen vid överlapp av sig själv, och ett kort som
  * filtret gömt saknar DOM-nod — man kan alltså aldrig klistra in i något man
  * inte ser.
  */
@@ -83,7 +95,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
   // trycket får inte läsa en startpunkt som React ännu inte hunnit skriva.
   const originRef = useRef<Point | null>(null);
 
-  // Tangentbordets väg: ett dag- och minutintervall, plus rektangeln det gav.
+  // Tangentbordets väg: ett kant- och minutintervall, plus rektangeln det gav.
   const [keyRange, setKeyRange] = useState<KeyRange | null>(null);
   const [keyRect, setKeyRect] = useState<MarqueeRect | null>(null);
   // Spegel av intervallet, för att kunna räkna fram nästa steg utan att göra
@@ -128,7 +140,6 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
       const r = node.getBoundingClientRect();
       return {
         instanceId: node.dataset.instanceId as string,
-        day: node.closest<HTMLElement>('[data-day]')?.dataset.day ?? '',
         left: r.left - containerRect.left + el.scrollLeft,
         top: r.top - containerRect.top + el.scrollTop,
         right: r.right - containerRect.left + el.scrollLeft,
@@ -152,32 +163,19 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     });
   }, [containerRef]);
 
-  /** Dagarna ramen täcker just nu, oavsett åt vilket håll den vuxit. */
-  const daysInRange = (range: KeyRange) => new Set(
-    PLANNER_DAYS.slice(
-      Math.min(range.anchorDay, range.cursorDay),
-      Math.max(range.anchorDay, range.cursorDay) + 1
-    )
-  );
-
   /**
-   * Räknar om dag- och minutintervallet till en rektangel. Kolumnernas plats
-   * mäts i stället för att räknas fram, eftersom bredden beror på hur många
-   * dagar som ritas och på om sidopanelerna är utfällda.
+   * Räknar om intervallet till en rektangel. Kolumnernas plats mäts i stället
+   * för att räknas fram, eftersom höjden beror på var rutnätet börjar.
    */
   const rectFromRange = useCallback((range: KeyRange): MarqueeRect | null => {
-    // I mobilvyn ritas bara en dag. Kolumner som saknas hoppas över i stället
-    // för att ge en rektangel med påhittad bredd.
-    const days = daysInRange(range);
-    const columns = measureColumns().filter(column => days.has(column.day as typeof PLANNER_DAYS[number]));
-
+    const columns = measureColumns();
     if (columns.length === 0) return null;
 
-    const left = Math.min(...columns.map(c => c.left));
-    const right = Math.max(...columns.map(c => c.right));
-    const columnTop = Math.min(...columns.map(c => c.top));
+    const columnTop = Math.min(...columns.map(column => column.top));
     const minutesFrom = Math.min(range.anchorMinutes, range.cursorMinutes);
     const minutesTo = Math.max(range.anchorMinutes, range.cursorMinutes);
+    const left = Math.min(range.anchorX, range.cursorX);
+    const right = Math.max(range.anchorX, range.cursorX);
 
     return {
       left,
@@ -207,6 +205,10 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     const next = range ? rectFromRange(range) : null;
     setKeyRect(next);
     setMarkedIds(new Set(next ? idsWithin(next) : []));
+    // Musens punkter nollas: ramen har bara en förare i taget.
+    setOrigin(null);
+    setCurrent(null);
+    originRef.current = null;
   }, [idsWithin, rectFromRange]);
 
   const start = useCallback((seed?: MarqueeSeed) => {
@@ -215,64 +217,65 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
 
     measuredRef.current = measureCards();
     setContentSize({ width: el.scrollWidth, height: el.scrollHeight });
-    setOrigin(null);
-    setCurrent(null);
-    originRef.current = null;
 
-    // Ramen börjar som postens egen ruta. Då syns det direkt var ankaret
-    // sitter, och piltangenterna har något att växa ifrån.
-    const dayIndex = seed ? PLANNER_DAYS.indexOf(seed.day as typeof PLANNER_DAYS[number]) : -1;
-    applyRange(seed
+    // Ramen börjar som postens tid över dagens hela bredd, så att parallella
+    // lektioner är med från start — det är den vanligaste avsikten. Vill man
+    // bara åt en av spalterna smalnar man av den med vänsterpilen.
+    const column = seed ? measureColumns().find(box => box.day === seed.day) : undefined;
+    applyRange(seed && column
       ? {
-          anchorDay: clampDay(dayIndex >= 0 ? dayIndex : 0),
-          cursorDay: clampDay(dayIndex >= 0 ? dayIndex : 0),
+          anchorX: column.left,
+          cursorX: column.right,
           anchorMinutes: clampMinutes(seed.startMinutes),
           cursorMinutes: clampMinutes(seed.endMinutes),
         }
       : null);
     setIsActive(true);
-  }, [applyRange, containerRef, measureCards]);
+  }, [applyRange, containerRef, measureCards, measureColumns]);
 
   const cancel = useCallback(() => {
     reset();
   }, [reset]);
 
-  /** Flyttar ramens rörliga hörn och räknar om markeringen. */
-  const moveCursor = useCallback((patch: { days?: number; minutes?: number }) => {
-    const prev = keyRangeRef.current;
-    if (!prev) return;
-    applyRange({
-      ...prev,
-      cursorDay: clampDay(prev.cursorDay + (patch.days ?? 0)),
-      cursorMinutes: clampMinutes(prev.cursorMinutes + (patch.minutes ?? 0)),
-    });
-    // Musens punkter nollas: ramen har bara en förare i taget.
-    setOrigin(null);
-    setCurrent(null);
-    originRef.current = null;
-  }, [applyRange]);
+  /**
+   * Går igenom kandidatlägena i tur och ordning och stannar på det första som
+   * faktiskt ändrar markeringen. Tar inget av dem det, hamnar kanten längst ut
+   * — då finns det inget mer åt det hållet.
+   */
+  const stepUntilChanged = useCallback((
+    candidates: number[],
+    limit: number,
+    build: (value: number) => KeyRange
+  ) => {
+    const currentRect = keyRangeRef.current ? rectFromRange(keyRangeRef.current) : null;
+    const currentIds = new Set(currentRect ? idsWithin(currentRect) : []);
+
+    for (const candidate of candidates) {
+      const range = build(candidate);
+      const rect = rectFromRange(range);
+      if (!rect) continue;
+      if (!sameSelection(idsWithin(rect), currentIds)) {
+        applyRange(range);
+        return;
+      }
+    }
+    applyRange(build(limit));
+  }, [applyRange, idsWithin, rectFromRange]);
 
   /**
-   * Flyttar kanten till närmaste lektionskant i stället för ett fast antal
-   * minuter, så att ett tryck omsluter exakt en lektion till.
-   *
-   * Nedåt siktas på *sluttider* och uppåt på *starttider*. Att ta båda hade
-   * gjort vartannat tryck verkningslöst: att nå en lektions starttid tar redan
-   * med den (ramen behöver bara nudda), så nästa tryck till samma lektions
-   * slut hade bara gjort rutan högre utan att markera något nytt.
-   *
-   * Kanterna läses ur kortens uppmätta rutor och inte ur schemat, av samma
-   * skäl som träffbestämningen: det som filtret gömt har ingen ruta, och kan
-   * därför inte heller stegas till.
+   * Flyttar underkanten till nästa lektionskant. Kandidaterna är kortens egna
+   * över- och underkanter, men bara för de kort ramen täcker i sidled — en
+   * spalt man just smalnat bort ska inte styra hur långt pilen hoppar.
    */
-  const stepToLesson = useCallback((direction: 1 | -1) => {
+  const stepVertical = useCallback((direction: 1 | -1) => {
     const prev = keyRangeRef.current;
     if (!prev) return;
 
-    const days = daysInRange(prev);
-    const columns = measureColumns().filter(column => days.has(column.day as typeof PLANNER_DAYS[number]));
+    const columns = measureColumns();
     if (columns.length === 0) return;
     const columnTop = Math.min(...columns.map(column => column.top));
+    const left = Math.min(prev.anchorX, prev.cursorX);
+    const right = Math.max(prev.anchorX, prev.cursorX);
 
     // Kortet ritas indraget med halva mellanrummet upptill och nedtill, så
     // rutan måste kompenseras tillbaka för att ge lektionens verkliga tid.
@@ -281,20 +284,78 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
       + (y - columnTop + (edge === 'top' ? -EVENT_GAP_PX / 2 : EVENT_GAP_PX / 2)) / PIXELS_PER_MINUTE
     );
 
-    const edges = measuredRef.current
-      .filter(card => days.has(card.day as typeof PLANNER_DAYS[number]))
-      .map(card => (direction === 1 ? toMinutes(card.bottom, 'bottom') : toMinutes(card.top, 'top')))
-      .filter(minutes => (direction === 1 ? minutes > prev.cursorMinutes : minutes < prev.cursorMinutes));
+    const candidates = measuredRef.current
+      .filter(card => card.left <= right && card.right >= left)
+      .flatMap(card => [toMinutes(card.top, 'top'), toMinutes(card.bottom, 'bottom')])
+      .filter(minutes => (direction === 1 ? minutes > prev.cursorMinutes : minutes < prev.cursorMinutes))
+      .sort((a, b) => (direction === 1 ? a - b : b - a));
 
-    // Utan fler lektioner åt det hållet går kanten till dagens gräns.
-    const next = direction === 1
-      ? Math.min(END_HOUR * 60, ...edges)
-      : Math.max(START_HOUR * 60, ...edges);
+    stepUntilChanged(
+      candidates,
+      direction === 1 ? END_HOUR * 60 : START_HOUR * 60,
+      value => ({ ...prev, cursorMinutes: clampMinutes(value) })
+    );
+  }, [measureColumns, stepUntilChanged]);
 
-    applyRange({ ...prev, cursorMinutes: clampMinutes(next) });
-    setOrigin(null);
-    setCurrent(null);
-    originRef.current = null;
+  /**
+   * Flyttar sidokanten till nästa kortkant i stället för en hel dag, så att en
+   * dag med parallella lektioner går att smalna av spalt för spalt. Saknas
+   * parallella kort i tidsspannet är dagkolumnernas kanter de enda
+   * kandidaterna, och ett tryck blir en hel dag precis som förut.
+   */
+  const stepHorizontal = useCallback((direction: 1 | -1) => {
+    const prev = keyRangeRef.current;
+    if (!prev) return;
+
+    const columns = measureColumns();
+    if (columns.length === 0) return;
+    const columnTop = Math.min(...columns.map(column => column.top));
+    const dayEdges = columns.flatMap(column => [column.left, column.right]);
+    const outerLeft = Math.min(...dayEdges);
+    const outerRight = Math.max(...dayEdges);
+
+    const top = columnTop
+      + (Math.min(prev.anchorMinutes, prev.cursorMinutes) - START_HOUR * 60) * PIXELS_PER_MINUTE;
+    const bottom = columnTop
+      + (Math.max(prev.anchorMinutes, prev.cursorMinutes) - START_HOUR * 60) * PIXELS_PER_MINUTE;
+
+    const cardEdges = measuredRef.current
+      .filter(card => card.top <= bottom && card.bottom >= top)
+      .flatMap(card => [card.left, card.right]);
+
+    const candidates = [...dayEdges, ...cardEdges]
+      .filter(x => (direction === 1 ? x > prev.cursorX : x < prev.cursorX))
+      .sort((a, b) => (direction === 1 ? a - b : b - a));
+
+    stepUntilChanged(
+      candidates,
+      direction === 1 ? outerRight : outerLeft,
+      value => ({ ...prev, cursorX: Math.min(Math.max(value, outerLeft), outerRight) })
+    );
+  }, [measureColumns, stepUntilChanged]);
+
+  /** Rått steg utan snäppning: kvartar i höjd, hela dagar i sidled. */
+  const nudge = useCallback((patch: { minutes?: number; days?: 1 | -1 }) => {
+    const prev = keyRangeRef.current;
+    if (!prev) return;
+
+    if (patch.minutes) {
+      applyRange({ ...prev, cursorMinutes: clampMinutes(prev.cursorMinutes + patch.minutes) });
+      return;
+    }
+    if (!patch.days) return;
+
+    const columns = measureColumns();
+    if (columns.length === 0) return;
+    const dayEdges = columns.flatMap(column => [column.left, column.right]);
+    const outerLeft = Math.min(...dayEdges);
+    const outerRight = Math.max(...dayEdges);
+    const ahead = dayEdges
+      .filter(x => (patch.days === 1 ? x > prev.cursorX : x < prev.cursorX))
+      .sort((a, b) => (patch.days === 1 ? a - b : b - a));
+
+    const next = ahead.length > 0 ? ahead[0] : (patch.days === 1 ? outerRight : outerLeft);
+    applyRange({ ...prev, cursorX: Math.min(Math.max(next, outerLeft), outerRight) });
   }, [applyRange, measureColumns]);
 
   const pointerRect: MarqueeRect | null = origin && current
@@ -325,33 +386,33 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
   }, [idsWithin, measureCards, toContentPoint]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const origin = originRef.current;
-    if (!origin) return;
+    const start = originRef.current;
+    if (!start) return;
     const point = toContentPoint(event.clientX, event.clientY);
     if (!point) return;
     setCurrent(point);
     setMarkedIds(new Set(idsWithin({
-      left: Math.min(origin.x, point.x),
-      top: Math.min(origin.y, point.y),
-      width: Math.abs(point.x - origin.x),
-      height: Math.abs(point.y - origin.y),
+      left: Math.min(start.x, point.x),
+      top: Math.min(start.y, point.y),
+      width: Math.abs(point.x - start.x),
+      height: Math.abs(point.y - start.y),
     })));
   }, [idsWithin, toContentPoint]);
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const origin = originRef.current;
-    if (!origin) {
+    const start = originRef.current;
+    if (!start) {
       // Ett släpp utan föregående tryck (t.ex. efter en avbruten gest) ska inte
       // klistra in i noll poster och låtsas att något hände. Ramen som
       // piltangenterna byggt lämnas kvar — den bekräftas med Enter.
       return;
     }
-    const point = toContentPoint(event.clientX, event.clientY) ?? origin;
+    const point = toContentPoint(event.clientX, event.clientY) ?? start;
     const selected = idsWithin({
-      left: Math.min(origin.x, point.x),
-      top: Math.min(origin.y, point.y),
-      width: Math.abs(point.x - origin.x),
-      height: Math.abs(point.y - origin.y),
+      left: Math.min(start.x, point.x),
+      top: Math.min(start.y, point.y),
+      width: Math.abs(point.x - start.x),
+      height: Math.abs(point.y - start.y),
     });
     reset();
     onSelect(selected);
@@ -374,23 +435,24 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
   useHotkeys(
     isActive
       ? [
-          { key: 'ArrowLeft', handler: () => moveCursor({ days: -1 }) },
-          { key: 'ArrowRight', handler: () => moveCursor({ days: 1 }) },
-          { key: 'h', handler: () => moveCursor({ days: -1 }) },
-          { key: 'l', handler: () => moveCursor({ days: 1 }) },
-          { key: 'ArrowUp', handler: () => stepToLesson(-1) },
-          { key: 'ArrowDown', handler: () => stepToLesson(1) },
-          { key: 'k', handler: () => stepToLesson(-1) },
-          { key: 'j', handler: () => stepToLesson(1) },
-          // Kvartsstegen finns kvar under Shift, för kanter som ska hamna
-          // mellan lektioner.
-          { key: 'ArrowUp', shift: true, handler: () => moveCursor({ minutes: -SNAP_MINUTES }) },
-          { key: 'ArrowDown', shift: true, handler: () => moveCursor({ minutes: SNAP_MINUTES }) },
+          { key: 'ArrowLeft', handler: () => stepHorizontal(-1) },
+          { key: 'ArrowRight', handler: () => stepHorizontal(1) },
+          { key: 'h', handler: () => stepHorizontal(-1) },
+          { key: 'l', handler: () => stepHorizontal(1) },
+          { key: 'ArrowUp', handler: () => stepVertical(-1) },
+          { key: 'ArrowDown', handler: () => stepVertical(1) },
+          { key: 'k', handler: () => stepVertical(-1) },
+          { key: 'j', handler: () => stepVertical(1) },
+          // Shift ger det råa steget, för kanter som ska hamna mellan poster.
+          { key: 'ArrowUp', shift: true, handler: () => nudge({ minutes: -SNAP_MINUTES }) },
+          { key: 'ArrowDown', shift: true, handler: () => nudge({ minutes: SNAP_MINUTES }) },
+          { key: 'ArrowLeft', shift: true, handler: () => nudge({ days: -1 }) },
+          { key: 'ArrowRight', shift: true, handler: () => nudge({ days: 1 }) },
           { key: 'Enter', handler: commitKeyboard },
           { key: 'Escape', handler: reset },
         ]
       : [],
-    [isActive, commitKeyboard, moveCursor, reset, stepToLesson],
+    [isActive, commitKeyboard, nudge, reset, stepHorizontal, stepVertical],
   );
 
   // Rullar man med hjulet mitt i en tangentbordsram hamnar rektangeln fel,
