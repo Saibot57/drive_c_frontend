@@ -79,6 +79,9 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
   // Musens väg: två punkter i innehållets koordinater.
   const [origin, setOrigin] = useState<Point | null>(null);
   const [current, setCurrent] = useState<Point | null>(null);
+  // Startpunkten speglas, av samma skäl som intervallet: rörelsen direkt efter
+  // trycket får inte läsa en startpunkt som React ännu inte hunnit skriva.
+  const originRef = useRef<Point | null>(null);
 
   // Tangentbordets väg: ett dag- och minutintervall, plus rektangeln det gav.
   const [keyRange, setKeyRange] = useState<KeyRange | null>(null);
@@ -97,6 +100,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     setIsActive(false);
     setOrigin(null);
     setCurrent(null);
+    originRef.current = null;
     setKeyRange(null);
     setKeyRect(null);
     keyRangeRef.current = null;
@@ -213,6 +217,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     setContentSize({ width: el.scrollWidth, height: el.scrollHeight });
     setOrigin(null);
     setCurrent(null);
+    originRef.current = null;
 
     // Ramen börjar som postens egen ruta. Då syns det direkt var ankaret
     // sitter, och piltangenterna har något att växa ifrån.
@@ -244,6 +249,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     // Musens punkter nollas: ramen har bara en förare i taget.
     setOrigin(null);
     setCurrent(null);
+    originRef.current = null;
   }, [applyRange]);
 
   /**
@@ -288,6 +294,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     applyRange({ ...prev, cursorMinutes: clampMinutes(next) });
     setOrigin(null);
     setCurrent(null);
+    originRef.current = null;
   }, [applyRange, measureColumns]);
 
   const pointerRect: MarqueeRect | null = origin && current
@@ -310,12 +317,15 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     measuredRef.current = measureCards();
     setKeyRange(null);
     setKeyRect(null);
+    keyRangeRef.current = null;
+    originRef.current = point;
     setOrigin(point);
     setCurrent(point);
     setMarkedIds(new Set(idsWithin({ left: point.x, top: point.y, width: 0, height: 0 })));
   }, [idsWithin, measureCards, toContentPoint]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const origin = originRef.current;
     if (!origin) return;
     const point = toContentPoint(event.clientX, event.clientY);
     if (!point) return;
@@ -326,9 +336,10 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
       width: Math.abs(point.x - origin.x),
       height: Math.abs(point.y - origin.y),
     })));
-  }, [idsWithin, origin, toContentPoint]);
+  }, [idsWithin, toContentPoint]);
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const origin = originRef.current;
     if (!origin) {
       // Ett släpp utan föregående tryck (t.ex. efter en avbruten gest) ska inte
       // klistra in i noll poster och låtsas att något hände. Ramen som
@@ -344,7 +355,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     });
     reset();
     onSelect(selected);
-  }, [idsWithin, onSelect, origin, reset, toContentPoint]);
+  }, [idsWithin, onSelect, reset, toContentPoint]);
 
   /**
    * En avbruten gest (t.ex. ett fingerdrag som systemet tar över) får aldrig
