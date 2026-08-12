@@ -3,7 +3,7 @@
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { PLANNER_DAYS } from '@/components/schedule/constants';
-import { END_HOUR, PIXELS_PER_MINUTE, SNAP_MINUTES, START_HOUR } from '@/utils/scheduleTime';
+import { END_HOUR, EVENT_GAP_PX, PIXELS_PER_MINUTE, SNAP_MINUTES, START_HOUR } from '@/utils/scheduleTime';
 
 /** Ramens läge i rullningsytans egna koordinater, inte skärmens. */
 export type MarqueeRect = { left: number; top: number; width: number; height: number };
@@ -12,11 +12,15 @@ type Point = { x: number; y: number };
 
 type MeasuredCard = {
   instanceId: string;
+  /** Dagen kortet står i, för att kunna stega lektionsvis inom ramens dagar. */
+  day: string;
   left: number;
   top: number;
   right: number;
   bottom: number;
 };
+
+type ColumnBox = { day: string; left: number; right: number; top: number };
 
 /** Var ramen började och var den står nu, i dagar och minuter. */
 type KeyRange = {
