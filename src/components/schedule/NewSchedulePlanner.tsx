@@ -209,6 +209,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     colorTriggers,
     planningMinGap,
     exportExcludes,
+    pasteProtect,
     planningStartMinutes,
     planningEndMinutes,
     applyTeacherAvailability,
@@ -502,24 +503,57 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const scheduleCanvasRef = useRef<HTMLDivElement>(null);
 
+  /** Pauser och liknande som inte ska få inklistrade anteckningar av misstag. */
+  const isPasteProtected = useCallback(
+    (entry: ScheduledEntry) => matchesExcludeList(entry.title, pasteProtect),
+    [pasteProtect]
+  );
+
   /**
    * Alla poster inom ramen skrivs i ett enda anrop, så att hela svepet blir ett
    * steg i ångra-historiken i stället för ett per post.
+   *
+   * `ignoreProtection` används av det enskilda menyvalet: skyddet finns för att
+   * ett svep inte ska snöa in lunchen, inte för att hindra någon som pekat ut
+   * precis en post och sagt vad hen vill.
    */
-  const applyNotesToEntries = useCallback((instanceIds: string[], notes: string) => {
+  const applyNotesToEntries = useCallback((
+    instanceIds: string[],
+    notes: string,
+    options?: { ignoreProtection?: boolean }
+  ) => {
     if (instanceIds.length === 0) {
       showNotice('Inga poster i markeringen.', 'warning');
       return;
     }
-    const targets = new Set(instanceIds);
+
+    const requested = new Set(instanceIds);
+    const targets = options?.ignoreProtection
+      ? requested
+      : new Set(
+          schedule
+            .filter(entry => requested.has(entry.instanceId) && !isPasteProtected(entry))
+            .map(entry => entry.instanceId)
+        );
+    const skipped = requested.size - targets.size;
+
+    if (targets.size === 0) {
+      showNotice('Bara skyddade poster i markeringen — inget inklistrat.', 'warning');
+      return;
+    }
+
     commitSchedule(prev => prev.map(entry => (
       targets.has(entry.instanceId) ? { ...entry, notes } : entry
     )));
+
+    const pasted = `Anteckningar inklistrade i ${targets.size} post${targets.size === 1 ? '' : 'er'}.`;
     showNotice(
-      `Anteckningar inklistrade i ${instanceIds.length} post${instanceIds.length === 1 ? '' : 'er'}.`,
+      skipped === 0
+        ? pasted
+        : `${pasted} ${skipped} skyddad${skipped === 1 ? '' : 'a'} hoppades över.`,
       'success'
     );
-  }, [commitSchedule, showNotice]);
+  }, [commitSchedule, isPasteProtected, schedule, showNotice]);
 
   const {
     isMarqueeActive,
@@ -565,7 +599,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handlePasteNotes = useCallback((entry: ScheduledEntry) => {
     if (copiedNotes === null) return;
-    applyNotesToEntries([entry.instanceId], copiedNotes);
+    applyNotesToEntries([entry.instanceId], copiedNotes, { ignoreProtection: true });
   }, [applyNotesToEntries, copiedNotes]);
 
   useEffect(() => {
@@ -1710,7 +1744,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   showLayoutDebug={showLayoutDebug}
                                   isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                   isHighlighted={highlightedIds.has(entry.instanceId)}
-                                  isNotesTarget={markedIds.has(entry.instanceId)}
+                                  isNotesTarget={markedIds.has(entry.instanceId) && !isPasteProtected(entry)}
+                                  isNotesProtected={markedIds.has(entry.instanceId) && isPasteProtected(entry)}
                                   color={resolveColor(entry.title, entry.color)}
                                   excludedFromExport={isExcludedFromExport(entry)}
                                />
@@ -1774,7 +1809,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                  showLayoutDebug={showLayoutDebug}
                                  isSelected={activeZone === 'grid' && selectedEventId === entry.instanceId}
                                  isHighlighted={highlightedIds.has(entry.instanceId)}
-                                 isNotesTarget={markedIds.has(entry.instanceId)}
+                                 isNotesTarget={markedIds.has(entry.instanceId) && !isPasteProtected(entry)}
+                                  isNotesProtected={markedIds.has(entry.instanceId) && isPasteProtected(entry)}
                                  color={resolveColor(entry.title, entry.color)}
                                   excludedFromExport={isExcludedFromExport(entry)}
                                />
@@ -2027,7 +2063,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       {isMarqueeActive && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
           Markera posterna som ska få anteckningarna: dra en ram, eller ←→ dag,
-          ↑↓ tid (Shift = timme). Enter klistrar in, Esc avbryter.
+          ↑↓ lektion (Shift = 15 min). Enter klistrar in, Esc avbryter.
         </div>
       )}
 
@@ -2046,6 +2082,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         teacherAvailability={teacherAvailability}
         colorTriggers={colorTriggers}
         planningMinGap={planningMinGap}
+        pasteProtect={pasteProtect}
         exportExcludes={exportExcludes}
         planningStartMinutes={planningStartMinutes}
         planningEndMinutes={planningEndMinutes}

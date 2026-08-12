@@ -44,8 +44,6 @@ type UseNotesMarqueeOptions = {
   onSelect: (instanceIds: string[]) => void;
 };
 
-const HOUR_STEP = 60;
-
 const clampMinutes = (value: number) => Math.min(Math.max(value, START_HOUR * 60), END_HOUR * 60);
 const clampDay = (value: number) => Math.min(Math.max(value, 0), PLANNER_DAYS.length - 1);
 
@@ -126,6 +124,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
       const r = node.getBoundingClientRect();
       return {
         instanceId: node.dataset.instanceId as string,
+        day: node.closest<HTMLElement>('[data-day]')?.dataset.day ?? '',
         left: r.left - containerRect.left + el.scrollLeft,
         top: r.top - containerRect.top + el.scrollTop,
         right: r.right - containerRect.left + el.scrollLeft,
@@ -134,31 +133,39 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     });
   }, [containerRef]);
 
+  const measureColumns = useCallback((): ColumnBox[] => {
+    const el = containerRef.current;
+    if (!el) return [];
+    const containerRect = el.getBoundingClientRect();
+    return Array.from(el.querySelectorAll<HTMLElement>('[data-day]')).map(node => {
+      const r = node.getBoundingClientRect();
+      return {
+        day: node.dataset.day as string,
+        left: r.left - containerRect.left + el.scrollLeft,
+        right: r.right - containerRect.left + el.scrollLeft,
+        top: r.top - containerRect.top + el.scrollTop,
+      };
+    });
+  }, [containerRef]);
+
+  /** Dagarna ramen täcker just nu, oavsett åt vilket håll den vuxit. */
+  const daysInRange = (range: KeyRange) => new Set(
+    PLANNER_DAYS.slice(
+      Math.min(range.anchorDay, range.cursorDay),
+      Math.max(range.anchorDay, range.cursorDay) + 1
+    )
+  );
+
   /**
    * Räknar om dag- och minutintervallet till en rektangel. Kolumnernas plats
    * mäts i stället för att räknas fram, eftersom bredden beror på hur många
    * dagar som ritas och på om sidopanelerna är utfällda.
    */
   const rectFromRange = useCallback((range: KeyRange): MarqueeRect | null => {
-    const el = containerRef.current;
-    if (!el) return null;
-    const containerRect = el.getBoundingClientRect();
-
-    const dayFrom = Math.min(range.anchorDay, range.cursorDay);
-    const dayTo = Math.max(range.anchorDay, range.cursorDay);
     // I mobilvyn ritas bara en dag. Kolumner som saknas hoppas över i stället
     // för att ge en rektangel med påhittad bredd.
-    const columns = PLANNER_DAYS.slice(dayFrom, dayTo + 1)
-      .map(day => el.querySelector<HTMLElement>(`[data-day="${day}"]`))
-      .filter((node): node is HTMLElement => node !== null)
-      .map(node => {
-        const r = node.getBoundingClientRect();
-        return {
-          left: r.left - containerRect.left + el.scrollLeft,
-          right: r.right - containerRect.left + el.scrollLeft,
-          top: r.top - containerRect.top + el.scrollTop,
-        };
-      });
+    const days = daysInRange(range);
+    const columns = measureColumns().filter(column => days.has(column.day as typeof PLANNER_DAYS[number]));
 
     if (columns.length === 0) return null;
 
@@ -174,7 +181,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
       width: right - left,
       height: (minutesTo - minutesFrom) * PIXELS_PER_MINUTE,
     };
-  }, [containerRef]);
+  }, [measureColumns]);
 
   const idsWithin = useCallback((selection: MarqueeRect) => {
     const right = selection.left + selection.width;
@@ -238,6 +245,50 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     setOrigin(null);
     setCurrent(null);
   }, [applyRange]);
+
+  /**
+   * Flyttar kanten till närmaste lektionskant i stället för ett fast antal
+   * minuter, så att ett tryck omsluter exakt en lektion till.
+   *
+   * Nedåt siktas på *sluttider* och uppåt på *starttider*. Att ta båda hade
+   * gjort vartannat tryck verkningslöst: att nå en lektions starttid tar redan
+   * med den (ramen behöver bara nudda), så nästa tryck till samma lektions
+   * slut hade bara gjort rutan högre utan att markera något nytt.
+   *
+   * Kanterna läses ur kortens uppmätta rutor och inte ur schemat, av samma
+   * skäl som träffbestämningen: det som filtret gömt har ingen ruta, och kan
+   * därför inte heller stegas till.
+   */
+  const stepToLesson = useCallback((direction: 1 | -1) => {
+    const prev = keyRangeRef.current;
+    if (!prev) return;
+
+    const days = daysInRange(prev);
+    const columns = measureColumns().filter(column => days.has(column.day as typeof PLANNER_DAYS[number]));
+    if (columns.length === 0) return;
+    const columnTop = Math.min(...columns.map(column => column.top));
+
+    // Kortet ritas indraget med halva mellanrummet upptill och nedtill, så
+    // rutan måste kompenseras tillbaka för att ge lektionens verkliga tid.
+    const toMinutes = (y: number, edge: 'top' | 'bottom') => Math.round(
+      START_HOUR * 60
+      + (y - columnTop + (edge === 'top' ? -EVENT_GAP_PX / 2 : EVENT_GAP_PX / 2)) / PIXELS_PER_MINUTE
+    );
+
+    const edges = measuredRef.current
+      .filter(card => days.has(card.day as typeof PLANNER_DAYS[number]))
+      .map(card => (direction === 1 ? toMinutes(card.bottom, 'bottom') : toMinutes(card.top, 'top')))
+      .filter(minutes => (direction === 1 ? minutes > prev.cursorMinutes : minutes < prev.cursorMinutes));
+
+    // Utan fler lektioner åt det hållet går kanten till dagens gräns.
+    const next = direction === 1
+      ? Math.min(END_HOUR * 60, ...edges)
+      : Math.max(START_HOUR * 60, ...edges);
+
+    applyRange({ ...prev, cursorMinutes: clampMinutes(next) });
+    setOrigin(null);
+    setCurrent(null);
+  }, [applyRange, measureColumns]);
 
   const pointerRect: MarqueeRect | null = origin && current
     ? {
@@ -316,19 +367,19 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
           { key: 'ArrowRight', handler: () => moveCursor({ days: 1 }) },
           { key: 'h', handler: () => moveCursor({ days: -1 }) },
           { key: 'l', handler: () => moveCursor({ days: 1 }) },
-          { key: 'ArrowUp', handler: () => moveCursor({ minutes: -SNAP_MINUTES }) },
-          { key: 'ArrowDown', handler: () => moveCursor({ minutes: SNAP_MINUTES }) },
-          { key: 'k', handler: () => moveCursor({ minutes: -SNAP_MINUTES }) },
-          { key: 'j', handler: () => moveCursor({ minutes: SNAP_MINUTES }) },
-          // Skoldagen är nio timmar. Med bara 15-minuterssteg blir en ram som
-          // täcker hela dagen trettiosex tryck.
-          { key: 'ArrowUp', shift: true, handler: () => moveCursor({ minutes: -HOUR_STEP }) },
-          { key: 'ArrowDown', shift: true, handler: () => moveCursor({ minutes: HOUR_STEP }) },
+          { key: 'ArrowUp', handler: () => stepToLesson(-1) },
+          { key: 'ArrowDown', handler: () => stepToLesson(1) },
+          { key: 'k', handler: () => stepToLesson(-1) },
+          { key: 'j', handler: () => stepToLesson(1) },
+          // Kvartsstegen finns kvar under Shift, för kanter som ska hamna
+          // mellan lektioner.
+          { key: 'ArrowUp', shift: true, handler: () => moveCursor({ minutes: -SNAP_MINUTES }) },
+          { key: 'ArrowDown', shift: true, handler: () => moveCursor({ minutes: SNAP_MINUTES }) },
           { key: 'Enter', handler: commitKeyboard },
           { key: 'Escape', handler: reset },
         ]
       : [],
-    [isActive, commitKeyboard, moveCursor, reset],
+    [isActive, commitKeyboard, moveCursor, reset, stepToLesson],
   );
 
   // Rullar man med hjulet mitt i en tangentbordsram hamnar rektangeln fel,

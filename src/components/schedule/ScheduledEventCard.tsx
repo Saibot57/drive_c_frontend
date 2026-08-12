@@ -22,6 +22,8 @@ type ScheduledEventCardProps = {
   isHighlighted?: boolean;
   /** Ligger inom gummibandet just nu och får anteckningarna när ramen släpps. */
   isNotesTarget?: boolean;
+  /** Ligger inom gummibandet men är skyddad — hoppas över vid inklistring. */
+  isNotesProtected?: boolean;
   /** Färgen att visa. Kan skilja sig från entry.color när en färgregel slår till. */
   color?: string;
   /** Syns på skärmen men döljs i PDF/bild av regeln under `.pdf-export`. */
@@ -48,6 +50,7 @@ export function ScheduledEventCard({
   isSelected = false,
   isHighlighted = false,
   isNotesTarget = false,
+  isNotesProtected = false,
   color,
   excludedFromExport = false
 }: ScheduledEventCardProps) {
@@ -88,7 +91,7 @@ export function ScheduledEventCard({
       }}
       data-instance-id={entry.instanceId}
       data-export-exclude={excludedFromExport ? 'true' : undefined}
-      className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''} ${isNotesTarget ? 'ring-4 ring-sky-600 ring-offset-1' : ''}`}
+      className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''} ${isNotesTarget ? 'ring-4 ring-sky-600 ring-offset-1' : ''} ${isNotesProtected ? 'sp-notes-protected' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="flex flex-col h-full">

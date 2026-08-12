@@ -229,6 +229,7 @@ type HiddenSettingsPanelProps = {
   colorTriggers: ColorTriggerRule[];
   planningMinGap: number;
   exportExcludes: string[];
+  pasteProtect: string[];
   planningStartMinutes: number | null;
   planningEndMinutes: number | null;
   onSave: (
@@ -238,6 +239,7 @@ type HiddenSettingsPanelProps = {
     nextColorTriggers: ColorTriggerRule[],
     nextPlanningMinGap: number,
     nextExportExcludes: string[],
+    nextPasteProtect: string[],
     nextPlanningStart: number | null,
     nextPlanningEnd: number | null
   ) => void;
@@ -252,6 +254,7 @@ export function HiddenSettingsPanel({
   colorTriggers,
   planningMinGap,
   exportExcludes,
+  pasteProtect,
   planningStartMinutes,
   planningEndMinutes,
   onSave
@@ -262,6 +265,7 @@ export function HiddenSettingsPanel({
   const [triggers, setTriggers] = useState<ColorTriggerRule[]>([]);
   const [minGapText, setMinGapText] = useState('');
   const [excludeText, setExcludeText] = useState('');
+  const [protectText, setProtectText] = useState('');
   const [startText, setStartText] = useState('');
   const [endText, setEndText] = useState('');
 
@@ -273,6 +277,7 @@ export function HiddenSettingsPanel({
     setTriggers(colorTriggers);
     setMinGapText(String(planningMinGap));
     setExcludeText(exportExcludes.join('; '));
+    setProtectText(pasteProtect.join('; '));
     setStartText(planningStartMinutes === null ? '' : minutesToTime(planningStartMinutes));
     setEndText(planningEndMinutes === null ? '' : minutesToTime(planningEndMinutes));
   }, [
@@ -283,6 +288,7 @@ export function HiddenSettingsPanel({
     colorTriggers,
     planningMinGap,
     exportExcludes,
+    pasteProtect,
     planningStartMinutes,
     planningEndMinutes
   ]);
@@ -299,6 +305,7 @@ export function HiddenSettingsPanel({
       triggers,
       sanitizePlanningMinGap(minGapText),
       parseExcludeList(excludeText),
+      parseExcludeList(protectText),
       sanitizePlanningTime(startText),
       sanitizePlanningTime(endText)
     );
@@ -442,6 +449,24 @@ export function HiddenSettingsPanel({
                 schemat men saknas i filen. Hela titeln måste stämma, med{' '}
                 <code>*</code> som jokertecken: <code>AK*</code> tar både AK MÖTE
                 och AK-planering. <strong>Listan töms när du exporterat.</strong>
+              </p>
+            </div>
+
+            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+              <Label htmlFor="paste-protect">Skydda från inklistring</Label>
+              <Textarea
+                id="paste-protect"
+                value={protectText}
+                onChange={event => setProtectText(event.target.value)}
+                placeholder="Lunch; Paus; Rast"
+                className="mt-1 h-20 resize-none"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Poster med de här titlarna får inga inklistrade anteckningar när du
+                markerar flera på en gång — de ritas gråstreckade i ramen och räknas
+                bort. Samma syntax som ovan. Väljer du <em>Klistra in anteckningar</em>{' '}
+                på just en sådan post sker det ändå: skyddet finns för svepen.{' '}
+                <strong>Den här listan står kvar.</strong>
               </p>
             </div>
           </div>

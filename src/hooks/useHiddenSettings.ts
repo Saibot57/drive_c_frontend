@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   COLOR_TRIGGERS_KEY,
+  DEFAULT_PASTE_PROTECT,
   DEFAULT_PLANNING_MIN_GAP_MINUTES,
   EXPORT_EXCLUDE_KEY,
+  PASTE_PROTECT_KEY,
   PLANNING_END_TIME_KEY,
   PLANNING_MIN_GAP_KEY,
   PLANNING_START_TIME_KEY,
@@ -38,6 +40,8 @@ export const useHiddenSettings = () => {
   const [planningMinGap, setPlanningMinGap] = useState(DEFAULT_PLANNING_MIN_GAP_MINUTES);
   /** Titlar som nästa export hoppar över. Töms när exporten är gjord. */
   const [exportExcludes, setExportExcludes] = useState<string[]>([]);
+  /** Titlar som inte tar emot inklistrade anteckningar. Står kvar över tid. */
+  const [pasteProtect, setPasteProtect] = useState<string[]>(DEFAULT_PASTE_PROTECT);
   /** Ramens gränser i minuter. `null` = standard. */
   const [planningStartMinutes, setPlanningStartMinutes] = useState<number | null>(null);
   const [planningEndMinutes, setPlanningEndMinutes] = useState<number | null>(null);
@@ -52,6 +56,7 @@ export const useHiddenSettings = () => {
       const storedTriggers = window.localStorage.getItem(COLOR_TRIGGERS_KEY);
       const storedMinGap = window.localStorage.getItem(PLANNING_MIN_GAP_KEY);
       const storedExcludes = window.localStorage.getItem(EXPORT_EXCLUDE_KEY);
+      const storedProtect = window.localStorage.getItem(PASTE_PROTECT_KEY);
       const storedStart = window.localStorage.getItem(PLANNING_START_TIME_KEY);
       const storedEnd = window.localStorage.getItem(PLANNING_END_TIME_KEY);
       const parsedTeachers = storedTeachers ? JSON.parse(storedTeachers) : [];
@@ -64,6 +69,13 @@ export const useHiddenSettings = () => {
       setColorTriggers(sanitizeColorTriggers(storedTriggers ? JSON.parse(storedTriggers) : []));
       setPlanningMinGap(sanitizePlanningMinGap(storedMinGap ? JSON.parse(storedMinGap) : undefined));
       setExportExcludes(sanitizeExcludeList(storedExcludes ? JSON.parse(storedExcludes) : []));
+      // `null` betyder att listan aldrig rörts och ska ha förvalet. En sparad
+      // tom lista är något annat — då har man medvetet stängt av skyddet.
+      setPasteProtect(
+        storedProtect === null
+          ? DEFAULT_PASTE_PROTECT
+          : sanitizeExcludeList(JSON.parse(storedProtect))
+      );
       setPlanningStartMinutes(sanitizePlanningTime(storedStart ? JSON.parse(storedStart) : null));
       setPlanningEndMinutes(sanitizePlanningTime(storedEnd ? JSON.parse(storedEnd) : null));
     } catch (error) {
@@ -115,6 +127,17 @@ export const useHiddenSettings = () => {
       window.localStorage.setItem(EXPORT_EXCLUDE_KEY, JSON.stringify(titles));
     } catch (error) {
       console.warn('Kunde inte spara uteslutningslistan.', error);
+    }
+  }, []);
+
+  const persistPasteProtect = useCallback((next: unknown) => {
+    const titles = sanitizeExcludeList(next);
+    setPasteProtect(titles);
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(PASTE_PROTECT_KEY, JSON.stringify(titles));
+    } catch (error) {
+      console.warn('Kunde inte spara den skyddade listan.', error);
     }
   }, []);
 
@@ -183,6 +206,7 @@ export const useHiddenSettings = () => {
     nextColorTriggers: ColorTriggerRule[],
     nextPlanningMinGap: number,
     nextExportExcludes: string[],
+    nextPasteProtect: string[],
     nextPlanningStart: number | null,
     nextPlanningEnd: number | null
   ) => {
@@ -192,6 +216,7 @@ export const useHiddenSettings = () => {
     persistColorTriggers(sanitizeColorTriggers(nextColorTriggers));
     persistPlanningMinGap(nextPlanningMinGap);
     persistExportExcludes(nextExportExcludes);
+    persistPasteProtect(nextPasteProtect);
     persistPlanningFrame(nextPlanningStart, nextPlanningEnd);
     if (typeof window === 'undefined') return;
     try {
@@ -204,6 +229,7 @@ export const useHiddenSettings = () => {
     persistAvailability,
     persistColorTriggers,
     persistExportExcludes,
+    persistPasteProtect,
     persistPlanningFrame,
     persistPlanningMinGap
   ]);
@@ -215,6 +241,7 @@ export const useHiddenSettings = () => {
     colorTriggers,
     planningMinGap,
     exportExcludes,
+    pasteProtect,
     planningStartMinutes,
     planningEndMinutes,
     applyTeacherAvailability,

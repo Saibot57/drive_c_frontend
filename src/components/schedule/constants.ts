@@ -24,6 +24,13 @@ export const TEACHER_AVAILABILITY_KEY = 'app.teacher_availability.v1';
 export const COLOR_TRIGGERS_KEY = 'app.color_triggers.v1';
 export const PLANNING_MIN_GAP_KEY = 'app.planning_min_gap.v1';
 export const EXPORT_EXCLUDE_KEY = 'app.export_exclude.v1';
+export const PASTE_PROTECT_KEY = 'app.paste_protect.v1';
+/**
+ * Titlar som inte tar emot inklistrade anteckningar när man markerar flera
+ * poster på en gång. Till skillnad från exportlistan står den kvar — en paus
+ * är en paus även nästa vecka.
+ */
+export const DEFAULT_PASTE_PROTECT = ['Lunch', 'Paus', 'Rast'];
 export const PLANNING_START_TIME_KEY = 'app.planning_start_time.v1';
 export const PLANNING_END_TIME_KEY = 'app.planning_end_time.v1';
 export const SIDEBAR_SECTIONS_KEY = 'app.planner_sections.v1';

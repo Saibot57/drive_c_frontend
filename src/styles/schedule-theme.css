@@ -119,6 +119,14 @@
   background: transparent;
 }
 
+/* En post som ligger i markeringen men är skyddad mot inklistring. Streckad
+   och grå för att skilja den från både den blå träffen och från posterna
+   utanför ramen — annars syns det först i notisen att den hoppades över. */
+.sp-notes-protected {
+  outline: 3px dashed #6b7280;
+  outline-offset: 1px;
+}
+
 .sp-toast {
   border: var(--sp-border);
   border-radius: var(--sp-radius);
