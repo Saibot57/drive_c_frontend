@@ -15,25 +15,44 @@ import { useHotkeys } from '@/hooks/useHotkeys';
 import { ShortcutHelpOverlay } from '@/components/ShortcutHelpOverlay';
 import { useAuth } from '@/contexts/AuthContext';
 
-const features = [
-  { label: 'Bibliotek',       href: '/',                            icon: Library   },
-  { label: 'Schema',          href: '/features/schedule',           icon: Calendar  },
+type Feature = {
+  label: string;
+  href: string;
+  icon: typeof Library;
+  /** Ytterligare sökvägar som ska visa den här posten som aktiv. */
+  aliases?: readonly string[];
+};
+
+/**
+ * Ordningen styr de globala genvägarna: `Ctrl+Shift+1..6` härleds ur index
+ * nedan (se useHotkeys-anropet). Kastar man om raderna numreras genvägarna om
+ * tyst, och `src/config/shortcuts.ts` måste uppdateras i samma veva.
+ */
+const features: readonly Feature[] = [
+  { label: 'Bibliotek',       href: '/features/bibliotek',          icon: Library   },
+  // Schemaplaneraren är startsidan. `/features/schedule` renderar samma sida
+  // och behålls för gamla bokmärken, därav aliaset.
+  { label: 'Schema',          href: '/',                            icon: Calendar,
+    aliases: ['/features/schedule'] },
   { label: 'Temakalender',    href: '/features/temakalender',       icon: PieChart  },
   { label: 'Familjeschema',   href: '/features/familjeschema',      icon: Users     },
   { label: 'Kalender',        href: '/features/calendar',           icon: CalendarDays },
   { label: 'Workspace',       href: '/workspace',                   icon: Briefcase },
-] as const;
+];
 
 export function FeatureNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuth();
 
+  const matches = (path: string, pattern: string) =>
+    // Roten får bara matcha exakt — annars vinner den över varje annan sökväg.
+    pattern === '/' ? path === '/' : path === pattern || path.startsWith(`${pattern}/`);
+
   const current =
-    features.find(f => {
-      if (f.href === '/') return pathname === '/';
-      return pathname.startsWith(f.href);
-    }) ?? features[0];
+    features.find(
+      f => matches(pathname, f.href) || f.aliases?.some(a => matches(pathname, a)),
+    ) ?? features[0];
 
   const Icon = current.icon;
 
