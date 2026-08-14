@@ -21,6 +21,12 @@ type Feature = {
   icon: typeof Library;
   /** Ytterligare sökvägar som ska visa den här posten som aktiv. */
   aliases?: readonly string[];
+  /**
+   * Avaktiverad feature: syns inte i menyn och registrerar ingen genväg.
+   * Posten ligger ändå kvar i arrayen, eftersom `Ctrl+Shift+N` härleds ur
+   * index — tar man bort raden numreras alla efterföljande features om.
+   */
+  disabled?: boolean;
 };
 
 /**
@@ -35,7 +41,10 @@ const features: readonly Feature[] = [
   { label: 'Schema',          href: '/',                            icon: Calendar,
     aliases: ['/features/schedule'] },
   { label: 'Temakalender',    href: '/features/temakalender',       icon: PieChart  },
-  { label: 'Familjeschema',   href: '/features/familjeschema',      icon: Users     },
+  // Avaktiverad — routen svarar 404 och posten döljs. Platsen behålls så att
+  // Kalender förblir Ctrl+Shift+5 och Workspace Ctrl+Shift+6.
+  { label: 'Familjeschema',   href: '/features/familjeschema',      icon: Users,
+    disabled: true },
   { label: 'Kalender',        href: '/features/calendar',           icon: CalendarDays },
   { label: 'Workspace',       href: '/workspace',                   icon: Briefcase },
 ];
@@ -49,21 +58,28 @@ export function FeatureNavigation() {
     // Roten får bara matcha exakt — annars vinner den över varje annan sökväg.
     pattern === '/' ? path === '/' : path === pattern || path.startsWith(`${pattern}/`);
 
+  const enabled = features.filter(f => !f.disabled);
+
   const current =
-    features.find(
+    enabled.find(
       f => matches(pathname, f.href) || f.aliases?.some(a => matches(pathname, a)),
-    ) ?? features[0];
+    ) ?? enabled[0];
 
   const Icon = current.icon;
 
   useHotkeys(
-    features.map((f, i) => ({
-      key: String(i + 1),
-      ctrl: true,
-      shift: true,
-      handler: () => router.push(f.href),
-      allowInInput: true,
-    })),
+    // Mappa FÖRE filtreringen. Nyckeln kommer ur arrayindex, så filtreras
+    // avaktiverade poster bort först skulle allt efter dem numreras om.
+    features
+      .map((f, i) => ({ f, key: String(i + 1) }))
+      .filter(({ f }) => !f.disabled)
+      .map(({ f, key }) => ({
+        key,
+        ctrl: true,
+        shift: true,
+        handler: () => router.push(f.href),
+        allowInInput: true,
+      })),
     [router],
   );
 
@@ -88,7 +104,7 @@ export function FeatureNavigation() {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" className="w-52 bg-white">
-          {features.map(feature => {
+          {enabled.map(feature => {
             const FeatureIcon = feature.icon;
             const isActive = feature.href === current.href;
 
