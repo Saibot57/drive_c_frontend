@@ -9,6 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "node scripts/copy-twemoji.cjs && node scripts/copy-pdfjs-worker.cjs"
   },
   "dependencies": {
@@ -61,6 +63,7 @@
     "prettier": "^3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "tailwindcss": "^3.4.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3"
   }
 }

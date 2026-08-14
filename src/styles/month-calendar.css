@@ -1,0 +1,493 @@
+/* ── Månadskalendern ──────────────────────────────────────────────────────
+ *
+ * Bygger på .sp-root-tokens från schedule-theme.css men definierar allt eget
+ * här. Den filen redigeras aldrig härifrån — den ägs av Schema och Temakalender.
+ *
+ * Riktningen är "hård Drive C-ram runt sidan, lugn papperskänsla inuti":
+ * den yttre ramen och kontrollerna är neobrutalistiska, medan kalenderytan är
+ * varmvit med tunna gråa linjer i stället för svarta.
+ */
+
+.mc-root {
+  --mc-paper: #fdfcf8;
+  --mc-paper-muted: #f7f5ef;
+  --mc-rule: rgba(0, 0, 0, 0.055);
+  --mc-grid-line: #e8e5dc;
+  --mc-outside: #a8a49a;
+  --mc-today-ring: #111;
+  --mc-selected-bg: #eef4ff;
+  --mc-selected-ring: #1d4ed8;
+
+  background: var(--mc-paper);
+  color: var(--sp-text);
+}
+
+/* ── Sidskal ───────────────────────────────────────────────────────────────
+ * h-screen + overflow-hidden på skalet och min-h-0 på flexbarnen är det som
+ * håller sidan fri från dubbla scrollbars: bara sidebaren scrollar.
+ */
+.mc-shell {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mc-toolbar {
+  flex-shrink: 0;
+  border-bottom: var(--sp-border);
+  background: #fff;
+}
+
+.mc-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.mc-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+}
+
+.mc-sidebar {
+  width: 360px;
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: var(--sp-border);
+  background: #fff;
+}
+
+/* ── Månadsgrid ────────────────────────────────────────────────────────────
+ * Veckokolumnen först, sedan sju lika breda dagkolumner.
+ */
+.mc-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 2.5rem repeat(7, minmax(0, 1fr));
+  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+  border: var(--sp-border);
+  border-radius: var(--sp-radius);
+  overflow: hidden;
+  background: var(--mc-paper);
+}
+
+.mc-weekday {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sp-text-muted);
+  background: var(--mc-paper-muted);
+  border-bottom: 1px solid var(--mc-grid-line);
+  text-align: left;
+}
+
+.mc-weeknum {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--sp-text-subtle);
+  background: var(--mc-paper-muted);
+  border-right: 1px solid var(--mc-grid-line);
+  border-bottom: 1px solid var(--mc-grid-line);
+  user-select: none;
+}
+
+.mc-corner {
+  background: var(--mc-paper-muted);
+  border-right: 1px solid var(--mc-grid-line);
+  border-bottom: 1px solid var(--mc-grid-line);
+}
+
+/* ── Dagcell ───────────────────────────────────────────────────────────────
+ * Cellen är stapeln: bandlager underst, innehåll ovanpå.
+ */
+.mc-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--mc-grid-line);
+  border-bottom: 1px solid var(--mc-grid-line);
+  background: transparent;
+  overflow: hidden;
+}
+
+.mc-cell:focus-visible {
+  outline: var(--sp-ring);
+  outline-offset: -2px;
+  z-index: 3;
+}
+
+.mc-cell--outside .mc-daynum,
+.mc-cell--outside .mc-quicktext {
+  color: var(--mc-outside);
+}
+
+.mc-cell--outside {
+  background: rgba(0, 0, 0, 0.012);
+}
+
+.mc-cell--selected {
+  background: var(--mc-selected-bg);
+}
+
+.mc-cell--selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--mc-selected-ring);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ── Bandlager ─────────────────────────────────────────────────────────────
+ * Ligger bakom innehållet och är genomsläppligt för klick i normalläge.
+ * Först när highlighter-läget är på blir banden träffbara.
+ */
+.mc-bands {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.mc-band {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
+  /* Aningen ojämn radie ger dragkänslan av en överstrykningspenna utan att
+     något ritas ut. */
+  border-radius: 3px 7px 4px 8px / 6px 3px 7px 4px;
+  transition: background-color 120ms ease;
+}
+
+.mc-root--painting .mc-bands {
+  pointer-events: auto;
+}
+
+/* Snabbtexten ligger över bandlagret och skulle annars svälja varje klick i
+   målarläget. `readOnly` räcker inte — ett skrivskyddat fält tar fortfarande
+   emot pointer events. */
+.mc-root--painting .mc-quicktext {
+  pointer-events: none;
+}
+
+.mc-root--painting .mc-band {
+  cursor: crosshair;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.mc-root--painting .mc-band:hover {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.mc-root--painting .mc-band:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: -2px;
+}
+
+.mc-root--erasing .mc-band {
+  cursor: cell;
+}
+
+/* Datumhuvudet ligger över bandlagret och förblir klickbart även när man målar.
+   Själva raden är genomsläpplig — annars hade den täckt hela översta bandet och
+   gjort det omålbart. Bara knappen och markören tar emot klick. */
+.mc-dayhead {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem 0;
+  pointer-events: none;
+}
+
+.mc-daynum,
+.mc-marker {
+  pointer-events: auto;
+}
+
+.mc-daynum {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.1;
+  padding: 0.1rem 0.3rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--sp-radius-sm);
+  cursor: pointer;
+  color: var(--sp-text);
+}
+
+.mc-daynum:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.mc-daynum:focus-visible {
+  outline: var(--sp-ring);
+  outline-offset: 1px;
+}
+
+.mc-cell--today .mc-daynum {
+  background: #111;
+  color: #fff;
+}
+
+.mc-marker {
+  font-size: 0.6rem;
+  color: var(--sp-text-subtle);
+  padding-right: 0.15rem;
+}
+
+/* ── Snabbtext ─────────────────────────────────────────────────────────────
+ * Skrivlinjerna är CSS, inte en bild — de skalar med radhöjden och kostar
+ * ingenting i export.
+ */
+.mc-quicktext {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0.1rem 0.4rem 0.3rem;
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.15rem;
+  color: var(--sp-text);
+  overflow: hidden;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 1.1rem,
+    var(--mc-rule) 1.1rem,
+    var(--mc-rule) calc(1.1rem + 1px)
+  );
+  background-position: 0 0.15rem;
+}
+
+.mc-quicktext:focus {
+  background-color: rgba(255, 255, 255, 0.65);
+}
+
+.mc-quicktext::placeholder {
+  color: transparent;
+}
+
+.mc-quicktext:disabled {
+  cursor: inherit;
+}
+
+/* Toningen antyder att texten fortsätter utan att kapa sparad data. */
+.mc-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1rem;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(253, 252, 248, 0), var(--mc-paper));
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────────*/
+
+.mc-sidebar-head {
+  flex-shrink: 0;
+  padding: 0.9rem 1rem 0.7rem;
+  border-bottom: 1px solid var(--mc-grid-line);
+}
+
+
+.mc-sidebar-date {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.mc-sidebar-week {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  color: var(--sp-text-muted);
+}
+
+.mc-editor-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 2rem;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 1.55rem,
+    var(--mc-rule) 1.55rem,
+    var(--mc-rule) calc(1.55rem + 1px)
+  );
+}
+
+.mc-editor .ProseMirror {
+  outline: none;
+  min-height: 12rem;
+  font-size: 0.9rem;
+  line-height: 1.6rem;
+}
+
+.mc-editor .ProseMirror p {
+  margin: 0 0 0.4rem;
+}
+
+.mc-editor .ProseMirror h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.6rem;
+  margin: 0.6rem 0 0.3rem;
+}
+
+.mc-editor .ProseMirror h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.6rem;
+  margin: 0.55rem 0 0.25rem;
+}
+
+.mc-editor .ProseMirror h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.6rem;
+  margin: 0.5rem 0 0.2rem;
+}
+
+.mc-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--sp-text-subtle);
+}
+
+/* ── Kontroller ────────────────────────────────────────────────────────────*/
+
+.mc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border: var(--sp-btn-border);
+  border-radius: var(--sp-radius-sm);
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.mc-btn:hover {
+  background: var(--sp-menu-hover);
+}
+
+.mc-btn:focus-visible {
+  outline: var(--sp-ring);
+  outline-offset: var(--sp-ring-offset);
+}
+
+.mc-btn--active {
+  background: #111;
+  color: #fff;
+}
+
+.mc-btn--icon {
+  padding: 0.35rem;
+}
+
+/* Stängkrysset hör bara till mobilens helskärmspanel — på desktop är sidebaren
+   en kolumn som inte går att stänga.
+   Regeln står här, efter `.mc-btn`, och inte som Tailwinds `md:hidden`: den här
+   filen laddas efter Tailwind och `.mc-btn { display: inline-flex }` har samma
+   specificitet, så både utility-klassen och en tidigare placerad regel hade
+   förlorat på källordningen. */
+.mc-sidebar-close {
+  display: none;
+}
+
+.mc-swatch {
+  position: relative;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 2px solid #000;
+  border-radius: var(--sp-radius-sm);
+  cursor: pointer;
+  padding: 0;
+}
+
+.mc-swatch:focus-visible {
+  outline: var(--sp-ring);
+  outline-offset: var(--sp-ring-offset);
+}
+
+/* Färg får inte vara enda statusbärare — det valda provet får också en bock. */
+.mc-swatch--active {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
+}
+
+/* ── Mobil ─────────────────────────────────────────────────────────────────
+ * Under md blir sidebaren en helskärmspanel i stället för en kolumn.
+ */
+@media (max-width: 767px) {
+  .mc-sidebar {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    z-index: 50;
+    border-left: none;
+  }
+
+  /* Panelen täcker hela skärmen på mobil, så den måste gå att stänga för att
+     griden ska vara nåbar. På desktop är sidebaren en kolumn och klassen
+     lämnas därför utanför den här mediafrågan. */
+  .mc-sidebar--closed {
+    display: none;
+  }
+
+  .mc-sidebar-close {
+    display: inline-flex;
+  }
+
+  .mc-grid {
+    grid-template-columns: 1.9rem repeat(7, minmax(0, 1fr));
+  }
+
+  .mc-quicktext {
+    font-size: 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-band,
+  .mc-btn {
+    transition: none;
+  }
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, PieChart, Users, Briefcase, Terminal, LogOut, LogIn } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Users, Briefcase, LogOut, LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ const features = [
   { label: 'Schema',          href: '/features/schedule',           icon: Calendar  },
   { label: 'Temakalender',    href: '/features/temakalender',       icon: PieChart  },
   { label: 'Familjeschema',   href: '/features/familjeschema',      icon: Users     },
-  { label: 'Skrivbord',        href: '/features/command-center',     icon: Terminal  },
+  { label: 'Kalender',        href: '/features/calendar',           icon: CalendarDays },
   { label: 'Workspace',       href: '/workspace',                   icon: Briefcase },
 ] as const;
 

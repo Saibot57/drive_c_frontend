@@ -12,11 +12,14 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     label: 'Global',
     shortcuts: [
+      // Ordningen härleds ur `features`-arrayen i FeatureNavigation.tsx.
+      // Ändras den måste den här listan följa med.
       { keys: ['Ctrl', 'Shift', '1'], description: 'Bibliotek' },
       { keys: ['Ctrl', 'Shift', '2'], description: 'Schema' },
-      { keys: ['Ctrl', 'Shift', '3'], description: 'Familjeschema' },
-      { keys: ['Ctrl', 'Shift', '4'], description: 'Skrivbord' },
-      { keys: ['Ctrl', 'Shift', '5'], description: 'Workspace' },
+      { keys: ['Ctrl', 'Shift', '3'], description: 'Temakalender' },
+      { keys: ['Ctrl', 'Shift', '4'], description: 'Familjeschema' },
+      { keys: ['Ctrl', 'Shift', '5'], description: 'Kalender' },
+      { keys: ['Ctrl', 'Shift', '6'], description: 'Workspace' },
       { keys: ['?'], description: 'Visa genvägar' },
       { keys: ['Ctrl', 'Z'], description: 'Ångra' },
     ],
@@ -61,24 +64,17 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
-    label: 'Skrivbord — Paneler',
+    // Skrivbords panelgenvägar stod här tidigare. De togs bort när Skrivbord
+    // lämnade huvudnavigationen — routen /features/command-center fungerar
+    // fortfarande via direkt-URL, men genvägarna gick inte att nå från menyn
+    // och blev därför vilseledande i hjälpen.
+    label: 'Kalender',
     shortcuts: [
-      { keys: ['Ctrl', 'Shift', 'N'], description: 'Fokusera Anteckningar' },
-      { keys: ['Ctrl', 'Shift', 'T'], description: 'Fokusera Terminal' },
-      { keys: ['Ctrl', 'Shift', 'C'], description: 'Fokusera Kalender' },
-      { keys: ['Ctrl', 'Shift', 'D'], description: 'Fokusera Att-göra-lista' },
-      { keys: ['Ctrl', 'Shift', 'S'], description: 'Fokusera Dagsschema' },
-    ],
-  },
-  {
-    label: 'Skrivbord — Navigering',
-    shortcuts: [
-      { keys: ['↓', 'j'], description: 'Nästa objekt' },
-      { keys: ['↑', 'k'], description: 'Föregående objekt' },
-      { keys: ['Enter'], description: 'Visa / Toggla' },
-      { keys: ['e'], description: 'Redigera' },
-      { keys: ['/'], description: 'Fokusera sök (Anteckningar)' },
-      { keys: ['Escape'], description: 'Rensa / Avmarkera' },
+      { keys: ['←', '→'], description: 'En dag i sidled' },
+      { keys: ['↑', '↓'], description: 'En vecka i höjdled' },
+      { keys: ['Home', 'End'], description: 'Veckans första / sista dag' },
+      { keys: ['Enter'], description: 'Välj dag / öppna anteckning' },
+      { keys: ['Escape'], description: 'Lämna redigering / överstrykning' },
     ],
   },
 ];
