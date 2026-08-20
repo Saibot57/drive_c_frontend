@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import { isVectorPdfExportEnabled } from '@/config/featureFlags';
 import { ScheduledEntry } from '@/types/schedule';
 import { END_HOUR, PIXELS_PER_MINUTE, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
+import { fitScheduleCardsForExport } from '@/utils/scheduleExportFit';
 import { exportElementToVectorPdf } from '@/utils/vectorPdfExport';
 
 type UseScheduleExportParams = {
@@ -21,7 +22,16 @@ type UseScheduleExportParams = {
    */
   extraEndMinutes?: number;
   /** Körs först när filen faktiskt är skapad, så en kraschad export rensar inget. */
-  onExportComplete?: () => void;
+  onExportComplete?: (outcome: ExportOutcome) => void;
+};
+
+export type ExportOutcome = {
+  /**
+   * Poster där texten inte rymdes i kortet och klipptes med "…". Tomt när allt
+   * fick plats. Anropas bara med det som faktiskt hamnade i filen — uteslutna
+   * poster mäts aldrig, de är `display: none` under `.pdf-export`.
+   */
+  truncated: ScheduledEntry[];
 };
 
 export const useScheduleExport = ({
@@ -34,6 +44,9 @@ export const useScheduleExport = ({
     const element = document.getElementById('schedule-canvas');
     if (!element) return null;
     element.classList.add('pdf-export');
+    // Bildvägen fotar det levande elementet, så klämningen måste städas bort
+    // igen — annars sitter "…" kvar på skärmen efter exporten.
+    const fit = fitScheduleCardsForExport(element);
     try {
       const maxCanvasSize = 16000;
       const targetWidth = element.scrollWidth;
@@ -43,17 +56,27 @@ export const useScheduleExport = ({
         maxCanvasSize / Math.max(targetWidth, 1),
         maxCanvasSize / Math.max(targetHeight, 1)
       );
-      return await html2canvas(element, {
+      const canvas = await html2canvas(element, {
         scale: scaleToLimit,
         width: targetWidth,
         height: targetHeight,
         windowWidth: targetWidth,
         windowHeight: targetHeight
       });
+      return { canvas, truncatedInstanceIds: fit.truncatedInstanceIds };
     } finally {
+      fit.restore();
       element.classList.remove('pdf-export');
     }
   }, []);
+
+  /** Kortens `data-instance-id` tillbaka till posterna notisen ska namnge. */
+  const toEntries = useCallback((instanceIds: string[]) => {
+    const byInstanceId = new Map(schedule.map(entry => [entry.instanceId, entry]));
+    return instanceIds
+      .map(instanceId => byInstanceId.get(instanceId))
+      .filter((entry): entry is ScheduledEntry => Boolean(entry));
+  }, [schedule]);
 
   const computeClipHeightPx = useCallback(() => {
     // En utesluten post ska inte lämna ett tomt fält sist i filen.
@@ -83,18 +106,24 @@ export const useScheduleExport = ({
     const size = pageSize ?? 'a4';
 
     if (isVectorPdfExportEnabled && exportElement) {
+      let truncatedInstanceIds: string[] = [];
       await exportElementToVectorPdf(exportElement, {
         filename: 'schema.pdf',
         extraClassNames: ['pdf-export'],
         clipHeightPx,
         pageSize: size,
+        // Klonen kastas efter utskriften, så den behöver aldrig städas.
+        onLayoutReady: root => {
+          truncatedInstanceIds = fitScheduleCardsForExport(root).truncatedInstanceIds;
+        },
       });
-      onExportComplete?.();
+      onExportComplete?.({ truncated: toEntries(truncatedInstanceIds) });
       return;
     }
 
-    const canvas = await captureScheduleCanvas();
-    if (!canvas) return;
+    const captured = await captureScheduleCanvas();
+    if (!captured) return;
+    const { canvas, truncatedInstanceIds } = captured;
     const pdf = new jsPDF('l', 'pt', size);
     const imageData = canvas.toDataURL('image/png');
     const imgProps = pdf.getImageProperties(imageData);
@@ -103,12 +132,13 @@ export const useScheduleExport = ({
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
     pdf.addImage(imageData, 'PNG', margin, margin, pdfWidth, pdfHeight);
     pdf.save('schema.pdf');
-    onExportComplete?.();
-  }, [captureScheduleCanvas, computeClipHeightPx, onExportComplete]);
+    onExportComplete?.({ truncated: toEntries(truncatedInstanceIds) });
+  }, [captureScheduleCanvas, computeClipHeightPx, onExportComplete, toEntries]);
 
   const handleExportImage = useCallback(async (type: 'png' | 'jpeg') => {
-    const canvas = await captureScheduleCanvas();
-    if (!canvas) return;
+    const captured = await captureScheduleCanvas();
+    if (!captured) return;
+    const { canvas, truncatedInstanceIds } = captured;
     const dataUrl = type === 'png'
       ? canvas.toDataURL('image/png')
       : canvas.toDataURL('image/jpeg', 0.92);
@@ -116,8 +146,8 @@ export const useScheduleExport = ({
     link.href = dataUrl;
     link.download = type === 'png' ? 'schema.png' : 'schema.jpg';
     link.click();
-    onExportComplete?.();
-  }, [captureScheduleCanvas, onExportComplete]);
+    onExportComplete?.({ truncated: toEntries(truncatedInstanceIds) });
+  }, [captureScheduleCanvas, onExportComplete, toEntries]);
 
   return {
     handleExportPDF,

@@ -121,9 +121,21 @@
   box-sizing: border-box;
 }
 
+/* Kortet behåller sin `overflow-hidden` från skärmen: text som inte ryms ska
+   klippas, aldrig rinna ut över grannkortet. Snittet läggs på en radbrytning
+   av `fitScheduleCardsForExport`, som klämmer anteckningarna – och vid behov
+   titeln – till det antal rader som får plats, så att texten slutar med "…". */
 .pdf-export .scheduled-event-card {
-  overflow: visible;
   padding-top: 6px;
+}
+
+/* Redigera/radera hör hemma på skärmen, inte i en utskrift. De står på
+   `opacity-0` tills man hovrar, alltså osynliga i filen – men de tar fortfarande
+   plats i tidsraden och kan till och med brytas ned på en egen rad av
+   `flex-wrap`. På ett smalt kort åt de 16 px höjd och tvingade fram en
+   avkortning som inte behövdes. */
+.pdf-export .scheduled-event-card [data-card-actions] {
+  display: none;
 }
 
 /* Uteslutna poster syns på skärmen men inte i filen. Regeln gäller båda
@@ -159,6 +171,22 @@
 .pdf-export .scheduled-event-card .flex > span {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+/* Undantaget ovan: kortets egen kolumn. Regeln är skriven för raderna i
+   kortet, men `.flex` träffar också wrappern `flex flex-col h-full`. En
+   `flex-direction: column` med bestämd höjd bryter innehåll som inte ryms
+   till en NY KOLUMN åt höger i stället för att låta det flöda vidare nedåt —
+   anteckningarna hamnade överst till höger, utanför kortet, och syntes i
+   filen eftersom exporten sätter `overflow: visible`.
+
+   Undantaget måste hänga på en egen klass, inte på `:not(.flex-col)`:
+   `.calendar-event-card` gör `@apply flex flex-col`, och Tailwind kopierar då
+   varje regel som nämner de utilityklasserna med namnet utbytt. Ur
+   `.flex:not(.flex-col)` faller `.flex:not(.calendar-event-card)` ut, som
+   matchar wrappern igen och gör negationen verkningslös. */
+.pdf-export .scheduled-event-card .sp-event-card-body {
+  flex-wrap: nowrap;
 }
 
 .pdf-export .scheduled-event-card [class*="line-clamp"] {

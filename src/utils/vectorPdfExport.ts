@@ -11,6 +11,11 @@ type VectorPdfExportOptions = {
   extraClassNames?: string[];
   clipHeightPx?: number;
   pageSize?: PageSize;
+  /**
+   * Körs på klonen när den är utlagd och typsnitten laddade, precis innan
+   * utskriften. Enda läget där texten går att mäta i sidans riktiga bredd.
+   */
+  onLayoutReady?: (root: HTMLElement) => void;
 };
 
 const collectStyles = () => {
@@ -141,6 +146,8 @@ export const exportElementToVectorPdf = async (
   }
 
   await waitForImages(doc);
+
+  options.onLayoutReady?.(clonedElement);
 
   const targetWindow = iframe.contentWindow;
   if (!targetWindow) {

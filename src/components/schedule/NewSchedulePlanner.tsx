@@ -38,7 +38,7 @@ import {
   TITLE_HOLD_OPEN_MS
 } from '@/components/schedule/constants';
 import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
-import { ContextMenuState, GhostPlacement } from '@/types/plannerUI';
+import { ContextMenuState, GhostPlacement, PlannerNoticeTone } from '@/types/plannerUI';
 import {
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE,
   timeToMinutes, minutesToTime, snapTime,
@@ -83,7 +83,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/components/schedule/courseUtils';
 import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
-import { useScheduleExport } from '@/hooks/useScheduleExport';
+import { ExportOutcome, useScheduleExport } from '@/hooks/useScheduleExport';
 import { useMobileNavigation } from '@/hooks/useMobileNavigation';
 import { useScheduleKeyboardNav } from '@/hooks/useScheduleKeyboardNav';
 import { useKeyboardPlacement } from '@/hooks/useKeyboardPlacement';
@@ -452,25 +452,46 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   /**
    * Listan gäller bara en export. Notisen finns för att en tyst borttagen post
    * är obehaglig – man upptäcker den först när utskriften ligger på bordet.
+   * Avkortad text är samma sorts tysthet, så den rapporteras i samma notis:
+   * `plannerNotice` har bara en plats, och två anrop skulle skriva över varann.
    */
-  const handleExportComplete = useCallback(() => {
-    if (exportExcludes.length === 0) return;
+  const handleExportComplete = useCallback((outcome?: ExportOutcome) => {
+    const parts: string[] = [];
+    let tone: PlannerNoticeTone = 'success';
 
-    const removed = schedule.filter(entry => isExcludedFromExport(entry)).length;
-    clearExportExcludes();
+    if (exportExcludes.length > 0) {
+      const removed = schedule.filter(entry => isExcludedFromExport(entry)).length;
+      clearExportExcludes();
 
-    if (removed === 0) {
-      showNotice(
-        `Inget i schemat matchade ${exportExcludes.join(', ')}. Listan är tömd.`,
-        'warning'
-      );
-      return;
+      if (removed === 0) {
+        parts.push(`Inget i schemat matchade ${exportExcludes.join(', ')}. Listan är tömd.`);
+        tone = 'warning';
+      } else {
+        parts.push(`Uteslöt ${removed} post${removed === 1 ? '' : 'er'} ur exporten. Listan är tömd.`);
+      }
     }
 
-    showNotice(
-      `Uteslöt ${removed} post${removed === 1 ? '' : 'er'} ur exporten. Listan är tömd.`,
-      'success'
-    );
+    const truncated = outcome?.truncated ?? [];
+    if (truncated.length > 0) {
+      // Två namn räcker för att hitta rätt kort; resten blir en siffra så att
+      // notisen inte växer med schemat.
+      const named = truncated
+        .slice(0, 2)
+        .map(entry => `${entry.title} (${entry.day} ${entry.startTime})`)
+        .join(', ');
+      const rest = truncated.length - Math.min(truncated.length, 2);
+      parts.push(
+        `Texten rymdes inte i ${truncated.length} post${truncated.length === 1 ? '' : 'er'} och slutar med "…" i filen: ${named}${rest > 0 ? ` +${rest} till` : ''}.`
+      );
+      tone = 'warning';
+    }
+
+    if (parts.length === 0) return;
+
+    showNotice(parts.join(' '), tone, {
+      // Hinner läsas – notisen kan namnge poster man behöver leta upp.
+      durationMs: truncated.length > 0 ? 7000 : undefined
+    });
   }, [clearExportExcludes, exportExcludes, isExcludedFromExport, schedule, showNotice]);
 
   /**

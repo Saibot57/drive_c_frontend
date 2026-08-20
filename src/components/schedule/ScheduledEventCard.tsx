@@ -94,9 +94,14 @@ export function ScheduledEventCard({
       className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''} ${isNotesTarget ? 'ring-4 ring-sky-600 ring-offset-1' : ''} ${isNotesProtected ? 'sp-notes-protected' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
-      <div className="flex flex-col h-full">
+      <div className="sp-event-card-body flex flex-col h-full">
         <div className="flex justify-between items-start">
-          <span className="text-2xs font-mono font-bold opacity-70 leading-tight">
+          <span
+            /* På korta kort ryms ingen egen titelrad – titeln sitter här inne,
+               och då är det den här raden exporten ska klämma. */
+            data-card-title={isShortDuration ? true : undefined}
+            className="text-2xs font-mono font-bold opacity-70 leading-tight"
+          >
             {timeLabel}
             {isShortDuration && (
               <span className="ml-1 font-sans font-bold">{entry.title}</span>
@@ -122,14 +127,14 @@ export function ScheduledEventCard({
                 <FileText size={10} />
               </a>
             )}
-            <div className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-1 bg-white/60 rounded`}>
+            <div data-card-actions className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-1 bg-white/60 rounded`}>
               <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-1 hover:bg-white rounded"><Edit2 size={8} /></button>
               <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-1 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8} /></button>
             </div>
           </div>
         </div>
         {!isShortDuration && (
-          <p className={`font-bold leading-tight truncate ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>{entry.title}</p>
+          <p data-card-title className={`font-bold leading-tight truncate ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>{entry.title}</p>
         )}
         {adjustedHeight > 30 && teacherNames.length > 0 && (
           /* Lärarnamn kortas aldrig av med "…" – varje namn får en egen rad och
@@ -146,7 +151,9 @@ export function ScheduledEventCard({
           </p>
         )}
         {entry.notes && adjustedHeight > 46 && (
-          <p className={`text-gray-600 whitespace-pre-line line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
+          /* `data-card-notes` är fästet som exporten klämmer i – klassnamnen
+             byts av `.pdf-export` och duger inte som väljare där. */
+          <p data-card-notes className={`text-gray-600 whitespace-pre-line line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
         )}
       </div>
     </div>
