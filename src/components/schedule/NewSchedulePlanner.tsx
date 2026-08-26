@@ -48,6 +48,7 @@ import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
 import { computePlanningByDay, parsePlanningQuery } from '@/utils/planningTime';
 import { runPlanningFixtureValidation } from '@/components/schedule/planningValidation';
 import { createColorResolver } from '@/utils/colorTriggers';
+import { createRoomResolver } from '@/utils/roomTriggers';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 import {
   collectTeacherNames,
@@ -97,7 +98,13 @@ import '@/styles/schedule-theme.css';
 const advancedFilterMatch = (
   item: PlannerCourse | ScheduledEntry,
   filterQuery: string,
-  allTeacherNames: string[] = []
+  allTeacherNames: string[] = [],
+  /**
+   * Utan den här söker man på det lagrade salfältet, och en post som får sin
+   * sal ur en regel skulle inte gå att hitta på salen som faktiskt står på
+   * kortet.
+   */
+  resolveRoom?: (title: string, currentRoom?: string) => string
 ): boolean => {
   if (!filterQuery.trim()) return true;
   // "alla" under lärare söks som om varje namn stod där, men ordet självt
@@ -105,7 +112,8 @@ const advancedFilterMatch = (
   const teacherText = isAllTeachersField(item.teacher)
     ? `${item.teacher} ${allTeacherNames.join(' ')}`
     : item.teacher;
-  const searchString = `${item.title} ${teacherText} ${item.room} ${item.category || ''}`.toLowerCase();
+  const roomText = resolveRoom ? resolveRoom(item.title, item.room) : item.room;
+  const searchString = `${item.title} ${teacherText} ${roomText} ${item.category || ''}`.toLowerCase();
   const blocks = filterQuery.toLowerCase().split(';');
   return blocks.some(block => {
     const parts = block.trim().split('+'); 
@@ -207,6 +215,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     rooms,
     teacherAvailability,
     colorTriggers,
+    roomTriggers,
     planningMinGap,
     exportExcludes,
     pasteProtect,
@@ -215,6 +224,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     applyTeacherAvailability,
     applyTeachersAndRooms,
     applyColorTriggers,
+    applyRoomTriggers,
     applyPlanningMinGap,
     applyPlanningFrame,
     clearExportExcludes,
@@ -233,6 +243,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     rooms?: unknown;
     teacherAvailability?: unknown;
     colorTriggers?: unknown;
+    roomTriggers?: unknown;
     planningMinGap?: unknown;
     planningStartMinutes?: unknown;
     planningEndMinutes?: unknown;
@@ -389,11 +400,18 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     return Object.values(planningByDay).reduce((sum, day) => sum + day.totalMinutes, 0);
   }, [planningByDay]);
 
+  /**
+   * Salsreglerna gäller när kortet ritas, men bara för poster som saknar sal —
+   * en ifylld sal passerar rakt igenom. Ligger före `filterMatch` för att
+   * kunna stå i dess beroendelista.
+   */
+  const resolveRoom = useMemo(() => createRoomResolver(roomTriggers), [roomTriggers]);
+
   const filterMatch = useCallback(
     (item: PlannerCourse | ScheduledEntry, query: string) => (
-      isPlanningMode ? true : advancedFilterMatch(item, query, allTeacherNames)
+      isPlanningMode ? true : advancedFilterMatch(item, query, allTeacherNames, resolveRoom)
     ),
-    [isPlanningMode, allTeacherNames]
+    [isPlanningMode, allTeacherNames, resolveRoom]
   );
 
   /**
@@ -409,6 +427,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
    * i hela schemat utan att posternas lagrade färg rörs.
    */
   const resolveColor = useMemo(() => createColorResolver(colorTriggers), [colorTriggers]);
+
 
   const {
     setMobileActiveDayIndex,
@@ -819,7 +838,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleExportJSON = () => {
     const dataToSave: PersistedPlannerState = {
-      version: 10,
+      version: 11,
       timestamp: new Date().toISOString(),
       courses,
       schedule,
@@ -828,6 +847,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       rooms,
       teacherAvailability,
       colorTriggers,
+      roomTriggers,
       planningMinGap,
       planningStartMinutes,
       planningEndMinutes
@@ -860,6 +880,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             rooms: parsed.rooms,
             teacherAvailability: parsed.teacherAvailability,
             colorTriggers: parsed.colorTriggers,
+            roomTriggers: parsed.roomTriggers,
             planningMinGap: parsed.planningMinGap,
             planningStartMinutes: parsed.planningStartMinutes,
             planningEndMinutes: parsed.planningEndMinutes
@@ -894,6 +915,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     if (pendingImportData.colorTriggers) {
       applyColorTriggers(pendingImportData.colorTriggers);
     }
+    if (pendingImportData.roomTriggers) {
+      applyRoomTriggers(pendingImportData.roomTriggers);
+    }
     if (pendingImportData.planningMinGap !== undefined) {
       applyPlanningMinGap(pendingImportData.planningMinGap);
     }
@@ -910,6 +934,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     setPendingImportData(null);
   }, [
     applyColorTriggers,
+    applyRoomTriggers,
     applyPlanningFrame,
     applyPlanningMinGap,
     applyTeacherAvailability,
@@ -1768,6 +1793,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   isNotesTarget={markedIds.has(entry.instanceId) && !isPasteProtected(entry)}
                                   isNotesProtected={markedIds.has(entry.instanceId) && isPasteProtected(entry)}
                                   color={resolveColor(entry.title, entry.color)}
+                                  room={resolveRoom(entry.title, entry.room)}
                                   excludedFromExport={isExcludedFromExport(entry)}
                                />
                               );
@@ -1833,6 +1859,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                  isNotesTarget={markedIds.has(entry.instanceId) && !isPasteProtected(entry)}
                                   isNotesProtected={markedIds.has(entry.instanceId) && isPasteProtected(entry)}
                                  color={resolveColor(entry.title, entry.color)}
+                                 room={resolveRoom(entry.title, entry.room)}
                                   excludedFromExport={isExcludedFromExport(entry)}
                                />
                              );
@@ -2102,6 +2129,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         rooms={rooms}
         teacherAvailability={teacherAvailability}
         colorTriggers={colorTriggers}
+        roomTriggers={roomTriggers}
         planningMinGap={planningMinGap}
         pasteProtect={pasteProtect}
         exportExcludes={exportExcludes}
@@ -2127,6 +2155,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         teachers={teachers}
         rooms={rooms}
         colorTriggers={colorTriggers}
+        roomTriggers={roomTriggers}
         isEntryModalOpen={isEntryModalOpen}
         onEntryModalOpenChange={setIsEntryModalOpen}
         editingEntry={editingEntry}

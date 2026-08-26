@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ColorTriggerRule, TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
+import type { HiddenSettingsDraft } from '@/hooks/useHiddenSettings';
+import { ColorTriggerRule, RoomTriggerRule, TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
 import { parseExcludeList } from '@/utils/exportExclusions';
 import { sanitizePlanningMinGap, sanitizePlanningTime } from '@/utils/planningTime';
 import { minutesToTime } from '@/utils/scheduleTime';
@@ -160,11 +161,15 @@ function ColorTriggerList({ triggers, onChange }: ColorTriggerListProps) {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
+    /* Storleken följer innehållet i stället för att ta resten av kolumnen, och
+       `shrink-0` hindrar att den krymps ihop igen: med tre sektioner under
+       varandra räcker höjden inte till, och utan spärren pressas knappen nedan
+       ut ur sin ruta och lägger sig ovanpå nästa rubrik. Kolumnen scrollar. */
+    <div className="flex min-h-0 shrink-0 flex-col gap-2">
       {triggers.length === 0 ? (
         <p className="text-sm text-gray-500 italic">Inga färgregler ännu.</p>
       ) : (
-        <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-64 min-h-0 space-y-2 overflow-y-auto pr-1">
           {triggers.map((trigger, index) => (
             <div key={trigger.id} className="flex items-center gap-2">
               <span className="w-5 shrink-0 text-xs font-bold text-gray-400">{index + 1}</span>
@@ -220,6 +225,78 @@ function ColorTriggerList({ triggers, onChange }: ColorTriggerListProps) {
   );
 }
 
+type RoomTriggerListProps = {
+  triggers: RoomTriggerRule[];
+  onChange: (next: RoomTriggerRule[]) => void;
+  /** Sallistan ovan, som förslag i stället för ett fritextfält att stava fel i. */
+  rooms: string[];
+};
+
+const ROOM_TRIGGER_OPTIONS_ID = 'room-trigger-options';
+
+function RoomTriggerList({ triggers, onChange, rooms }: RoomTriggerListProps) {
+  const update = (id: string, patch: Partial<RoomTriggerRule>) => {
+    onChange(triggers.map(trigger => (trigger.id === id ? { ...trigger, ...patch } : trigger)));
+  };
+
+  return (
+    <div className="flex min-h-0 shrink-0 flex-col gap-2">
+      <datalist id={ROOM_TRIGGER_OPTIONS_ID}>
+        {rooms.map(room => <option key={room} value={room} />)}
+      </datalist>
+
+      {triggers.length === 0 ? (
+        <p className="text-sm text-gray-500 italic">Inga salsregler ännu.</p>
+      ) : (
+        /* Till skillnad från färgreglerna ovan tar listan inte resten av
+           kolumnen, utan scrollar i egen ruta när den blir lång. */
+        <div className="max-h-48 min-h-0 space-y-2 overflow-y-auto pr-1">
+          {triggers.map((trigger, index) => (
+            <div key={trigger.id} className="flex items-center gap-2">
+              <span className="w-5 shrink-0 text-xs font-bold text-gray-400">{index + 1}</span>
+              <Input
+                value={trigger.word}
+                onChange={event => update(trigger.id, { word: event.target.value })}
+                placeholder="Ord i titeln, t.ex. idrott"
+                aria-label={`Salsregel ${index + 1}, ord`}
+                className="flex-1"
+              />
+              <Input
+                value={trigger.room}
+                onChange={event => update(trigger.id, { room: event.target.value })}
+                placeholder="Sal"
+                list={ROOM_TRIGGER_OPTIONS_ID}
+                aria-label={`Sal för ${trigger.word || `regel ${index + 1}`}`}
+                className="w-28 shrink-0"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="neutral"
+                className="h-8 w-8 shrink-0 p-0"
+                aria-label={`Ta bort salsregel ${index + 1}`}
+                onClick={() => onChange(triggers.filter(item => item.id !== trigger.id))}
+              >
+                <X size={14} />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Button
+        type="button"
+        size="sm"
+        variant="neutral"
+        className="shrink-0 self-start"
+        onClick={() => onChange([...triggers, { id: uuidv4(), word: '', room: '' }])}
+      >
+        <Plus size={14} className="mr-1" /> Lägg till salsregel
+      </Button>
+    </div>
+  );
+}
+
 type HiddenSettingsPanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -227,22 +304,13 @@ type HiddenSettingsPanelProps = {
   rooms: string[];
   teacherAvailability: TeacherAvailability;
   colorTriggers: ColorTriggerRule[];
+  roomTriggers: RoomTriggerRule[];
   planningMinGap: number;
   exportExcludes: string[];
   pasteProtect: string[];
   planningStartMinutes: number | null;
   planningEndMinutes: number | null;
-  onSave: (
-    nextTeachers: string[],
-    nextRooms: string[],
-    nextAvailability: TeacherAvailability,
-    nextColorTriggers: ColorTriggerRule[],
-    nextPlanningMinGap: number,
-    nextExportExcludes: string[],
-    nextPasteProtect: string[],
-    nextPlanningStart: number | null,
-    nextPlanningEnd: number | null
-  ) => void;
+  onSave: (next: HiddenSettingsDraft) => void;
 };
 
 export function HiddenSettingsPanel({
@@ -252,6 +320,7 @@ export function HiddenSettingsPanel({
   rooms,
   teacherAvailability,
   colorTriggers,
+  roomTriggers,
   planningMinGap,
   exportExcludes,
   pasteProtect,
@@ -263,6 +332,7 @@ export function HiddenSettingsPanel({
   const [roomText, setRoomText] = useState('');
   const [availability, setAvailability] = useState<TeacherAvailability>({});
   const [triggers, setTriggers] = useState<ColorTriggerRule[]>([]);
+  const [roomRules, setRoomRules] = useState<RoomTriggerRule[]>([]);
   const [minGapText, setMinGapText] = useState('');
   const [excludeText, setExcludeText] = useState('');
   const [protectText, setProtectText] = useState('');
@@ -275,6 +345,7 @@ export function HiddenSettingsPanel({
     setRoomText(rooms.join('\n'));
     setAvailability(teacherAvailability);
     setTriggers(colorTriggers);
+    setRoomRules(roomTriggers);
     setMinGapText(String(planningMinGap));
     setExcludeText(exportExcludes.join('; '));
     setProtectText(pasteProtect.join('; '));
@@ -286,6 +357,7 @@ export function HiddenSettingsPanel({
     teachers,
     teacherAvailability,
     colorTriggers,
+    roomTriggers,
     planningMinGap,
     exportExcludes,
     pasteProtect,
@@ -298,17 +370,18 @@ export function HiddenSettingsPanel({
   const teacherRows = useMemo(() => sanitizeHiddenList(teacherText), [teacherText]);
 
   const handleSave = () => {
-    onSave(
-      teacherRows,
-      sanitizeHiddenList(roomText),
-      availability,
-      triggers,
-      sanitizePlanningMinGap(minGapText),
-      parseExcludeList(excludeText),
-      parseExcludeList(protectText),
-      sanitizePlanningTime(startText),
-      sanitizePlanningTime(endText)
-    );
+    onSave({
+      teachers: teacherRows,
+      rooms: sanitizeHiddenList(roomText),
+      teacherAvailability: availability,
+      colorTriggers: triggers,
+      roomTriggers: roomRules,
+      planningMinGap: sanitizePlanningMinGap(minGapText),
+      exportExcludes: parseExcludeList(excludeText),
+      pasteProtect: parseExcludeList(protectText),
+      planningStartMinutes: sanitizePlanningTime(startText),
+      planningEndMinutes: sanitizePlanningTime(endText)
+    });
     onOpenChange(false);
   };
 
@@ -423,7 +496,9 @@ export function HiddenSettingsPanel({
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-col">
+          {/* Kolumnen scrollar i sin helhet: sektionerna är fler än höjden
+              rymmer, och var och en har redan en egen tak-höjd. */}
+          <div className="flex min-h-0 flex-col overflow-y-auto pr-1">
             <div className="shrink-0 mb-2">
               <Label>Färg efter ord i titeln</Label>
               <p className="text-xs text-gray-500">
@@ -434,6 +509,20 @@ export function HiddenSettingsPanel({
               </p>
             </div>
             <ColorTriggerList triggers={triggers} onChange={setTriggers} />
+
+            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+              <div className="mb-2">
+                <Label>Sal efter ord i titeln</Label>
+                <p className="text-xs text-gray-500">
+                  Samma ordmatchning som färgreglerna, men tvärtom vad gäller vem som
+                  vinner: salen fylls bara på poster där <strong>salfältet är tomt</strong>.
+                  Har du skrivit in en sal står den kvar. Töm fältet så tar regeln över
+                  igen. Posten ändras aldrig i databasen — tar du bort regeln är salen
+                  borta, inte inskriven.
+                </p>
+              </div>
+              <RoomTriggerList triggers={roomRules} onChange={setRoomRules} rooms={rooms} />
+            </div>
 
             <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
               <Label htmlFor="export-excludes">Uteslut från nästa print/export</Label>

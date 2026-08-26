@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { generateBoxColor } from '@/config/colorManagement';
-import { ColorTriggerRule, PlannerArchiveSummary, PlannerCourse, RestrictionRule, ScheduledEntry } from '@/types/schedule';
+import { ColorTriggerRule, PlannerArchiveSummary, PlannerCourse, RestrictionRule, RoomTriggerRule, ScheduledEntry } from '@/types/schedule';
 import { findColorTrigger } from '@/utils/colorTriggers';
+import { findRoomTrigger } from '@/utils/roomTriggers';
 
 type ScheduleModalsProps = {
   isCourseModalOpen: boolean;
@@ -24,6 +25,7 @@ type ScheduleModalsProps = {
   teachers: string[];
   rooms: string[];
   colorTriggers: ColorTriggerRule[];
+  roomTriggers: RoomTriggerRule[];
   isEntryModalOpen: boolean;
   onEntryModalOpenChange: (open: boolean) => void;
   editingEntry: ScheduledEntry | null;
@@ -81,6 +83,7 @@ export function ScheduleModals({
   teachers,
   rooms,
   colorTriggers,
+  roomTriggers,
   isEntryModalOpen,
   onEntryModalOpenChange,
   editingEntry,
@@ -163,6 +166,23 @@ export function ScheduleModals({
     );
   };
 
+  /**
+   * Motsatsen till färghinten ovan: salsregeln gäller bara medan fältet är
+   * tomt, så hinten säger vad som händer och hur man tar över — inte att
+   * fältet är låst.
+   */
+  const renderRoomTriggerHint = (title: string, room: string) => {
+    if (room && room.trim()) return null;
+    const trigger = findRoomTrigger(title ?? '', roomTriggers);
+    if (!trigger) return null;
+    return (
+      <p className="text-xs text-gray-600">
+        Salen fylls av regeln &quot;{trigger.word}&quot; → <strong>{trigger.room}</strong>.
+        Skriv en sal här för att styra över.
+      </p>
+    );
+  };
+
   const saveRecentColor = useCallback((color: string) => {
     const paletteSet = new Set(COURSE_COLOR_PALETTE as readonly string[]);
     if (paletteSet.has(color)) return;
@@ -205,6 +225,7 @@ export function ScheduleModals({
                   onChange={room => setEditingCourse({ ...editingCourse, room })}
                 />
               </div>
+              {renderRoomTriggerHint(editingCourse.title, editingCourse.room)}
               {renderTriggerHint(editingCourse.title)}
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <div className="flex gap-2">
@@ -291,6 +312,7 @@ export function ScheduleModals({
                   onChange={room => setEditingEntry({ ...editingEntry, room })}
                 />
               </div>
+              {renderRoomTriggerHint(editingEntry.title, editingEntry.room)}
               <div className="space-y-1">
                 <Label htmlFor="entry-notes">Anteckningar:</Label>
                 <Textarea

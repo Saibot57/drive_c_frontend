@@ -103,6 +103,16 @@ export interface ColorTriggerRule {
   color: string;
 }
 
+/**
+ * Ett ord i titeln som fyller postens sal. Till skillnad från färgregeln
+ * ovan gäller den bara när salfältet är tomt — en ifylld sal vinner alltid.
+ */
+export interface RoomTriggerRule {
+  id: string;
+  word: string;
+  room: string;
+}
+
 export interface PersistedPlannerState {
   version: number;
   timestamp: string;
@@ -118,6 +128,7 @@ export interface PersistedPlannerState {
   rooms?: string[];
   teacherAvailability?: TeacherAvailability;
   colorTriggers?: ColorTriggerRule[];
+  roomTriggers?: RoomTriggerRule[];
   /** Minsta lucka som räknas som planeringstid, i minuter. */
   planningMinGap?: number;
   /** Arbetsdagens gränser i planeringsvyn, minuter från midnatt. `null` = standard. */

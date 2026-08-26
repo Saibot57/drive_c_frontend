@@ -26,6 +26,11 @@ type ScheduledEventCardProps = {
   isNotesProtected?: boolean;
   /** Färgen att visa. Kan skilja sig från entry.color när en färgregel slår till. */
   color?: string;
+  /**
+   * Salen att visa. Skiljer sig från entry.room bara när fältet är tomt och en
+   * salsregel fyller det. Utelämnad visas postens egen sal.
+   */
+  room?: string;
   /** Syns på skärmen men döljs i PDF/bild av regeln under `.pdf-export`. */
   excludedFromExport?: boolean;
 };
@@ -52,8 +57,10 @@ export function ScheduledEventCard({
   isNotesTarget = false,
   isNotesProtected = false,
   color,
+  room,
   excludedFromExport = false
 }: ScheduledEventCardProps) {
+  const shownRoom = room ?? entry.room;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.instanceId,
     data: { type: 'scheduled', entry },
@@ -145,9 +152,9 @@ export function ScheduledEventCard({
             ))}
           </div>
         )}
-        {adjustedHeight > 30 && entry.room && (
+        {adjustedHeight > 30 && shownRoom && (
           <p className={`text-gray-700 truncate leading-tight ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
-            {entry.room}
+            {shownRoom}
           </p>
         )}
         {entry.notes && adjustedHeight > 46 && (

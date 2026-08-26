@@ -11,15 +11,36 @@ import {
   PLANNING_MIN_GAP_KEY,
   PLANNING_START_TIME_KEY,
   ROOMS_KEY,
+  ROOM_TRIGGERS_KEY,
   TEACHERS_KEY,
   TEACHER_AVAILABILITY_KEY
 } from '@/components/schedule/constants';
 import { useHotkeys } from '@/hooks/useHotkeys';
-import { ColorTriggerRule, TeacherAvailability } from '@/types/schedule';
+import { ColorTriggerRule, RoomTriggerRule, TeacherAvailability } from '@/types/schedule';
 import { sanitizeColorTriggers } from '@/utils/colorTriggers';
+import { sanitizeRoomTriggers } from '@/utils/roomTriggers';
 import { sanitizeExcludeList } from '@/utils/exportExclusions';
 import { sanitizePlanningMinGap, sanitizePlanningTime } from '@/utils/planningTime';
 import { sanitizeTeacherAvailability } from '@/utils/scheduleRules';
+
+/**
+ * Allt debugmenyn sparar, som ett namngivet objekt. Tidigare var det nio
+ * positionsargument i rad, varav flera var `string[]` — där räckte en
+ * omkastning för att lärarnamnen skulle hamna i sallistan utan att vare sig
+ * TypeScript eller körningen sa ifrån.
+ */
+export type HiddenSettingsDraft = {
+  teachers: string[];
+  rooms: string[];
+  teacherAvailability: TeacherAvailability;
+  colorTriggers: ColorTriggerRule[];
+  roomTriggers: RoomTriggerRule[];
+  planningMinGap: number;
+  exportExcludes: string[];
+  pasteProtect: string[];
+  planningStartMinutes: number | null;
+  planningEndMinutes: number | null;
+};
 
 /** Behåller bara lärare som fortfarande står i lärarlistan. */
 const pruneAvailability = (
@@ -37,6 +58,7 @@ export const useHiddenSettings = () => {
   const [rooms, setRooms] = useState<string[]>([]);
   const [teacherAvailability, setTeacherAvailability] = useState<TeacherAvailability>({});
   const [colorTriggers, setColorTriggers] = useState<ColorTriggerRule[]>([]);
+  const [roomTriggers, setRoomTriggers] = useState<RoomTriggerRule[]>([]);
   const [planningMinGap, setPlanningMinGap] = useState(DEFAULT_PLANNING_MIN_GAP_MINUTES);
   /** Titlar som nästa export hoppar över. Töms när exporten är gjord. */
   const [exportExcludes, setExportExcludes] = useState<string[]>([]);
@@ -54,6 +76,7 @@ export const useHiddenSettings = () => {
       const storedRooms = window.localStorage.getItem(ROOMS_KEY);
       const storedAvailability = window.localStorage.getItem(TEACHER_AVAILABILITY_KEY);
       const storedTriggers = window.localStorage.getItem(COLOR_TRIGGERS_KEY);
+      const storedRoomTriggers = window.localStorage.getItem(ROOM_TRIGGERS_KEY);
       const storedMinGap = window.localStorage.getItem(PLANNING_MIN_GAP_KEY);
       const storedExcludes = window.localStorage.getItem(EXPORT_EXCLUDE_KEY);
       const storedProtect = window.localStorage.getItem(PASTE_PROTECT_KEY);
@@ -67,6 +90,7 @@ export const useHiddenSettings = () => {
         sanitizeTeacherAvailability(storedAvailability ? JSON.parse(storedAvailability) : {})
       );
       setColorTriggers(sanitizeColorTriggers(storedTriggers ? JSON.parse(storedTriggers) : []));
+      setRoomTriggers(sanitizeRoomTriggers(storedRoomTriggers ? JSON.parse(storedRoomTriggers) : []));
       setPlanningMinGap(sanitizePlanningMinGap(storedMinGap ? JSON.parse(storedMinGap) : undefined));
       setExportExcludes(sanitizeExcludeList(storedExcludes ? JSON.parse(storedExcludes) : []));
       // `null` betyder att listan aldrig rörts och ska ha förvalet. En sparad
@@ -105,6 +129,16 @@ export const useHiddenSettings = () => {
       window.localStorage.setItem(COLOR_TRIGGERS_KEY, JSON.stringify(next));
     } catch (error) {
       console.warn('Kunde inte spara färgregler.', error);
+    }
+  }, []);
+
+  const persistRoomTriggers = useCallback((next: RoomTriggerRule[]) => {
+    setRoomTriggers(next);
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(ROOM_TRIGGERS_KEY, JSON.stringify(next));
+    } catch (error) {
+      console.warn('Kunde inte spara salsregler.', error);
     }
   }, []);
 
@@ -191,6 +225,10 @@ export const useHiddenSettings = () => {
     persistColorTriggers(sanitizeColorTriggers(next));
   }, [persistColorTriggers]);
 
+  const applyRoomTriggers = useCallback((next: unknown) => {
+    persistRoomTriggers(sanitizeRoomTriggers(next));
+  }, [persistRoomTriggers]);
+
   const applyPlanningMinGap = useCallback((next: unknown) => {
     persistPlanningMinGap(next);
   }, [persistPlanningMinGap]);
@@ -199,35 +237,27 @@ export const useHiddenSettings = () => {
     persistPlanningFrame(nextStart, nextEnd);
   }, [persistPlanningFrame]);
 
-  const handleHiddenSettingsSave = useCallback((
-    nextTeachers: string[],
-    nextRooms: string[],
-    nextAvailability: TeacherAvailability,
-    nextColorTriggers: ColorTriggerRule[],
-    nextPlanningMinGap: number,
-    nextExportExcludes: string[],
-    nextPasteProtect: string[],
-    nextPlanningStart: number | null,
-    nextPlanningEnd: number | null
-  ) => {
-    setTeachers(nextTeachers);
-    setRooms(nextRooms);
-    persistAvailability(pruneAvailability(nextAvailability, nextTeachers));
-    persistColorTriggers(sanitizeColorTriggers(nextColorTriggers));
-    persistPlanningMinGap(nextPlanningMinGap);
-    persistExportExcludes(nextExportExcludes);
-    persistPasteProtect(nextPasteProtect);
-    persistPlanningFrame(nextPlanningStart, nextPlanningEnd);
+  const handleHiddenSettingsSave = useCallback((next: HiddenSettingsDraft) => {
+    setTeachers(next.teachers);
+    setRooms(next.rooms);
+    persistAvailability(pruneAvailability(next.teacherAvailability, next.teachers));
+    persistColorTriggers(sanitizeColorTriggers(next.colorTriggers));
+    persistRoomTriggers(sanitizeRoomTriggers(next.roomTriggers));
+    persistPlanningMinGap(next.planningMinGap);
+    persistExportExcludes(next.exportExcludes);
+    persistPasteProtect(next.pasteProtect);
+    persistPlanningFrame(next.planningStartMinutes, next.planningEndMinutes);
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(TEACHERS_KEY, JSON.stringify(nextTeachers));
-      window.localStorage.setItem(ROOMS_KEY, JSON.stringify(nextRooms));
+      window.localStorage.setItem(TEACHERS_KEY, JSON.stringify(next.teachers));
+      window.localStorage.setItem(ROOMS_KEY, JSON.stringify(next.rooms));
     } catch (error) {
       console.warn('Kunde inte spara lärare/salar.', error);
     }
   }, [
     persistAvailability,
     persistColorTriggers,
+    persistRoomTriggers,
     persistExportExcludes,
     persistPasteProtect,
     persistPlanningFrame,
@@ -239,6 +269,7 @@ export const useHiddenSettings = () => {
     rooms,
     teacherAvailability,
     colorTriggers,
+    roomTriggers,
     planningMinGap,
     exportExcludes,
     pasteProtect,
@@ -247,6 +278,7 @@ export const useHiddenSettings = () => {
     applyTeacherAvailability,
     applyTeachersAndRooms,
     applyColorTriggers,
+    applyRoomTriggers,
     applyPlanningMinGap,
     applyPlanningFrame,
     clearExportExcludes,

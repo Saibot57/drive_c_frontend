@@ -22,6 +22,7 @@ export const TEACHERS_KEY = 'app.teachers.v1';
 export const ROOMS_KEY = 'app.rooms.v1';
 export const TEACHER_AVAILABILITY_KEY = 'app.teacher_availability.v1';
 export const COLOR_TRIGGERS_KEY = 'app.color_triggers.v1';
+export const ROOM_TRIGGERS_KEY = 'app.room_triggers.v1';
 export const PLANNING_MIN_GAP_KEY = 'app.planning_min_gap.v1';
 export const EXPORT_EXCLUDE_KEY = 'app.export_exclude.v1';
 export const PASTE_PROTECT_KEY = 'app.paste_protect.v1';
