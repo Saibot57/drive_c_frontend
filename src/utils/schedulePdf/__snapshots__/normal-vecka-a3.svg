@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1050" height="694" viewBox="0 0 1050 694">
+  <rect x="0" y="0" width="1050" height="694" fill="#ffffff" />
+  <text x="6" y="25.4" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#000000">v.35</text>
+  <text x="1044" y="23.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#6b7280" text-anchor="end">2026-08-29</text>
+  <rect x="0" y="40" width="1050" height="38" fill="#ffffff" />
+  <text x="150" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Måndag</text>
+  <line x1="250" y1="40" x2="250" y2="78" stroke="#e5e7eb" stroke-width="1" />
+  <text x="350" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Tisdag</text>
+  <line x1="450" y1="40" x2="450" y2="78" stroke="#e5e7eb" stroke-width="1" />
+  <text x="550" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Onsdag</text>
+  <line x1="650" y1="40" x2="650" y2="78" stroke="#e5e7eb" stroke-width="1" />
+  <text x="750" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Torsdag</text>
+  <line x1="850" y1="40" x2="850" y2="78" stroke="#e5e7eb" stroke-width="1" />
+  <text x="950" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Fredag</text>
+  <line x1="0" y1="77" x2="1050" y2="77" stroke="#000000" stroke-width="2" />
+  <rect x="0" y="78" width="50" height="616" fill="#f3f4f6" />
+  <text x="46" y="97.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">8:00</text>
+  <text x="46" y="217.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">9:00</text>
+  <text x="46" y="337.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">10:00</text>
+  <text x="46" y="457.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">11:00</text>
+  <text x="46" y="577.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">12:00</text>
+  <text x="46" y="697.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">13:00</text>
+  <rect x="50" y="78" width="1000" height="616" fill="#ffffff" />
+  <line x1="50" y1="94" x2="1050" y2="94" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="50" y1="214" x2="1050" y2="214" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="50" y1="334" x2="1050" y2="334" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="50" y1="454" x2="1050" y2="454" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="50" y1="574" x2="1050" y2="574" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="250" y1="78" x2="250" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="450" y1="78" x2="450" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="650" y1="78" x2="650" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="850" y1="78" x2="850" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="1050" y1="78" x2="1050" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <rect x="54" y="96" width="192" height="176" rx="4" fill="#fde68a" stroke="#cab86e" stroke-width="1" />
+  <text x="58" y="111.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#4c4529">08:00</text>
+  <text x="58" y="127.45" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000">Matematik 1</text>
+  <text x="58" y="143.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">Tobias Lundh</text>
+  <text x="58" y="158.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#374151">A12</text>
+  <rect x="54" y="306" width="192" height="86" rx="4" fill="#fde68a" stroke="#cab86e" stroke-width="1" />
+  <text x="58" y="321.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#4c4529">09:45–10:30</text>
+  <text x="58" y="337.45" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000">Svenska</text>
+  <text x="58" y="353.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">Hanna</text>
+  <text x="58" y="368.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#374151">B3</text>
+  <text x="58" y="383.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#4b5563">Ta med boken…</text>
+  <rect x="254" y="336" width="192" height="176" rx="4" fill="#bae6fd" stroke="#95b8ca" stroke-width="1" />
+  <text x="258" y="351.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#38454c">10:00–11:30</text>
+  <text x="258" y="367.45" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000">Naturkunskap</text>
+  <text x="258" y="383.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">Tobias Lundh</text>
+  <text x="258" y="398.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">Hanna</text>
+  <text x="258" y="413.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#374151">Labbet</text>
+  <rect x="454" y="96" width="192" height="36" rx="4" fill="#d9f99d" stroke="#aec77e" stroke-width="1" />
+  <text x="458" y="111.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#414b2f">08:00–08:20</text>
+  <text x="517" y="111.25" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="#000000">Mentorstid</text>
+  <text x="458" y="123.75" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="#374151">TL</text>
+  <rect x="854" y="576" width="192" height="116" rx="4" fill="#fecdd3" stroke="#cba4a9" stroke-width="1" />
+  <text x="858" y="591.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#4c3e3f">12:00–13:00</text>
+  <text x="858" y="607.45" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000">Idrott och hälsa</text>
+  <text x="858" y="623.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">AB</text>
+  <text x="858" y="638.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#374151">Hallen</text>
+</svg>

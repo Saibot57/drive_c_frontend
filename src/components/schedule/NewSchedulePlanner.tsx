@@ -85,6 +85,9 @@ import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses 
 import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
 import { ExportOutcome, useScheduleExport } from '@/hooks/useScheduleExport';
+import { useScheduleVectorExport, VectorExportOutcome } from '@/hooks/useScheduleVectorExport';
+import { ScheduleExportInput } from '@/types/scheduleExport';
+import { PageMode } from '@/utils/schedulePdf/theme';
 import { useMobileNavigation } from '@/hooks/useMobileNavigation';
 import { useScheduleKeyboardNav } from '@/hooks/useScheduleKeyboardNav';
 import { useKeyboardPlacement } from '@/hooks/useKeyboardPlacement';
@@ -505,6 +508,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       tone = 'warning';
     }
 
+    if (outcome?.lowScale) {
+      parts.push('Schemat fick krympas för att rymmas på en sida. Prova A3 eller digitalt läge.');
+      tone = 'warning';
+    }
+
     if (parts.length === 0) return;
 
     showNotice(parts.join(' '), tone, {
@@ -530,6 +538,51 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     isExcludedFromExport,
     extraEndMinutes: planningExportEndMinutes,
     onExportComplete: handleExportComplete
+  });
+
+  /**
+   * Allt vektorexporten behöver, hämtat ur det planeraren redan räknat fram.
+   * Filtret och uteslutningslistan slås ihop till ett enda synlighetsbegrepp —
+   * ett kort som inte syns på skärmen ska inte finnas i filen heller.
+   */
+  const buildVectorExportInput = useCallback(
+    (pageMode: PageMode): ScheduleExportInput => ({
+      schedule,
+      isVisible: entry => filterMatch(entry, filterQuery) && !isExcludedFromExport(entry),
+      resolveColor,
+      resolveRoom,
+      planningByDay,
+      extraEndMinutes: planningExportEndMinutes,
+      archiveName: activeArchiveName,
+      pageMode
+    }),
+    [
+      schedule,
+      filterMatch,
+      filterQuery,
+      isExcludedFromExport,
+      resolveColor,
+      resolveRoom,
+      planningByDay,
+      planningExportEndMinutes,
+      activeArchiveName
+    ]
+  );
+
+  const handleVectorExportComplete = useCallback((outcome: VectorExportOutcome) => {
+    const byInstanceId = new Map(schedule.map(entry => [entry.instanceId, entry]));
+    handleExportComplete({
+      truncated: outcome.truncatedInstanceIds
+        .map(instanceId => byInstanceId.get(instanceId))
+        .filter((entry): entry is ScheduledEntry => Boolean(entry)),
+      lowScale: outcome.isLowScale
+    });
+  }, [schedule, handleExportComplete]);
+
+  const { runExport: runVectorExport } = useScheduleVectorExport({
+    buildInput: buildVectorExportInput,
+    onExportComplete: handleVectorExportComplete,
+    onExportError: () => showNotice('Exporten misslyckades. Inget ändrades.', 'error')
   });
 
   // --- Keyboard Placement (hook must be at top level) ---
@@ -1434,27 +1487,40 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <Download size={16} className="mr-2"/> PDF
                 </Button>
                 {isPdfMenuOpen && (
-                  <div className="absolute left-0 z-[100] mt-2 w-44 bg-white sp-dropdown p-1">
-                    <button
-                      type="button"
-                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
-                      onClick={() => {
-                        handleExportPDF('a4');
-                        setIsPdfMenuOpen(false);
-                      }}
-                    >
-                      Exportera PDF (A4)
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
-                      onClick={() => {
-                        handleExportPDF('a3');
-                        setIsPdfMenuOpen(false);
-                      }}
-                    >
-                      Exportera PDF (A3)
-                    </button>
+                  <div className="absolute left-0 z-[100] mt-2 w-56 bg-white sp-dropdown p-1">
+                    {([
+                      ['digital', 'PDF (digital)', 'Sidan får schemats egna mått – skarp på vilken skärm som helst.'],
+                      ['a4', 'PDF (A4 utskrift)', 'Skalas till exakt en liggande A4.'],
+                      ['a3', 'PDF (A3 utskrift)', 'Skalas till exakt en liggande A3.']
+                    ] as const).map(([mode, label, hint]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        title={hint}
+                        className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
+                        onClick={() => {
+                          void runVectorExport('pdf', mode);
+                          setIsPdfMenuOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    <div className="my-1 sp-divider" />
+                    {(['a4', 'a3'] as const).map(size => (
+                      <button
+                        key={size}
+                        type="button"
+                        title="Gamla vägen: öppnar systemets utskriftsdialog och du väljer själv Spara som PDF."
+                        className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item text-gray-600"
+                        onClick={() => {
+                          handleExportPDF(size);
+                          setIsPdfMenuOpen(false);
+                        }}
+                      >
+                        Utskriftsdialog ({size.toUpperCase()})
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1468,26 +1534,36 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <MoreVertical size={16} />
                 </Button>
                 {isImageExportMenuOpen && (
-                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 bg-white sp-dropdown p-1">
+                  <div className="absolute right-0 z-[100] mt-2 w-52 bg-white sp-dropdown p-1">
+                    {([
+                      ['png', 'PNG', 'Ritas ur schemadatan i 3x – förhandsvisas inline i chattar.'],
+                      ['jpeg', 'JPG', 'Som PNG men mindre fil.'],
+                      ['svg', 'SVG', 'Äkta vektor som går att öppna i Illustrator, Figma eller Inkscape.']
+                    ] as const).map(([format, label, hint]) => (
+                      <button
+                        key={format}
+                        type="button"
+                        title={hint}
+                        className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
+                        onClick={() => {
+                          void runVectorExport(format, 'digital');
+                          setIsImageExportMenuOpen(false);
+                        }}
+                      >
+                        Exportera {label}
+                      </button>
+                    ))}
+                    <div className="my-1 sp-divider" />
                     <button
                       type="button"
-                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
+                      title="Gamla vägen: fotar skärmen med html2canvas."
+                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item text-gray-600"
                       onClick={() => {
                         handleExportImage('png');
                         setIsImageExportMenuOpen(false);
                       }}
                     >
-                      Exportera PNG
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
-                      onClick={() => {
-                        handleExportImage('jpeg');
-                        setIsImageExportMenuOpen(false);
-                      }}
-                    >
-                      Exportera JPG
+                      PNG (skärmbild)
                     </button>
                   </div>
                 )}

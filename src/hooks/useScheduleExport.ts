@@ -32,6 +32,12 @@ export type ExportOutcome = {
    * poster mäts aldrig, de är `display: none` under `.pdf-export`.
    */
   truncated: ScheduledEntry[];
+  /**
+   * Schemat fick skalas ned så långt att texten knappt går att läsa. Bara
+   * vektorexporten på papper kan rapportera det — utskriftsvägen vet inte hur
+   * webbläsaren till slut valde att skala sidan.
+   */
+  lowScale?: boolean;
 };
 
 export const useScheduleExport = ({

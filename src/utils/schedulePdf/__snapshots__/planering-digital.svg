@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="694" viewBox="0 0 1400 694">
+  <rect x="0" y="0" width="1400" height="694" fill="#ffffff" />
+  <text x="6" y="25.4" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#000000">v.35</text>
+  <text x="1394" y="23.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#6b7280" text-anchor="end">2026-08-29</text>
+  <rect x="0" y="40" width="1400" height="38" fill="#ffffff" />
+  <text x="185" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Måndag</text>
+  <line x1="320" y1="40" x2="320" y2="78" stroke="#e5e7eb" stroke-width="1" />
+  <text x="455" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Tisdag</text>
+  <line x1="590" y1="40" x2="590" y2="78" stroke="#e5e7eb" stroke-width="1" />
+  <text x="725" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Onsdag</text>
+  <line x1="860" y1="40" x2="860" y2="78" stroke="#e5e7eb" stroke-width="1" />
+  <text x="995" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Torsdag</text>
+  <line x1="1130" y1="40" x2="1130" y2="78" stroke="#e5e7eb" stroke-width="1" />
+  <text x="1265" y="62.2" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000" text-anchor="middle">Fredag</text>
+  <line x1="0" y1="77" x2="1400" y2="77" stroke="#000000" stroke-width="2" />
+  <rect x="0" y="78" width="50" height="616" fill="#f3f4f6" />
+  <text x="46" y="97.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">8:00</text>
+  <text x="46" y="217.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">9:00</text>
+  <text x="46" y="337.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">10:00</text>
+  <text x="46" y="457.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">11:00</text>
+  <text x="46" y="577.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">12:00</text>
+  <text x="46" y="697.6" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6b7280" text-anchor="end">13:00</text>
+  <rect x="50" y="78" width="1350" height="616" fill="#ffffff" />
+  <line x1="50" y1="94" x2="1400" y2="94" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="50" y1="214" x2="1400" y2="214" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="50" y1="334" x2="1400" y2="334" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="50" y1="454" x2="1400" y2="454" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="50" y1="574" x2="1400" y2="574" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="320" y1="78" x2="320" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="590" y1="78" x2="590" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="860" y1="78" x2="860" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="1130" y1="78" x2="1130" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <line x1="1400" y1="78" x2="1400" y2="694" stroke="#e5e7eb" stroke-width="1" />
+  <rect x="54" y="216" width="262" height="116" rx="4" fill="#f8fafc" stroke="#707171" stroke-width="2" stroke-dasharray="3 3" />
+  <text x="58" y="231.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#4a4b4c">09:00–10:00</text>
+  <text x="58" y="247.45" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000">Planering</text>
+  <text x="58" y="263.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">1 tim</text>
+  <rect x="54" y="696" width="262" height="176" rx="4" fill="#f8fafc" stroke="#707171" stroke-width="2" stroke-dasharray="3 3" />
+  <text x="58" y="711.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#4a4b4c">13:00–14:30</text>
+  <text x="58" y="727.45" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000">Planering</text>
+  <text x="58" y="743.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">1 tim, 30 min</text>
+  <rect x="324" y="102" width="262" height="23" rx="4" fill="#fecdd3" stroke="#000000" stroke-width="2" />
+  <text x="455" y="117.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#000000" text-anchor="middle" letter-spacing="0.3">LEDIG</text>
+  <rect x="594" y="96" width="262" height="56" rx="4" fill="#f8fafc" stroke="#707171" stroke-width="2" stroke-dasharray="3 3" />
+  <text x="598" y="111.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#4a4b4c">08:00–08:30</text>
+  <text x="598" y="127.45" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000">Planering</text>
+  <text x="598" y="143.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">30 min</text>
+  <rect x="1134" y="456" width="262" height="236" rx="4" fill="#f8fafc" stroke="#707171" stroke-width="2" stroke-dasharray="3 3" />
+  <text x="1138" y="471.25" font-family="'Courier New', Courier, monospace" font-size="10" font-weight="bold" fill="#4a4b4c">11:00–13:00</text>
+  <text x="1138" y="487.45" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#000000">Planering</text>
+  <text x="1138" y="503.1" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" fill="#374151">2 tim</text>
+</svg>
