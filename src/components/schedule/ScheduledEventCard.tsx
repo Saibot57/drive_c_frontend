@@ -33,7 +33,19 @@ type ScheduledEventCardProps = {
   room?: string;
   /** Syns på skärmen men döljs i PDF/bild av regeln under `.pdf-export`. */
   excludedFromExport?: boolean;
+  /** Ingår i markeringen för massredigering (Cmd+klick). */
+  isBulkSelected?: boolean;
+  /** Utelämnad betyder att kortet inte går att markera, och klick beter sig som förut. */
+  onToggleBulk?: (instanceId: string) => void;
 };
+
+/**
+ * Cmd på Mac, Ctrl på övriga. På Mac är Ctrl+klick redan ett högerklick och
+ * hade öppnat menyn samtidigt som posten markerades.
+ */
+const isBulkToggleClick = (event: React.MouseEvent) => (
+  /Mac|iPhone|iPad/.test(navigator.platform) ? event.metaKey : event.ctrlKey
+);
 
 const extractUrl = (value?: string) => {
   if (!value) return null;
@@ -58,7 +70,9 @@ export function ScheduledEventCard({
   isNotesProtected = false,
   color,
   room,
-  excludedFromExport = false
+  excludedFromExport = false,
+  isBulkSelected = false,
+  onToggleBulk
 }: ScheduledEventCardProps) {
   const shownRoom = room ?? entry.room;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -87,6 +101,14 @@ export function ScheduledEventCard({
       {...listeners}
       {...attributes}
       onContextMenu={(event) => onContextMenu(event, entry)}
+      /* dnd-kit stoppar själv klicket efter ett drag, så det här når bara fram
+         vid ett klick som stått still. Knapparna och uppgiftslänken sköter sina
+         egna klick — Cmd+klick på länken ska öppna en ny flik som vanligt. */
+      onClick={(event) => {
+        if (!onToggleBulk || !isBulkToggleClick(event)) return;
+        if ((event.target as HTMLElement).closest('a, button')) return;
+        onToggleBulk(entry.instanceId);
+      }}
       style={{
         position: 'absolute',
         top: `${adjustedTop}px`,
@@ -98,7 +120,7 @@ export function ScheduledEventCard({
       }}
       data-instance-id={entry.instanceId}
       data-export-exclude={excludedFromExport ? 'true' : undefined}
-      className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''} ${isNotesTarget ? 'ring-4 ring-sky-600 ring-offset-1' : ''} ${isNotesProtected ? 'sp-notes-protected' : ''}`}
+      className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''} ${isNotesTarget ? 'ring-4 ring-sky-600 ring-offset-1' : ''} ${isNotesProtected ? 'sp-notes-protected' : ''} ${isBulkSelected ? 'sp-bulk-selected' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="sp-event-card-body flex flex-col h-full">

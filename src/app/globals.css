@@ -145,6 +145,11 @@
   display: none !important;
 }
 
+/* Markeringen för massredigering är ett arbetsläge, inte en del av schemat. */
+.pdf-export .sp-bulk-selected {
+  outline: none;
+}
+
 .pdf-export .scheduled-event-card p,
 .pdf-export .scheduled-event-card span {
   line-height: 1.4;

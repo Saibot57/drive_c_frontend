@@ -67,7 +67,9 @@ import { DayColumn } from '@/components/schedule/DayColumn';
 import { ArchiveCard } from '@/components/schedule/ArchiveCard';
 import { CategoryDebugPanel, HiddenSettingsPanel } from '@/components/schedule/DebugPanels';
 import { ScheduleModals } from '@/components/schedule/ScheduleModals';
+import { BulkEditModal } from '@/components/schedule/BulkEditModal';
 import { FindReplacePanel } from '@/components/schedule/FindReplacePanel';
+import { applyBulkEdit, BulkEditPatch } from '@/utils/bulkEditSchedule';
 import {
   FindReplaceField,
   FindReplaceOptions,
@@ -1163,6 +1165,135 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     setContextMenu(null);
   }, [startKbPlacement]);
 
+  // --- Massredigering (Cmd+klick) ---
+
+  /**
+   * Posterna som markerats med Cmd+klick. Hålls skild från tangentbordets
+   * `selectedEventId` och anteckningsramens `markedIds` med flit: allt som
+   * gäller en enda post — piltangenter, Delete, dagens högerklicksmeny — ska
+   * fungera precis som förut.
+   */
+  const [bulkIds, setBulkIds] = useState<Set<string>>(() => new Set());
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+
+  const toggleBulkId = useCallback((instanceId: string) => {
+    setBulkIds(prev => {
+      const next = new Set(prev);
+      if (next.has(instanceId)) {
+        next.delete(instanceId);
+      } else {
+        next.add(instanceId);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearBulkIds = useCallback(() => {
+    setBulkIds(prev => (prev.size === 0 ? prev : new Set()));
+  }, []);
+
+  /**
+   * Det som faktiskt står på skärmen. En markerad post som döljs — av
+   * sökfiltret, planeringsläget eller mobilvyns dagbyte — eller som raderas
+   * faller ur markeringen, så att en massändring aldrig når något man inte ser.
+   */
+  const bulkVisibleIds = useMemo(() => {
+    if (planningByDay) return new Set<string>();
+    return new Set(
+      visibleSchedule
+        .filter(entry => !isMobileView || entry.day === mobileSelectedDay)
+        .map(entry => entry.instanceId)
+    );
+  }, [planningByDay, visibleSchedule, isMobileView, mobileSelectedDay]);
+
+  useEffect(() => {
+    setBulkIds(prev => {
+      if (prev.size === 0) return prev;
+      const next = new Set(Array.from(prev).filter(id => bulkVisibleIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [bulkVisibleIds]);
+
+  // Ett annat schema har andra poster.
+  useEffect(() => {
+    clearBulkIds();
+  }, [activeArchiveId, clearBulkIds]);
+
+  const bulkEntries = useMemo(
+    () => schedule.filter(entry => bulkIds.has(entry.instanceId)),
+    [schedule, bulkIds]
+  );
+
+  // Dialogen har inget att visa om markeringen tömts medan den stod öppen.
+  useEffect(() => {
+    if (isBulkEditOpen && bulkEntries.length === 0) setIsBulkEditOpen(false);
+  }, [isBulkEditOpen, bulkEntries.length]);
+
+  /**
+   * Esc tar bort markeringen, men först när inget annat ligger överst. Lyssnar
+   * i fångstfasen för att hinna före menyns, dialogernas och ramens egna
+   * Esc-hantering — annars har de redan stängt sig och det här trycket hade
+   * tagit markeringen också.
+   */
+  useEffect(() => {
+    if (bulkIds.size === 0) return;
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (contextMenu || isMarqueeActive || isKbPlacementActive) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      clearBulkIds();
+    };
+    window.addEventListener('keydown', handleEsc, true);
+    return () => window.removeEventListener('keydown', handleEsc, true);
+  }, [bulkIds.size, contextMenu, isMarqueeActive, isKbPlacementActive, clearBulkIds]);
+
+  /**
+   * Svaret ges tillbaka till dialogen: ett stopp från en ämnesregel visas där,
+   * eftersom notisen ligger under dialogens mörka bakgrund.
+   */
+  const handleBulkSave = useCallback((patch: BulkEditPatch): string | null => {
+    const context = {
+      restrictions,
+      availability: teacherAvailability,
+      allTeachers: allTeacherNames
+    };
+    const result = applyBulkEdit(schedule, bulkIds, patch, context);
+
+    if (!result.ok) {
+      return `${result.entry.day} ${result.entry.startTime}: ${result.message}`;
+    }
+
+    setIsBulkEditOpen(false);
+    if (result.changedCount === 0) return null;
+
+    // Räknas om på `prev`, som alla andra skrivningar. Svaret ovan avgjorde
+    // bara att det fick göras och vad notisen ska säga.
+    commitSchedule(prev => {
+      const next = applyBulkEdit(prev, bulkIds, patch, context);
+      return next.ok ? next.schedule : prev;
+    });
+    // Är schemat låst har commitSchedule redan sagt varför.
+    if (isReadOnlyRef.current) return null;
+
+    const changed = `Ändrade ${result.changedCount} post${result.changedCount === 1 ? '' : 'er'}.`;
+    if (result.warnings.length === 0) {
+      showNotice(changed, 'success');
+      return null;
+    }
+
+    const more = result.warnings.length - 1;
+    showNotice(
+      `${changed} ${result.warnings[0].message}${more > 0 ? ` (+${more} till)` : ''}.`,
+      'warning',
+      { durationMs: 7000 }
+    );
+    return null;
+  }, [restrictions, teacherAvailability, allTeacherNames, schedule, bulkIds, commitSchedule, showNotice]);
+
+  const isBulkContextMenu = Boolean(
+    contextMenu && bulkEntries.length > 1 && bulkIds.has(contextMenu.entry.instanceId)
+  );
+
 
   // --- Keyboard Navigation ---
   const {
@@ -1218,8 +1349,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     onStartPlacement: startKbPlacement,
     hasCopiedContent: !!copiedEntryContent,
     hasCopiedNotes: copiedNotes !== null,
-    // Ramen äger piltangenterna och Enter så länge den är uppe.
-    isSuspended: isMarqueeActive,
+    // Ramen äger piltangenterna och Enter så länge den är uppe. Massredigeringens
+    // dialog pausar dem också: med fokus på en av dess knappar hade `d` eller
+    // Delete annars nått den tangentbordsmarkerade posten bakom dialogen.
+    isSuspended: isMarqueeActive || isBulkEditOpen,
     advancedFilterMatch: filterMatch,
   });
 
@@ -1712,7 +1845,22 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
           {/* Main Schedule Area */}
           <div className={`sp-grid flex-1 flex flex-col h-full ${activeZone === 'grid' ? 'sp-ring' : ''}`}>
-             <div className="flex-1 overflow-y-auto relative" id="schedule-canvas" ref={scheduleCanvasRef}>
+             <div
+               className="flex-1 overflow-y-auto relative"
+               id="schedule-canvas"
+               ref={scheduleCanvasRef}
+               /* Ett klick på tom yta i en dagkolumn tar bort massmarkeringen.
+                  Kravet på `[data-day]` håller rullningslisten, tidsaxeln och
+                  anteckningsramens overlay utanför — att rulla fram fler poster
+                  ska inte tappa dem man redan markerat. */
+               onPointerDown={(event) => {
+                 if (bulkIds.size === 0 || event.button !== 0) return;
+                 if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                 const target = event.target as HTMLElement;
+                 if (!target.closest('[data-day]') || target.closest('.scheduled-event-card')) return;
+                 clearBulkIds();
+               }}
+             >
                 {isMarqueeActive && marqueeContentSize && (
                   /* Ligger ovanpå korten och sväljer varje pekarhändelse. Det är
                      så dnd-kit hindras från att börja dra ett kort mitt i en
@@ -1871,6 +2019,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   color={resolveColor(entry.title, entry.color)}
                                   room={resolveRoom(entry.title, entry.room)}
                                   excludedFromExport={isExcludedFromExport(entry)}
+                                  isBulkSelected={bulkIds.has(entry.instanceId)}
+                                  onToggleBulk={toggleBulkId}
                                />
                               );
                               });
@@ -1937,6 +2087,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                  color={resolveColor(entry.title, entry.color)}
                                  room={resolveRoom(entry.title, entry.room)}
                                   excludedFromExport={isExcludedFromExport(entry)}
+                                  isBulkSelected={bulkIds.has(entry.instanceId)}
+                                  onToggleBulk={toggleBulkId}
                                />
                              );
                            });
@@ -2076,7 +2228,42 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         )}
       </DragOverlay>
 
-      {contextMenu && (
+      {contextMenu && isBulkContextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-[99]"
+            onClick={() => setContextMenu(null)}
+          />
+          <div
+            className="fixed z-[100] flex flex-col w-max bg-white sp-context-menu"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              className="px-3 py-2 text-left text-sm sp-menu-item"
+              onClick={() => {
+                setIsBulkEditOpen(true);
+                setContextMenu(null);
+              }}
+            >
+              Redigera {bulkEntries.length} poster
+            </button>
+            <button
+              className="px-3 py-2 text-left text-sm sp-menu-item"
+              onClick={() => {
+                setEditingEntry(contextMenu.entry);
+                setIsEntryModalOpen(true);
+                setContextMenu(null);
+              }}
+            >
+              Redigera bara den här
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Dagens meny, orörd. Den visas för varje högerklick utom på en post som
+          ingår i en massmarkering — då gäller menyn ovan. */}
+      {contextMenu && !isBulkContextMenu && (
         <>
           <div
             className="fixed inset-0 z-[99]"
@@ -2281,6 +2468,17 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onNewScheduleNameChange={setNewScheduleName}
         onConfirmCreateNewSchedule={handleCreateNewSchedule}
         newScheduleNameExists={ownArchiveNames.includes(newScheduleName.trim())}
+      />
+
+      <BulkEditModal
+        open={isBulkEditOpen}
+        onOpenChange={setIsBulkEditOpen}
+        entries={bulkEntries}
+        teachers={teachers}
+        rooms={rooms}
+        colorTriggers={colorTriggers}
+        roomTriggers={roomTriggers}
+        onSave={handleBulkSave}
       />
 
       <FindReplacePanel

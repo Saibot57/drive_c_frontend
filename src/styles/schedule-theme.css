@@ -138,6 +138,15 @@
   outline-offset: var(--sp-ring-offset);
 }
 
+/* Markeringen för massredigering. Streckad och violett, så att den inte
+   förväxlas med tangentbordets svarta ram. Sökträffarna och anteckningsramen
+   ritas med box-shadow och kan synas samtidigt. Står efter `.sp-ring` med
+   flit: ett kort som har båda visar markeringen. */
+.sp-bulk-selected {
+  outline: 3px dashed #7c3aed;
+  outline-offset: 2px;
+}
+
 .sp-event-card {
   border: var(--sp-event-border);
   box-shadow: var(--sp-event-shadow);
