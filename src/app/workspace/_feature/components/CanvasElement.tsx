@@ -116,12 +116,15 @@ interface CanvasElementProps {
   placement: SurfaceElement;
   element: WorkspaceElement;
   isSelected: boolean;
+  /** Med i en Cmd-dragen markering. Flyttas då tillsammans med de andra. */
+  isGrouped?: boolean;
   zoom: number;
   onSelect: () => void;
   onMove: (placementId: string, x: number, y: number) => void;
   onResize: (placementId: string, w: number, h: number) => void;
   /** Vid släpp: ger ångra en post per gest i stället för per musrörelse. */
   onMoveEnd?: (placementId: string, from: Point, to: Point) => void;
+  onDragStart?: (placementId: string) => void;
   onResizeEnd?: (placementId: string, from: Box, to: Box) => void;
   onToggleLock: (placementId: string) => void;
   onContentChange: (elementId: string, content: unknown) => void;
@@ -138,11 +141,13 @@ export default function CanvasElement({
   placement,
   element,
   isSelected,
+  isGrouped = false,
   zoom,
   onSelect,
   onMove,
   onResize,
   onMoveEnd,
+  onDragStart,
   onResizeEnd,
   onToggleLock,
   onContentChange,
@@ -160,6 +165,7 @@ export default function CanvasElement({
     startY: placement.position_y,
     onMove,
     onMoveEnd,
+    onDragStart,
   });
 
   const { handleResizeStart } = useElementResize({
@@ -247,6 +253,7 @@ export default function CanvasElement({
     SHAPE_HIT_TYPES.includes(element.type) && 'ws-element--shape-hit',
     isAutoHeight && 'ws-element--auto-height',
     isSelected && 'ws-element--selected',
+    isGrouped && 'ws-element--grouped',
     !placement.is_locked && 'ws-element--unlocked',
   ]
     .filter(Boolean)

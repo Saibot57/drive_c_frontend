@@ -18,6 +18,8 @@ interface UseElementDragParams {
    * dragning fyllt stacken med ett steg per musrörelse.
    */
   onMoveEnd?: (placementId: string, from: Point, to: Point) => void;
+  /** Anropas när greppet tas, före första rörelsen. Gruppflytten sparar startlägen här. */
+  onDragStart?: (placementId: string) => void;
 }
 
 export function useElementDrag({
@@ -28,6 +30,7 @@ export function useElementDrag({
   startY,
   onMove,
   onMoveEnd,
+  onDragStart,
 }: UseElementDragParams) {
   const dragging = useRef(false);
   const origin = useRef({ mouseX: 0, mouseY: 0, elX: startX, elY: startY });
@@ -45,6 +48,7 @@ export function useElementDrag({
         elY: startY,
       };
       latest.current = { x: startX, y: startY };
+      onDragStart?.(placementId);
 
       const handleMove = (ev: PointerEvent) => {
         if (!dragging.current) return;
@@ -72,7 +76,7 @@ export function useElementDrag({
       window.addEventListener('pointermove', handleMove);
       window.addEventListener('pointerup', handleUp);
     },
-    [zoom, gridSize, startX, startY, onMove, onMoveEnd, placementId],
+    [zoom, gridSize, startX, startY, onMove, onMoveEnd, onDragStart, placementId],
   );
 
   return { handleMouseDown };

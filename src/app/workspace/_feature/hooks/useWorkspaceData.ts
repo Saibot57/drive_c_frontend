@@ -737,6 +737,14 @@ export function useWorkspaceData() {
     });
   }, [pushUndo, movePlacement]);
 
+  /** Som commitMove, men för en hel Cmd-markering: ett ångra-steg för alla kort. */
+  const commitGroupMove = useCallback((starts: Map<string, Point>) => {
+    pushUndo({
+      label: 'flytten',
+      undo: () => starts.forEach((from, placementId) => movePlacement(placementId, from.x, from.y)),
+    });
+  }, [pushUndo, movePlacement]);
+
   /**
    * Lyfter ett element överst. Backend har alltid tagit emot z_index på
    * placeringen — klienten skickade det bara aldrig, så staplingsordningen
@@ -1041,6 +1049,7 @@ export function useWorkspaceData() {
     movePlacement,
     resizePlacement,
     commitMove,
+    commitGroupMove,
     commitResize,
     toggleLock,
     moveToStorage,

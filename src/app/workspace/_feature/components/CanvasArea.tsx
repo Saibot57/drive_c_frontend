@@ -21,6 +21,8 @@ interface CanvasAreaProps {
   onLibraryDrop?: (canvasX: number, canvasY: number) => void;
   /** Elementet som bär transformen. Exporten ställer om det tillfälligt. */
   viewportRef?: React.RefObject<HTMLDivElement>;
+  /** Cmd + dra på tom yta. Rektangeln i canvasens koordinater. */
+  onMarqueeSelect?: (rect: { x: number; y: number; width: number; height: number }) => void;
   children?: React.ReactNode;
 }
 
@@ -33,6 +35,7 @@ export default function CanvasArea({
   isLibraryDragging = false,
   onLibraryDrop,
   viewportRef,
+  onMarqueeSelect,
   children,
 }: CanvasAreaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,6 +45,10 @@ export default function CanvasArea({
   // Aktiva pekare. En räcker för panorering, två blir nyp-zoom.
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+
+  // Cmd-ramen, i skärmpixlar relativt containern. Hörnet där den startade och
+  // hörnet under pekaren just nu.
+  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -59,6 +66,16 @@ export default function CanvasArea({
         return;
       }
 
+      // Cmd + vänster på bakgrunden: rita en markeringsram i stället för att panorera.
+      if (e.button === 0 && e.metaKey && e.target === containerRef.current && onMarqueeSelect) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        setMarquee({ x0: x, y0: y, x1: x, y1: y });
+        onSelectElement(null);
+        return;
+      }
+
       // Mittenknapp, eller vänster/finger direkt på bakgrunden.
       if (e.button === 1 || (e.button === 0 && e.target === containerRef.current)) {
         setIsPanning(true);
@@ -71,7 +88,7 @@ export default function CanvasArea({
         onSelectElement(null);
       }
     },
-    [viewport.panX, viewport.panY, viewport.zoom, onSelectElement],
+    [viewport.panX, viewport.panY, viewport.zoom, onSelectElement, onMarqueeSelect],
   );
 
   const handlePointerMove = useCallback(
@@ -105,17 +122,25 @@ export default function CanvasArea({
         return;
       }
 
+      if (marquee) {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        setMarquee({ ...marquee, x1: e.clientX - rect.left, y1: e.clientY - rect.top });
+        return;
+      }
+
       if (!isPanning || !panStart.current) return;
       onViewportChange({
         panX: panStart.current.panX + (e.clientX - panStart.current.x),
         panY: panStart.current.panY + (e.clientY - panStart.current.y),
       });
     },
-    [isPanning, onViewportChange, viewport],
+    [isPanning, marquee, onViewportChange, viewport],
   );
 
   const endPointer = useCallback((e: React.PointerEvent) => {
     pointers.current.delete(e.pointerId);
+    setMarquee(null);
     if (pointers.current.size < 2) pinch.current = null;
     if (pointers.current.size === 0) {
       setIsPanning(false);
@@ -149,6 +174,16 @@ export default function CanvasArea({
   // eftersom det bara är den här komponenten som känner till canvasens rect.
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      if (marquee && onMarqueeSelect) {
+        const a = screenToCanvas(marquee.x0, marquee.y0, viewport.panX, viewport.panY, viewport.zoom);
+        const b = screenToCanvas(marquee.x1, marquee.y1, viewport.panX, viewport.panY, viewport.zoom);
+        onMarqueeSelect({
+          x: Math.min(a.x, b.x),
+          y: Math.min(a.y, b.y),
+          width: Math.abs(a.x - b.x),
+          height: Math.abs(a.y - b.y),
+        });
+      }
       endPointer(e);
 
       if (!isLibraryDragging || !onLibraryDrop) return;
@@ -163,7 +198,7 @@ export default function CanvasArea({
       );
       onLibraryDrop(point.x, point.y);
     },
-    [endPointer, isLibraryDragging, onLibraryDrop, viewport],
+    [endPointer, isLibraryDragging, onLibraryDrop, viewport, marquee, onMarqueeSelect],
   );
 
   const classNames = [
@@ -199,6 +234,18 @@ export default function CanvasArea({
       >
         {children}
       </div>
+
+      {marquee && (
+        <div
+          className="ws-marquee"
+          style={{
+            left: Math.min(marquee.x0, marquee.x1),
+            top: Math.min(marquee.y0, marquee.y1),
+            width: Math.abs(marquee.x1 - marquee.x0),
+            height: Math.abs(marquee.y1 - marquee.y0),
+          }}
+        />
+      )}
 
       <ZoomControls
         viewport={viewport}

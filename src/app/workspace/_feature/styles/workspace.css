@@ -1929,3 +1929,23 @@ div:hover > .kanban-card-delete {
   border-radius: 0.25rem;
   cursor: pointer;
 }
+
+/* ── Cmd-markering ──
+   Ramen ritas i skärmpixlar utanför den skalade viewporten, så den behöver
+   ingen zoomkompensation. Konturen på korten gör det, som markeringens skugga. */
+.ws-marquee {
+  position: absolute;
+  border: 1px dashed #000;
+  background: rgba(59, 130, 246, 0.08);
+  pointer-events: none;
+  z-index: 50;
+}
+
+.ws-element--grouped {
+  outline: calc(2px / var(--ws-zoom)) dashed #3b82f6;
+  outline-offset: calc(3px / var(--ws-zoom));
+}
+
+.ws-exporting .ws-element--grouped {
+  outline: none;
+}

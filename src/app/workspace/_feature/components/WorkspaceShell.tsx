@@ -28,6 +28,7 @@ import type { ElementType, ViewportState, WorkspaceElement } from '../types/work
 import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent } from '../types/scheduleDay.types';
 import type { WheelPartMode } from '../utils/wheelExplode';
+import type { Point } from '../hooks/useElementDrag';
 import type { PlannerActivity } from '@/types/schedule';
 // sp-root bär de delade neobrutalistiska tokens som schemat och temakalendern
 // använder. Workspace läser dem i sina egna --ws-*-variabler, så att en ändring
@@ -80,6 +81,7 @@ function WorkspaceInner() {
     movePlacement,
     resizePlacement,
     commitMove,
+    commitGroupMove,
     commitResize,
     toggleLock,
     moveToStorage,
@@ -115,6 +117,20 @@ function WorkspaceInner() {
   >(null);
   const renameElRef = useRef<HTMLInputElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Cmd-markeringen: placement-id:n som flyttas tillsammans. Hålls medvetet
+   * skild från selectedElementId, så att Delete, piltangenterna och
+   * högerklicksmenyn fortsätter att gälla ett enda kort.
+   */
+  const [groupIds, setGroupIds] = useState<Set<string>>(() => new Set());
+  // Startlägen för en pågående gruppdragning, och kortet man drar i.
+  const groupDrag = useRef<{ anchorId: string; starts: Map<string, Point> } | null>(null);
+  const clearGroup = useCallback(() => {
+    setGroupIds((prev) => (prev.size === 0 ? prev : new Set()));
+  }, []);
+
+  useEffect(() => { clearGroup(); }, [state.activeSurfaceId, clearGroup]);
 
   const activeSurface = state.surfaces.find((s) => s.id === state.activeSurfaceId);
   const { exportImage, exportPdf } = useWorkspaceExport({
@@ -232,8 +248,75 @@ function WorkspaceInner() {
     (elementId: string | null) => {
       dispatch({ type: 'SELECT_ELEMENT', elementId });
       setContextMenu(null);
+      if (elementId === null) clearGroup();
     },
-    [dispatch],
+    [dispatch, clearGroup],
+  );
+
+  const handleMarqueeSelect = useCallback(
+    (rect: { x: number; y: number; width: number; height: number }) => {
+      const hit = state.placements.filter((p) =>
+        p.is_on_canvas &&
+        p.position_x < rect.x + rect.width &&
+        p.position_x + p.width > rect.x &&
+        p.position_y < rect.y + rect.height &&
+        p.position_y + p.height > rect.y,
+      );
+      setGroupIds(new Set(hit.map((p) => p.id)));
+    },
+    [state.placements],
+  );
+
+  const handleDragStart = useCallback(
+    (placementId: string) => {
+      if (!groupIds.has(placementId) || groupIds.size < 2) {
+        groupDrag.current = null;
+        return;
+      }
+      const starts = new Map<string, Point>();
+      state.placements.forEach((p) => {
+        if (p.is_on_canvas && groupIds.has(p.id)) starts.set(p.id, { x: p.position_x, y: p.position_y });
+      });
+      groupDrag.current = { anchorId: placementId, starts };
+      // Ett klick utan rörelse ger ingen onMoveEnd. Utan den här städningen
+      // hade startlägena legat kvar och en senare Ctrl-storleksändring av
+      // samma kort (som också går via onMove) flyttat hela gruppen. Timeouten
+      // låter dragningens egen pointerup hinna köra först.
+      window.addEventListener(
+        'pointerup',
+        () => setTimeout(() => { groupDrag.current = null; }, 0),
+        { once: true },
+      );
+    },
+    [groupIds, state.placements],
+  );
+
+  const handleMove = useCallback(
+    (placementId: string, x: number, y: number) => {
+      const drag = groupDrag.current;
+      const anchor = drag?.anchorId === placementId ? drag.starts.get(placementId) : undefined;
+      if (!drag || !anchor) {
+        movePlacement(placementId, x, y);
+        return;
+      }
+      const dx = x - anchor.x;
+      const dy = y - anchor.y;
+      drag.starts.forEach((start, id) => movePlacement(id, start.x + dx, start.y + dy));
+    },
+    [movePlacement],
+  );
+
+  const handleMoveEnd = useCallback(
+    (placementId: string, from: Point) => {
+      const drag = groupDrag.current;
+      if (drag?.anchorId === placementId) {
+        commitGroupMove(drag.starts);
+        groupDrag.current = null;
+        return;
+      }
+      commitMove(placementId, from);
+    },
+    [commitMove, commitGroupMove],
   );
 
   const handleSurfaceCreate = useCallback(async () => {
@@ -347,6 +430,7 @@ function WorkspaceInner() {
           setContextMenu(null);
           setSearchOpen(false);
           dispatch({ type: 'SELECT_ELEMENT', elementId: null });
+          clearGroup();
         },
       },
       {
@@ -589,6 +673,7 @@ function WorkspaceInner() {
           selectedElementId={state.selectedElementId}
           onSelectElement={handleSelectElement}
           viewportRef={viewportRef}
+          onMarqueeSelect={handleMarqueeSelect}
           onZoomToContent={handleZoomToContent}
           isLibraryDragging={libraryDrag !== null}
           onLibraryDrop={(x, y) => {
@@ -604,14 +689,17 @@ function WorkspaceInner() {
                 placement={p}
                 element={el}
                 isSelected={state.selectedElementId === el.id}
+                isGrouped={groupIds.has(p.id)}
                 zoom={state.viewport.zoom}
                 onSelect={() => {
                   handleSelectElement(el.id);
                   bringToFront(p.id);
+                  if (!groupIds.has(p.id)) clearGroup();
                 }}
-                onMove={movePlacement}
+                onMove={handleMove}
                 onResize={resizePlacement}
-                onMoveEnd={commitMove}
+                onMoveEnd={handleMoveEnd}
+                onDragStart={handleDragStart}
                 onResizeEnd={commitResize}
                 onToggleLock={toggleLock}
                 onContentChange={updateElementContent}
