@@ -9,8 +9,10 @@ import { ScheduleExportInput } from '@/types/scheduleExport';
 import { createColorResolver, sanitizeColorTriggers } from '@/utils/colorTriggers';
 import { createRoomResolver, sanitizeRoomTriggers } from '@/utils/roomTriggers';
 import { exportSchedule } from '@/utils/schedulePdf';
+import { buildScene } from '@/utils/schedulePdf/buildScene';
+import { createJsPdfMeasurer } from '@/utils/schedulePdf/jspdfMeasurer';
+import { sceneToSvg } from '@/utils/schedulePdf/sceneToSvg';
 import PublicDayList from './PublicDayList';
-import PublicWeek from './PublicWeek';
 
 /**
  * En gång i minuten räcker: ändringar i ett veckoschema är sällsynta och
@@ -18,6 +20,7 @@ import PublicWeek from './PublicWeek';
  * Den som byter tillbaka till fliken får dessutom en fråga direkt.
  */
 const POLL_INTERVAL_MS = 60_000;
+const WIDE_QUERY = '(min-width: 768px)';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -51,6 +54,18 @@ const buildHeadings = (label: string | null, archiveName: string | null) => {
   return { heading: label, subheading: alreadySaid ? null : archiveName };
 };
 
+const useIsWide = () => {
+  const [isWide, setIsWide] = useState<boolean | null>(null);
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_QUERY);
+    const update = () => setIsWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return isWide;
+};
+
 export default function PublicScheduleView({ token }: { token: string }) {
   const [payload, setPayload] = useState<PublicSchedulePayload | null>(null);
   const [state, setState] = useState<LoadState>('loading');
@@ -58,6 +73,7 @@ export default function PublicScheduleView({ token }: { token: string }) {
   const [isStale, setIsStale] = useState(false);
   const etagRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
+  const isWide = useIsWide();
 
   const refresh = useCallback(async () => {
     if (inFlightRef.current) return;
@@ -189,18 +205,10 @@ export default function PublicScheduleView({ token }: { token: string }) {
         <Notice title="Inget schema publicerat just nu">
           Titta in igen senare. Sidan uppdateras av sig själv.
         </Notice>
+      ) : isWide === null ? null : isWide && exportInput ? (
+        <WeekGrid input={exportInput} />
       ) : (
-        // Båda vyerna ritas och CSS väljer. Då finns rätt vy redan vid första
-        // målningen, i stället för att sidan hoppar när JavaScript hunnit mäta.
-        // Gränsen går där fem kolumner slutar rymmas med läsbar text.
-        <>
-          <div className="lg:hidden">
-            <PublicDayList entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
-          </div>
-          <div className="hidden lg:block">
-            <PublicWeek entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
-          </div>
-        </>
+        <PublicDayList entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
       )}
 
       {/* Nedladdningen står sist och diskret. Den är det deltagarna behöver
@@ -216,6 +224,48 @@ export default function PublicScheduleView({ token }: { token: string }) {
         </button>
       )}
     </Shell>
+  );
+}
+
+/**
+ * Samma rendering som vektorexporten, så datorvyn är pixelidentisk med
+ * PDF:en deltagarna redan känner igen. SVG:n byggs av oss själva och all text
+ * går genom `escapeXml` i sceneToSvg, därför är den säker att lägga in som HTML.
+ *
+ * Uppgiftslänkarna är PDF-annotationer och saknar motsvarighet i SVG:n. De
+ * läggs ovanpå som genomskinliga länkytor på kortens platser.
+ */
+function WeekGrid({ input }: { input: ScheduleExportInput }) {
+  const scene = useMemo(() => buildScene(input, createJsPdfMeasurer()), [input]);
+  const svg = useMemo(() => sceneToSvg(scene).replace(/^<\?xml[^>]*>\s*/, ''), [scene]);
+  const links = scene.nodes.filter(
+    (node): node is Extract<typeof node, { kind: 'link' }> => node.kind === 'link'
+  );
+
+  return (
+    <div className="relative overflow-hidden rounded border-2 border-black">
+      <div
+        className="[&>svg]:block [&>svg]:h-auto [&>svg]:w-full"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+      {links.map((link, index) => (
+        <a
+          key={index}
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Öppna uppgiften"
+          aria-label="Öppna uppgiften"
+          className="absolute rounded hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
+          style={{
+            left: `${(link.x / scene.widthPx) * 100}%`,
+            top: `${(link.y / scene.heightPx) * 100}%`,
+            width: `${(link.w / scene.widthPx) * 100}%`,
+            height: `${(link.h / scene.heightPx) * 100}%`,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
