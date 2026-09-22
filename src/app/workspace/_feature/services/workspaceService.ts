@@ -158,7 +158,7 @@ export const workspaceService = {
   async mirrorElement(
     elementId: string,
     surfaceId: string,
-    pos?: { position_x: number; position_y: number },
+    pos?: { position_x?: number; position_y?: number; width?: number; height?: number },
   ): Promise<SurfaceElement & { element: WorkspaceElement }> {
     const res = await fetchWithAuth(`${BASE}/elements/${elementId}/mirror`, {
       method: 'POST',
@@ -170,7 +170,7 @@ export const workspaceService = {
   async copyElement(
     elementId: string,
     surfaceId: string,
-    pos?: { position_x: number; position_y: number },
+    pos?: { position_x?: number; position_y?: number; width?: number; height?: number },
   ): Promise<SurfaceElement & { element: WorkspaceElement }> {
     const res = await fetchWithAuth(`${BASE}/elements/${elementId}/copy`, {
       method: 'POST',

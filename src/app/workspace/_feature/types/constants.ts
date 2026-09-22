@@ -24,6 +24,27 @@ export const TYPE_COLORS: Record<ElementType, string> = {
 };
 
 /**
+ * Namnet en inklistrad kopia får. Kopian ska inte ärva originalets namn —
+ * den är ett nytt kort. Rubriken finns med för fullständighetens skull men
+ * används inte: dess namn är alltid dess egen text.
+ */
+export const COPY_NAMES: Record<ElementType, string> = {
+  text: 'Text',
+  table: 'Tabell',
+  mindmap: 'Mindmap',
+  list: 'Lista',
+  kanban: 'Kanban',
+  sticky: 'Notislapp',
+  pdf: 'PDF',
+  image: 'Bild',
+  link: 'Länk',
+  wheel_ref: 'Temahjul',
+  wheel_part: 'Tårtbit',
+  schedule_day: 'Schemadag',
+  heading: 'Rubrik',
+};
+
+/**
  * Elementtyper som inte listas i bibliotekspanelen.
  *
  * En sprängning ger en del per block, och fjorton anonyma fragment hade gjort

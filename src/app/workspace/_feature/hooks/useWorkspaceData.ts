@@ -25,6 +25,7 @@ import {
   DEBOUNCE_CONTENT_MS,
   DEBOUNCE_VIEWPORT_MS,
   UNDO_NOTICE_MS,
+  COPY_NAMES,
   DEFAULT_ZOOM,
   MIN_ZOOM,
   MAX_ZOOM,
@@ -968,10 +969,13 @@ export function useWorkspaceData() {
     mode: 'mirror' | 'copy',
   ) => {
     const label = mode === 'mirror' ? 'spegla elementet' : 'kopiera elementet';
+    // Utan måtten satte backend alltid 320×200, oavsett hur stort kortet var.
+    const source = stateRef.current.placements.find((p) => p.element_id === elementId);
+    const size = source ? { width: source.width, height: source.height } : undefined;
     const result = await track(label, () =>
       mode === 'mirror'
-        ? workspaceService.mirrorElement(elementId, targetSurfaceId)
-        : workspaceService.copyElement(elementId, targetSurfaceId),
+        ? workspaceService.mirrorElement(elementId, targetSurfaceId, size)
+        : workspaceService.copyElement(elementId, targetSurfaceId, size),
     );
     if (!result) return;
 
@@ -1007,6 +1011,69 @@ export function useWorkspaceData() {
 
   const copyElement = useCallback((elementId: string, targetSurfaceId: string) =>
     placeCopy(elementId, targetSurfaceId, 'copy'), [placeCopy]);
+
+  /**
+   * Klistrar in urklippet på den aktiva ytan med gruppens övre vänstra hörn i
+   * `at`. Korten kopieras ett i taget: backend ger varje kopia z_index max+1,
+   * så ordningen bevarar staplingen och parallella anrop hade krockat om max.
+   * Kopian får typens grundnamn i stället för backends "X (kopia)".
+   * Returnerar de nya placeringarnas id:n, så att de kan bli en markering.
+   */
+  const pasteCopies = useCallback(async (items: ClipboardItem[], at: Point): Promise<string[]> => {
+    const surfaceId = stateRef.current.activeSurfaceId;
+    if (!surfaceId || items.length === 0) return [];
+
+    const originX = snapToGrid(at.x, GRID_SIZE);
+    const originY = snapToGrid(at.y, GRID_SIZE);
+    const created: { elementId: string; placementId: string }[] = [];
+
+    for (const item of items) {
+      const result = await track('kopiera elementet', () =>
+        workspaceService.copyElement(item.elementId, surfaceId, {
+          position_x: originX + item.dx,
+          position_y: originY + item.dy,
+          width: item.width,
+          height: item.height,
+        }),
+      );
+      if (!result) continue;
+
+      const copy = result.element;
+      const title = copy?.type === 'heading'
+        ? (copy.content as HeadingContent)?.text?.trim() || 'Rubrik'
+        : COPY_NAMES[item.type];
+      if (copy) {
+        await track('byta namn på kopian', () => workspaceService.updateElement(copy.id, { title }));
+      }
+
+      created.push({ elementId: result.element_id, placementId: result.id });
+      // Byter man yta mitt i en lång inklistring hör resten inte hemma i vyn.
+      if (stateRef.current.activeSurfaceId === surfaceId) {
+        dispatch({ type: 'ADD_PLACEMENT', placement: result });
+        if (copy) dispatch({ type: 'SET_ELEMENT', element: { ...copy, title } });
+      }
+    }
+
+    if (created.length === 0) return [];
+    void loadLibrary();
+
+    pushUndo({
+      label: 'inklistringen',
+      undo: async () => {
+        for (const { elementId } of created) {
+          dispatch({ type: 'REMOVE_ELEMENT', elementId });
+          await track('ta bort kopian', () => workspaceService.deleteElement(elementId));
+        }
+        void loadLibrary();
+      },
+    });
+
+    showNotice(
+      created.length === 1 ? 'Klistrade in 1 kort.' : `Klistrade in ${created.length} kort.`,
+      'success',
+    );
+    return created.map((c) => c.placementId);
+  }, [dispatch, track, pushUndo, showNotice, loadLibrary]);
 
   // ── Ångra ──
 
@@ -1058,7 +1125,18 @@ export function useWorkspaceData() {
     deleteElement,
     mirrorElement,
     copyElement,
+    pasteCopies,
   };
+}
+
+/** En post i workspace-urklippet. dx/dy är läget relativt gruppens övre vänstra hörn. */
+export interface ClipboardItem {
+  elementId: string;
+  type: ElementType;
+  dx: number;
+  dy: number;
+  width: number;
+  height: number;
 }
 
 /** Måttet en del vill ha i sitt nuvarande läge. */

@@ -7,7 +7,7 @@ import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, S
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { WorkspaceProvider } from '../hooks/WorkspaceContext';
-import { useWorkspaceData } from '../hooks/useWorkspaceData';
+import { useWorkspaceData, type ClipboardItem } from '../hooks/useWorkspaceData';
 import { useProvenance } from '../hooks/useProvenance';
 import { useCanvasKeyboard } from '../hooks/useCanvasKeyboard';
 import { useUndoHotkey } from '../hooks/useWorkspaceHistory';
@@ -24,6 +24,7 @@ import MirrorCopyModal from './MirrorCopyModal';
 import ConfirmDialog from './ConfirmDialog';
 import ScheduleImportModal, { type ScheduleSource } from './ScheduleImportModal';
 import { EDITABLE_TYPES } from '../types/constants';
+import { screenToCanvas } from '../types/utils';
 import type { ElementType, ViewportState, WorkspaceElement } from '../types/workspace.types';
 import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent } from '../types/scheduleDay.types';
@@ -90,6 +91,7 @@ function WorkspaceInner() {
     deleteElement,
     mirrorElement,
     copyElement,
+    pasteCopies,
     archiveSurface,
     unarchiveSurface,
     renameSurface,
@@ -369,6 +371,104 @@ function WorkspaceInner() {
     [importScheduleDays, state.viewport],
   );
 
+  // ── Kopiera och klistra in ──
+  //
+  // Ett eget urklipp i minnet, inte systemets: det ska bära kort mellan ytor,
+  // och det töms när sidan laddas om. Ligger kvar vid ytbyte med flit.
+  const clipboard = useRef<ClipboardItem[]>([]);
+  const [clipboardCount, setClipboardCount] = useState(0);
+  // Pekarens senaste läge på canvasen. En ref och inte state — den skrivs vid
+  // varje musrörelse och ingenting ritas om av den.
+  const pointerOnCanvas = useRef<{ x: number; y: number } | null>(null);
+  const [canvasMenu, setCanvasMenu] = useState<{ x: number; y: number; point: { x: number; y: number } } | null>(null);
+
+  /** Gruppen om det finns en, annars det markerade kortet. */
+  const copyPlacements = useCallback((placementIds: Set<string>) => {
+    const picked = state.placements.filter((p) => p.is_on_canvas && placementIds.has(p.id));
+    if (picked.length === 0) return;
+    const minX = Math.min(...picked.map((p) => p.position_x));
+    const minY = Math.min(...picked.map((p) => p.position_y));
+    // Lägst först, så att inklistringen staplar kopiorna som originalen.
+    clipboard.current = [...picked]
+      .sort((a, b) => a.z_index - b.z_index)
+      .flatMap((p) => {
+        const el = state.elements[p.element_id];
+        return el ? [{
+          elementId: el.id,
+          type: el.type,
+          dx: p.position_x - minX,
+          dy: p.position_y - minY,
+          width: p.width,
+          height: p.height,
+        }] : [];
+      });
+    setClipboardCount(clipboard.current.length);
+    const n = clipboard.current.length;
+    showNotice(n === 1 ? 'Kopierade 1 kort.' : `Kopierade ${n} kort.`, 'success');
+  }, [state.placements, state.elements, showNotice]);
+
+  const copySelection = useCallback((): boolean => {
+    if (groupIds.size > 0) {
+      copyPlacements(groupIds);
+      return true;
+    }
+    const selected = state.placements.find(
+      (p) => p.is_on_canvas && p.element_id === state.selectedElementId,
+    );
+    if (!selected) return false;
+    copyPlacements(new Set([selected.id]));
+    return true;
+  }, [groupIds, state.placements, state.selectedElementId, copyPlacements]);
+
+  const pasteAt = useCallback(async (point: { x: number; y: number } | null) => {
+    if (clipboard.current.length === 0) return;
+    let at = point;
+    if (!at) {
+      // Pekaren är inte över canvasen: mitt i vyn.
+      const container = canvasContainerRef.current;
+      at = screenToCanvas(
+        (container?.clientWidth ?? 800) / 2,
+        (container?.clientHeight ?? 600) / 2,
+        state.viewport.panX,
+        state.viewport.panY,
+        state.viewport.zoom,
+      );
+    }
+    const ids = await pasteCopies(clipboard.current, at);
+    if (ids.length > 0) setGroupIds(new Set(ids));
+  }, [pasteCopies, state.viewport]);
+
+  /*
+   * Cmd+C / Cmd+V. Inte via useHotkeys: den anropar preventDefault innan
+   * handlaren körs och hade stoppat webbläsarens egen kopiering av markerad
+   * text. Här släpps tangenten igenom i alla lägen utom de två vi äger.
+   */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key !== 'c' && key !== 'v') return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
+         target.tagName === 'SELECT' || target.isContentEditable)
+      ) return;
+
+      if (key === 'c') {
+        // Markerad text vinner alltid.
+        if (window.getSelection()?.toString()) return;
+        if (copySelection()) e.preventDefault();
+        return;
+      }
+      if (clipboard.current.length === 0) return;
+      e.preventDefault();
+      void pasteAt(pointerOnCanvas.current);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [copySelection, pasteAt]);
+
   const handleContextMenu = useCallback(
     (elementId: string, placementId: string, x: number, y: number) => {
       setContextMenu({ elementId, placementId, x, y });
@@ -576,6 +676,16 @@ function WorkspaceInner() {
           ...provenanceItems(contextMenu.elementId),
           { label: '', onClick: () => {}, divider: true },
           {
+            // Är kortet med i gruppen kopieras hela gruppen, som med Cmd+C.
+            label: groupIds.has(contextMenu.placementId) && groupIds.size > 1
+              ? `Kopiera ${groupIds.size} kort`
+              : 'Kopiera',
+            icon: <Copy size={13} />,
+            onClick: () => copyPlacements(
+              groupIds.has(contextMenu.placementId) ? groupIds : new Set([contextMenu.placementId]),
+            ),
+          },
+          {
             label: 'Spegla till...',
             icon: <Link2 size={13} />,
             onClick: () => setMirrorCopy({ elementId: contextMenu.elementId, mode: 'mirror' }),
@@ -674,6 +784,11 @@ function WorkspaceInner() {
           onSelectElement={handleSelectElement}
           viewportRef={viewportRef}
           onMarqueeSelect={handleMarqueeSelect}
+          onCanvasPointer={(point) => { pointerOnCanvas.current = point; }}
+          onCanvasContextMenu={(x, y, point) => {
+            setContextMenu(null);
+            setCanvasMenu({ x, y, point });
+          }}
           onZoomToContent={handleZoomToContent}
           isLibraryDragging={libraryDrag !== null}
           onLibraryDrop={(x, y) => {
@@ -742,6 +857,20 @@ function WorkspaceInner() {
       />
 
       {/* Element context menu */}
+      {canvasMenu && (
+        <ContextMenu
+          x={canvasMenu.x}
+          y={canvasMenu.y}
+          items={[{
+            label: clipboardCount > 1 ? `Klistra in ${clipboardCount} kort` : 'Klistra in',
+            icon: <Copy size={13} />,
+            disabled: clipboardCount === 0,
+            onClick: () => { void pasteAt(canvasMenu.point); },
+          }]}
+          onClose={() => setCanvasMenu(null)}
+        />
+      )}
+
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}

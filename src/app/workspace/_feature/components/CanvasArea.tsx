@@ -23,6 +23,10 @@ interface CanvasAreaProps {
   viewportRef?: React.RefObject<HTMLDivElement>;
   /** Cmd + dra på tom yta. Rektangeln i canvasens koordinater. */
   onMarqueeSelect?: (rect: { x: number; y: number; width: number; height: number }) => void;
+  /** Pekarens läge i canvasens koordinater, null när den lämnar ytan. Inklistringen landar där. */
+  onCanvasPointer?: (point: { x: number; y: number } | null) => void;
+  /** Högerklick på tom yta. clientX/Y för menyn, point i canvasens koordinater. */
+  onCanvasContextMenu?: (clientX: number, clientY: number, point: { x: number; y: number }) => void;
   children?: React.ReactNode;
 }
 
@@ -36,6 +40,8 @@ export default function CanvasArea({
   onLibraryDrop,
   viewportRef,
   onMarqueeSelect,
+  onCanvasPointer,
+  onCanvasContextMenu,
   children,
 }: CanvasAreaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,6 +99,16 @@ export default function CanvasArea({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      if (onCanvasPointer) {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect) {
+          onCanvasPointer(screenToCanvas(
+            e.clientX - rect.left, e.clientY - rect.top,
+            viewport.panX, viewport.panY, viewport.zoom,
+          ));
+        }
+      }
+
       if (pointers.current.has(e.pointerId)) {
         pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       }
@@ -135,7 +151,7 @@ export default function CanvasArea({
         panY: panStart.current.panY + (e.clientY - panStart.current.y),
       });
     },
-    [isPanning, marquee, onViewportChange, viewport],
+    [isPanning, marquee, onViewportChange, onCanvasPointer, viewport],
   );
 
   const endPointer = useCallback((e: React.PointerEvent) => {
@@ -217,7 +233,20 @@ export default function CanvasArea({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={endPointer}
-      onPointerLeave={endPointer}
+      onPointerLeave={(e) => {
+        endPointer(e);
+        onCanvasPointer?.(null);
+      }}
+      onContextMenu={(e) => {
+        // Bara tom yta. Korten har sin egen meny och stoppar händelsen själva.
+        if (!onCanvasContextMenu || e.target !== containerRef.current) return;
+        e.preventDefault();
+        const rect = containerRef.current.getBoundingClientRect();
+        onCanvasContextMenu(e.clientX, e.clientY, screenToCanvas(
+          e.clientX - rect.left, e.clientY - rect.top,
+          viewport.panX, viewport.panY, viewport.zoom,
+        ));
+      }}
       onWheel={handleWheel}
     >
       <div
