@@ -113,6 +113,42 @@ export interface RoomTriggerRule {
   room: string;
 }
 
+/**
+ * Det som följer med en publik länk utöver schemat. Färg- och salsreglerna är
+ * en kopia av de som annars bara finns i localStorage — utan den visar den
+ * publika sidan andra färger och salar än planeraren. De dolda titlarna är
+ * länkens egna och har inget med exportundantagen att göra.
+ */
+export interface PublicLinkDisplayConfig {
+  hiddenTitles: string[];
+  colorTriggers: ColorTriggerRule[];
+  roomTriggers: RoomTriggerRule[];
+}
+
+/** En hemlig länk som visar ett schema utan inloggning. Ägarens bild av den. */
+export interface PlannerPublicLink {
+  id: string;
+  token: string;
+  label: string | null;
+  archiveId: string | null;
+  archiveName: string | null;
+  enabled: boolean;
+  displayConfig: PublicLinkDisplayConfig;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/** Vad den publika sidan får. Inga id på användare eller arkiv. */
+export interface PublicSchedulePayload {
+  label: string | null;
+  /** `null` när länken inte pekar på något schema just nu. */
+  archiveName: string | null;
+  updatedAt: string | null;
+  activities: PlannerActivity[];
+  colorTriggers: unknown;
+  roomTriggers: unknown;
+}
+
 export interface PersistedPlannerState {
   version: number;
   timestamp: string;

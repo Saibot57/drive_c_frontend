@@ -96,6 +96,7 @@ import { useKeyboardPlacement } from '@/hooks/useKeyboardPlacement';
 import { useNotesMarquee } from '@/hooks/useNotesMarquee';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
+import PublicLinkControl from '@/components/schedule/PublicLinkControl';
 import '@/styles/schedule-theme.css';
 
 // --- Helper: Conflict Check & Filtering ---
@@ -226,6 +227,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     pasteProtect,
     planningStartMinutes,
     planningEndMinutes,
+    isLoaded: hiddenSettingsLoaded,
     applyTeacherAvailability,
     applyTeachersAndRooms,
     applyColorTriggers,
@@ -1611,6 +1613,15 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   Utesluter {exportExcludes.length}
                 </span>
               )}
+              <PublicLinkControl
+                archives={sortedArchives}
+                activeArchiveId={activeArchiveId}
+                activeArchiveName={activeArchiveName}
+                colorTriggers={colorTriggers}
+                roomTriggers={roomTriggers}
+                settingsLoaded={hiddenSettingsLoaded}
+                showNotice={showNotice}
+              />
               <div className="relative" ref={pdfMenuRef}>
                 <Button
                   variant="neutral"

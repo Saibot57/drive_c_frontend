@@ -44,6 +44,16 @@ const nextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           { key: 'Content-Security-Policy', value: contentSecurityPolicy },
         ]
+      },
+      // Publika schemalänkar. Står efter regeln ovan eftersom den senare
+      // matchande regeln vinner när samma header sätts två gånger: tokenen i
+      // adressen ska inte följa med som Referer, och sidan ska inte indexeras.
+      {
+        source: '/s/:path*',
+        headers: [
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        ]
       }
     ];
   }

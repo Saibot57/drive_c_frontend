@@ -1,5 +1,10 @@
 import { fetchWithAuth } from './authService';
-import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
+import type {
+  PlannerActivity,
+  PlannerArchiveSummary,
+  PlannerPublicLink,
+  PublicLinkDisplayConfig,
+} from '@/types/schedule';
 
 import { API_URL } from '@/config/api';
 const PLANNER_API_URL = `${API_URL}/planner`;
@@ -293,4 +298,65 @@ export const plannerService = {
       throw new Error(payload?.error || 'Kunde inte ta bort delningen.');
     }
   },
+
+  // --- Publika länkar ---
+  //
+  // Läsningen av en publik länk ligger inte här utan i publicScheduleService:
+  // den får inte gå via fetchWithAuth, som skickar till /login vid 401.
+
+  async listPublicLinks(): Promise<PlannerPublicLink[]> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/public-links`);
+    if (!response.ok) {
+      throw new Error('Kunde inte hämta publika länkar.');
+    }
+    const links = unwrap(await response.json());
+    return Array.isArray(links) ? (links as PlannerPublicLink[]) : [];
+  },
+
+  async createPublicLink(changes: PublicLinkChanges): Promise<PlannerPublicLink> {
+    return sendPublicLink(`${PLANNER_API_URL}/public-links`, 'POST', changes, 'Kunde inte skapa länken.');
+  },
+
+  async updatePublicLink(linkId: string, changes: PublicLinkChanges): Promise<PlannerPublicLink> {
+    return sendPublicLink(
+      `${PLANNER_API_URL}/public-links/${linkId}`, 'PATCH', changes, 'Kunde inte spara länken.'
+    );
+  },
+
+  async rotatePublicLink(linkId: string): Promise<PlannerPublicLink> {
+    return sendPublicLink(
+      `${PLANNER_API_URL}/public-links/${linkId}/rotate`, 'POST', {}, 'Kunde inte byta länk.'
+    );
+  },
+
+  async deletePublicLink(linkId: string): Promise<void> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/public-links/${linkId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || 'Kunde inte ta bort länken.');
+    }
+  },
+};
+
+export type PublicLinkChanges = {
+  label?: string | null;
+  archiveId?: string | null;
+  enabled?: boolean;
+  displayConfig?: PublicLinkDisplayConfig;
+};
+
+const sendPublicLink = async (
+  url: string,
+  method: 'POST' | 'PATCH',
+  changes: PublicLinkChanges,
+  fallbackError: string
+): Promise<PlannerPublicLink> => {
+  const response = await fetchWithAuth(url, { method, body: JSON.stringify(changes) });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.error || fallbackError);
+  }
+  return unwrap(payload) as PlannerPublicLink;
 };

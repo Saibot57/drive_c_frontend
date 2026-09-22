@@ -77,6 +77,47 @@ const SHARED_ARCHIVE = {
 };
 
 /**
+ * Den publika länken, hållen i minnet. Börjar tom så att "Skapa länk" går att
+ * prova; adressen i dialogen leder till `/s/<token>`, som går mot den riktiga
+ * backenden och därför svarar "Länken fungerar inte längre" härifrån.
+ */
+let publicLink: Record<string, unknown> | null = null;
+
+const stubPublicLink = (url: string, method: string, body: BodyInit | null | undefined) => {
+  const changes = body ? JSON.parse(String(body)) : {};
+  const withArchiveName = (link: Record<string, unknown>) => ({
+    ...link,
+    archiveName: [OWN_ARCHIVE, SHARED_ARCHIVE].find(a => a.id === link.archiveId)?.name ?? null,
+    updatedAt: new Date().toISOString(),
+  });
+
+  if (method === 'GET') return publicLink ? [publicLink] : [];
+  if (method === 'DELETE') {
+    publicLink = null;
+    return { message: 'Deleted' };
+  }
+  if (url.endsWith('/rotate') && publicLink) {
+    publicLink = withArchiveName({ ...publicLink, token: `dev-${Date.now().toString(36)}` });
+    return publicLink;
+  }
+  if (method === 'POST') {
+    publicLink = withArchiveName({
+      id: 'link-1',
+      token: 'dev-token-1',
+      label: null,
+      archiveId: null,
+      enabled: true,
+      displayConfig: { hiddenTitles: [], colorTriggers: [], roomTriggers: [] },
+      createdAt: new Date().toISOString(),
+      ...changes,
+    });
+    return publicLink;
+  }
+  publicLink = withArchiveName({ ...publicLink, ...changes });
+  return publicLink;
+};
+
+/**
  * Stubbar backend så planeraren går att titta på utan inloggning.
  *
  * Ingen token sätts: `fetchWithAuth` lägger bara till en Authorization-header
@@ -125,6 +166,9 @@ const installStub = () => {
       if (held && !force) return json({ acquired: false, archive });
       archive.lock = { userId: 'u-tobias', username: 'tobias', acquiredAt: null, isMine: true };
       return json({ acquired: true, archive });
+    }
+    if (url.includes('/planner/public-links')) {
+      return json(stubPublicLink(url, method, init?.body));
     }
     if (url.includes('/planner/archives/')) {
       if (method === 'PUT') return json({ archive: archiveOf(url), count: ACTIVITIES.length, activities: ACTIVITIES });

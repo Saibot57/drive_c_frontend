@@ -68,6 +68,12 @@ export const useHiddenSettings = () => {
   const [planningStartMinutes, setPlanningStartMinutes] = useState<number | null>(null);
   const [planningEndMinutes, setPlanningEndMinutes] = useState<number | null>(null);
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
+  /**
+   * Blir sann när localStorage lästs. Före dess är alla listor tomma för att
+   * inget lästs än, inte för att användaren tömt dem — och den som speglar
+   * inställningarna någon annanstans måste kunna skilja på de två.
+   */
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -105,6 +111,7 @@ export const useHiddenSettings = () => {
     } catch (error) {
       console.warn('Kunde inte läsa lärare/salar.', error);
     }
+    setIsLoaded(true);
   }, []);
 
   useHotkeys(
@@ -275,6 +282,7 @@ export const useHiddenSettings = () => {
     pasteProtect,
     planningStartMinutes,
     planningEndMinutes,
+    isLoaded,
     applyTeacherAvailability,
     applyTeachersAndRooms,
     applyColorTriggers,
