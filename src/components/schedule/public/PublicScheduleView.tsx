@@ -13,6 +13,7 @@ import { buildScene } from '@/utils/schedulePdf/buildScene';
 import { createJsPdfMeasurer } from '@/utils/schedulePdf/jspdfMeasurer';
 import { sceneToSvg } from '@/utils/schedulePdf/sceneToSvg';
 import PublicDayList from './PublicDayList';
+import PublicTimeGrid from './PublicTimeGrid';
 
 /**
  * En gång i minuten räcker: ändringar i ett veckoschema är sällsynta och
@@ -66,7 +67,17 @@ const useIsWide = () => {
   return isWide;
 };
 
-export default function PublicScheduleView({ token }: { token: string }) {
+type Props = {
+  token: string;
+  /**
+   * `'ny'` visar det nya rutnätet av riktig text i alla bredder, även på
+   * mobilen. Ligger bakom `?vy=ny` så att det kan jämföras med den vanliga
+   * vyn på riktig data innan något byts ut för deltagarna.
+   */
+  variant?: 'ny';
+};
+
+export default function PublicScheduleView({ token, variant }: Props) {
   const [payload, setPayload] = useState<PublicSchedulePayload | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   /** Senaste pollningen misslyckades, men vi har en äldre version att visa. */
@@ -205,6 +216,8 @@ export default function PublicScheduleView({ token }: { token: string }) {
         <Notice title="Inget schema publicerat just nu">
           Titta in igen senare. Sidan uppdateras av sig själv.
         </Notice>
+      ) : variant === 'ny' ? (
+        <PublicTimeGrid entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
       ) : isWide === null ? null : isWide && exportInput ? (
         <WeekGrid input={exportInput} />
       ) : (
