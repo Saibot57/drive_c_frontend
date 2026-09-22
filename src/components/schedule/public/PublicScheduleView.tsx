@@ -36,6 +36,24 @@ const formatUpdated = (value: string | null) => {
   });
 };
 
+/**
+ * Rubriken är det läraren skrivit, och arkivnamnet står under — utom när det
+ * bara vore en upprepning.
+ *
+ * Rubriken "Allmän kurs: schema v. 39" tillsammans med arkivnamnet "v. 39" tog
+ * en fjärdedel av telefonskärmen innan schemat ens började, och sa samma sak
+ * två gånger. Jämförelsen struntar i skiljetecken och mellanrum, så "v.39"
+ * räknas som samma sak som "v. 39".
+ */
+const buildHeadings = (label: string | null, archiveName: string | null) => {
+  const fallback = archiveName ?? 'Schema';
+  if (!label) return { heading: fallback, subheading: null };
+
+  const squash = (value: string) => value.toLocaleLowerCase('sv').replace(/[^a-z0-9åäö]/g, '');
+  const alreadySaid = archiveName ? squash(label).includes(squash(archiveName)) : true;
+  return { heading: label, subheading: alreadySaid ? null : archiveName };
+};
+
 const useIsWide = () => {
   const [isWide, setIsWide] = useState<boolean | null>(null);
   useEffect(() => {
@@ -162,37 +180,24 @@ export default function PublicScheduleView({ token }: { token: string }) {
   }
 
   const updated = formatUpdated(payload.updatedAt);
+  const { heading, subheading } = buildHeadings(payload.label, payload.archiveName);
 
   return (
     <Shell>
-      <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          {payload.label && (
-            <p className="text-sm font-bold uppercase tracking-wide text-gray-500">{payload.label}</p>
-          )}
-          <h1 className="text-2xl font-bold leading-tight">
-            {payload.archiveName ?? 'Schema'}
-          </h1>
-          {updated && (
-            <p className="mt-0.5 text-sm text-gray-600" role="status">
-              Uppdaterad {updated}
-              {isStale && (
-                <span className="ml-2 inline-flex items-center gap-1 text-amber-700">
-                  <RefreshCw size={12} /> kunde inte kontrollera just nu
-                </span>
-              )}
-            </p>
-          )}
-        </div>
-        {exportInput && schedule.length > 0 && (
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={isDownloading}
-            className="inline-flex items-center gap-2 rounded border-2 border-black bg-white px-3 py-1.5 text-sm font-bold shadow-[3px_3px_0px_black] disabled:opacity-60"
-          >
-            <Download size={16} /> {isDownloading ? 'Skapar bild…' : 'Ladda ner som bild'}
-          </button>
+      <header className="mb-4">
+        <h1 className="text-2xl font-bold leading-tight">{heading}</h1>
+        {subheading && (
+          <p className="text-sm font-bold uppercase tracking-wide text-gray-500">{subheading}</p>
+        )}
+        {updated && (
+          <p className="mt-0.5 text-sm text-gray-600" role="status">
+            Uppdaterad {updated}
+            {isStale && (
+              <span className="ml-2 inline-flex items-center gap-1 text-amber-700">
+                <RefreshCw size={12} /> kunde inte kontrollera just nu
+              </span>
+            )}
+          </p>
         )}
       </header>
 
@@ -204,6 +209,19 @@ export default function PublicScheduleView({ token }: { token: string }) {
         <WeekGrid input={exportInput} />
       ) : (
         <PublicDayList entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
+      )}
+
+      {/* Nedladdningen står sist och diskret. Den är det deltagarna behöver
+          minst, och högst upp tog den plats från schemat på en telefon. */}
+      {exportInput && schedule.length > 0 && (
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={isDownloading}
+          className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-gray-600 underline underline-offset-2 disabled:opacity-60"
+        >
+          <Download size={14} /> {isDownloading ? 'Skapar bild…' : 'Ladda ner som bild'}
+        </button>
       )}
     </Shell>
   );
