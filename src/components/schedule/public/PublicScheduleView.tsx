@@ -9,6 +9,7 @@ import { ScheduleExportInput } from '@/types/scheduleExport';
 import { createColorResolver, sanitizeColorTriggers } from '@/utils/colorTriggers';
 import { createRoomResolver, sanitizeRoomTriggers } from '@/utils/roomTriggers';
 import { exportSchedule } from '@/utils/schedulePdf';
+import PublicDayList from './PublicDayList';
 import PublicTimeGrid from './PublicTimeGrid';
 
 /**
@@ -50,7 +51,16 @@ const buildHeadings = (label: string | null, archiveName: string | null) => {
   return { heading: label, subheading: alreadySaid ? null : archiveName };
 };
 
-export default function PublicScheduleView({ token }: { token: string }) {
+type Props = {
+  token: string;
+  /**
+   * Visa dagslistan i stället för dagsschemat på mobilen (`?vy=lista`). Bredare
+   * skärmar får rutnätet ändå, så att jämförelsen bara gäller telefonen.
+   */
+  listOnMobile?: boolean;
+};
+
+export default function PublicScheduleView({ token, listOnMobile = false }: Props) {
   const [payload, setPayload] = useState<PublicSchedulePayload | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   /** Senaste pollningen misslyckades, men vi har en äldre version att visa. */
@@ -188,6 +198,17 @@ export default function PublicScheduleView({ token }: { token: string }) {
         <Notice title="Inget schema publicerat just nu">
           Titta in igen senare. Sidan uppdateras av sig själv.
         </Notice>
+      ) : listOnMobile ? (
+        // `sm` är 640 px, samma gräns där rutnätet går från tre dagar till en.
+        // Båda ritas och CSS väljer, så ingen vy hoppar vid laddning.
+        <>
+          <div className="sm:hidden">
+            <PublicDayList entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
+          </div>
+          <div className="hidden sm:block">
+            <PublicTimeGrid entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
+          </div>
+        </>
       ) : (
         <PublicTimeGrid entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
       )}
