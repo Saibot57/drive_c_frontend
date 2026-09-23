@@ -14,6 +14,11 @@ import { checkOverlap } from '@/utils/scheduleTime';
  *   eftermiddag i v. 40) och går till Studieverkstad under matteblocket — så
  *   har arbetslaget bestämt, det går inte att läsa ut ur schemat.
  *
+ * Någon enstaka läser två kurser, oftast Matte 1 och Matte 2. Mattesvaret är
+ * därför en lista. Ma Grund och Ma 1 går samtidigt och utesluter varandra;
+ * Ma 2 har egna tider och kan läggas till utöver endera. En tom lista betyder
+ * "läser ingen matte".
+ *
  * Allt annat — lunch, paus, Onsdagsklubben, och varje pass som läggs till
  * senare — visas för alla. Ett okänt pass får aldrig försvinna av misstag;
  * hellre ett pass för mycket än att någon missar något gemensamt.
@@ -24,11 +29,14 @@ import { checkOverlap } from '@/utils/scheduleTime';
  */
 
 export type TemaClass = 'grund' | 'oliv' | 'rosa';
-export type MathCourse = 'grund' | '1' | '2' | 'ingen';
+export type MathCourse = 'grund' | '1' | '2';
+/** Ett svarsalternativ i dialogen. "ingen" är den tomma kurslistan. */
+export type MathOption = MathCourse | 'ingen';
 
 export type ParticipantChoice = {
   tema: TemaClass;
-  math: MathCourse;
+  /** Kurserna deltagaren läser. Tom = läser ingen matte. */
+  math: MathCourse[];
 };
 
 export const TEMA_OPTIONS: { value: TemaClass; label: string }[] = [
@@ -37,7 +45,7 @@ export const TEMA_OPTIONS: { value: TemaClass; label: string }[] = [
   { value: 'oliv', label: 'Oliv' },
 ];
 
-export const MATH_OPTIONS: { value: MathCourse; label: string }[] = [
+export const MATH_OPTIONS: { value: MathOption; label: string }[] = [
   { value: 'grund', label: 'Matte Grund' },
   { value: '1', label: 'Matte 1' },
   { value: '2', label: 'Matte 2' },
@@ -46,7 +54,7 @@ export const MATH_OPTIONS: { value: MathCourse; label: string }[] = [
 
 type PassKind =
   | { kind: 'tema'; tema: TemaClass }
-  | { kind: 'math'; course: Exclude<MathCourse, 'ingen'> }
+  | { kind: 'math'; course: MathCourse }
   | { kind: 'studieverkstad' }
   | { kind: 'common' };
 
@@ -64,7 +72,7 @@ export const classifyPass = (title: string): PassKind => {
   if (tema) return { kind: 'tema', tema: tema[1] as TemaClass };
 
   const math = text.match(MATH_PATTERN);
-  if (math) return { kind: 'math', course: math[1] as Exclude<MathCourse, 'ingen'> };
+  if (math) return { kind: 'math', course: math[1] as MathCourse };
 
   if (STUDIEVERKSTAD_PATTERN.test(text)) return { kind: 'studieverkstad' };
 
@@ -93,12 +101,12 @@ export const filterForParticipant = (
       case 'tema':
         return kind.tema === choice.tema;
       case 'math':
-        return kind.course === choice.math;
+        return choice.math.includes(kind.course);
       case 'studieverkstad': {
         const ownCourseAtSameTime = entries.some(other => {
           const otherKind = kinds.get(other.instanceId)!;
           return otherKind.kind === 'math'
-            && otherKind.course === choice.math
+            && choice.math.includes(otherKind.course)
             && other.day === entry.day
             && checkOverlap(entry.startTime, entry.endTime, other.startTime, other.endTime);
         });
@@ -108,18 +116,75 @@ export const filterForParticipant = (
   });
 };
 
-/** "Tema Oliv · Matte 1" — för raden som talar om vad som visas. */
+const COURSE_ORDER: MathCourse[] = ['grund', '1', '2'];
+const sortCourses = (courses: MathCourse[]) =>
+  COURSE_ORDER.filter(course => courses.includes(course));
+
+/** Kurser som går samtidigt och därför inte kan läsas tillsammans. */
+const EXCLUSIVE_COURSES: MathCourse[] = ['grund', '1'];
+
+/**
+ * Nästa mattesvar när man trycker på ett alternativ i dialogen.
+ *
+ * - "Läser ingen matte" ersätter allt.
+ * - En kurs som redan är vald väljs bort.
+ * - Ma Grund och Ma 1 byter av varandra; Ma 2 läggs till utöver.
+ *
+ * `null` betyder att frågan inte är besvarad än.
+ */
+export const toggleMathOption = (
+  current: MathCourse[] | null,
+  option: MathOption
+): MathCourse[] | null => {
+  if (option === 'ingen') return [];
+
+  const selected = current ?? [];
+  if (selected.includes(option)) {
+    const remaining = selected.filter(course => course !== option);
+    // Att välja bort sin enda kurs betyder inte "läser ingen matte" — frågan
+    // blir obesvarad igen, så att man måste ta ställning.
+    return remaining.length > 0 ? remaining : null;
+  }
+
+  const kept = EXCLUSIVE_COURSES.includes(option)
+    ? selected.filter(course => !EXCLUSIVE_COURSES.includes(course))
+    : selected;
+  return sortCourses([...kept, option]);
+};
+
+/** Är alternativet markerat, givet mattesvaret? */
+export const isMathOptionSelected = (current: MathCourse[] | null, option: MathOption) =>
+  current !== null && (option === 'ingen' ? current.length === 0 : current.includes(option));
+
+/** "Tema Oliv · Matte 1 + Matte 2" — för raden som talar om vad som visas. */
 export const describeChoice = (choice: ParticipantChoice) => {
   const tema = TEMA_OPTIONS.find(option => option.value === choice.tema)?.label ?? choice.tema;
-  const math = MATH_OPTIONS.find(option => option.value === choice.math)?.label ?? choice.math;
+  const math = choice.math.length === 0
+    ? 'Läser ingen matte'
+    : choice.math
+      .map(course => MATH_OPTIONS.find(option => option.value === course)?.label ?? course)
+      .join(' + ');
   return `Tema ${tema} · ${math}`;
 };
 
-/** Tvättar ett sparat val. Webbläsarens lagring kan innehålla vad som helst. */
+/**
+ * Tvättar ett sparat val. Webbläsarens lagring kan innehålla vad som helst —
+ * och val sparade före flerval har en enda sträng i `math` ("1", "ingen").
+ */
 export const sanitizeChoice = (input: unknown): ParticipantChoice | null => {
   if (!input || typeof input !== 'object') return null;
   const { tema, math } = input as Record<string, unknown>;
-  const validTema = TEMA_OPTIONS.some(option => option.value === tema);
-  const validMath = MATH_OPTIONS.some(option => option.value === math);
-  return validTema && validMath ? { tema: tema as TemaClass, math: math as MathCourse } : null;
+  if (!TEMA_OPTIONS.some(option => option.value === tema)) return null;
+
+  const rawCourses = typeof math === 'string'
+    ? (math === 'ingen' ? [] : [math])
+    : Array.isArray(math) ? math : null;
+  if (rawCourses === null) return null;
+  if (!rawCourses.every(course => COURSE_ORDER.includes(course as MathCourse))) return null;
+
+  const courses = sortCourses(rawCourses as MathCourse[]);
+  // Ma Grund och Ma 1 samtidigt kan inte stämma; hellre fråga om än gissa.
+  if (courses.filter(course => EXCLUSIVE_COURSES.includes(course)).length > 1) return null;
+
+  return { tema: tema as TemaClass, math: courses };
 };

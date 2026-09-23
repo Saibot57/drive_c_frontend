@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
+  isMathOptionSelected,
   MATH_OPTIONS,
   MathCourse,
   ParticipantChoice,
   TEMA_OPTIONS,
   TemaClass,
+  toggleMathOption,
 } from '@/utils/publicScheduleFilter';
 
 type Props = {
@@ -24,7 +26,8 @@ type Props = {
  */
 export default function MyLessonsDialog({ open, onOpenChange, current, onChoose }: Props) {
   const [tema, setTema] = useState<TemaClass | null>(current?.tema ?? null);
-  const [math, setMath] = useState<MathCourse | null>(current?.math ?? null);
+  /** `null` = obesvarad, tom lista = läser ingen matte. */
+  const [math, setMath] = useState<MathCourse[] | null>(current?.math ?? null);
 
   // Varje gång dialogen öppnas utgår den från det sparade valet, inte från
   // något man klickade i och sedan avbröt förra gången.
@@ -50,21 +53,43 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
             if (tema && math) onChoose({ tema, math });
           }}
         >
-          <ChoiceGroup
-            legend="Vilken temaklass läser du i?"
-            name="tema"
-            options={TEMA_OPTIONS}
-            value={tema}
-            onChange={setTema}
-          />
-          <ChoiceGroup
-            legend="Vilken mattekurs läser du?"
-            name="math"
-            options={MATH_OPTIONS}
-            value={math}
-            onChange={setMath}
-            hint="Läser du ingen matte går du till Studieverkstad när de andra har matte."
-          />
+          <fieldset>
+            <legend className="mb-2 font-bold">Vilken temaklass läser du i?</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {TEMA_OPTIONS.map(option => (
+                <OptionTile
+                  key={option.value}
+                  type="radio"
+                  name="tema"
+                  label={option.label}
+                  checked={tema === option.value}
+                  onToggle={() => setTema(option.value)}
+                />
+              ))}
+            </div>
+          </fieldset>
+
+          {/* Kryssrutor, inte radioknappar: någon enstaka läser två kurser.
+              Vilka som får kombineras avgör `toggleMathOption`. */}
+          <fieldset>
+            <legend className="mb-2 font-bold">Vilken mattekurs läser du?</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {MATH_OPTIONS.map(option => (
+                <OptionTile
+                  key={option.value}
+                  type="checkbox"
+                  name="math"
+                  label={option.label}
+                  checked={isMathOptionSelected(math, option.value)}
+                  onToggle={() => setMath(previous => toggleMathOption(previous, option.value))}
+                />
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-gray-600">
+              Läser du både Matte 1 och Matte 2, välj båda. Läser du ingen matte går du till
+              Studieverkstad när de andra har matte.
+            </p>
+          </fieldset>
 
           <div className="flex flex-wrap justify-end gap-2 pt-1">
             <button
@@ -88,48 +113,34 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
   );
 }
 
-type ChoiceGroupProps<T extends string> = {
-  legend: string;
+type OptionTileProps = {
+  type: 'radio' | 'checkbox';
   name: string;
-  options: { value: T; label: string }[];
-  value: T | null;
-  onChange: (value: T) => void;
-  hint?: string;
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
 };
 
 /**
- * Riktiga radioknappar under ytan, så att tangentbord och skärmläsare fungerar
- * som vanligt — men med stora ytor att trycka på, eftersom de flesta svarar
- * från telefonen.
+ * Riktiga radioknappar och kryssrutor under ytan, så att tangentbord och
+ * skärmläsare fungerar som vanligt — men med stora ytor att trycka på,
+ * eftersom de flesta svarar från telefonen.
  */
-function ChoiceGroup<T extends string>({ legend, name, options, value, onChange, hint }: ChoiceGroupProps<T>) {
+function OptionTile({ type, name, label, checked, onToggle }: OptionTileProps) {
   return (
-    <fieldset>
-      <legend className="mb-2 font-bold">{legend}</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {options.map(option => {
-          const checked = value === option.value;
-          return (
-            <label
-              key={option.value}
-              className={`flex cursor-pointer items-center gap-2 rounded border-2 border-black px-3 py-2.5 text-sm font-bold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-black has-[:focus-visible]:ring-offset-2 ${
-                checked ? 'bg-black text-white' : 'bg-white text-black'
-              }`}
-            >
-              <input
-                type="radio"
-                name={name}
-                value={option.value}
-                checked={checked}
-                onChange={() => onChange(option.value)}
-                className="sr-only"
-              />
-              {option.label}
-            </label>
-          );
-        })}
-      </div>
-      {hint && <p className="mt-1.5 text-xs text-gray-600">{hint}</p>}
-    </fieldset>
+    <label
+      className={`flex cursor-pointer items-center gap-2 rounded border-2 border-black px-3 py-2.5 text-sm font-bold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-black has-[:focus-visible]:ring-offset-2 ${
+        checked ? 'bg-black text-white' : 'bg-white text-black'
+      }`}
+    >
+      <input
+        type={type}
+        name={name}
+        checked={checked}
+        onChange={onToggle}
+        className="sr-only"
+      />
+      {label}
+    </label>
   );
 }

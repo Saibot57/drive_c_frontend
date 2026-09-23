@@ -4,10 +4,12 @@ import {
   classifyPass,
   describeChoice,
   filterForParticipant,
-  MATH_OPTIONS,
+  isMathOptionSelected,
+  MathCourse,
   ParticipantChoice,
   sanitizeChoice,
   TEMA_OPTIONS,
+  toggleMathOption,
 } from '@/utils/publicScheduleFilter';
 import { checkOverlap, timeToMinutes } from '@/utils/scheduleTime';
 
@@ -94,8 +96,11 @@ const toEntries = (rows: [string, string, string, string][]): ScheduledEntry[] =
 
 const week = toEntries(V40);
 
+/** Alla mattesvar som går att ge i dialogen: en kurs, ingen, eller Ma 2 utöver en annan. */
+const MATH_ANSWERS: MathCourse[][] = [['grund'], ['1'], ['2'], [], ['grund', '2'], ['1', '2']];
+
 const ALL_CHOICES: ParticipantChoice[] = TEMA_OPTIONS.flatMap(tema =>
-  MATH_OPTIONS.map(math => ({ tema: tema.value, math: math.value }))
+  MATH_ANSWERS.map(math => ({ tema: tema.value, math }))
 );
 
 const titlesAt = (entries: ScheduledEntry[], day: string, startTime: string) =>
@@ -129,7 +134,7 @@ describe('classifyPass', () => {
 });
 
 describe('filterForParticipant på v. 40', () => {
-  it.each(ALL_CHOICES)('ger aldrig två pass samtidigt ($tema, $math)', choice => {
+  it.each(ALL_CHOICES)('ger aldrig två pass samtidigt ($tema, [$math])', choice => {
     const mine = filterForParticipant(week, choice);
     for (const a of mine) {
       for (const b of mine) {
@@ -142,7 +147,7 @@ describe('filterForParticipant på v. 40', () => {
     }
   });
 
-  it.each(ALL_CHOICES)('lämnar ingen lucka där gruppen har pass ($tema, $math)', choice => {
+  it.each(ALL_CHOICES)('lämnar ingen lucka där gruppen har pass ($tema, [$math])', choice => {
     const mine = filterForParticipant(week, choice);
     // Ma 2 är ett tillval: den som inte läser det ska inte ha något då.
     const required = week.filter(entry => {
@@ -157,13 +162,13 @@ describe('filterForParticipant på v. 40', () => {
   });
 
   it('visar bara den egna temaklassen', () => {
-    const mine = filterForParticipant(week, { tema: 'oliv', math: '1' });
+    const mine = filterForParticipant(week, { tema: 'oliv', math: ['1'] });
     expect(titlesAt(mine, 'Måndag', '08:30')).toEqual(['Tema Oliv']);
     expect(titlesAt(mine, 'Fredag', '12:30')).toEqual(['Tema Oliv']);
   });
 
   it('Matte Grund: Ma Grund i matteblocket, studieverkstad bara när den ligger ensam', () => {
-    const mine = filterForParticipant(week, { tema: 'rosa', math: 'grund' });
+    const mine = filterForParticipant(week, { tema: 'rosa', math: ['grund'] });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Ma Grund']);
     expect(titlesAt(mine, 'Tisdag', '14:45')).toEqual(['Ma Grund']);
     expect(titlesAt(mine, 'Fredag', '08:30')).toEqual(['Ma Grund']);
@@ -172,14 +177,14 @@ describe('filterForParticipant på v. 40', () => {
   });
 
   it('Matte 1: Ma 1 i matteblocket', () => {
-    const mine = filterForParticipant(week, { tema: 'grund', math: '1' });
+    const mine = filterForParticipant(week, { tema: 'grund', math: ['1'] });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Ma 1']);
     expect(titlesAt(mine, 'Fredag', '08:30')).toEqual(['Ma 1']);
     expect(titlesAt(mine, 'Fredag', '14:45')).toEqual([]);
   });
 
   it('Matte 2: studieverkstad i matteblocket och egna Ma 2-pass', () => {
-    const mine = filterForParticipant(week, { tema: 'grund', math: '2' });
+    const mine = filterForParticipant(week, { tema: 'grund', math: ['2'] });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Studieverkstad']);
     expect(titlesAt(mine, 'Tisdag', '14:45')).toEqual(['Studieverkstad']);
     expect(titlesAt(mine, 'Fredag', '08:30')).toEqual(['Studieverkstad']);
@@ -187,14 +192,24 @@ describe('filterForParticipant på v. 40', () => {
     expect(titlesAt(mine, 'Fredag', '14:45')).toEqual(['Ma2 (tillval)']);
   });
 
+  it('Matte 1 + Matte 2: Ma 1 i matteblocket och Ma 2-passen, ingen studieverkstad då', () => {
+    const mine = filterForParticipant(week, { tema: 'rosa', math: ['1', '2'] });
+    expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Ma 1']);
+    expect(titlesAt(mine, 'Tisdag', '14:45')).toEqual(['Ma 1']);
+    expect(titlesAt(mine, 'Fredag', '08:30')).toEqual(['Ma 1']);
+    expect(titlesAt(mine, 'Onsdag', '14:45')).toEqual(['Ma2 (tillval)']);
+    expect(titlesAt(mine, 'Fredag', '14:45')).toEqual(['Ma2 (tillval)']);
+    expect(titlesAt(mine, 'Torsdag', '14:45')).toEqual(['Studieverkstad']);
+  });
+
   it('Läser ingen matte: studieverkstad, inga Ma-pass', () => {
-    const mine = filterForParticipant(week, { tema: 'oliv', math: 'ingen' });
+    const mine = filterForParticipant(week, { tema: 'oliv', math: [] });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Studieverkstad']);
     expect(titlesAt(mine, 'Torsdag', '14:45')).toEqual(['Studieverkstad']);
     expect(mine.some(entry => classifyPass(entry.title).kind === 'math')).toBe(false);
   });
 
-  it.each(ALL_CHOICES)('behåller det gemensamma ($tema, $math)', choice => {
+  it.each(ALL_CHOICES)('behåller det gemensamma ($tema, [$math])', choice => {
     const titles = filterForParticipant(week, choice).map(entry => entry.title);
     expect(titles.filter(title => title === 'Lunch')).toHaveLength(5);
     expect(titles.filter(title => title === 'Paus')).toHaveLength(9);
@@ -209,22 +224,62 @@ describe('filterForParticipant på v. 40', () => {
   });
 });
 
+describe('toggleMathOption', () => {
+  it('lägger Ma 2 utöver en annan kurs', () => {
+    expect(toggleMathOption(['1'], '2')).toEqual(['1', '2']);
+    expect(toggleMathOption(['2'], 'grund')).toEqual(['grund', '2']);
+  });
+
+  it('låter Ma Grund och Ma 1 byta av varandra, eftersom de går samtidigt', () => {
+    expect(toggleMathOption(['grund'], '1')).toEqual(['1']);
+    expect(toggleMathOption(['1', '2'], 'grund')).toEqual(['grund', '2']);
+  });
+
+  it('låter "Läser ingen matte" ersätta allt, och en kurs ersätta den', () => {
+    expect(toggleMathOption(['1', '2'], 'ingen')).toEqual([]);
+    expect(toggleMathOption([], '1')).toEqual(['1']);
+  });
+
+  it('väljer bort en vald kurs, och lämnar frågan obesvarad om ingen är kvar', () => {
+    expect(toggleMathOption(['1', '2'], '2')).toEqual(['1']);
+    expect(toggleMathOption(['1'], '1')).toBeNull();
+  });
+
+  it('skiljer på obesvarad och "läser ingen matte"', () => {
+    expect(isMathOptionSelected(null, 'ingen')).toBe(false);
+    expect(isMathOptionSelected([], 'ingen')).toBe(true);
+    expect(isMathOptionSelected(['1', '2'], '2')).toBe(true);
+  });
+});
+
 describe('sanitizeChoice', () => {
   it('godtar ett giltigt val', () => {
-    expect(sanitizeChoice({ tema: 'rosa', math: 'ingen' })).toEqual({ tema: 'rosa', math: 'ingen' });
+    expect(sanitizeChoice({ tema: 'rosa', math: [] })).toEqual({ tema: 'rosa', math: [] });
+    expect(sanitizeChoice({ tema: 'oliv', math: ['2', '1'] })).toEqual({ tema: 'oliv', math: ['1', '2'] });
+  });
+
+  it('läser val sparade innan flervalet fanns', () => {
+    expect(sanitizeChoice({ tema: 'oliv', math: '1' })).toEqual({ tema: 'oliv', math: ['1'] });
+    expect(sanitizeChoice({ tema: 'oliv', math: 'ingen' })).toEqual({ tema: 'oliv', math: [] });
   });
 
   it('avvisar skräp ur lagringen', () => {
     expect(sanitizeChoice(null)).toBeNull();
     expect(sanitizeChoice('oliv')).toBeNull();
-    expect(sanitizeChoice({ tema: 'blå', math: '1' })).toBeNull();
+    expect(sanitizeChoice({ tema: 'blå', math: ['1'] })).toBeNull();
     expect(sanitizeChoice({ tema: 'oliv' })).toBeNull();
+    expect(sanitizeChoice({ tema: 'oliv', math: ['3'] })).toBeNull();
+  });
+
+  it('avvisar Ma Grund och Ma 1 tillsammans', () => {
+    expect(sanitizeChoice({ tema: 'oliv', math: ['grund', '1'] })).toBeNull();
   });
 });
 
 describe('describeChoice', () => {
   it('skriver valet som det står i dialogen', () => {
-    expect(describeChoice({ tema: 'oliv', math: '1' })).toBe('Tema Oliv · Matte 1');
-    expect(describeChoice({ tema: 'grund', math: 'ingen' })).toBe('Tema Grund · Läser ingen matte');
+    expect(describeChoice({ tema: 'oliv', math: ['1'] })).toBe('Tema Oliv · Matte 1');
+    expect(describeChoice({ tema: 'oliv', math: ['1', '2'] })).toBe('Tema Oliv · Matte 1 + Matte 2');
+    expect(describeChoice({ tema: 'grund', math: [] })).toBe('Tema Grund · Läser ingen matte');
   });
 });
