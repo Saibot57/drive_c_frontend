@@ -72,9 +72,9 @@ const todayInPlanner = (): string => {
 /**
  * Dagslistan: en dag i taget som lista, med dagens dag förvald.
  *
- * Var mobilvyn innan rutnätet av riktig text tog över. Ligger kvar bakom
- * `?vy=lista` så att kollegorna kan jämföra den med dagsschemat i rutnätet
- * på sina telefoner, innan det avgörs vilken mobilen ska ha.
+ * Mobilens standardvy, under 640 px. Arbetslaget jämförde den med
+ * rutnätets dagsschema och valde att prova listan (23 sep 2026); dagsschemat
+ * ligger kvar bakom `?vy=dagsschema` under provperioden.
  */
 export default function PublicDayList({ entries, resolveColor, resolveRoom }: Props) {
   const [day, setDay] = useState<string>(todayInPlanner);

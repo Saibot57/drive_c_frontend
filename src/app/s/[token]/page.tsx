@@ -22,7 +22,13 @@ export default function PublicSchedulePage({ params, searchParams }: PageProps) 
   return (
     // Rotlayouten har 2rem padding runt allt; på en telefon är det för mycket.
     <div className="-mx-8 -mt-8 px-3 pt-4 sm:px-8 sm:pt-6">
-      <PublicScheduleView token={params.token} listOnMobile={searchParams.vy === 'lista'} />
+      {/* Dagslistan är mobilens standard sedan arbetslaget valde den.
+          Dagsschemat i rutnätet ligger kvar bakom ?vy=dagsschema under
+          provperioden; ?vy=lista från jämförelsen fungerar fortfarande. */}
+      <PublicScheduleView
+        token={params.token}
+        listOnMobile={searchParams.vy !== 'dagsschema'}
+      />
     </div>
   );
 }

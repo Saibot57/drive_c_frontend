@@ -54,13 +54,13 @@ const buildHeadings = (label: string | null, archiveName: string | null) => {
 type Props = {
   token: string;
   /**
-   * Visa dagslistan i stället för dagsschemat på mobilen (`?vy=lista`). Bredare
-   * skärmar får rutnätet ändå, så att jämförelsen bara gäller telefonen.
+   * Dagslistan i stället för rutnätets dagsschema på mobilen. Standard; av
+   * bara med `?vy=dagsschema`. Bredare skärmar får rutnätet oavsett.
    */
   listOnMobile?: boolean;
 };
 
-export default function PublicScheduleView({ token, listOnMobile = false }: Props) {
+export default function PublicScheduleView({ token, listOnMobile = true }: Props) {
   const [payload, setPayload] = useState<PublicSchedulePayload | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   /** Senaste pollningen misslyckades, men vi har en äldre version att visa. */
