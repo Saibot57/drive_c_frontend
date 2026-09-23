@@ -1,14 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download, Filter, RefreshCw } from 'lucide-react';
 import { mapPlannerActivitiesToSchedule } from '@/hooks/usePlannerSync';
 import { fetchPublicSchedule, parseServerTimestamp } from '@/services/publicScheduleService';
 import { PublicSchedulePayload } from '@/types/schedule';
 import { ScheduleExportInput } from '@/types/scheduleExport';
 import { createColorResolver, sanitizeColorTriggers } from '@/utils/colorTriggers';
 import { createRoomResolver, sanitizeRoomTriggers } from '@/utils/roomTriggers';
+import {
+  describeChoice,
+  filterForParticipant,
+  ParticipantChoice,
+  sanitizeChoice,
+} from '@/utils/publicScheduleFilter';
 import { exportSchedule } from '@/utils/schedulePdf';
+import MyLessonsDialog from './MyLessonsDialog';
 import PublicDayList from './PublicDayList';
 import PublicTimeGrid from './PublicTimeGrid';
 
@@ -51,6 +58,32 @@ const buildHeadings = (label: string | null, archiveName: string | null) => {
   return { heading: label, subheading: alreadySaid ? null : archiveName };
 };
 
+/**
+ * Deltagarens val sparas i den egna webbläsaren. Det är en bekvämlighet, inte
+ * något som måste överleva — rensad lagring eller ett privat fönster ger bara
+ * hela schemat igen. Nyckeln är gemensam för alla länkar, så valet följer med
+ * om läraren byter ut länken.
+ */
+const CHOICE_STORAGE_KEY = 'fhsk-schema.mina-lektioner.v1';
+
+const readStoredChoice = (): ParticipantChoice | null => {
+  try {
+    const raw = window.localStorage.getItem(CHOICE_STORAGE_KEY);
+    return raw ? sanitizeChoice(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredChoice = (choice: ParticipantChoice | null) => {
+  try {
+    if (choice) window.localStorage.setItem(CHOICE_STORAGE_KEY, JSON.stringify(choice));
+    else window.localStorage.removeItem(CHOICE_STORAGE_KEY);
+  } catch {
+    // Lagringen kan vara avstängd. Valet gäller då bara tills sidan laddas om.
+  }
+};
+
 type Props = {
   token: string;
   /**
@@ -67,6 +100,20 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
   const [isStale, setIsStale] = useState(false);
   const etagRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
+  const [choice, setChoice] = useState<ParticipantChoice | null>(null);
+  const [isChoiceOpen, setIsChoiceOpen] = useState(false);
+
+  // Läses efter första renderingen, inte i en `useState`-initierare: servern
+  // har ingen lagring, och den första klientrenderingen måste matcha dess.
+  useEffect(() => {
+    setChoice(readStoredChoice());
+  }, []);
+
+  const applyChoice = useCallback((next: ParticipantChoice | null) => {
+    setChoice(next);
+    writeStoredChoice(next);
+    setIsChoiceOpen(false);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (inFlightRef.current) return;
@@ -114,6 +161,11 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
     () => (payload ? mapPlannerActivitiesToSchedule(payload.activities) : []),
     [payload]
   );
+  /** Det som faktiskt visas — hela schemat, eller bara deltagarens lektioner. */
+  const visible = useMemo(
+    () => (choice ? filterForParticipant(schedule, choice) : schedule),
+    [schedule, choice]
+  );
   const resolveColor = useMemo(
     () => createColorResolver(sanitizeColorTriggers(payload?.colorTriggers)),
     [payload]
@@ -125,8 +177,10 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
 
   const exportInput = useMemo<ScheduleExportInput | null>(() => {
     if (!payload?.archiveName) return null;
+    // Bilden visar det man ser på sidan: har man valt sina lektioner är det
+    // dem man vill spara undan, inte hela gruppens schema.
     return {
-      schedule,
+      schedule: visible,
       isVisible: () => true,
       resolveColor,
       resolveRoom,
@@ -137,7 +191,7 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
       exportedAt: parseServerTimestamp(payload.updatedAt) ?? undefined,
       pageMode: 'digital',
     };
-  }, [payload, schedule, resolveColor, resolveRoom]);
+  }, [payload, visible, resolveColor, resolveRoom]);
 
   const [isDownloading, setIsDownloading] = useState(false);
   const handleDownload = useCallback(async () => {
@@ -192,7 +246,44 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
             )}
           </p>
         )}
+
+        {payload.archiveName && (
+          choice ? (
+            <div
+              role="status"
+              className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded border-2 border-black bg-amber-50 px-3 py-2 text-sm"
+            >
+              <span className="inline-flex items-center gap-1.5 font-bold">
+                <Filter size={14} aria-hidden /> Visar dina lektioner: {describeChoice(choice)}
+              </span>
+              <span className="flex gap-3">
+                <button type="button" onClick={() => setIsChoiceOpen(true)} className="font-bold underline underline-offset-2">
+                  Ändra
+                </button>
+                <button type="button" onClick={() => applyChoice(null)} className="font-bold underline underline-offset-2">
+                  Visa hela schemat
+                </button>
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsChoiceOpen(true)}
+              className="mt-3 inline-flex items-center gap-2 rounded border-2 border-black bg-amber-100 px-3 py-2 text-left text-sm font-bold shadow-[3px_3px_0px_black] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_black]"
+            >
+              <Filter size={16} className="shrink-0" aria-hidden />
+              Vill du bara se de lektioner du ska gå på?
+            </button>
+          )
+        )}
       </header>
+
+      <MyLessonsDialog
+        open={isChoiceOpen}
+        onOpenChange={setIsChoiceOpen}
+        current={choice}
+        onChoose={applyChoice}
+      />
 
       {!payload.archiveName ? (
         <Notice title="Inget schema publicerat just nu">
@@ -203,19 +294,19 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
         // Båda ritas och CSS väljer, så ingen vy hoppar vid laddning.
         <>
           <div className="sm:hidden">
-            <PublicDayList entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
+            <PublicDayList entries={visible} resolveColor={resolveColor} resolveRoom={resolveRoom} />
           </div>
           <div className="hidden sm:block">
-            <PublicTimeGrid entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
+            <PublicTimeGrid entries={visible} resolveColor={resolveColor} resolveRoom={resolveRoom} />
           </div>
         </>
       ) : (
-        <PublicTimeGrid entries={schedule} resolveColor={resolveColor} resolveRoom={resolveRoom} />
+        <PublicTimeGrid entries={visible} resolveColor={resolveColor} resolveRoom={resolveRoom} />
       )}
 
       {/* Nedladdningen står sist och diskret. Den är det deltagarna behöver
           minst, och högst upp tog den plats från schemat på en telefon. */}
-      {exportInput && schedule.length > 0 && (
+      {exportInput && visible.length > 0 && (
         <button
           type="button"
           onClick={handleDownload}
