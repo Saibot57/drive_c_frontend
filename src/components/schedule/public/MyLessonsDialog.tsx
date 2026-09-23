@@ -70,7 +70,9 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
           </fieldset>
 
           {/* Kryssrutor, inte radioknappar: någon enstaka läser två kurser.
-              Vilka som får kombineras avgör `toggleMathOption`. */}
+              Vilka som får kombineras avgör `toggleMathOption`. Ingen
+              hjälptext om det — det är så ovanligt att arbetslaget inte vill
+              att deltagarna ska tro att man kan välja två kurser hur som helst. */}
           <fieldset>
             <legend className="mb-2 font-bold">Vilken mattekurs läser du?</legend>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -85,10 +87,6 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
                 />
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-gray-600">
-              Läser du både Matte 1 och Matte 2, välj båda. Läser du ingen matte går du till
-              Studieverkstad när de andra har matte.
-            </p>
           </fieldset>
 
           <div className="flex flex-wrap justify-end gap-2 pt-1">
