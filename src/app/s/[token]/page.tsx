@@ -13,19 +13,11 @@ export const metadata: Metadata = {
   referrer: 'no-referrer',
 };
 
-type PageProps = {
-  params: { token: string };
-  searchParams: { vy?: string | string[] };
-};
-
-export default function PublicSchedulePage({ params, searchParams }: PageProps) {
+export default function PublicSchedulePage({ params }: { params: { token: string } }) {
   return (
     // Rotlayouten har 2rem padding runt allt; på en telefon är det för mycket.
     <div className="-mx-8 -mt-8 px-3 pt-4 sm:px-8 sm:pt-6">
-      <PublicScheduleView
-        token={params.token}
-        variant={searchParams.vy === 'ny' ? 'ny' : undefined}
-      />
+      <PublicScheduleView token={params.token} />
     </div>
   );
 }
