@@ -14,9 +14,9 @@ import { checkOverlap } from '@/utils/scheduleTime';
  *   eftermiddag i v. 40) och går till Studieverkstad under matteblocket — så
  *   har arbetslaget bestämt, det går inte att läsa ut ur schemat.
  *
- * Någon enstaka läser två kurser, oftast Matte 1 och Matte 2. Mattesvaret är
- * därför en lista. Ma Grund och Ma 1 går samtidigt och utesluter varandra;
- * Ma 2 har egna tider och kan läggas till utöver endera. En tom lista betyder
+ * Någon enstaka läser både Matte 1 och Matte 2, så mattesvaret är en lista.
+ * Det är den enda kombinationen som förekommer: Ma Grund och Ma 1 går
+ * samtidigt, och Ma Grund + Ma 2 har arbetslaget spärrat. En tom lista betyder
  * "läser ingen matte".
  *
  * Allt annat — lunch, paus, Onsdagsklubben, och varje pass som läggs till
@@ -120,15 +120,23 @@ const COURSE_ORDER: MathCourse[] = ['grund', '1', '2'];
 const sortCourses = (courses: MathCourse[]) =>
   COURSE_ORDER.filter(course => courses.includes(course));
 
-/** Kurser som går samtidigt och därför inte kan läsas tillsammans. */
-const EXCLUSIVE_COURSES: MathCourse[] = ['grund', '1'];
+/**
+ * Kurspar som får läsas tillsammans. Allt som inte står här byter av varandra.
+ * Ma Grund och Ma 1 går samtidigt; Ma Grund + Ma 2 förekommer inte enligt
+ * arbetslaget, så den kombinationen går inte heller att välja.
+ */
+const COMBINABLE: [MathCourse, MathCourse][] = [['1', '2']];
+
+const canCombine = (a: MathCourse, b: MathCourse) =>
+  COMBINABLE.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 
 /**
  * Nästa mattesvar när man trycker på ett alternativ i dialogen.
  *
  * - "Läser ingen matte" ersätter allt.
  * - En kurs som redan är vald väljs bort.
- * - Ma Grund och Ma 1 byter av varandra; Ma 2 läggs till utöver.
+ * - Matte 1 och Matte 2 kan väljas tillsammans; alla andra kurser byter av
+ *   varandra (se `COMBINABLE`).
  *
  * `null` betyder att frågan inte är besvarad än.
  */
@@ -146,9 +154,7 @@ export const toggleMathOption = (
     return remaining.length > 0 ? remaining : null;
   }
 
-  const kept = EXCLUSIVE_COURSES.includes(option)
-    ? selected.filter(course => !EXCLUSIVE_COURSES.includes(course))
-    : selected;
+  const kept = selected.filter(course => canCombine(course, option));
   return sortCourses([...kept, option]);
 };
 
@@ -183,8 +189,10 @@ export const sanitizeChoice = (input: unknown): ParticipantChoice | null => {
   if (!rawCourses.every(course => COURSE_ORDER.includes(course as MathCourse))) return null;
 
   const courses = sortCourses(rawCourses as MathCourse[]);
-  // Ma Grund och Ma 1 samtidigt kan inte stämma; hellre fråga om än gissa.
-  if (courses.filter(course => EXCLUSIVE_COURSES.includes(course)).length > 1) return null;
+  // En kombination som inte går att välja i dialogen kan inte stämma; hellre
+  // fråga om än gissa vilken av kurserna som gäller.
+  const combinable = courses.every((a, i) => courses.slice(i + 1).every(b => canCombine(a, b)));
+  if (!combinable) return null;
 
   return { tema: tema as TemaClass, math: courses };
 };

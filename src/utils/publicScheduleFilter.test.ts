@@ -96,8 +96,8 @@ const toEntries = (rows: [string, string, string, string][]): ScheduledEntry[] =
 
 const week = toEntries(V40);
 
-/** Alla mattesvar som går att ge i dialogen: en kurs, ingen, eller Ma 2 utöver en annan. */
-const MATH_ANSWERS: MathCourse[][] = [['grund'], ['1'], ['2'], [], ['grund', '2'], ['1', '2']];
+/** Alla mattesvar som går att ge i dialogen: en kurs, ingen, eller Matte 1 + Matte 2. */
+const MATH_ANSWERS: MathCourse[][] = [['grund'], ['1'], ['2'], [], ['1', '2']];
 
 const ALL_CHOICES: ParticipantChoice[] = TEMA_OPTIONS.flatMap(tema =>
   MATH_ANSWERS.map(math => ({ tema: tema.value, math }))
@@ -225,14 +225,20 @@ describe('filterForParticipant på v. 40', () => {
 });
 
 describe('toggleMathOption', () => {
-  it('lägger Ma 2 utöver en annan kurs', () => {
+  it('låter Matte 1 och Matte 2 väljas tillsammans, i vilken ordning som helst', () => {
     expect(toggleMathOption(['1'], '2')).toEqual(['1', '2']);
-    expect(toggleMathOption(['2'], 'grund')).toEqual(['grund', '2']);
+    expect(toggleMathOption(['2'], '1')).toEqual(['1', '2']);
   });
 
   it('låter Ma Grund och Ma 1 byta av varandra, eftersom de går samtidigt', () => {
     expect(toggleMathOption(['grund'], '1')).toEqual(['1']);
-    expect(toggleMathOption(['1', '2'], 'grund')).toEqual(['grund', '2']);
+    expect(toggleMathOption(['1'], 'grund')).toEqual(['grund']);
+  });
+
+  it('spärrar Ma Grund + Ma 2: den senast valda ersätter den andra', () => {
+    expect(toggleMathOption(['2'], 'grund')).toEqual(['grund']);
+    expect(toggleMathOption(['grund'], '2')).toEqual(['2']);
+    expect(toggleMathOption(['1', '2'], 'grund')).toEqual(['grund']);
   });
 
   it('låter "Läser ingen matte" ersätta allt, och en kurs ersätta den', () => {
@@ -271,8 +277,9 @@ describe('sanitizeChoice', () => {
     expect(sanitizeChoice({ tema: 'oliv', math: ['3'] })).toBeNull();
   });
 
-  it('avvisar Ma Grund och Ma 1 tillsammans', () => {
+  it('avvisar kombinationer som inte går att välja', () => {
     expect(sanitizeChoice({ tema: 'oliv', math: ['grund', '1'] })).toBeNull();
+    expect(sanitizeChoice({ tema: 'oliv', math: ['grund', '2'] })).toBeNull();
   });
 });
 
