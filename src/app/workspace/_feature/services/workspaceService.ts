@@ -48,12 +48,24 @@ export const workspaceService = {
     id: string,
     data: Partial<Pick<Surface,
       'name' | 'sort_order' | 'is_archived' | 'viewport_x' | 'viewport_y' | 'viewport_zoom'>>,
+    /** keepalive låter anropet överleva att sidan stängs mitt i det. */
+    options: { keepalive?: boolean } = {},
   ): Promise<Surface> {
     const res = await fetchWithAuth(`${BASE}/surfaces/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+      keepalive: options.keepalive,
     });
     return unwrap<Surface>(res);
+  },
+
+  /** Flikordningen i ett anrop. De öppna ytornas id i den ordning de ska stå. */
+  async reorderSurfaces(surfaceIds: string[]): Promise<Surface[]> {
+    const res = await fetchWithAuth(`${BASE}/surfaces/reorder`, {
+      method: 'POST',
+      body: JSON.stringify({ surface_ids: surfaceIds }),
+    });
+    return unwrap<Surface[]>(res);
   },
 
   async deleteSurface(id: string): Promise<void> {

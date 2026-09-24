@@ -95,6 +95,7 @@ function WorkspaceInner() {
     archiveSurface,
     unarchiveSurface,
     renameSurface,
+    reorderSurfaces,
     deleteSurface,
   } = useWorkspaceData();
 
@@ -746,6 +747,7 @@ function WorkspaceInner() {
         onUnarchiveSurface={unarchiveSurface}
         onDeleteSurface={requestDeleteSurface}
         onRenameSurface={renameSurface}
+        onReorderSurfaces={reorderSurfaces}
         onExportPdf={exportPdf}
         onExportImage={exportImage}
       />
