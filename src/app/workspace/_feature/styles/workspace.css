@@ -195,6 +195,22 @@
   margin-right: 2px;
 }
 
+/* Under en flikdragning: fliken man håller i lyfts ur raden, och ingen
+   annan flik ska reagera på hover medan pekaren passerar. */
+.ws-surface-pill--dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.ws-surface-pill--dragging .ws-surface-pill__tab {
+  cursor: grabbing;
+  transition: none;
+}
+
+.ws-surface-pill__tab--dragging {
+  opacity: 0.55;
+}
+
 /* Namnbytet sker i en input som ärver flikens utseende. Bredden räknas
    ut från textlängden och sätts därför fortfarande inline. */
 .ws-surface-pill__tab--editing {

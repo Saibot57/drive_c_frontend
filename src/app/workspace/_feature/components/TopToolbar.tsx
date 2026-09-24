@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Archive, Search, ArchiveRestore, Trash2, Pencil, Undo2, Download, Image as ImageIcon } from 'lucide-react';
+import { Plus, Archive, Search, ArchiveRestore, Trash2, Pencil, Undo2, Download, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Surface } from '../types/workspace.types';
 import type { SaveStatus } from '../hooks/useWorkspaceSync';
 import SaveIndicator from './SaveIndicator';
+import { moveId } from '../utils/surfaceOrder';
+
+/** Så långt pekaren ska röra sig innan ett klick blir en dragning. */
+const TAB_DRAG_THRESHOLD_PX = 5;
 
 interface TopToolbarProps {
   surfaces: Surface[];
@@ -19,6 +23,8 @@ interface TopToolbarProps {
   onUnarchiveSurface?: (id: string) => void;
   onDeleteSurface?: (id: string) => void;
   onRenameSurface?: (id: string, name: string) => void;
+  /** De öppna ytornas id i den nya ordningen. */
+  onReorderSurfaces?: (orderedIds: string[]) => void;
   onExportPdf?: () => void;
   onExportImage?: (format: 'png' | 'jpeg') => void;
 }
@@ -36,11 +42,72 @@ export default function TopToolbar({
   onUnarchiveSurface,
   onDeleteSurface,
   onRenameSurface,
+  onReorderSurfaces,
   onExportPdf,
   onExportImage,
 }: TopToolbarProps) {
   const activeSurfaces = surfaces.filter((s) => !s.is_archived);
   const archivedSurfaces = surfaces.filter((s) => s.is_archived);
+  const activeIds = activeSurfaces.map((s) => s.id);
+
+  // Flikdragning. Ordningen förhandsvisas lokalt och skickas först vid släpp.
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const tabRefs = useRef(new Map<string, HTMLElement>());
+  // Klicket som följer på en dragning ska inte byta yta.
+  const suppressClick = useRef(false);
+
+  const startTabDrag = (e: React.PointerEvent, surfaceId: string) => {
+    // Mus och penna. På pekskärm skulle det slåss med att scrolla sidan —
+    // där flyttar man i stället via menyn.
+    if (!onReorderSurfaces || e.button !== 0 || e.pointerType === 'touch') return;
+    const startX = e.clientX;
+    const startIds = activeIds;
+    // Flikarnas mittpunkter som de låg när dragningen började. Att mäta om
+    // under dragningen fick flikar av olika bredd att hoppa fram och tillbaka.
+    const mids = startIds
+      .filter((id) => id !== surfaceId)
+      .map((id) => {
+        const r = tabRefs.current.get(id)?.getBoundingClientRect();
+        return r ? r.left + r.width / 2 : 0;
+      });
+    let order: string[] | null = null;
+
+    const move = (ev: PointerEvent) => {
+      if (!order) {
+        if (Math.abs(ev.clientX - startX) < TAB_DRAG_THRESHOLD_PX) return;
+        order = startIds;
+        setDraggingId(surfaceId);
+      }
+      const index = mids.filter((mid) => mid < ev.clientX).length;
+      order = moveId(order, surfaceId, index);
+      setDragOrder(order);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if (order) {
+        suppressClick.current = true;
+        setTimeout(() => { suppressClick.current = false; }, 0);
+        onReorderSurfaces(order);
+      }
+      setDragOrder(null);
+      setDraggingId(null);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+
+  const shiftSurface = (surfaceId: string, delta: number) => {
+    onReorderSurfaces?.(moveId(activeIds, surfaceId, activeIds.indexOf(surfaceId) + delta));
+  };
+
+  const byId = new Map(activeSurfaces.map((s) => [s.id, s]));
+  const tabs = dragOrder
+    ? dragOrder.map((id) => byId.get(id)).filter((s): s is Surface => !!s)
+    : activeSurfaces;
 
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -86,8 +153,8 @@ export default function TopToolbar({
     <div className="ws-toolbar">
       {/* Centered pill selector */}
       <div className="ws-toolbar-center">
-        <div className="ws-surface-pill">
-          {activeSurfaces.map((surface) => (
+        <div className={`ws-surface-pill ${draggingId ? 'ws-surface-pill--dragging' : ''}`}>
+          {tabs.map((surface) => (
             renamingId === surface.id ? (
               <input
                 key={surface.id}
@@ -105,8 +172,16 @@ export default function TopToolbar({
             ) : (
               <button
                 key={surface.id}
-                className={`ws-surface-pill__tab ${surface.id === activeSurfaceId ? 'ws-surface-pill__tab--active' : ''}`}
-                onClick={() => onSurfaceSelect(surface.id)}
+                ref={(el) => {
+                  if (el) tabRefs.current.set(surface.id, el);
+                  else tabRefs.current.delete(surface.id);
+                }}
+                className={`ws-surface-pill__tab ${surface.id === activeSurfaceId ? 'ws-surface-pill__tab--active' : ''} ${surface.id === draggingId ? 'ws-surface-pill__tab--dragging' : ''}`}
+                onPointerDown={(e) => startTabDrag(e, surface.id)}
+                onClick={() => {
+                  if (suppressClick.current) return;
+                  onSurfaceSelect(surface.id);
+                }}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setTabContextMenu({ surfaceId: surface.id, x: e.clientX, y: e.clientY });
@@ -145,6 +220,32 @@ export default function TopToolbar({
             <span className="ws-menu-item__icon"><Pencil size={13} /></span>
             Byt namn
           </button>
+          {onReorderSurfaces && activeIds.length > 1 && (
+            <>
+              <button
+                className="ws-menu-item"
+                disabled={activeIds[0] === tabContextMenu.surfaceId}
+                onClick={() => {
+                  shiftSurface(tabContextMenu.surfaceId, -1);
+                  setTabContextMenu(null);
+                }}
+              >
+                <span className="ws-menu-item__icon"><ChevronLeft size={13} /></span>
+                Flytta vänster
+              </button>
+              <button
+                className="ws-menu-item"
+                disabled={activeIds[activeIds.length - 1] === tabContextMenu.surfaceId}
+                onClick={() => {
+                  shiftSurface(tabContextMenu.surfaceId, 1);
+                  setTabContextMenu(null);
+                }}
+              >
+                <span className="ws-menu-item__icon"><ChevronRight size={13} /></span>
+                Flytta höger
+              </button>
+            </>
+          )}
           <button
             className="ws-menu-item"
             onClick={() => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { usePlannerNotice } from '@/hooks/usePlannerNotice';
 import { useWorkspace } from './WorkspaceContext';
 import { useWorkspaceSync } from './useWorkspaceSync';
@@ -15,7 +15,7 @@ import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent } from '../types/scheduleDay.types';
 import type { HeadingContent } from '../types/heading.types';
 import { DEFAULT_HEADING } from '../components/editors/HeadingEditor';
-import type { ElementType, SurfaceElement, ViewportState } from '../types/workspace.types';
+import type { ElementType, Surface, SurfaceElement, ViewportState } from '../types/workspace.types';
 import type { Point } from './useElementDrag';
 import type { Box } from './useElementResize';
 import {
@@ -36,6 +36,12 @@ import {
   HEADING_INITIAL_HEIGHT,
 } from '../types/constants';
 import { batchBounds, clamp, screenToCanvas, snapToGrid } from '../types/utils';
+import {
+  applySurfaceOrder,
+  pickStartSurface,
+  readLastSurfaceId,
+  writeLastSurfaceId,
+} from '../utils/surfaceOrder';
 
 /** Storlekar som passar innehållet bättre än standardrutan. */
 const SIZE_BY_TYPE: Partial<Record<ElementType, { w: number; h: number }>> = {
@@ -60,6 +66,8 @@ export function useWorkspaceData() {
   const { saveStatus, track } = useWorkspaceSync(showNotice);
   const { pushUndo, undo, clearHistory, canUndo } = useWorkspaceHistory();
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Skrivningen som väntar bakom varje timer, så att den kan skickas i förtid.
+  const pendingWrites = useRef<Record<string, () => void>>({});
 
   // Senaste kända state, för closures som annars skulle läsa en gammal render.
   const stateRef = useRef(state);
@@ -76,14 +84,45 @@ export function useWorkspaceData() {
     delay: number,
   ) => {
     if (timers.current[key]) clearTimeout(timers.current[key]);
-    timers.current[key] = setTimeout(() => { void track(label, fn); }, delay);
+    const run = () => {
+      delete timers.current[key];
+      delete pendingWrites.current[key];
+      void track(label, fn);
+    };
+    pendingWrites.current[key] = run;
+    timers.current[key] = setTimeout(run, delay);
   }, [track]);
+
+  /*
+   * Skickar allt som väntar när sidan göms, stängs eller workspace lämnas.
+   * Annars försvann den sista panoreringen eller skrivningen om fönstret
+   * stängdes inom fördröjningen.
+   */
+  useEffect(() => {
+    const flush = () => {
+      Object.values(timers.current).forEach(clearTimeout);
+      Object.values(pendingWrites.current).forEach((run) => run());
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, []);
 
   // ── Vy ──
 
-  /** Återställer den vy ytan senast lämnades i. */
-  const applyStoredViewport = useCallback((surfaceId: string) => {
-    const surface = stateRef.current.surfaces.find((s) => s.id === surfaceId);
+  /**
+   * Återställer den vy ytan senast lämnades i. Tar ytan och inte ett id: vid
+   * start är listan nyss hämtad och stateRef har inte hunnit få den, så en
+   * uppslagning där hittade ingenting och vyn blev kvar på 0,0 och 100 %.
+   */
+  const applyStoredViewport = useCallback((surface: Surface | undefined) => {
     if (!surface) return;
     dispatch({
       type: 'SET_VIEWPORT',
@@ -107,7 +146,7 @@ export function useWorkspaceData() {
         viewport_x: viewport.panX,
         viewport_y: viewport.panY,
         viewport_zoom: viewport.zoom,
-      }),
+      }, { keepalive: true }),
       DEBOUNCE_VIEWPORT_MS);
     dispatch({
       type: 'UPDATE_SURFACE',
@@ -141,9 +180,10 @@ export function useWorkspaceData() {
 
     if (surfaces.length > 0) {
       if (!stateRef.current.activeSurfaceId) {
-        dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId: surfaces[0].id });
-        applyStoredViewport(surfaces[0].id);
-        await loadSurfaceElements(surfaces[0].id);
+        const start = pickStartSurface(surfaces, readLastSurfaceId()) ?? surfaces[0];
+        dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId: start.id });
+        applyStoredViewport(start);
+        await loadSurfaceElements(start.id);
       }
       return;
     }
@@ -156,13 +196,14 @@ export function useWorkspaceData() {
     if (!surface) return;
     dispatch({ type: 'ADD_SURFACE', surface });
     dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId: surface.id });
+    applyStoredViewport(surface);
     dispatch({ type: 'SET_PLACEMENTS', placements: [] });
   }, [dispatch, loadSurfaceElements, track, applyStoredViewport]);
 
   const selectSurface = useCallback(async (surfaceId: string) => {
     if (surfaceId === stateRef.current.activeSurfaceId) return;
     dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId });
-    applyStoredViewport(surfaceId);
+    applyStoredViewport(stateRef.current.surfaces.find((s) => s.id === surfaceId));
     // Ångra-stacken pekar på element som inte längre syns.
     clearHistory();
     await loadSurfaceElements(surfaceId);
@@ -173,10 +214,45 @@ export function useWorkspaceData() {
     if (!surface) return null;
     dispatch({ type: 'ADD_SURFACE', surface });
     dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId: surface.id });
+    // En ny yta är tom. Utan det här ärvde den vyn från ytan man kom ifrån.
+    applyStoredViewport(surface);
     dispatch({ type: 'SET_PLACEMENTS', placements: [] });
     clearHistory();
     return surface;
-  }, [dispatch, track, clearHistory]);
+  }, [dispatch, track, clearHistory, applyStoredViewport]);
+
+  // Minns ytan per enhet, så att nästa besök öppnar samma flik.
+  useEffect(() => {
+    if (state.activeSurfaceId) writeLastSurfaceId(state.activeSurfaceId);
+  }, [state.activeSurfaceId]);
+
+  /** Ny flikordning. orderedIds är de öppna ytorna i den ordning de ska stå. */
+  const reorderSurfaces = useCallback(async (orderedIds: string[]) => {
+    const previous = stateRef.current.surfaces;
+    const previousIds = previous.filter((s) => !s.is_archived).map((s) => s.id);
+    if (previousIds.join() === orderedIds.join()) return;
+
+    dispatch({ type: 'SET_SURFACES', surfaces: applySurfaceOrder(previous, orderedIds) });
+    const ok = await track('ändra flikordningen', () =>
+      workspaceService.reorderSurfaces(orderedIds),
+    );
+    if (!ok) {
+      dispatch({ type: 'SET_SURFACES', surfaces: previous });
+      return;
+    }
+    pushUndo({
+      label: 'flikordningen',
+      undo: async () => {
+        dispatch({
+          type: 'SET_SURFACES',
+          surfaces: applySurfaceOrder(stateRef.current.surfaces, previousIds),
+        });
+        await track('återställa flikordningen', () =>
+          workspaceService.reorderSurfaces(previousIds),
+        );
+      },
+    });
+  }, [dispatch, track, pushUndo]);
 
   const renameSurface = useCallback(async (surfaceId: string, name: string) => {
     const previous = stateRef.current.surfaces.find((s) => s.id === surfaceId)?.name;
@@ -241,10 +317,11 @@ export function useWorkspaceData() {
     clearHistory();
     if (stateRef.current.activeSurfaceId === surfaceId && remaining.length > 0) {
       dispatch({ type: 'SET_ACTIVE_SURFACE', surfaceId: remaining[0].id });
+      applyStoredViewport(remaining[0]);
       await loadSurfaceElements(remaining[0].id);
     }
     showNotice('Ytan togs bort.', 'success');
-  }, [dispatch, track, loadSurfaces, loadSurfaceElements, clearHistory, showNotice]);
+  }, [dispatch, track, loadSurfaces, loadSurfaceElements, clearHistory, showNotice, applyStoredViewport]);
 
   // ── Biblioteket ──
 
@@ -1118,6 +1195,7 @@ export function useWorkspaceData() {
     selectSurface,
     createSurface,
     renameSurface,
+    reorderSurfaces,
     archiveSurface,
     unarchiveSurface,
     deleteSurface,
