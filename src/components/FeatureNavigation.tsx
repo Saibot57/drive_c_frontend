@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Users, Briefcase, LogOut, LogIn } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -19,34 +19,27 @@ type Feature = {
   label: string;
   href: string;
   icon: typeof Library;
+  /** Siffran i den globala genvägen `Ctrl+Shift+<siffra>`. */
+  shortcut: string;
   /** Ytterligare sökvägar som ska visa den här posten som aktiv. */
   aliases?: readonly string[];
-  /**
-   * Avaktiverad feature: syns inte i menyn och registrerar ingen genväg.
-   * Posten ligger ändå kvar i arrayen, eftersom `Ctrl+Shift+N` härleds ur
-   * index — tar man bort raden numreras alla efterföljande features om.
-   */
-  disabled?: boolean;
 };
 
 /**
- * Ordningen styr de globala genvägarna: `Ctrl+Shift+1..6` härleds ur index
- * nedan (se useHotkeys-anropet). Kastar man om raderna numreras genvägarna om
- * tyst, och `src/config/shortcuts.ts` måste uppdateras i samma veva.
+ * Genvägssiffrorna står utskrivna i stället för att härledas ur ordningen, så
+ * att en post kan läggas till eller tas bort utan att de andra numreras om.
+ * 4 är ledig sedan Familjeschema togs bort. `src/config/shortcuts.ts` visar
+ * samma siffror i hjälpen och måste följa med om de ändras.
  */
 const features: readonly Feature[] = [
-  { label: 'Bibliotek',       href: '/features/bibliotek',          icon: Library   },
+  { label: 'Bibliotek',       href: '/features/bibliotek',          icon: Library,      shortcut: '1' },
   // Schemaplaneraren är startsidan. `/features/schedule` renderar samma sida
   // och behålls för gamla bokmärken, därav aliaset.
-  { label: 'Schema',          href: '/',                            icon: Calendar,
+  { label: 'Schema',          href: '/',                            icon: Calendar,     shortcut: '2',
     aliases: ['/features/schedule'] },
-  { label: 'Temakalender',    href: '/features/temakalender',       icon: PieChart  },
-  // Avaktiverad — routen svarar 404 och posten döljs. Platsen behålls så att
-  // Kalender förblir Ctrl+Shift+5 och Workspace Ctrl+Shift+6.
-  { label: 'Familjeschema',   href: '/features/familjeschema',      icon: Users,
-    disabled: true },
-  { label: 'Kalender',        href: '/features/calendar',           icon: CalendarDays },
-  { label: 'Workspace',       href: '/workspace',                   icon: Briefcase },
+  { label: 'Temakalender',    href: '/features/temakalender',       icon: PieChart,     shortcut: '3' },
+  { label: 'Kalender',        href: '/features/calendar',           icon: CalendarDays, shortcut: '5' },
+  { label: 'Workspace',       href: '/workspace',                   icon: Briefcase,    shortcut: '6' },
 ];
 
 export function FeatureNavigation() {
@@ -58,28 +51,21 @@ export function FeatureNavigation() {
     // Roten får bara matcha exakt — annars vinner den över varje annan sökväg.
     pattern === '/' ? path === '/' : path === pattern || path.startsWith(`${pattern}/`);
 
-  const enabled = features.filter(f => !f.disabled);
-
   const current =
-    enabled.find(
+    features.find(
       f => matches(pathname, f.href) || f.aliases?.some(a => matches(pathname, a)),
-    ) ?? enabled[0];
+    ) ?? features[0];
 
   const Icon = current.icon;
 
   useHotkeys(
-    // Mappa FÖRE filtreringen. Nyckeln kommer ur arrayindex, så filtreras
-    // avaktiverade poster bort först skulle allt efter dem numreras om.
-    features
-      .map((f, i) => ({ f, key: String(i + 1) }))
-      .filter(({ f }) => !f.disabled)
-      .map(({ f, key }) => ({
-        key,
-        ctrl: true,
-        shift: true,
-        handler: () => router.push(f.href),
-        allowInInput: true,
-      })),
+    features.map(f => ({
+      key: f.shortcut,
+      ctrl: true,
+      shift: true,
+      handler: () => router.push(f.href),
+      allowInInput: true,
+    })),
     [router],
   );
 
@@ -104,7 +90,7 @@ export function FeatureNavigation() {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" className="w-52 bg-white">
-          {enabled.map(feature => {
+          {features.map(feature => {
             const FeatureIcon = feature.icon;
             const isActive = feature.href === current.href;
 

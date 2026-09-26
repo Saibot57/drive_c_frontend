@@ -1,7 +1,6 @@
 // Copies the pdf.js worker into public/pdfjs so Next.js serves it as a
-// static asset at /pdfjs/pdf.worker.min.mjs. Mirrors the twemoji approach
-// (see copy-twemoji.cjs) — avoids all the next.config / Turbopack worker
-// headaches and keeps pdfjs-dist out of the Next.js bundler.
+// static asset at /pdfjs/pdf.worker.min.mjs — avoids all the next.config /
+// Turbopack worker headaches and keeps pdfjs-dist out of the Next.js bundler.
 const fs = require('fs');
 const path = require('path');
 
