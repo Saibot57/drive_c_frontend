@@ -7,18 +7,6 @@ export type SwedishDay =
   | 'Lördag'
   | 'Söndag';
 
-export type ActivityImportItem = {
-  name: string;
-  icon?: string;
-  participants: string[];
-  startTime: string;
-  endTime: string;
-  days: SwedishDay[];
-  week: number;
-  year: number;
-  seriesId?: string;
-};
-
 export interface PlannerActivity {
   id: string;
   userId?: string;

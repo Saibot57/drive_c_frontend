@@ -1,15 +1,5 @@
 import type { SwedishDay } from '@/types/schedule';
 
-export const SV_DAYS: SwedishDay[] = [
-  'Måndag',
-  'Tisdag',
-  'Onsdag',
-  'Torsdag',
-  'Fredag',
-  'Lördag',
-  'Söndag',
-];
-
 export const SV_FROM_ISO: Record<number, SwedishDay> = {
   1: 'Måndag',
   2: 'Tisdag',
@@ -41,10 +31,6 @@ export function isoWeekday(input: string | Date): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
   }
   const day = d.getUTCDay();
   return (day === 0 ? 7 : day) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
-}
-
-export function swedishDayFromDate(input: string | Date): SwedishDay {
-  return SV_FROM_ISO[isoWeekday(input)];
 }
 
 export function dateFromISOWeek(
