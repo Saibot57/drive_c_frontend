@@ -16,6 +16,7 @@ import {
   TEACHER_AVAILABILITY_KEY
 } from '@/config/plannerConstants';
 import { useHotkeys } from '@/hooks/useHotkeys';
+import { usePersistentState } from '@/hooks/usePersistentState';
 import { ColorTriggerRule, RoomTriggerRule, TeacherAvailability } from '@/types/schedule';
 import { sanitizeColorTriggers } from '@/utils/colorTriggers';
 import { sanitizeRoomTriggers } from '@/utils/roomTriggers';
@@ -53,64 +54,58 @@ const pruneAvailability = (
   );
 };
 
+const toNameList = (value: unknown): string[] => (
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+);
+
+const NO_NAMES: string[] = [];
+const NO_AVAILABILITY: TeacherAvailability = {};
+const NO_COLOR_TRIGGERS: ColorTriggerRule[] = [];
+const NO_ROOM_TRIGGERS: RoomTriggerRule[] = [];
+
 export const useHiddenSettings = () => {
-  const [teachers, setTeachers] = useState<string[]>([]);
-  const [rooms, setRooms] = useState<string[]>([]);
-  const [teacherAvailability, setTeacherAvailability] = useState<TeacherAvailability>({});
-  const [colorTriggers, setColorTriggers] = useState<ColorTriggerRule[]>([]);
-  const [roomTriggers, setRoomTriggers] = useState<RoomTriggerRule[]>([]);
-  const [planningMinGap, setPlanningMinGap] = useState(DEFAULT_PLANNING_MIN_GAP_MINUTES);
+  const [teachers, persistTeachers] = usePersistentState(TEACHERS_KEY, toNameList, NO_NAMES);
+  const [rooms, persistRooms] = usePersistentState(ROOMS_KEY, toNameList, NO_NAMES);
+  const [teacherAvailability, persistAvailability] = usePersistentState(
+    TEACHER_AVAILABILITY_KEY, sanitizeTeacherAvailability, NO_AVAILABILITY
+  );
+  const [colorTriggers, persistColorTriggers] = usePersistentState(
+    COLOR_TRIGGERS_KEY, sanitizeColorTriggers, NO_COLOR_TRIGGERS
+  );
+  const [roomTriggers, persistRoomTriggers] = usePersistentState(
+    ROOM_TRIGGERS_KEY, sanitizeRoomTriggers, NO_ROOM_TRIGGERS
+  );
+  const [planningMinGap, persistPlanningMinGap] = usePersistentState(
+    PLANNING_MIN_GAP_KEY, sanitizePlanningMinGap, DEFAULT_PLANNING_MIN_GAP_MINUTES
+  );
   /** Titlar som nästa export hoppar över. Töms när exporten är gjord. */
-  const [exportExcludes, setExportExcludes] = useState<string[]>([]);
-  /** Titlar som inte tar emot inklistrade anteckningar. Står kvar över tid. */
-  const [pasteProtect, setPasteProtect] = useState<string[]>(DEFAULT_PASTE_PROTECT);
+  const [exportExcludes, persistExportExcludes] = usePersistentState(
+    EXPORT_EXCLUDE_KEY, sanitizeExcludeList, NO_NAMES
+  );
+  /**
+   * Titlar som inte tar emot inklistrade anteckningar. Står kvar över tid.
+   * Förvalet gäller bara när listan aldrig sparats — en sparad tom lista
+   * betyder att man medvetet stängt av skyddet.
+   */
+  const [pasteProtect, persistPasteProtect] = usePersistentState(
+    PASTE_PROTECT_KEY, sanitizeExcludeList, DEFAULT_PASTE_PROTECT
+  );
   /** Ramens gränser i minuter. `null` = standard. */
-  const [planningStartMinutes, setPlanningStartMinutes] = useState<number | null>(null);
-  const [planningEndMinutes, setPlanningEndMinutes] = useState<number | null>(null);
+  const [planningStartMinutes, persistPlanningStart] = usePersistentState(
+    PLANNING_START_TIME_KEY, sanitizePlanningTime, null
+  );
+  const [planningEndMinutes, persistPlanningEnd] = usePersistentState(
+    PLANNING_END_TIME_KEY, sanitizePlanningTime, null
+  );
   const [isHiddenSettingsOpen, setIsHiddenSettingsOpen] = useState(false);
   /**
    * Blir sann när localStorage lästs. Före dess är alla listor tomma för att
    * inget lästs än, inte för att användaren tömt dem — och den som speglar
-   * inställningarna någon annanstans måste kunna skilja på de två.
+   * inställningarna någon annanstans måste kunna skilja på de två. Effekten
+   * står efter inställningarna, så den körs när de redan lästs.
    */
   const [isLoaded, setIsLoaded] = useState(false);
-
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const storedTeachers = window.localStorage.getItem(TEACHERS_KEY);
-      const storedRooms = window.localStorage.getItem(ROOMS_KEY);
-      const storedAvailability = window.localStorage.getItem(TEACHER_AVAILABILITY_KEY);
-      const storedTriggers = window.localStorage.getItem(COLOR_TRIGGERS_KEY);
-      const storedRoomTriggers = window.localStorage.getItem(ROOM_TRIGGERS_KEY);
-      const storedMinGap = window.localStorage.getItem(PLANNING_MIN_GAP_KEY);
-      const storedExcludes = window.localStorage.getItem(EXPORT_EXCLUDE_KEY);
-      const storedProtect = window.localStorage.getItem(PASTE_PROTECT_KEY);
-      const storedStart = window.localStorage.getItem(PLANNING_START_TIME_KEY);
-      const storedEnd = window.localStorage.getItem(PLANNING_END_TIME_KEY);
-      const parsedTeachers = storedTeachers ? JSON.parse(storedTeachers) : [];
-      const parsedRooms = storedRooms ? JSON.parse(storedRooms) : [];
-      setTeachers(Array.isArray(parsedTeachers) ? parsedTeachers.filter(item => typeof item === 'string') : []);
-      setRooms(Array.isArray(parsedRooms) ? parsedRooms.filter(item => typeof item === 'string') : []);
-      setTeacherAvailability(
-        sanitizeTeacherAvailability(storedAvailability ? JSON.parse(storedAvailability) : {})
-      );
-      setColorTriggers(sanitizeColorTriggers(storedTriggers ? JSON.parse(storedTriggers) : []));
-      setRoomTriggers(sanitizeRoomTriggers(storedRoomTriggers ? JSON.parse(storedRoomTriggers) : []));
-      setPlanningMinGap(sanitizePlanningMinGap(storedMinGap ? JSON.parse(storedMinGap) : undefined));
-      setExportExcludes(sanitizeExcludeList(storedExcludes ? JSON.parse(storedExcludes) : []));
-      // `null` betyder att listan aldrig rörts och ska ha förvalet. En sparad
-      // tom lista är något annat — då har man medvetet stängt av skyddet.
-      setPasteProtect(
-        storedProtect === null
-          ? DEFAULT_PASTE_PROTECT
-          : sanitizeExcludeList(JSON.parse(storedProtect))
-      );
-      setPlanningStartMinutes(sanitizePlanningTime(storedStart ? JSON.parse(storedStart) : null));
-      setPlanningEndMinutes(sanitizePlanningTime(storedEnd ? JSON.parse(storedEnd) : null));
-    } catch (error) {
-      console.warn('Kunde inte läsa lärare/salar.', error);
-    }
     setIsLoaded(true);
   }, []);
 
@@ -119,92 +114,15 @@ export const useHiddenSettings = () => {
     [],
   );
 
-  const persistAvailability = useCallback((next: TeacherAvailability) => {
-    setTeacherAvailability(next);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(TEACHER_AVAILABILITY_KEY, JSON.stringify(next));
-    } catch (error) {
-      console.warn('Kunde inte spara lärartillgänglighet.', error);
-    }
-  }, []);
-
-  const persistColorTriggers = useCallback((next: ColorTriggerRule[]) => {
-    setColorTriggers(next);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(COLOR_TRIGGERS_KEY, JSON.stringify(next));
-    } catch (error) {
-      console.warn('Kunde inte spara färgregler.', error);
-    }
-  }, []);
-
-  const persistRoomTriggers = useCallback((next: RoomTriggerRule[]) => {
-    setRoomTriggers(next);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(ROOM_TRIGGERS_KEY, JSON.stringify(next));
-    } catch (error) {
-      console.warn('Kunde inte spara salsregler.', error);
-    }
-  }, []);
-
-  const persistPlanningMinGap = useCallback((next: unknown) => {
-    const minutes = sanitizePlanningMinGap(next);
-    setPlanningMinGap(minutes);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(PLANNING_MIN_GAP_KEY, JSON.stringify(minutes));
-    } catch (error) {
-      console.warn('Kunde inte spara planeringströskeln.', error);
-    }
-  }, []);
-
-  const persistExportExcludes = useCallback((next: unknown) => {
-    const titles = sanitizeExcludeList(next);
-    setExportExcludes(titles);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(EXPORT_EXCLUDE_KEY, JSON.stringify(titles));
-    } catch (error) {
-      console.warn('Kunde inte spara uteslutningslistan.', error);
-    }
-  }, []);
-
-  const persistPasteProtect = useCallback((next: unknown) => {
-    const titles = sanitizeExcludeList(next);
-    setPasteProtect(titles);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(PASTE_PROTECT_KEY, JSON.stringify(titles));
-    } catch (error) {
-      console.warn('Kunde inte spara den skyddade listan.', error);
-    }
-  }, []);
-
-  const persistPlanningFrame = useCallback((nextStart: unknown, nextEnd: unknown) => {
-    const start = sanitizePlanningTime(nextStart);
-    const end = sanitizePlanningTime(nextEnd);
-    setPlanningStartMinutes(start);
-    setPlanningEndMinutes(end);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(PLANNING_START_TIME_KEY, JSON.stringify(start));
-      window.localStorage.setItem(PLANNING_END_TIME_KEY, JSON.stringify(end));
-    } catch (error) {
-      console.warn('Kunde inte spara planeringsramen.', error);
-    }
-  }, []);
+  const applyPlanningFrame = useCallback((nextStart: unknown, nextEnd: unknown) => {
+    persistPlanningStart(nextStart);
+    persistPlanningEnd(nextEnd);
+  }, [persistPlanningStart, persistPlanningEnd]);
 
   /** Körs när en export är gjord: listan gäller bara nästa export. */
   const clearExportExcludes = useCallback(() => {
     persistExportExcludes([]);
   }, [persistExportExcludes]);
-
-  /** Används när ett schema importeras från JSON. */
-  const applyTeacherAvailability = useCallback((next: unknown) => {
-    persistAvailability(sanitizeTeacherAvailability(next));
-  }, [persistAvailability]);
 
   /**
    * Sätter listorna vid import utan att röra spärrarna. Skiljer sig från
@@ -212,63 +130,30 @@ export const useHiddenSettings = () => {
    * lärarlistan, vilket vid en import skulle slänga precis det som importeras.
    */
   const applyTeachersAndRooms = useCallback((nextTeachers: unknown, nextRooms: unknown) => {
-    const toNameList = (value: unknown) => (
-      Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-    );
-    const teacherList = toNameList(nextTeachers);
-    const roomList = toNameList(nextRooms);
-    setTeachers(teacherList);
-    setRooms(roomList);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(TEACHERS_KEY, JSON.stringify(teacherList));
-      window.localStorage.setItem(ROOMS_KEY, JSON.stringify(roomList));
-    } catch (error) {
-      console.warn('Kunde inte spara lärare/salar.', error);
-    }
-  }, []);
-
-  const applyColorTriggers = useCallback((next: unknown) => {
-    persistColorTriggers(sanitizeColorTriggers(next));
-  }, [persistColorTriggers]);
-
-  const applyRoomTriggers = useCallback((next: unknown) => {
-    persistRoomTriggers(sanitizeRoomTriggers(next));
-  }, [persistRoomTriggers]);
-
-  const applyPlanningMinGap = useCallback((next: unknown) => {
-    persistPlanningMinGap(next);
-  }, [persistPlanningMinGap]);
-
-  const applyPlanningFrame = useCallback((nextStart: unknown, nextEnd: unknown) => {
-    persistPlanningFrame(nextStart, nextEnd);
-  }, [persistPlanningFrame]);
+    persistTeachers(nextTeachers);
+    persistRooms(nextRooms);
+  }, [persistTeachers, persistRooms]);
 
   const handleHiddenSettingsSave = useCallback((next: HiddenSettingsDraft) => {
-    setTeachers(next.teachers);
-    setRooms(next.rooms);
+    persistTeachers(next.teachers);
+    persistRooms(next.rooms);
     persistAvailability(pruneAvailability(next.teacherAvailability, next.teachers));
-    persistColorTriggers(sanitizeColorTriggers(next.colorTriggers));
-    persistRoomTriggers(sanitizeRoomTriggers(next.roomTriggers));
+    persistColorTriggers(next.colorTriggers);
+    persistRoomTriggers(next.roomTriggers);
     persistPlanningMinGap(next.planningMinGap);
     persistExportExcludes(next.exportExcludes);
     persistPasteProtect(next.pasteProtect);
-    persistPlanningFrame(next.planningStartMinutes, next.planningEndMinutes);
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(TEACHERS_KEY, JSON.stringify(next.teachers));
-      window.localStorage.setItem(ROOMS_KEY, JSON.stringify(next.rooms));
-    } catch (error) {
-      console.warn('Kunde inte spara lärare/salar.', error);
-    }
+    applyPlanningFrame(next.planningStartMinutes, next.planningEndMinutes);
   }, [
+    persistTeachers,
+    persistRooms,
     persistAvailability,
     persistColorTriggers,
     persistRoomTriggers,
+    persistPlanningMinGap,
     persistExportExcludes,
     persistPasteProtect,
-    persistPlanningFrame,
-    persistPlanningMinGap
+    applyPlanningFrame
   ]);
 
   return {
@@ -283,11 +168,12 @@ export const useHiddenSettings = () => {
     planningStartMinutes,
     planningEndMinutes,
     isLoaded,
-    applyTeacherAvailability,
+    /** Används när ett schema importeras från JSON. */
+    applyTeacherAvailability: persistAvailability,
     applyTeachersAndRooms,
-    applyColorTriggers,
-    applyRoomTriggers,
-    applyPlanningMinGap,
+    applyColorTriggers: persistColorTriggers,
+    applyRoomTriggers: persistRoomTriggers,
+    applyPlanningMinGap: persistPlanningMinGap,
     applyPlanningFrame,
     clearExportExcludes,
     isHiddenSettingsOpen,
