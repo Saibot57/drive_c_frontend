@@ -229,6 +229,67 @@ export const freeWeeksInParent = (
   return free;
 };
 
+/**
+ * Ändrar ett block och håller reglerna för hjulet. Returnerar samma lista när
+ * ändringen inte gör något eller inte är tillåten, annars en ny.
+ *
+ * - Ett delområde hålls inom sin förälder, ärver dess ring och får inte lägga
+ *   sig över ett syskon. Krockar det avbryts ändringen helt, hellre än att två
+ *   delområden ritas ovanpå varandra.
+ * - Milstolpen följer med när blocket flyttas och dras in när det krymper.
+ * - Flyttas ett arbetsområde följer dess delområden med lika långt, och krymps
+ *   det dras de in innanför den nya kanten.
+ */
+export const applyBlockPatch = (
+  blocks: ThemeBlock[],
+  instanceId: string,
+  patch: Partial<ThemeBlock>
+): ThemeBlock[] => {
+  const current = blocks.find(block => block.instanceId === instanceId);
+  if (!current) return blocks;
+  const unchanged = Object.entries(patch)
+    .every(([key, value]) => current[key as keyof ThemeBlock] === value);
+  if (unchanged) return blocks;
+
+  const next = { ...current, ...patch };
+
+  if (next.parentId) {
+    const parent = blocks.find(block => block.instanceId === next.parentId);
+    if (parent) {
+      const clamp = (week: number) => Math.min(Math.max(week, parent.startWeek), parent.endWeek);
+      next.startWeek = clamp(next.startWeek);
+      next.endWeek = clamp(next.endWeek);
+      next.ring = undefined;
+
+      const free = new Set(freeWeeksInParent(blocks, parent, instanceId));
+      for (let week = next.startWeek; week <= next.endWeek; week++) {
+        if (!free.has(week)) return blocks;
+      }
+    }
+  }
+
+  const shift = next.startWeek - current.startWeek;
+
+  if (next.milestone) {
+    const moved = next.milestone.week + shift;
+    next.milestone = {
+      ...next.milestone,
+      week: Math.min(Math.max(moved, next.startWeek), next.endWeek),
+    };
+  }
+
+  const spanMoved = shift !== 0 || next.endWeek !== current.endWeek;
+
+  return blocks.map(block => {
+    if (block.instanceId === instanceId) return next;
+    if (block.parentId !== instanceId || !spanMoved) return block;
+    const clamp = (week: number) => Math.min(Math.max(week, next.startWeek), next.endWeek);
+    const start = clamp(block.startWeek + shift);
+    const end = clamp(block.endWeek + shift);
+    return { ...block, startWeek: Math.min(start, end), endWeek: Math.max(start, end) };
+  });
+};
+
 /** Antal arbetsveckor per arbetsområde, lov borträknat. Underlag för statistik. */
 export const weeksPerArea = (
   blocks: ThemeBlock[],
