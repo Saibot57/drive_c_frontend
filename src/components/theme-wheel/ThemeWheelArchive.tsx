@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ThemeWheelSummary } from '@/types/themeWheel';
 import { isoWeekYear } from '@/utils/dateSv';
-import { MAX_START_WEEK, MIN_START_WEEK } from '@/components/theme-wheel/constants';
+import { MAX_START_WEEK, MIN_START_WEEK } from '@/config/themeWheelConstants';
 
 type DuplicateState = { id: string; name: string; startWeek: number; startYear: number };
 type ShareState = { id: string; name: string; recipient: string };

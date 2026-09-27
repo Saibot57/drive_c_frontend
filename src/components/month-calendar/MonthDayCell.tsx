@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import type { CalendarDayData, Highlight } from '@/services/monthCalendarService';
 import type { DayCell } from '@/utils/calendarDates';
 import { formatSwedishDateShort } from '@/utils/calendarDates';
-import { HIGHLIGHT_ALPHA, HIGHLIGHT_HEX, HIGHLIGHT_LABEL, withAlpha } from './constants';
+import { HIGHLIGHT_ALPHA, HIGHLIGHT_HEX, HIGHLIGHT_LABEL, withAlpha } from '@/config/monthCalendarConstants';
 import type { HighlighterMode } from './types';
 
 interface Props {

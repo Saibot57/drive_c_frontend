@@ -1,5 +1,3 @@
-import type { HighlightColor } from '@/services/monthCalendarService';
-
 /**
  * Highlighter-verktygets läge.
  *
@@ -8,7 +6,3 @@ import type { HighlightColor } from '@/services/monthCalendarService';
  */
 export type HighlighterMode = 'off' | 'paint' | 'erase';
 
-export interface HighlighterState {
-  mode: HighlighterMode;
-  activeColor: HighlightColor;
-}

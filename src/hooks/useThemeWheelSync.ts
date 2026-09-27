@@ -4,12 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ThemeArea, ThemeBlock, ThemeWheel, ThemeWheelSummary } from '@/types/themeWheel';
 import { themeWheelService } from '@/services/themeWheelService';
 import { isoWeekYear } from '@/utils/dateSv';
-import { AUTOSAVE_DELAY_MS } from '@/components/schedule/constants';
+import { AUTOSAVE_DELAY_MS } from '@/config/plannerConstants';
 import {
   ACTIVE_THEME_WHEEL_KEY,
   DEFAULT_WEEK_COUNT,
   THEME_WHEEL_DRAFT_KEY,
-} from '@/components/theme-wheel/constants';
+} from '@/config/themeWheelConstants';
 
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 export type LoadStatus = 'loading' | 'loaded' | 'error';

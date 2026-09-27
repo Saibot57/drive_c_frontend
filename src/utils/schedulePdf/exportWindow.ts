@@ -1,7 +1,7 @@
 /**
  * Hur högt schemat är i filen.
  *
- * Ersätter `computeClipHeightPx` i `useScheduleExport.ts`. Två skillnader som
+ * Ersatte `computeClipHeightPx` i den borttagna `useScheduleExport.ts`. Två skillnader som
  * spelar roll:
  *
  * 1. Den räknar i minuter och lämnar px-matematiken till scenen, i stället för

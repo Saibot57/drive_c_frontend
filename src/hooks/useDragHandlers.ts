@@ -5,7 +5,7 @@ import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/c
 import { v4 as uuidv4 } from 'uuid';
 import { GhostPlacement } from '@/types/plannerUI';
 import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
-import { PlacementCandidate, PlacementVerdict } from '@/utils/scheduleRules';
+import { PlacementCandidate, PlacementVerdict, reportPlacementVerdict } from '@/utils/scheduleRules';
 import { END_HOUR, minutesToTime, PIXELS_PER_MINUTE, snapTime, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
 
 type UseDragHandlersParams = {
@@ -154,20 +154,14 @@ export const useDragHandlers = ({
     if (type === 'course') {
       const course = active.data.current?.course as PlannerCourse;
 
-      const { blocked, warning } = validatePlacement({
+      const verdict = validatePlacement({
         title: course.title,
         teacher: course.teacher,
         day: computed.targetDay,
         startTime: computed.newStartTime,
         endTime: computed.newEndTime
       });
-      if (blocked) {
-        showNotice(blocked, 'error');
-        return;
-      }
-      if (warning) {
-        showNotice(warning, 'warning');
-      }
+      if (!reportPlacementVerdict(verdict, showNotice)) return;
 
       const newEntry: ScheduledEntry = {
         ...course,
@@ -187,7 +181,7 @@ export const useDragHandlers = ({
     if (type === 'scheduled') {
       const entry = active.data.current?.entry as ScheduledEntry;
 
-      const { blocked, warning } = validatePlacement({
+      const verdict = validatePlacement({
         title: entry.title,
         teacher: entry.teacher,
         day: computed.targetDay,
@@ -195,13 +189,7 @@ export const useDragHandlers = ({
         endTime: computed.newEndTime,
         instanceId: entry.instanceId
       });
-      if (blocked) {
-        showNotice(blocked, 'error');
-        return;
-      }
-      if (warning) {
-        showNotice(warning, 'warning');
-      }
+      if (!reportPlacementVerdict(verdict, showNotice)) return;
 
       commitSchedule(prev => prev.map(existing =>
         existing.instanceId === entry.instanceId

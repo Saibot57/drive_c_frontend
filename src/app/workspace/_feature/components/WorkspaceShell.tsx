@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ACTIVE_THEME_WHEEL_KEY } from '@/components/theme-wheel/constants';
+import { ACTIVE_THEME_WHEEL_KEY } from '@/config/themeWheelConstants';
 import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, SquarePen, EyeOff, StretchHorizontal, Clock, RefreshCw, Unlink, ExternalLink } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -31,6 +31,7 @@ import type { ScheduleDayContent } from '../types/scheduleDay.types';
 import type { WheelPartMode } from '../utils/wheelExplode';
 import type { Point } from '../hooks/useElementDrag';
 import type { PlannerActivity } from '@/types/schedule';
+import { isEditableElement } from '@/utils/dom';
 // sp-root bär de delade neobrutalistiska tokens som schemat och temakalendern
 // använder. Workspace läser dem i sina egna --ws-*-variabler, så att en ändring
 // i det gemensamma temat slår igenom här utan att den här filen rörs.
@@ -58,7 +59,6 @@ function WorkspaceInner() {
     dispatch,
     plannerNotice,
     showNotice,
-    dismissNotice,
     saveStatus,
     canUndo,
     handleUndo,
@@ -449,12 +449,7 @@ function WorkspaceInner() {
       if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
       const key = e.key.toLowerCase();
       if (key !== 'c' && key !== 'v') return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
-         target.tagName === 'SELECT' || target.isContentEditable)
-      ) return;
+      if (isEditableElement(e.target)) return;
 
       if (key === 'c') {
         // Markerad text vinner alltid.
@@ -782,7 +777,6 @@ function WorkspaceInner() {
           onViewportChange={handleViewportChange}
           placements={state.placements}
           elements={state.elements}
-          selectedElementId={state.selectedElementId}
           onSelectElement={handleSelectElement}
           viewportRef={viewportRef}
           onMarqueeSelect={handleMarqueeSelect}

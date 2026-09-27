@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ThemeArea, ThemeBlock, ThemeWheel as ThemeWheelData } from '@/types/themeWheel';
 import {
-  buildRingLayout, childrenOf, freeWeeksInParent, hostBlockAt, weeksPerArea,
+  applyBlockPatch, buildRingLayout, childrenOf, freeWeeksInParent, hostBlockAt, weeksPerArea,
 } from '@/utils/themeWheelLayout';
 import { buildWheelMetrics } from '@/utils/themeWheelGeometry';
 import { buildWheelWeeks } from '@/utils/themeWheelWeeks';
@@ -21,9 +21,8 @@ import {
   isDerivedArea,
   mergeAreas,
 } from '@/utils/themeWheelAreas';
-import { generateBoxColor } from '@/config/colorManagement';
 import { deriveChildColor } from '@/utils/readableTextColor';
-import { useThemeWheelHistory } from '@/hooks/useThemeWheelHistory';
+import { useUndoableState } from '@/hooks/useUndoableState';
 import { useThemeWheelSync } from '@/hooks/useThemeWheelSync';
 import { parseWheelFile, useThemeWheelExport } from '@/hooks/useThemeWheelExport';
 import { useWheelInteraction } from '@/hooks/useWheelInteraction';
@@ -33,7 +32,7 @@ import { ThemeWheel } from '@/components/theme-wheel/ThemeWheel';
 import { AreaLibraryCard } from '@/components/theme-wheel/AreaLibraryCard';
 import { ThemeWheelModals } from '@/components/theme-wheel/ThemeWheelModals';
 import { ThemeWheelArchive } from '@/components/theme-wheel/ThemeWheelArchive';
-import { DEFAULT_AREA_COLOR, EMPTY_WHEEL } from '@/components/theme-wheel/constants';
+import { DEFAULT_AREA_COLOR, EMPTY_WHEEL } from '@/config/themeWheelConstants';
 import '@/styles/schedule-theme.css';
 import '@/styles/theme-wheel.css';
 
@@ -43,7 +42,7 @@ type ContextMenuState =
 
 export default function ThemeWheelPlanner() {
   const { plannerNotice, showNotice } = usePlannerNotice();
-  const { wheel, commit, undo } = useThemeWheelHistory(EMPTY_WHEEL);
+  const { value: wheel, commit, undo } = useUndoableState(EMPTY_WHEEL, { redo: true });
   const svgRef = useRef<SVGSVGElement>(null);
 
   const [manualAreas, setManualAreas] = useState<ThemeArea[]>([]);
@@ -199,66 +198,8 @@ export default function ThemeWheelPlanner() {
 
   const handleUpdateBlock = useCallback((instanceId: string, patch: Partial<ThemeBlock>) => {
     commit(prev => {
-      const current = prev.blocks.find(block => block.instanceId === instanceId);
-      if (!current) return prev;
-      const unchanged = Object.entries(patch)
-        .every(([key, value]) => current[key as keyof ThemeBlock] === value);
-      if (unchanged) return prev;
-
-      const next = { ...current, ...patch };
-
-      // Ett delområde hålls inom sin förälder, ärver dess ring och får inte
-      // lägga sig över ett syskon. Krockar det avbryts ändringen helt hellre
-      // än att två delområden ritas ovanpå varandra.
-      if (next.parentId) {
-        const parent = prev.blocks.find(block => block.instanceId === next.parentId);
-        if (parent) {
-          const clamp = (week: number) => (
-            Math.min(Math.max(week, parent.startWeek), parent.endWeek)
-          );
-          next.startWeek = clamp(next.startWeek);
-          next.endWeek = clamp(next.endWeek);
-          next.ring = undefined;
-
-          const taken = new Set<number>();
-          prev.blocks
-            .filter(block => block.parentId === parent.instanceId && block.instanceId !== instanceId)
-            .forEach(sibling => {
-              for (let week = sibling.startWeek; week <= sibling.endWeek; week++) taken.add(week);
-            });
-          for (let week = next.startWeek; week <= next.endWeek; week++) {
-            if (taken.has(week)) return prev;
-          }
-        }
-      }
-
-      // Milstolpen hör ihop med sitt block. Flyttas blocket följer den med lika
-      // långt; krymps blocket dras den in till närmaste ände i stället.
-      if (next.milestone) {
-        const shift = next.startWeek - current.startWeek;
-        const moved = next.milestone.week + shift;
-        next.milestone = {
-          ...next.milestone,
-          week: Math.min(Math.max(moved, next.startWeek), next.endWeek),
-        };
-      }
-
-      // Flyttas ett arbetsområde följer dess delområden med lika långt, och
-      // krymps det dras de in innanför den nya kanten.
-      const shift = next.startWeek - current.startWeek;
-      const spanMoved = shift !== 0 || next.endWeek !== current.endWeek;
-
-      return {
-        ...prev,
-        blocks: prev.blocks.map(block => {
-          if (block.instanceId === instanceId) return next;
-          if (block.parentId !== instanceId || !spanMoved) return block;
-          const clamp = (week: number) => Math.min(Math.max(week, next.startWeek), next.endWeek);
-          const start = clamp(block.startWeek + shift);
-          const end = clamp(block.endWeek + shift);
-          return { ...block, startWeek: Math.min(start, end), endWeek: Math.max(start, end) };
-        }),
-      };
+      const blocks = applyBlockPatch(prev.blocks, instanceId, patch);
+      return blocks === prev.blocks ? prev : { ...prev, blocks };
     });
   }, [commit]);
 

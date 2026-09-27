@@ -22,7 +22,3 @@ export interface PdfContent {
   /** Last viewed page — persisted so the reader reopens on the same spot. */
   page?: number;
 }
-
-export const EMPTY_PDF_CONTENT: PdfContent = {
-  source: null,
-};

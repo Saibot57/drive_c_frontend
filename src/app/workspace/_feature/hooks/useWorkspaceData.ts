@@ -1056,15 +1056,6 @@ export function useWorkspaceData() {
     );
     if (!result) return;
 
-    // Backend låser alltid en ny placering. En kopia är ett nytt kort som man
-    // oftast vill jobba vidare i, så den låses upp direkt. Speglingen lämnas
-    // som den är.
-    if (mode === 'copy') {
-      await track('låsa upp kopian', () =>
-        workspaceService.updatePlacement(result.id, { is_locked: false }));
-      result.is_locked = false;
-    }
-
     if (stateRef.current.activeSurfaceId === targetSurfaceId) {
       dispatch({ type: 'ADD_PLACEMENT', placement: result });
       if (result.element) dispatch({ type: 'SET_ELEMENT', element: result.element });
@@ -1128,16 +1119,9 @@ export function useWorkspaceData() {
       const title = copy?.type === 'heading'
         ? (copy.content as HeadingContent)?.text?.trim() || 'Rubrik'
         : COPY_NAMES[item.type];
-      // Namnbyte och upplåsning är oberoende av varandra och körs samtidigt.
-      // Backend låser alltid en ny placering; kopian ska gå att jobba i direkt.
-      await Promise.all([
-        copy
-          ? track('byta namn på kopian', () => workspaceService.updateElement(copy.id, { title }))
-          : null,
-        track('låsa upp kopian', () =>
-          workspaceService.updatePlacement(result.id, { is_locked: false })),
-      ]);
-      result.is_locked = false;
+      if (copy) {
+        await track('byta namn på kopian', () => workspaceService.updateElement(copy.id, { title }));
+      }
 
       created.push({ elementId: result.element_id, placementId: result.id });
       // Byter man yta mitt i en lång inklistring hör resten inte hemma i vyn.

@@ -106,36 +106,6 @@ export const plannerService = {
     return normalizePlannerSyncResponse(payload);
   },
 
-  async deletePlannerActivity(id: string): Promise<void> {
-    const response = await fetchWithAuth(`${PLANNER_API_URL}/${id}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      throw new Error('Kunde inte ta bort planeringsaktivitet.');
-    }
-  },
-
-  async savePlannerArchive(name: string, activities: PlannerActivity[]): Promise<PlannerActivity[]> {
-    const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`, {
-      method: 'POST',
-      body: JSON.stringify({ archiveName: name, activities }),
-    });
-    if (!response.ok) {
-      throw new Error('Kunde inte spara planeringsarkiv.');
-    }
-    const payload = await response.json();
-    if (Array.isArray(payload?.data?.activities)) {
-      return payload.data.activities as PlannerActivity[];
-    }
-    if (Array.isArray(payload?.data)) {
-      return payload.data as PlannerActivity[];
-    }
-    if (Array.isArray(payload)) {
-      return payload as PlannerActivity[];
-    }
-    return [];
-  },
-
   async getPlannerArchive(name: string): Promise<PlannerActivity[]> {
     const response = await fetchWithAuth(
       `${PLANNER_API_URL}/activities?archive_name=${encodeURIComponent(name)}`,
@@ -151,16 +121,6 @@ export const plannerService = {
       return payload as PlannerActivity[];
     }
     return [];
-  },
-
-  async deletePlannerArchive(name: string): Promise<void> {
-    const response = await fetchWithAuth(
-      `${PLANNER_API_URL}/activities?archive_name=${encodeURIComponent(name)}`,
-      { method: 'DELETE' },
-    );
-    if (!response.ok) {
-      throw new Error('Kunde inte ta bort planeringsarkiv.');
-    }
   },
 
   /**

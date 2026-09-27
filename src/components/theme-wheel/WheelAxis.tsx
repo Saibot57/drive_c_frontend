@@ -19,7 +19,7 @@ import {
   WHEEL_GUIDE_STROKE,
   WHEEL_STROKE,
   WHEEL_STROKE_WIDTH,
-} from '@/components/theme-wheel/constants';
+} from '@/config/themeWheelConstants';
 
 type WheelAxisProps = {
   weeks: WheelWeek[];

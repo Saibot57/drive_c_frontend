@@ -2,7 +2,7 @@
 
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
-import { END_HOUR, EVENT_GAP_PX, PIXELS_PER_MINUTE, SNAP_MINUTES, START_HOUR } from '@/utils/scheduleTime';
+import { clampToGrid, END_HOUR, EVENT_GAP_PX, PIXELS_PER_MINUTE, SNAP_MINUTES, START_HOUR } from '@/utils/scheduleTime';
 
 /** Ramens läge i rullningsytans egna koordinater, inte skärmens. */
 export type MarqueeRect = { left: number; top: number; width: number; height: number };
@@ -45,8 +45,6 @@ type UseNotesMarqueeOptions = {
   /** Kallas när ramen bekräftas, med instans-id:n som ramen nuddade. */
   onSelect: (instanceIds: string[]) => void;
 };
-
-const clampMinutes = (value: number) => Math.min(Math.max(value, START_HOUR * 60), END_HOUR * 60);
 
 /** Två uppsättningar id:n som betyder samma markering. */
 const sameSelection = (a: string[], b: Set<string>) => (
@@ -226,8 +224,8 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
       ? {
           anchorX: column.left,
           cursorX: column.right,
-          anchorMinutes: clampMinutes(seed.startMinutes),
-          cursorMinutes: clampMinutes(seed.endMinutes),
+          anchorMinutes: clampToGrid(seed.startMinutes),
+          cursorMinutes: clampToGrid(seed.endMinutes),
         }
       : null);
     setIsActive(true);
@@ -293,7 +291,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     stepUntilChanged(
       candidates,
       direction === 1 ? END_HOUR * 60 : START_HOUR * 60,
-      value => ({ ...prev, cursorMinutes: clampMinutes(value) })
+      value => ({ ...prev, cursorMinutes: clampToGrid(value) })
     );
   }, [measureColumns, stepUntilChanged]);
 
@@ -340,7 +338,7 @@ export function useNotesMarquee({ containerRef, onSelect }: UseNotesMarqueeOptio
     if (!prev) return;
 
     if (patch.minutes) {
-      applyRange({ ...prev, cursorMinutes: clampMinutes(prev.cursorMinutes + patch.minutes) });
+      applyRange({ ...prev, cursorMinutes: clampToGrid(prev.cursorMinutes + patch.minutes) });
       return;
     }
     if (!patch.days) return;

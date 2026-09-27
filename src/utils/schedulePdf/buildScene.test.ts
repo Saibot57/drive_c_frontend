@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import { ScheduleExportInput } from '@/types/scheduleExport';
 import { buildScene } from './buildScene';
 import { entry, fakeMeasurer, input, normalWeek, overlapDay } from './__fixtures__/scenes';

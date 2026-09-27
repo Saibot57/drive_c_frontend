@@ -8,11 +8,9 @@ import {
 } from '@dnd-kit/core';
 import {
   Archive,
-  Copy,
   Download,
   Lock,
   RefreshCcw,
-  Trash2,
   Plus,
   ShieldAlert,
   Upload,
@@ -25,7 +23,6 @@ import {
   ChevronUp,
   MoreVertical,
   Search,
-  Share2,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -34,14 +31,13 @@ import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
   DEFAULT_COURSE_COLOR,
-  PLANNER_DAYS,
-  TITLE_HOLD_OPEN_MS
-} from '@/components/schedule/constants';
+  PLANNER_DAYS
+} from '@/config/plannerConstants';
 import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
-import { ContextMenuState, GhostPlacement, PlannerNoticeTone } from '@/types/plannerUI';
+import { ContextMenuState, PlannerNoticeTone } from '@/types/plannerUI';
 import {
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE,
-  timeToMinutes, minutesToTime, snapTime,
+  timeToMinutes, minutesToTime,
   EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
@@ -65,8 +61,13 @@ import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
 import { PlanningBlockCard, PlanningDayOffLabel } from '@/components/schedule/PlanningBlockCard';
 import { DayColumn } from '@/components/schedule/DayColumn';
 import { ArchiveCard } from '@/components/schedule/ArchiveCard';
-import { CategoryDebugPanel, HiddenSettingsPanel } from '@/components/schedule/DebugPanels';
-import { ScheduleModals } from '@/components/schedule/ScheduleModals';
+import { CategoryDebugPanel } from '@/components/schedule/CategoryDebugPanel';
+import { HiddenSettingsDialog } from '@/components/schedule/settings/HiddenSettingsDialog';
+import { ArchiveDialogs } from '@/components/schedule/dialogs/ArchiveDialogs';
+import { ConfirmDialog } from '@/components/schedule/dialogs/ConfirmDialog';
+import { CourseEditorDialog } from '@/components/schedule/dialogs/CourseEditorDialog';
+import { EntryEditorDialog } from '@/components/schedule/dialogs/EntryEditorDialog';
+import { RestrictionsDialog } from '@/components/schedule/dialogs/RestrictionsDialog';
 import { BulkEditModal } from '@/components/schedule/BulkEditModal';
 import { FindReplacePanel } from '@/components/schedule/FindReplacePanel';
 import { applyBulkEdit, BulkEditPatch } from '@/utils/bulkEditSchedule';
@@ -77,16 +78,15 @@ import {
   replaceInSchedule,
 } from '@/utils/findReplaceSchedule';
 import { usePlannerNotice } from '@/hooks/usePlannerNotice';
-import { useScheduleHistory } from '@/hooks/useScheduleHistory';
+import { useUndoableState } from '@/hooks/useUndoableState';
 import { useHiddenSettings } from '@/hooks/useHiddenSettings';
 import { usePlannerSections } from '@/hooks/usePlannerSections';
 import { useCourseManager } from '@/hooks/useCourseManager';
 import { useArchiveManager } from '@/hooks/useArchiveManager';
 import { useAuth } from '@/contexts/AuthContext';
-import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/components/schedule/courseUtils';
+import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/utils/courseUtils';
 import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
-import { ExportOutcome, useScheduleExport } from '@/hooks/useScheduleExport';
 import { useScheduleVectorExport, VectorExportOutcome } from '@/hooks/useScheduleVectorExport';
 import { ScheduleExportInput } from '@/types/scheduleExport';
 import { PageMode } from '@/utils/schedulePdf/theme';
@@ -97,7 +97,19 @@ import { useNotesMarquee } from '@/hooks/useNotesMarquee';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import PublicLinkControl from '@/components/schedule/PublicLinkControl';
+import { sanitizeScheduleImport } from '@/utils/scheduleImport';
+import { isEditableElement } from '@/utils/dom';
+import { reportPlacementVerdict } from '@/utils/scheduleRules';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import '@/styles/schedule-theme.css';
+
+/** Det exportnotisen behöver veta om den fil som just skapades. */
+type PlannerExportOutcome = {
+  /** Poster vars text inte rymdes i kortet och klipptes med "…". */
+  truncated: ScheduledEntry[];
+  /** Schemat skalades ned så långt att texten knappt går att läsa. */
+  lowScale?: boolean;
+};
 
 // --- Helper: Conflict Check & Filtering ---
 
@@ -136,30 +148,6 @@ const advancedFilterMatch = (
   });
 };
 
-// --- Helper: Data Sanitization ---
-const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
-  if (!Array.isArray(importedSchedule)) return [];
-  
-  return importedSchedule.map(entry => {
-    const start = entry.startTime || "08:00";
-    const end = entry.endTime || minutesToTime(timeToMinutes(start) + 60);
-    
-    let duration = entry.duration;
-    if (!duration || isNaN(duration)) {
-      duration = timeToMinutes(end) - timeToMinutes(start);
-    }
-
-    return {
-      ...entry,
-      instanceId: entry.instanceId || uuidv4(),
-      startTime: start,
-      endTime: end,
-      duration: duration > 0 ? duration : 60, 
-      day: PLANNER_DAYS.includes(entry.day as typeof PLANNER_DAYS[number]) ? entry.day : PLANNER_DAYS[0]
-    };
-  });
-};
-
 // --- Main Component ---
 
 export default function NewSchedulePlanner() {
@@ -174,7 +162,7 @@ export default function NewSchedulePlanner() {
   const isReadOnlyRef = useRef(false);
   // Den ogarderade skrivvägen. Bara inläsningar från servern använder den
   // direkt — allt användaren gör går via commitSchedule längre ned.
-  const { schedule, commitSchedule: applyScheduleFromServer } = useScheduleHistory({
+  const { value: schedule, commit: applyScheduleFromServer } = useUndoableState<ScheduledEntry[]>([], {
     canEdit: () => !isReadOnlyRef.current
   });
   const {
@@ -214,7 +202,7 @@ export default function NewSchedulePlanner() {
   const [copiedNotes, setCopiedNotes] = useState<string | null>(null);
 const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
-  const [isMobileView, setIsMobileView] = useState(false);
+  const isMobileView = useMediaQuery('(max-width: 1023px)');
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const {
     teachers,
@@ -241,7 +229,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   } = useHiddenSettings();
   const { sections, toggleSection } = usePlannerSections();
   const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
-  const [isMobileDragDisabled, setIsMobileDragDisabled] = useState(false);
+  const isMobileDragDisabled = useMediaQuery('(pointer: coarse), (max-width: 1023px)');
   const [pendingImportData, setPendingImportData] = useState<{
     courses: PlannerCourse[];
     schedule: ScheduledEntry[];
@@ -265,20 +253,24 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [findReplaceOptions, setFindReplaceOptions] = useState<FindReplaceOptions>({});
-  const titleHoldTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
   const imageExportMenuRef = useRef<HTMLDivElement>(null);
   const jsonMenuRef = useRef<HTMLDivElement>(null);
 
+  const archive = useArchiveManager({
+    schedule,
+    commitSchedule: applyScheduleFromServer,
+    mapPlannerActivitiesToSchedule,
+    mapScheduleToPlannerActivities,
+    showNotice
+  });
   const {
     ownArchives,
     sharedArchives,
     sortedArchives,
-    ownArchiveNames,
     initialArchiveId,
     serverSyncToken,
-    activeArchive,
     activeArchiveId,
     activeArchiveName,
     isReadOnly,
@@ -287,37 +279,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     markLockLost,
     weekName,
     setWeekName,
-    overwriteArchive,
-    setOverwriteArchive,
-    deleteArchive,
-    setDeleteArchive,
     handleSaveWeek,
     handleLoadWeek,
     handleDeleteWeek,
-    handleConfirmDeleteWeek,
     handleDuplicateWeek,
-    handleConfirmOverwriteWeek,
-    shareArchive,
-    setShareArchive,
-    shareRecipient,
-    setShareRecipient,
-    isSharing,
     handleShareWeek,
-    handleConfirmShareWeek,
-    handleRemoveShare,
-    handleLeaveShare,
-    newScheduleName,
-    setNewScheduleName,
-    isNewScheduleDialogOpen,
-    setIsNewScheduleDialogOpen,
-    handleCreateNewSchedule
-  } = useArchiveManager({
-    schedule,
-    commitSchedule: applyScheduleFromServer,
-    mapPlannerActivitiesToSchedule,
-    mapScheduleToPlannerActivities,
-    showNotice
-  });
+    setIsNewScheduleDialogOpen
+  } = archive;
 
   usePlannerSync({
     schedule,
@@ -481,7 +449,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
    * Avkortad text är samma sorts tysthet, så den rapporteras i samma notis:
    * `plannerNotice` har bara en plats, och två anrop skulle skriva över varann.
    */
-  const handleExportComplete = useCallback((outcome?: ExportOutcome) => {
+  const handleExportComplete = useCallback((outcome?: PlannerExportOutcome) => {
     const parts: string[] = [];
     let tone: PlannerNoticeTone = 'success';
 
@@ -536,13 +504,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     ), 0);
     return latest > 0 ? latest : undefined;
   }, [planningByDay]);
-
-  const { handleExportPDF, handleExportImage } = useScheduleExport({
-    schedule,
-    isExcludedFromExport,
-    extraEndMinutes: planningExportEndMinutes,
-    onExportComplete: handleExportComplete
-  });
 
   /**
    * Allt vektorexporten behöver, hämtat ur det planeraren redan räknat fram.
@@ -700,35 +661,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   }, [applyNotesToEntries, copiedNotes]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-
-    const mediaQuery = window.matchMedia('(pointer: coarse), (max-width: 1023px)');
-    const updateDragSupport = () => setIsMobileDragDisabled(mediaQuery.matches);
-
-    updateDragSupport();
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', updateDragSupport);
-      return () => mediaQuery.removeEventListener('change', updateDragSupport);
-    }
-
-    if (mediaQuery.addListener) {
-      mediaQuery.addListener(updateDragSupport);
-      return () => mediaQuery.removeListener(updateDragSupport);
-    }
-
-    return undefined;
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(max-width: 1023px)');
-    setIsMobileView(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobileView(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
     if (process.env.NODE_ENV !== 'development') return;
     const params = new URLSearchParams(window.location.search);
@@ -770,22 +702,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     window.addEventListener('mousedown', handleOutsideClick);
     return () => window.removeEventListener('mousedown', handleOutsideClick);
   }, [isPdfMenuOpen, isImageExportMenuOpen, isJsonMenuOpen]);
-
-  const startTitleHold = () => {
-    if (titleHoldTimerRef.current) {
-      window.clearTimeout(titleHoldTimerRef.current);
-    }
-    titleHoldTimerRef.current = window.setTimeout(() => {
-      setIsHiddenSettingsOpen(true);
-      titleHoldTimerRef.current = null;
-    }, TITLE_HOLD_OPEN_MS);
-  };
-
-  const clearTitleHold = () => {
-    if (!titleHoldTimerRef.current) return;
-    window.clearTimeout(titleHoldTimerRef.current);
-    titleHoldTimerRef.current = null;
-  };
 
   const categoryStats = useMemo(() => {
     const normalized = schedule.map(entry => (
@@ -1040,10 +956,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       // which handles Escape internally and benefits from the dedicated UI).
       const target = event.target as HTMLElement | null;
       if (target) {
-        const tag = target.tagName;
-        const editable = target.isContentEditable;
         const insidePanel = !!target.closest('[role="dialog"][aria-label="Hitta och ersätt i schema"]');
-        if (!insidePanel && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || editable)) {
+        if (!insidePanel && isEditableElement(target)) {
           return;
         }
       }
@@ -1117,7 +1031,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const newDuration = endMin - startMin;
 
-    const { blocked, warning } = validatePlacement({
+    const verdict = validatePlacement({
         title: editingEntry.title,
         teacher: editingEntry.teacher,
         day: editingEntry.day,
@@ -1125,14 +1039,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         endTime: editingEntry.endTime,
         instanceId: editingEntry.instanceId
     });
-
-    if (blocked) {
-        showNotice(blocked, 'error');
-        return;
-    }
-    if (warning) {
-        showNotice(warning, 'warning');
-    }
+    if (!reportPlacementVerdict(verdict, showNotice)) return;
 
     commitSchedule(p => p.map(entry => entry.instanceId === editingEntry.instanceId ? {...editingEntry, duration: newDuration} : entry));
     setIsEntryModalOpen(false);
@@ -1141,23 +1048,19 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // --- Duplicate / Placement Handlers ---
 
   const handleDuplicateParallel = useCallback((entry: ScheduledEntry) => {
-    const { blocked, warning } = validatePlacement({
+    const verdict = validatePlacement({
       title: entry.title,
       teacher: entry.teacher,
       day: entry.day,
       startTime: entry.startTime,
       endTime: entry.endTime
     });
-    if (blocked) {
-      showNotice(blocked, 'error');
-      setContextMenu(null);
-      return;
-    }
+    setContextMenu(null);
+    if (!reportPlacementVerdict(verdict, showNotice, { announceWarning: false })) return;
 
     const newEntry: ScheduledEntry = { ...entry, instanceId: uuidv4() };
     commitSchedule(prev => [...prev, newEntry]);
-    setContextMenu(null);
-    showNotice(warning ?? 'Post duplicerad parallellt', warning ? 'warning' : 'success');
+    showNotice(verdict.warning ?? 'Post duplicerad parallellt', verdict.warning ? 'warning' : 'success');
   }, [commitSchedule, showNotice, validatePlacement]);
 
   const handleDuplicateAndPlace = useCallback((entry: ScheduledEntry) => {
@@ -1650,21 +1553,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                         {label}
                       </button>
                     ))}
-                    <div className="my-1 sp-divider" />
-                    {(['a4', 'a3'] as const).map(size => (
-                      <button
-                        key={size}
-                        type="button"
-                        title="Gamla vägen: öppnar systemets utskriftsdialog och du väljer själv Spara som PDF."
-                        className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item text-gray-600"
-                        onClick={() => {
-                          handleExportPDF(size);
-                          setIsPdfMenuOpen(false);
-                        }}
-                      >
-                        Utskriftsdialog ({size.toUpperCase()})
-                      </button>
-                    ))}
                   </div>
                 )}
               </div>
@@ -1697,18 +1585,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                         Exportera {label}
                       </button>
                     ))}
-                    <div className="my-1 sp-divider" />
-                    <button
-                      type="button"
-                      title="Gamla vägen: fotar skärmen med html2canvas."
-                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item text-gray-600"
-                      onClick={() => {
-                        handleExportImage('png');
-                        setIsImageExportMenuOpen(false);
-                      }}
-                    >
-                      PNG (skärmbild)
-                    </button>
                   </div>
                 )}
               </div>
@@ -2029,7 +1905,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   isNotesProtected={markedIds.has(entry.instanceId) && isPasteProtected(entry)}
                                   color={resolveColor(entry.title, entry.color)}
                                   room={resolveRoom(entry.title, entry.room)}
-                                  excludedFromExport={isExcludedFromExport(entry)}
                                   isBulkSelected={bulkIds.has(entry.instanceId)}
                                   onToggleBulk={toggleBulkId}
                                />
@@ -2097,7 +1972,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   isNotesProtected={markedIds.has(entry.instanceId) && isPasteProtected(entry)}
                                  color={resolveColor(entry.title, entry.color)}
                                  room={resolveRoom(entry.title, entry.room)}
-                                  excludedFromExport={isExcludedFromExport(entry)}
                                   isBulkSelected={bulkIds.has(entry.instanceId)}
                                   onToggleBulk={toggleBulkId}
                                />
@@ -2396,7 +2270,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       )}
 
       {/* Modals */}
-      <HiddenSettingsPanel
+      <HiddenSettingsDialog
         open={isHiddenSettingsOpen}
         onOpenChange={setIsHiddenSettingsOpen}
         teachers={teachers}
@@ -2418,68 +2292,78 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         missingCount={categoryStats.missingCount}
         totalCount={categoryStats.totalCount}
       />
-      <ScheduleModals
-        isCourseModalOpen={isCourseModalOpen}
-        onCourseModalOpenChange={setIsCourseModalOpen}
-        editingCourse={editingCourse}
-        setEditingCourse={setEditingCourse}
+      <CourseEditorDialog
+        open={isCourseModalOpen}
+        onOpenChange={setIsCourseModalOpen}
+        course={editingCourse}
+        onCourseChange={setEditingCourse}
         manualColor={manualColor}
-        setManualColor={setManualColor}
-        onSaveCourse={handleSaveCourseSubmit}
+        onManualColorChange={setManualColor}
+        onSave={handleSaveCourseSubmit}
         teachers={teachers}
         rooms={rooms}
         colorTriggers={colorTriggers}
         roomTriggers={roomTriggers}
-        isEntryModalOpen={isEntryModalOpen}
-        onEntryModalOpenChange={setIsEntryModalOpen}
-        editingEntry={editingEntry}
-        setEditingEntry={setEditingEntry}
-        onSaveEntry={handleSaveEntry}
-        isRestrictionsModalOpen={isRestrictionsModalOpen}
-        onRestrictionsModalOpenChange={setIsRestrictionsModalOpen}
+      />
+      <EntryEditorDialog
+        open={isEntryModalOpen}
+        onOpenChange={setIsEntryModalOpen}
+        entry={editingEntry}
+        onEntryChange={setEditingEntry}
+        onSave={handleSaveEntry}
+        teachers={teachers}
+        rooms={rooms}
+        colorTriggers={colorTriggers}
+        roomTriggers={roomTriggers}
+      />
+      <RestrictionsDialog
+        open={isRestrictionsModalOpen}
+        onOpenChange={setIsRestrictionsModalOpen}
         newRule={newRule}
-        setNewRule={setNewRule}
+        onNewRuleChange={setNewRule}
         restrictions={restrictions}
         onAddRule={handleAddRestrictionRule}
         onRemoveRule={handleRemoveRestrictionRule}
-        isImportConfirmOpen={isImportConfirmOpen}
-        onImportConfirmOpenChange={(open) => {
+      />
+      <ConfirmDialog
+        open={isImportConfirmOpen}
+        onOpenChange={(open) => {
           setIsImportConfirmOpen(open);
           if (!open) setPendingImportData(null);
         }}
-        onCancelImport={() => setIsImportConfirmOpen(false)}
-        onConfirmImport={handleConfirmImport}
-        overwriteArchive={overwriteArchive}
-        onOverwriteArchiveChange={setOverwriteArchive}
-        onConfirmOverwriteWeek={handleConfirmOverwriteWeek}
-        deleteArchive={deleteArchive}
-        onDeleteArchiveChange={setDeleteArchive}
-        onConfirmDeleteWeek={handleConfirmDeleteWeek}
-        shareArchive={shareArchive}
-        onShareArchiveChange={setShareArchive}
-        shareRecipient={shareRecipient}
-        onShareRecipientChange={setShareRecipient}
-        onConfirmShareWeek={handleConfirmShareWeek}
-        onRemoveShare={handleRemoveShare}
-        onLeaveShare={handleLeaveShare}
-        currentUsername={user?.username ?? null}
-        isSharing={isSharing}
-        deleteCourseName={deleteCourseName}
-        onDeleteCourseNameChange={(_value) => { setDeleteCourseId(null); }}
-        onConfirmDeleteCourse={handleConfirmDeleteCourse}
-        isClearScheduleConfirmOpen={isClearScheduleConfirmOpen}
-        onClearScheduleConfirmOpenChange={setIsClearScheduleConfirmOpen}
-        onConfirmClearSchedule={() => {
+        onCancel={() => setIsImportConfirmOpen(false)}
+        title="Ersätta nuvarande schema?"
+        confirmLabel="Ersätt schema"
+        onConfirm={handleConfirmImport}
+      >
+        <p className="text-sm text-gray-700">
+          Om du fortsätter ersätts aktuella byggstenar och schema med innehållet från filen.
+        </p>
+      </ConfirmDialog>
+      <ArchiveDialogs archive={archive} currentUsername={user?.username ?? null} />
+      <ConfirmDialog
+        open={Boolean(deleteCourseName)}
+        onOpenChange={(open) => { if (!open) setDeleteCourseId(null); }}
+        title="Ta bort byggsten?"
+        confirmLabel="Ta bort"
+        destructive
+        onConfirm={handleConfirmDeleteCourse}
+      >
+        <p className="text-sm text-gray-700">Ta bort byggstenen &quot;{deleteCourseName}&quot;?</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={isClearScheduleConfirmOpen}
+        onOpenChange={setIsClearScheduleConfirmOpen}
+        title="Rensa schemat?"
+        confirmLabel="Rensa"
+        destructive
+        onConfirm={() => {
           commitSchedule(() => []);
           setIsClearScheduleConfirmOpen(false);
         }}
-        isNewScheduleDialogOpen={isNewScheduleDialogOpen}
-        onNewScheduleDialogOpenChange={setIsNewScheduleDialogOpen}
-        newScheduleName={newScheduleName}
-        onNewScheduleNameChange={setNewScheduleName}
-        onConfirmCreateNewSchedule={handleCreateNewSchedule}
-        newScheduleNameExists={ownArchiveNames.includes(newScheduleName.trim())}
-      />
+      >
+        <p className="text-sm text-gray-700">Detta tar bort alla schemaposter från den aktuella vyn.</p>
+      </ConfirmDialog>
 
       <BulkEditModal
         open={isBulkEditOpen}

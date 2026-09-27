@@ -3,31 +3,32 @@ import { timeToMinutes } from '@/utils/scheduleTime';
 
 export type TimeInterval = { start: number; end: number };
 
+/** Slår ihop överlappande och angränsande intervall till en sorterad lista. */
+export const mergeIntervals = (intervals: TimeInterval[]): TimeInterval[] => {
+  const sorted = intervals
+    .filter(interval => interval.end > interval.start)
+    .sort((a, b) => a.start - b.start);
+
+  const merged: TimeInterval[] = [];
+  sorted.forEach(interval => {
+    const last = merged[merged.length - 1];
+    if (last && interval.start <= last.end) {
+      last.end = Math.max(last.end, interval.end);
+      return;
+    }
+    merged.push({ ...interval });
+  });
+
+  return merged;
+};
+
 /**
  * Summerar hur många minuter en samling intervall täcker totalt.
  * Överlappande (eller angränsande) intervall räknas bara en gång, så
  * två parallella lektioner 08:00–09:00 ger 60 minuter, inte 120.
  */
-export const mergeIntervalMinutes = (intervals: TimeInterval[]): number => {
-  if (intervals.length === 0) return 0;
-
-  const sorted = [...intervals].sort((a, b) => a.start - b.start);
-  let total = 0;
-  let currentStart = sorted[0].start;
-  let currentEnd = sorted[0].end;
-
-  sorted.slice(1).forEach(interval => {
-    if (interval.start <= currentEnd) {
-      currentEnd = Math.max(currentEnd, interval.end);
-    } else {
-      total += currentEnd - currentStart;
-      currentStart = interval.start;
-      currentEnd = interval.end;
-    }
-  });
-
-  return total + (currentEnd - currentStart);
-};
+export const mergeIntervalMinutes = (intervals: TimeInterval[]): number =>
+  mergeIntervals(intervals).reduce((total, interval) => total + interval.end - interval.start, 0);
 
 /**
  * Lärarfältet är fritext och kan innehålla flera lärare separerade med komma

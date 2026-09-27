@@ -1,8 +1,8 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { MANUAL_COURSES_KEY } from '@/components/schedule/constants';
-import { buildCourseDedupeKey, deriveCoursesFromSchedule, mergeCourses, sanitizeManualCourses } from '@/components/schedule/courseUtils';
+import { MANUAL_COURSES_KEY } from '@/config/plannerConstants';
+import { buildCourseDedupeKey, deriveCoursesFromSchedule, mergeCourses, sanitizeManualCourses } from '@/utils/courseUtils';
 import { importColors } from '@/config/colorManagement';
 import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
 import { v4 as uuidv4 } from 'uuid';

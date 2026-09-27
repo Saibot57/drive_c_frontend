@@ -33,7 +33,7 @@ describe('toLocalDateKey', () => {
 
   it('ger rätt dag vid lokal midnatt under sommartid', () => {
     // Lokal midnatt 14 aug är 13 aug 22:00 UTC. toISOString() hade gett
-    // '2026-08-13' — det är precis buggen som finns i calendarService.
+    // '2026-08-13' — det är precis buggen som fanns i den gamla kalendern.
     const localMidnight = new Date(2026, 7, 14, 0, 0, 0);
     expect(toLocalDateKey(localMidnight)).toBe('2026-08-14');
     expect(localMidnight.toISOString().split('T')[0]).toBe('2026-08-13');
@@ -137,9 +137,9 @@ describe('getIsoWeek', () => {
   });
 
   it('är korrekt för måndagar — regressionsvakt', () => {
-    // isoWeekYear läser med getUTC*. Skickas ett lokalt Date-objekt för en
-    // måndag pekar det på söndagen före i UTC och veckan blir ett för låg.
-    // Varje rad i matrisen börjar på en måndag, så det här måste hålla.
+    // isoWeekYear läste tidigare Date-objekt med getUTC*, så en lokal måndag
+    // blev söndagen före i UTC och veckan ett för låg. Varje rad i matrisen
+    // börjar på en måndag, så det här måste hålla.
     const måndagar: Array<[string, number]> = [
       ['2026-08-17', 34],
       ['2026-01-05', 2],

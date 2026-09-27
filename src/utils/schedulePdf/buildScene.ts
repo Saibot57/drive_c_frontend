@@ -11,8 +11,9 @@
  * filtrerats bort — inte på de synliga.
  */
 
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import { ScheduleExportInput } from '@/types/scheduleExport';
+import { toLocalDateKey } from '@/utils/calendarDates';
 import { formatMinutes } from '@/utils/scheduleStats';
 import { buildDayLayout } from '@/utils/scheduleLayout';
 import { EVENT_GAP_PX, MIN_HEIGHT_PX, minutesToTime, timeToMinutes } from '@/utils/scheduleTime';
@@ -22,15 +23,7 @@ import { TextMeasurer } from './measure';
 import { BLACK, flatten, parseColor, Rgb, SceneNode, ScheduleScene } from './scene';
 import { computeTransform } from './transform';
 import * as T from './theme';
-
-const extractUrl = (value?: string) => {
-  if (!value) return null;
-  const match = value.match(/https?:\/\/[^\s]+/i);
-  return match ? match[0] : null;
-};
-
-const formatExportDate = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+import { extractUrl } from '@/utils/links';
 
 /** Baslinjen för en rad vars box börjar på `topPx`. */
 const baseline = (topPx: number, sizePx: number, measure: TextMeasurer, font: Parameters<TextMeasurer['ascentRatio']>[0]) =>
@@ -85,7 +78,7 @@ const drawTitleBar = (
 ) => {
   const padX = 6;
   const label = input.archiveName?.trim() || 'Schema';
-  const date = formatExportDate(input.exportedAt ?? new Date());
+  const date = toLocalDateKey(input.exportedAt ?? new Date());
 
   const titleTop = (T.TITLE_H_PX - T.TITLE_FONT_SIZE_PX * T.LINE_HEIGHT_FACTOR) / 2;
   nodes.push({
@@ -289,7 +282,7 @@ const drawLessonDay = (
       });
       if (layoutResult.truncated) truncatedInstanceIds.push(entry.instanceId);
 
-      pushCardText(nodes, layoutResult.lines, x, y, w, fill, measure);
+      pushCardText(nodes, layoutResult.lines, x, y, fill, measure);
 
       const url = extractUrl(entry.category);
       if (url) nodes.push({ kind: 'link', x, y, w, h, url });
@@ -315,7 +308,6 @@ const pushCardText = (
   lines: ReturnType<typeof layoutCardText>['lines'],
   cardX: number,
   cardY: number,
-  cardW: number,
   fill: Rgb,
   measure: TextMeasurer
 ) => {

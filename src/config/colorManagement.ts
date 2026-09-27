@@ -114,7 +114,7 @@ interface HSLColor {
   }
   
   // Modified to prioritize neo-brutalist colors
-  function generateDistinctColor(className: string, existingColors: HSLColor[], similarClasses: string[]): string {
+  function generateDistinctColor(existingColors: HSLColor[], similarClasses: string[]): string {
     // Generate a baseline color depending on the class type
     let baseColor: string;
     
@@ -198,14 +198,6 @@ interface HSLColor {
     return HSLToHex(baseHSL);
   }
   
-  export const updateClassColor = (className: string, color: string): void => {
-    classColorMap.set(className, color);
-  };
-  
-  export const getColorForClass = (className: string): string | undefined => {
-    return classColorMap.get(className);
-  };
-  
   export const initializeColorSystem = (): void => {
     classColorMap.clear();
   };
@@ -233,14 +225,10 @@ interface HSLColor {
     const similarClasses = findSimilarClasses(className, existingClasses);
     const existingColors = Array.from(classColorMap.values()).map(hexToHSL);
     
-    const newColor = generateDistinctColor(className, existingColors, similarClasses);
+    const newColor = generateDistinctColor(existingColors, similarClasses);
     classColorMap.set(className, newColor);
     
     return newColor;
-  };
-  
-  export const releaseColor = (className: string): void => {
-    classColorMap.delete(className);
   };
   
   export const importColors = (boxes: Array<{ className: string; color: string }>): void => {

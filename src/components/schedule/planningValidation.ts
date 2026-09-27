@@ -6,7 +6,7 @@ import {
   planningFixtures,
   planningTimeParseFixtures
 } from '@/components/schedule/__fixtures__/planningTime';
-import { DEFAULT_PLANNING_MIN_GAP_MINUTES } from '@/components/schedule/constants';
+import { DEFAULT_PLANNING_MIN_GAP_MINUTES } from '@/config/plannerConstants';
 import { matchesExcludeList, parseExcludeList } from '@/utils/exportExclusions';
 import {
   computePlanningForDay,

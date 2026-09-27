@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import {
   START_HOUR,
   END_HOUR,
@@ -13,7 +13,7 @@ import {
 } from '@/utils/scheduleTime';
 import { v4 as uuidv4 } from 'uuid';
 import { GhostPlacement } from '@/types/plannerUI';
-import { PlacementCandidate, PlacementVerdict } from '@/utils/scheduleRules';
+import { PlacementCandidate, PlacementVerdict, reportPlacementVerdict } from '@/utils/scheduleRules';
 
 type UseKeyboardPlacementOptions = {
   commitSchedule: (updater: (prev: ScheduledEntry[]) => ScheduledEntry[]) => void;
@@ -143,17 +143,14 @@ export function useKeyboardPlacement({
               const startTime = minutesToTime(kbPlacement.timeMinutes);
               const endTime = minutesToTime(kbPlacement.timeMinutes + kbPlacement.course.duration);
 
-              const { blocked, warning } = validatePlacement({
+              const verdict = validatePlacement({
                 title: kbPlacement.course.title,
                 teacher: kbPlacement.course.teacher,
                 day,
                 startTime,
                 endTime,
               });
-              if (blocked) {
-                showNotice(blocked, 'error');
-                return;
-              }
+              if (!reportPlacementVerdict(verdict, showNotice, { announceWarning: false })) return;
 
               const newEntry: ScheduledEntry = {
                 ...kbPlacement.course,
@@ -168,7 +165,7 @@ export function useKeyboardPlacement({
                 showNotice('Posten lades till – töm filtret för att se den.', 'warning');
                 return;
               }
-              showNotice(warning ?? 'Post placerad', warning ? 'warning' : 'success');
+              showNotice(verdict.warning ?? 'Post placerad', verdict.warning ? 'warning' : 'success');
             },
           },
           // Escape cancels

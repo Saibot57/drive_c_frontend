@@ -14,7 +14,7 @@ import {
   WHEEL_FONT_STACK,
   WHEEL_STROKE,
   WHEEL_STROKE_WIDTH,
-} from '@/components/theme-wheel/constants';
+} from '@/config/themeWheelConstants';
 import { WheelBlock } from '@/components/theme-wheel/WheelBlock';
 import type { WheelPartContent } from '../../types/wheelPart.types';
 import type { ProvenanceStatus } from '../../utils/provenance';

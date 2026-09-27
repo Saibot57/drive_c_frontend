@@ -16,7 +16,7 @@ const MAX_DEPTH = 50;
  * Ångra för workspace.
  *
  * Schemat och temakalendern håller hela sitt dokument i ett objekt och kan
- * därför spara ögonblicksbilder av det (useScheduleHistory, useThemeWheelHistory).
+ * därför spara ögonblicksbilder av det (useUndoableState).
  * Här är underlaget normaliserat över tre tabeller och varje ändring är ett
  * eget REST-anrop, så en ögonblicksbild går inte att spela tillbaka. I stället
  * registrerar varje åtgärd sin egen invers när den utförs.

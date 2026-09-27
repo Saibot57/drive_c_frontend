@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { DayPatch } from '@/services/monthCalendarService';
 import type { DateKey } from '@/utils/calendarDates';
-import { TEXT_AUTOSAVE_DELAY_MS } from '@/components/month-calendar/constants';
+import { TEXT_AUTOSAVE_DELAY_MS } from '@/config/monthCalendarConstants';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 

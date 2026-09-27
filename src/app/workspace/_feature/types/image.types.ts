@@ -12,7 +12,3 @@ export interface ImageContent {
   source: ImageSource | null;
   fileName?: string;
 }
-
-export const EMPTY_IMAGE_CONTENT: ImageContent = {
-  source: null,
-};
