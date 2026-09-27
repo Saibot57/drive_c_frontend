@@ -1,15 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-// Define the User type
-export interface User {
-  id: string;
-  username: string;
-  email?: string;
-  createdAt?: string;
-  lastLogin?: string;
-}
+import * as authService from '@/services/authService';
+import type { AuthSession, User } from '@/services/authService';
 
 // Define the auth context type
 interface AuthContextType {
@@ -26,8 +19,6 @@ interface AuthContextType {
 // Create the auth context
 const AuthContext = createContext<AuthContextType | null>(null);
 
-import { API_URL } from '@/config/api';
-
 // Props for AuthProvider
 interface AuthProviderProps {
   children: ReactNode;
@@ -42,16 +33,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check for existing auth on component mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+    const stored = authService.readStoredAuth();
+    if (stored) {
+      setToken(stored.token);
+      setUser(stored.user);
     }
     
     setIsLoading(false);
   }, []);
+
+  // Sparar inloggningen både i state och i localStorage.
+  const startSession = (session: AuthSession) => {
+    setToken(session.token);
+    setUser(session.user);
+    authService.storeAuth(session);
+  };
 
   // Login function
   const login = async (username: string, password: string) => {
@@ -59,26 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // Save token and user in state and localStorage
-      setToken(data.data.token);
-      setUser(data.data.user);
-      localStorage.setItem('authToken', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-      
+      startSession(await authService.login(username, password));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login');
       console.error('Login error:', err);
@@ -93,26 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password, inviteCode, email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
-
-      // Save token and user in state and localStorage
-      setToken(data.data.token);
-      setUser(data.data.user);
-      localStorage.setItem('authToken', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
-      
+      startSession(await authService.register(username, password, inviteCode, email));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during registration');
       console.error('Register error:', err);
@@ -123,13 +81,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout function
   const logout = () => {
-    // Clear state
     setToken(null);
     setUser(null);
-    
-    // Clear localStorage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
+    authService.clearStoredAuth();
   };
 
   // Value object to provide in context
