@@ -22,7 +22,7 @@ import {
   mergeAreas,
 } from '@/utils/themeWheelAreas';
 import { deriveChildColor } from '@/utils/readableTextColor';
-import { useThemeWheelHistory } from '@/hooks/useThemeWheelHistory';
+import { useUndoableState } from '@/hooks/useUndoableState';
 import { useThemeWheelSync } from '@/hooks/useThemeWheelSync';
 import { parseWheelFile, useThemeWheelExport } from '@/hooks/useThemeWheelExport';
 import { useWheelInteraction } from '@/hooks/useWheelInteraction';
@@ -42,7 +42,7 @@ type ContextMenuState =
 
 export default function ThemeWheelPlanner() {
   const { plannerNotice, showNotice } = usePlannerNotice();
-  const { wheel, commit, undo } = useThemeWheelHistory(EMPTY_WHEEL);
+  const { value: wheel, commit, undo } = useUndoableState(EMPTY_WHEEL, { redo: true });
   const svgRef = useRef<SVGSVGElement>(null);
 
   const [manualAreas, setManualAreas] = useState<ThemeArea[]>([]);

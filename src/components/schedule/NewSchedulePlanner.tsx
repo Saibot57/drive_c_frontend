@@ -73,7 +73,7 @@ import {
   replaceInSchedule,
 } from '@/utils/findReplaceSchedule';
 import { usePlannerNotice } from '@/hooks/usePlannerNotice';
-import { useScheduleHistory } from '@/hooks/useScheduleHistory';
+import { useUndoableState } from '@/hooks/useUndoableState';
 import { useHiddenSettings } from '@/hooks/useHiddenSettings';
 import { usePlannerSections } from '@/hooks/usePlannerSections';
 import { useCourseManager } from '@/hooks/useCourseManager';
@@ -157,7 +157,7 @@ export default function NewSchedulePlanner() {
   const isReadOnlyRef = useRef(false);
   // Den ogarderade skrivvägen. Bara inläsningar från servern använder den
   // direkt — allt användaren gör går via commitSchedule längre ned.
-  const { schedule, commitSchedule: applyScheduleFromServer } = useScheduleHistory({
+  const { value: schedule, commit: applyScheduleFromServer } = useUndoableState<ScheduledEntry[]>([], {
     canEdit: () => !isReadOnlyRef.current
   });
   const {
