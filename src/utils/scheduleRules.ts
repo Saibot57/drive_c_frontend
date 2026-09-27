@@ -6,6 +6,7 @@ import {
 } from '@/types/schedule';
 import { isAllTeachersField, splitTeacherNames } from '@/utils/scheduleStats';
 import { checkOverlap, timeToMinutes } from '@/utils/scheduleTime';
+import { PlannerNoticeTone } from '@/types/plannerUI';
 
 /** Posten som är på väg in i schemat, oavsett om den kommer från en byggsten eller flyttas. */
 export type PlacementCandidate = {
@@ -185,6 +186,26 @@ export const findAvailabilityWarning = (
 };
 
 /** Samlad bedömning av en placering: hårda ämnesregler och mjuka lärarregler. */
+/**
+ * Visar vad reglerna sa om en placering. En blockerad placering får ett
+ * felmeddelande och `false` tillbaka. Annars visas varningen direkt, utom när
+ * anroparen slår ihop den med ett eget besked (`announceWarning: false`).
+ */
+export const reportPlacementVerdict = (
+  verdict: PlacementVerdict,
+  showNotice: (message: string, tone: PlannerNoticeTone) => void,
+  { announceWarning = true }: { announceWarning?: boolean } = {}
+): boolean => {
+  if (verdict.blocked) {
+    showNotice(verdict.blocked, 'error');
+    return false;
+  }
+  if (announceWarning && verdict.warning) {
+    showNotice(verdict.warning, 'warning');
+  }
+  return true;
+};
+
 export const evaluatePlacement = (
   candidate: PlacementCandidate,
   schedule: ScheduledEntry[],

@@ -8,6 +8,7 @@ import * as T from '@/utils/schedulePdf/theme';
 import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
 import { splitTeacherNames } from '@/utils/scheduleStats';
 import { EVENT_GAP_PX, MIN_HEIGHT_PX, PIXELS_PER_MINUTE, timeToMinutes } from '@/utils/scheduleTime';
+import { extractUrl } from '@/utils/links';
 
 /**
  * Veckorutnätet som riktig text: samma schema som PDF:en, men läsbart i alla
@@ -143,12 +144,6 @@ const todayIndex = () => {
 
 const clampStart = (start: number, count: number) =>
   Math.min(Math.max(start, 0), PLANNER_DAYS.length - count);
-
-const extractUrl = (value?: string) => {
-  if (!value) return null;
-  const match = value.match(/https?:\/\/[^\s]+/i);
-  return match ? match[0] : null;
-};
 
 type DayData = {
   day: string;

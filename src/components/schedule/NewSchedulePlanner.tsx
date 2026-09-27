@@ -92,6 +92,10 @@ import { useNotesMarquee } from '@/hooks/useNotesMarquee';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import PublicLinkControl from '@/components/schedule/PublicLinkControl';
+import { sanitizeScheduleImport } from '@/utils/scheduleImport';
+import { isEditableElement } from '@/utils/dom';
+import { reportPlacementVerdict } from '@/utils/scheduleRules';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import '@/styles/schedule-theme.css';
 
 /** Det exportnotisen behöver veta om den fil som just skapades. */
@@ -136,30 +140,6 @@ const advancedFilterMatch = (
         return searchString.includes(p);
       }
     });
-  });
-};
-
-// --- Helper: Data Sanitization ---
-const sanitizeScheduleImport = (importedSchedule: any[]): ScheduledEntry[] => {
-  if (!Array.isArray(importedSchedule)) return [];
-  
-  return importedSchedule.map(entry => {
-    const start = entry.startTime || "08:00";
-    const end = entry.endTime || minutesToTime(timeToMinutes(start) + 60);
-    
-    let duration = entry.duration;
-    if (!duration || isNaN(duration)) {
-      duration = timeToMinutes(end) - timeToMinutes(start);
-    }
-
-    return {
-      ...entry,
-      instanceId: entry.instanceId || uuidv4(),
-      startTime: start,
-      endTime: end,
-      duration: duration > 0 ? duration : 60, 
-      day: PLANNER_DAYS.includes(entry.day as typeof PLANNER_DAYS[number]) ? entry.day : PLANNER_DAYS[0]
-    };
   });
 };
 
@@ -217,7 +197,7 @@ export default function NewSchedulePlanner() {
   const [copiedNotes, setCopiedNotes] = useState<string | null>(null);
 const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
-  const [isMobileView, setIsMobileView] = useState(false);
+  const isMobileView = useMediaQuery('(max-width: 1023px)');
   const [showLayoutDebug, setShowLayoutDebug] = useState(false);
   const {
     teachers,
@@ -244,7 +224,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   } = useHiddenSettings();
   const { sections, toggleSection } = usePlannerSections();
   const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
-  const [isMobileDragDisabled, setIsMobileDragDisabled] = useState(false);
+  const isMobileDragDisabled = useMediaQuery('(pointer: coarse), (max-width: 1023px)');
   const [pendingImportData, setPendingImportData] = useState<{
     courses: PlannerCourse[];
     schedule: ScheduledEntry[];
@@ -694,35 +674,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   }, [applyNotesToEntries, copiedNotes]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-
-    const mediaQuery = window.matchMedia('(pointer: coarse), (max-width: 1023px)');
-    const updateDragSupport = () => setIsMobileDragDisabled(mediaQuery.matches);
-
-    updateDragSupport();
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', updateDragSupport);
-      return () => mediaQuery.removeEventListener('change', updateDragSupport);
-    }
-
-    if (mediaQuery.addListener) {
-      mediaQuery.addListener(updateDragSupport);
-      return () => mediaQuery.removeListener(updateDragSupport);
-    }
-
-    return undefined;
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(max-width: 1023px)');
-    setIsMobileView(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobileView(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
     if (process.env.NODE_ENV !== 'development') return;
     const params = new URLSearchParams(window.location.search);
@@ -1018,10 +969,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       // which handles Escape internally and benefits from the dedicated UI).
       const target = event.target as HTMLElement | null;
       if (target) {
-        const tag = target.tagName;
-        const editable = target.isContentEditable;
         const insidePanel = !!target.closest('[role="dialog"][aria-label="Hitta och ersätt i schema"]');
-        if (!insidePanel && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || editable)) {
+        if (!insidePanel && isEditableElement(target)) {
           return;
         }
       }
@@ -1095,7 +1044,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const newDuration = endMin - startMin;
 
-    const { blocked, warning } = validatePlacement({
+    const verdict = validatePlacement({
         title: editingEntry.title,
         teacher: editingEntry.teacher,
         day: editingEntry.day,
@@ -1103,14 +1052,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         endTime: editingEntry.endTime,
         instanceId: editingEntry.instanceId
     });
-
-    if (blocked) {
-        showNotice(blocked, 'error');
-        return;
-    }
-    if (warning) {
-        showNotice(warning, 'warning');
-    }
+    if (!reportPlacementVerdict(verdict, showNotice)) return;
 
     commitSchedule(p => p.map(entry => entry.instanceId === editingEntry.instanceId ? {...editingEntry, duration: newDuration} : entry));
     setIsEntryModalOpen(false);
@@ -1119,23 +1061,19 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // --- Duplicate / Placement Handlers ---
 
   const handleDuplicateParallel = useCallback((entry: ScheduledEntry) => {
-    const { blocked, warning } = validatePlacement({
+    const verdict = validatePlacement({
       title: entry.title,
       teacher: entry.teacher,
       day: entry.day,
       startTime: entry.startTime,
       endTime: entry.endTime
     });
-    if (blocked) {
-      showNotice(blocked, 'error');
-      setContextMenu(null);
-      return;
-    }
+    setContextMenu(null);
+    if (!reportPlacementVerdict(verdict, showNotice, { announceWarning: false })) return;
 
     const newEntry: ScheduledEntry = { ...entry, instanceId: uuidv4() };
     commitSchedule(prev => [...prev, newEntry]);
-    setContextMenu(null);
-    showNotice(warning ?? 'Post duplicerad parallellt', warning ? 'warning' : 'success');
+    showNotice(verdict.warning ?? 'Post duplicerad parallellt', verdict.warning ? 'warning' : 'success');
   }, [commitSchedule, showNotice, validatePlacement]);
 
   const handleDuplicateAndPlace = useCallback((entry: ScheduledEntry) => {

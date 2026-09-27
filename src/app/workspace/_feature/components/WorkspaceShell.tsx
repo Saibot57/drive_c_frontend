@@ -31,6 +31,7 @@ import type { ScheduleDayContent } from '../types/scheduleDay.types';
 import type { WheelPartMode } from '../utils/wheelExplode';
 import type { Point } from '../hooks/useElementDrag';
 import type { PlannerActivity } from '@/types/schedule';
+import { isEditableElement } from '@/utils/dom';
 // sp-root bär de delade neobrutalistiska tokens som schemat och temakalendern
 // använder. Workspace läser dem i sina egna --ws-*-variabler, så att en ändring
 // i det gemensamma temat slår igenom här utan att den här filen rörs.
@@ -448,12 +449,7 @@ function WorkspaceInner() {
       if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
       const key = e.key.toLowerCase();
       if (key !== 'c' && key !== 'v') return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
-         target.tagName === 'SELECT' || target.isContentEditable)
-      ) return;
+      if (isEditableElement(e.target)) return;
 
       if (key === 'c') {
         // Markerad text vinner alltid.

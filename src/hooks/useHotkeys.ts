@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { isEditableElement } from '@/utils/dom';
 
 export type HotkeyBinding = {
   key: string;              // e.g. 'k', 'Escape', 'ArrowDown', '1'
@@ -7,14 +8,6 @@ export type HotkeyBinding = {
   handler: (e: KeyboardEvent) => void;
   allowInInput?: boolean;   // default false — suppresses in input/textarea/contentEditable
 };
-
-function isEditableElement(el: EventTarget | null): boolean {
-  if (!el || !(el instanceof HTMLElement)) return false;
-  const tag = el.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (el.isContentEditable) return true;
-  return false;
-}
 
 export function useHotkeys(bindings: HotkeyBinding[], deps: unknown[] = []): void {
   const bindingsRef = useRef(bindings);

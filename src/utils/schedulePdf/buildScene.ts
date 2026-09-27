@@ -23,12 +23,7 @@ import { TextMeasurer } from './measure';
 import { BLACK, flatten, parseColor, Rgb, SceneNode, ScheduleScene } from './scene';
 import { computeTransform } from './transform';
 import * as T from './theme';
-
-const extractUrl = (value?: string) => {
-  if (!value) return null;
-  const match = value.match(/https?:\/\/[^\s]+/i);
-  return match ? match[0] : null;
-};
+import { extractUrl } from '@/utils/links';
 
 /** Baslinjen för en rad vars box börjar på `topPx`. */
 const baseline = (topPx: number, sizePx: number, measure: TextMeasurer, font: Parameters<TextMeasurer['ascentRatio']>[0]) =>

@@ -64,7 +64,7 @@ export const FONT_SIZE_2XS_PX = 10;
 export const FONT_SIZE_XS_PX = 12;
 export const FONT_SIZE_SM_PX = 14;
 
-/** Höjdtrösklarna i `ScheduledEventCard.tsx:80-81, 146, 155, 160`. */
+/** Höjdtrösklarna för korten. `ScheduledEventCard` och den publika vyn läser samma tal. */
 export const SHORT_DURATION_MINUTES = 45;
 export const COMPACT_HEIGHT_PX = 38;
 export const TEACHER_ROOM_MIN_HEIGHT_PX = 30;

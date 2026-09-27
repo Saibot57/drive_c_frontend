@@ -6,6 +6,7 @@ import { PLANNER_DAYS } from '@/config/plannerConstants';
 import { ScheduledEntry } from '@/types/schedule';
 import { splitTeacherNames } from '@/utils/scheduleStats';
 import { timeToMinutes } from '@/utils/scheduleTime';
+import { extractUrl } from '@/utils/links';
 
 type Props = {
   entries: ScheduledEntry[];
@@ -19,12 +20,6 @@ const SHORT_DAY: Record<string, string> = {
   Onsdag: 'Ons',
   Torsdag: 'Tor',
   Fredag: 'Fre',
-};
-
-const extractUrl = (value?: string) => {
-  if (!value) return null;
-  const match = value.match(/https?:\/\/[^\s]+/i);
-  return match ? match[0] : null;
 };
 
 type TimeGroup = {
