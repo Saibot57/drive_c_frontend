@@ -33,7 +33,7 @@ describe('toLocalDateKey', () => {
 
   it('ger rätt dag vid lokal midnatt under sommartid', () => {
     // Lokal midnatt 14 aug är 13 aug 22:00 UTC. toISOString() hade gett
-    // '2026-08-13' — det är precis buggen som finns i calendarService.
+    // '2026-08-13' — det är precis buggen som fanns i den gamla kalendern.
     const localMidnight = new Date(2026, 7, 14, 0, 0, 0);
     expect(toLocalDateKey(localMidnight)).toBe('2026-08-14');
     expect(localMidnight.toISOString().split('T')[0]).toBe('2026-08-13');

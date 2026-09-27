@@ -63,10 +63,6 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
-    // Skrivbords panelgenvägar stod här tidigare. De togs bort när Skrivbord
-    // lämnade huvudnavigationen — routen /features/command-center fungerar
-    // fortfarande via direkt-URL, men genvägarna gick inte att nå från menyn
-    // och blev därför vilseledande i hjälpen.
     label: 'Kalender',
     shortcuts: [
       { keys: ['←', '→'], description: 'En dag i sidled' },

@@ -1,9 +1,5 @@
 /**
  * monthCalendarService.ts — klient mot /api/calendar.
- *
- * Eget kontrakt, medvetet skilt från `calendarService.ts`. Den senare pratar
- * med de gamla `/api/events` och `/api/notes/<date>` som hör till Skrivbord,
- * och de två delar varken tabell eller typer.
  */
 import { fetchWithAuth } from '@/services/authService';
 import { API_URL } from '@/config/api';

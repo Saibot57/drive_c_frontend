@@ -5,8 +5,8 @@
  *
  * 1. Dagnyckeln byggs ur lokala komponenter, aldrig ur `toISOString()`. En
  *    lokal midnatt i Stockholm är föregående dygn i UTC under sommartid, så
- *    `toISOString().split('T')[0]` ger fel kalenderdag. Den buggen finns live i
- *    `calendarService.ts` och är anledningen till att den här filen existerar.
+ *    `toISOString().split('T')[0]` ger fel kalenderdag. Den buggen fanns i den
+ *    gamla kalendern och är anledningen till att den här filen existerar.
  *
  * 2. Veckonummer räknas ur dagnyckeln via `isoWeekYear` i `dateSv.ts`. Den
  *    läste tidigare `Date`-objekt med `getUTC*`, så en lokal måndag blev
