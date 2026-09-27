@@ -4,31 +4,13 @@ import { useCallback } from 'react';
 import jsPDF from 'jspdf';
 import { PersistedThemeWheelState, ThemeWheel } from '@/types/themeWheel';
 import { WHEEL_FONT_STACK, WHEEL_STROKE_WIDTH } from '@/config/themeWheelConstants';
+import { addCanvasCentered, downloadBlob, downloadUrl, toFileSlug } from '@/utils/download';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** Uppskalning vid rastrering. 4× på A4 ger drygt 300 dpi. */
 const PDF_SCALE = 4;
 const IMAGE_SCALE = 3;
-
-/** Filnamn utan å/ä/ö och mellanslag. */
-const slugify = (value: string): string => (
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase() || 'temakalender'
-);
-
-const download = (href: string, filename: string) => {
-  const link = document.createElement('a');
-  link.href = href;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
 
 /**
  * Fristående kopia av hjulet, redo att renderas utan sidans CSS.
@@ -99,7 +81,7 @@ type UseThemeWheelExportParams = {
 };
 
 export const useThemeWheelExport = ({ wheel, svgRef, showNotice }: UseThemeWheelExportParams) => {
-  const baseName = slugify(wheel.name);
+  const baseName = toFileSlug(wheel.name, 'temakalender');
 
   const exportImage = useCallback(async (type: 'png' | 'jpeg') => {
     const svg = svgRef.current;
@@ -109,7 +91,7 @@ export const useThemeWheelExport = ({ wheel, svgRef, showNotice }: UseThemeWheel
       const dataUrl = type === 'png'
         ? canvas.toDataURL('image/png')
         : canvas.toDataURL('image/jpeg', 0.92);
-      download(dataUrl, `${baseName}.${type === 'png' ? 'png' : 'jpg'}`);
+      downloadUrl(dataUrl, `${baseName}.${type === 'png' ? 'png' : 'jpg'}`);
     } catch (error) {
       console.error(error);
       showNotice('Kunde inte exportera bilden.', 'error');
@@ -123,18 +105,7 @@ export const useThemeWheelExport = ({ wheel, svgRef, showNotice }: UseThemeWheel
       const canvas = await renderToCanvas(svg, PDF_SCALE);
       // Hjulet är kvadratiskt, så stående sida ger störst hjul.
       const pdf = new jsPDF('p', 'pt', pageSize);
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 28;
-      const side = Math.min(pageWidth, pageHeight) - margin * 2;
-      pdf.addImage(
-        canvas.toDataURL('image/png'),
-        'PNG',
-        (pageWidth - side) / 2,
-        (pageHeight - side) / 2,
-        side,
-        side
-      );
+      addCanvasCentered(pdf, canvas, 28);
       pdf.save(`${baseName}.pdf`);
     } catch (error) {
       console.error(error);
@@ -189,9 +160,7 @@ export const useThemeWheelExport = ({ wheel, svgRef, showNotice }: UseThemeWheel
       wheel,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    download(url, `${baseName}.json`);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `${baseName}.json`);
   }, [baseName, wheel]);
 
   return { exportImage, exportPdf, printVector, exportJson };

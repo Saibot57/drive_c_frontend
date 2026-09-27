@@ -4,26 +4,9 @@ import { useCallback, type RefObject } from 'react';
 import type { PlannerNoticeTone } from '@/types/plannerUI';
 import type { SurfaceElement } from '../types/workspace.types';
 import { EXPORT_PADDING_PX, EXPORT_SCALE } from '../types/constants';
+import { addCanvasCentered, downloadUrl, toFileSlug } from '@/utils/download';
 
 type ShowNotice = (message: string, tone: PlannerNoticeTone) => void;
-
-/** Filnamn utan å/ä/ö och mellanslag, som i temakalenderns export. */
-const slugify = (value: string): string =>
-  value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase() || 'workspace';
-
-const download = (href: string, filename: string) => {
-  const link = document.createElement('a');
-  link.href = href;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
 
 type UseWorkspaceExportParams = {
   /** Elementet som bär canvasens transform. Innehållet ligger inuti det. */
@@ -110,7 +93,7 @@ export function useWorkspaceExport({
       const canvas = await renderToCanvas();
       if (!canvas) return;
       const mime = format === 'png' ? 'image/png' : 'image/jpeg';
-      download(canvas.toDataURL(mime, 0.95), `${slugify(surfaceName)}.${format === 'png' ? 'png' : 'jpg'}`);
+      downloadUrl(canvas.toDataURL(mime, 0.95), `${toFileSlug(surfaceName, 'workspace')}.${format === 'png' ? 'png' : 'jpg'}`);
       showNotice('Bilden sparades.', 'success');
     } catch (error) {
       console.error('Workspace: export misslyckades', error);
@@ -132,25 +115,8 @@ export function useWorkspaceExport({
         format: 'a4',
       });
 
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const scale = Math.min(
-        (pageWidth - margin * 2) / canvas.width,
-        (pageHeight - margin * 2) / canvas.height,
-      );
-      const w = canvas.width * scale;
-      const h = canvas.height * scale;
-
-      pdf.addImage(
-        canvas.toDataURL('image/png'),
-        'PNG',
-        (pageWidth - w) / 2,
-        (pageHeight - h) / 2,
-        w,
-        h,
-      );
-      pdf.save(`${slugify(surfaceName)}.pdf`);
+      addCanvasCentered(pdf, canvas, 10);
+      pdf.save(`${toFileSlug(surfaceName, 'workspace')}.pdf`);
       showNotice('PDF:en sparades.', 'success');
     } catch (error) {
       console.error('Workspace: PDF-export misslyckades', error);

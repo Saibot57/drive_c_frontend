@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { buildScene } from './buildScene';
 import { createJsPdfMeasurer } from './jspdfMeasurer';
 import { sceneToPdf } from './sceneToPdf';
-import { buildExportFilename, toFileSlug } from './index';
+import { buildExportFilename } from './index';
+import { toFileSlug } from '@/utils/download';
 import { entry, input, normalWeek } from './__fixtures__/scenes';
 import { PAPER, PX_TO_PT } from './theme';
 
