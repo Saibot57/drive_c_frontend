@@ -1,20 +1,19 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
-import { DEFAULT_COURSE_COLOR, PLANNER_DAYS } from '@/config/plannerConstants';
+import { DEFAULT_COURSE_COLOR } from '@/config/plannerConstants';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { HiddenSettingsDraft } from '@/hooks/useHiddenSettings';
-import { ColorTriggerRule, RoomTriggerRule, TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
+import { ColorTriggerRule, RoomTriggerRule, TeacherAvailability } from '@/types/schedule';
 import { parseExcludeList } from '@/utils/exportExclusions';
 import { sanitizePlanningMinGap, sanitizePlanningTime } from '@/utils/planningTime';
 import { minutesToTime } from '@/utils/scheduleTime';
-import { blocksWholeDay } from '@/utils/scheduleRules';
+import { TeacherAvailabilityRow, toggleBlock } from './TeacherAvailabilityRow';
+import { TriggerRuleList } from './TriggerRuleList';
 
 const sanitizeHiddenList = (input: string) => {
   const lines = input
@@ -30,274 +29,82 @@ const sanitizeHiddenList = (input: string) => {
   });
 };
 
-const DAY_ABBREVIATION: Record<string, string> = {
-  'Måndag': 'Må',
-  'Tisdag': 'Ti',
-  'Onsdag': 'On',
-  'Torsdag': 'To',
-  'Fredag': 'Fr'
-};
-
-const toggleBlock = (
-  availability: TeacherAvailability,
-  teacher: string,
-  day: string,
-  next: TeacherDayBlock[]
-): TeacherAvailability => {
-  const days = { ...(availability[teacher] ?? {}) };
-  if (next.length === 0) {
-    delete days[day];
-  } else {
-    days[day] = next;
-  }
-
-  const updated = { ...availability };
-  if (Object.keys(days).length === 0) {
-    delete updated[teacher];
-  } else {
-    updated[teacher] = days;
-  }
-  return updated;
-};
-
-type TeacherAvailabilityRowProps = {
-  teacher: string;
-  days: Record<string, TeacherDayBlock[]>;
-  onChange: (day: string, next: TeacherDayBlock[]) => void;
-};
-
-function TeacherAvailabilityRow({ teacher, days, onChange }: TeacherAvailabilityRowProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const summary = useMemo(() => {
-    const parts = PLANNER_DAYS
-      .filter(day => (days[day] ?? []).length > 0)
-      .map(day => {
-        const blocks = days[day];
-        if (blocksWholeDay(blocks)) return DAY_ABBREVIATION[day];
-        return `${DAY_ABBREVIATION[day]} ${blocks[0]}`;
-      });
-    return parts.length > 0 ? parts.join(', ') : 'Alltid tillgänglig';
-  }, [days]);
-
-  return (
-    <div className="border-2 border-black rounded p-2 bg-white">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-bold text-sm break-words">{teacher}</p>
-          <p className="text-[11px] text-gray-500 truncate">{summary}</p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="neutral"
-          className="h-7 w-7 p-0 shrink-0"
-          aria-expanded={isExpanded}
-          aria-label={isExpanded ? `Dölj halvdagar för ${teacher}` : `Visa halvdagar för ${teacher}`}
-          onClick={() => setIsExpanded(open => !open)}
-        >
-          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </Button>
-      </div>
-
-      <div className="mt-2 flex gap-1">
-        {PLANNER_DAYS.map(day => {
-          const blocks = days[day] ?? [];
-          const wholeDay = blocksWholeDay(blocks);
-
-          return (
-            <div key={day} className="flex-1 min-w-0 space-y-1">
-              <button
-                type="button"
-                aria-pressed={wholeDay}
-                title={`${teacher}, ${day.toLocaleLowerCase('sv')} – hela dagen`}
-                onClick={() => onChange(day, wholeDay ? [] : ['all'])}
-                className={`w-full rounded border-2 border-black px-1 py-1 text-xs font-bold transition-colors ${
-                  wholeDay ? 'bg-rose-300' : 'bg-white hover:bg-gray-100'
-                }`}
-              >
-                {DAY_ABBREVIATION[day]}
-              </button>
-
-              {isExpanded && (['fm', 'em'] as const).map(part => {
-                const active = wholeDay || blocks.includes(part);
-                return (
-                  <button
-                    key={part}
-                    type="button"
-                    aria-pressed={active}
-                    title={`${teacher}, ${day.toLocaleLowerCase('sv')} ${part === 'fm' ? 'förmiddag (före 12)' : 'eftermiddag (efter 12)'}`}
-                    onClick={() => {
-                      const current = wholeDay ? (['fm', 'em'] as TeacherDayBlock[]) : blocks;
-                      const next = current.includes(part)
-                        ? current.filter(block => block !== part)
-                        : [...current.filter(block => block !== 'all'), part];
-                      onChange(day, next);
-                    }}
-                    className={`w-full rounded border border-black px-1 py-0.5 text-[10px] font-bold uppercase transition-colors ${
-                      active ? 'bg-rose-200' : 'bg-white hover:bg-gray-100'
-                    }`}
-                  >
-                    {part}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-type ColorTriggerListProps = {
+function ColorTriggerList({ triggers, onChange }: {
   triggers: ColorTriggerRule[];
   onChange: (next: ColorTriggerRule[]) => void;
-};
-
-function ColorTriggerList({ triggers, onChange }: ColorTriggerListProps) {
-  const update = (id: string, patch: Partial<ColorTriggerRule>) => {
-    onChange(triggers.map(trigger => (trigger.id === id ? { ...trigger, ...patch } : trigger)));
-  };
-
+}) {
   return (
-    /* Storleken följer innehållet i stället för att ta resten av kolumnen, och
-       `shrink-0` hindrar att den krymps ihop igen: med tre sektioner under
-       varandra räcker höjden inte till, och utan spärren pressas knappen nedan
-       ut ur sin ruta och lägger sig ovanpå nästa rubrik. Kolumnen scrollar. */
-    <div className="flex min-h-0 shrink-0 flex-col gap-2">
-      {triggers.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">Inga färgregler ännu.</p>
-      ) : (
-        <div className="max-h-64 min-h-0 space-y-2 overflow-y-auto pr-1">
-          {triggers.map((trigger, index) => (
-            <div key={trigger.id} className="flex items-center gap-2">
-              <span className="w-5 shrink-0 text-xs font-bold text-gray-400">{index + 1}</span>
-              <Input
-                value={trigger.word}
-                onChange={event => update(trigger.id, { word: event.target.value })}
-                placeholder="Ord i titeln, t.ex. prov"
-                aria-label={`Triggerord ${index + 1}`}
-                className="flex-1"
-              />
-              <label
-                className="flex shrink-0 cursor-pointer items-center gap-2 rounded border-2 border-black px-2 py-1 text-xs"
-                title="Välj färg"
-              >
-                <span
-                  className="h-4 w-4 rounded-full border border-black"
-                  style={{ backgroundColor: trigger.color }}
-                />
-                Färg
-                <input
-                  type="color"
-                  className="sr-only"
-                  aria-label={`Färg för ${trigger.word || `regel ${index + 1}`}`}
-                  value={trigger.color}
-                  onChange={event => update(trigger.id, { color: event.target.value })}
-                />
-              </label>
-              <Button
-                type="button"
-                size="sm"
-                variant="neutral"
-                className="h-8 w-8 shrink-0 p-0"
-                aria-label={`Ta bort regel ${index + 1}`}
-                onClick={() => onChange(triggers.filter(item => item.id !== trigger.id))}
-              >
-                <X size={14} />
-              </Button>
-            </div>
-          ))}
-        </div>
+    <TriggerRuleList
+      rules={triggers}
+      onChange={onChange}
+      createRule={() => ({ word: '', color: DEFAULT_COURSE_COLOR })}
+      emptyText="Inga färgregler ännu."
+      addLabel="Lägg till färgregel"
+      wordPlaceholder="Ord i titeln, t.ex. prov"
+      wordAriaLabel={index => `Triggerord ${index + 1}`}
+      removeAriaLabel={index => `Ta bort regel ${index + 1}`}
+      listClassName="max-h-64"
+      renderValue={(trigger, index, update) => (
+        <label
+          className="flex shrink-0 cursor-pointer items-center gap-2 rounded border-2 border-black px-2 py-1 text-xs"
+          title="Välj färg"
+        >
+          <span
+            className="h-4 w-4 rounded-full border border-black"
+            style={{ backgroundColor: trigger.color }}
+          />
+          Färg
+          <input
+            type="color"
+            className="sr-only"
+            aria-label={`Färg för ${trigger.word || `regel ${index + 1}`}`}
+            value={trigger.color}
+            onChange={event => update({ color: event.target.value })}
+          />
+        </label>
       )}
-
-      <Button
-        type="button"
-        size="sm"
-        variant="neutral"
-        className="shrink-0 self-start"
-        onClick={() => onChange([...triggers, { id: uuidv4(), word: '', color: DEFAULT_COURSE_COLOR }])}
-      >
-        <Plus size={14} className="mr-1" /> Lägg till färgregel
-      </Button>
-    </div>
+    />
   );
 }
-
-type RoomTriggerListProps = {
-  triggers: RoomTriggerRule[];
-  onChange: (next: RoomTriggerRule[]) => void;
-  /** Sallistan ovan, som förslag i stället för ett fritextfält att stava fel i. */
-  rooms: string[];
-};
 
 const ROOM_TRIGGER_OPTIONS_ID = 'room-trigger-options';
 
-function RoomTriggerList({ triggers, onChange, rooms }: RoomTriggerListProps) {
-  const update = (id: string, patch: Partial<RoomTriggerRule>) => {
-    onChange(triggers.map(trigger => (trigger.id === id ? { ...trigger, ...patch } : trigger)));
-  };
-
+function RoomTriggerList({ triggers, onChange, rooms }: {
+  triggers: RoomTriggerRule[];
+  onChange: (next: RoomTriggerRule[]) => void;
+  /** Sallistan, som förslag i stället för ett fritextfält att stava fel i. */
+  rooms: string[];
+}) {
   return (
-    <div className="flex min-h-0 shrink-0 flex-col gap-2">
+    <TriggerRuleList
+      rules={triggers}
+      onChange={onChange}
+      createRule={() => ({ word: '', room: '' })}
+      emptyText="Inga salsregler ännu."
+      addLabel="Lägg till salsregel"
+      wordPlaceholder="Ord i titeln, t.ex. idrott"
+      wordAriaLabel={index => `Salsregel ${index + 1}, ord`}
+      removeAriaLabel={index => `Ta bort salsregel ${index + 1}`}
+      listClassName="max-h-48"
+      renderValue={(trigger, index, update) => (
+        <Input
+          value={trigger.room}
+          onChange={event => update({ room: event.target.value })}
+          placeholder="Sal"
+          list={ROOM_TRIGGER_OPTIONS_ID}
+          aria-label={`Sal för ${trigger.word || `regel ${index + 1}`}`}
+          className="w-28 shrink-0"
+        />
+      )}
+    >
       <datalist id={ROOM_TRIGGER_OPTIONS_ID}>
         {rooms.map(room => <option key={room} value={room} />)}
       </datalist>
-
-      {triggers.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">Inga salsregler ännu.</p>
-      ) : (
-        /* Till skillnad från färgreglerna ovan tar listan inte resten av
-           kolumnen, utan scrollar i egen ruta när den blir lång. */
-        <div className="max-h-48 min-h-0 space-y-2 overflow-y-auto pr-1">
-          {triggers.map((trigger, index) => (
-            <div key={trigger.id} className="flex items-center gap-2">
-              <span className="w-5 shrink-0 text-xs font-bold text-gray-400">{index + 1}</span>
-              <Input
-                value={trigger.word}
-                onChange={event => update(trigger.id, { word: event.target.value })}
-                placeholder="Ord i titeln, t.ex. idrott"
-                aria-label={`Salsregel ${index + 1}, ord`}
-                className="flex-1"
-              />
-              <Input
-                value={trigger.room}
-                onChange={event => update(trigger.id, { room: event.target.value })}
-                placeholder="Sal"
-                list={ROOM_TRIGGER_OPTIONS_ID}
-                aria-label={`Sal för ${trigger.word || `regel ${index + 1}`}`}
-                className="w-28 shrink-0"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="neutral"
-                className="h-8 w-8 shrink-0 p-0"
-                aria-label={`Ta bort salsregel ${index + 1}`}
-                onClick={() => onChange(triggers.filter(item => item.id !== trigger.id))}
-              >
-                <X size={14} />
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Button
-        type="button"
-        size="sm"
-        variant="neutral"
-        className="shrink-0 self-start"
-        onClick={() => onChange([...triggers, { id: uuidv4(), word: '', room: '' }])}
-      >
-        <Plus size={14} className="mr-1" /> Lägg till salsregel
-      </Button>
-    </div>
+    </TriggerRuleList>
   );
 }
 
-type HiddenSettingsPanelProps = {
+type HiddenSettingsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   teachers: string[];
@@ -313,7 +120,11 @@ type HiddenSettingsPanelProps = {
   onSave: (next: HiddenSettingsDraft) => void;
 };
 
-export function HiddenSettingsPanel({
+/**
+ * Planerarens inställningar: lärare, salar, spärrar, planeringstid och
+ * reglerna för färg, sal, export och inklistring. Öppnas med Ctrl+Shift+K.
+ */
+export function HiddenSettingsDialog({
   open,
   onOpenChange,
   teachers,
@@ -327,7 +138,7 @@ export function HiddenSettingsPanel({
   planningStartMinutes,
   planningEndMinutes,
   onSave
-}: HiddenSettingsPanelProps) {
+}: HiddenSettingsDialogProps) {
   const [teacherText, setTeacherText] = useState('');
   const [roomText, setRoomText] = useState('');
   const [availability, setAvailability] = useState<TeacherAvailability>({});
@@ -564,64 +375,6 @@ export function HiddenSettingsPanel({
         <DialogFooter className="shrink-0">
           <Button variant="neutral" onClick={handleSave} className="border-2 border-black">
             Spara
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-type CategoryDebugPanelProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  categories: string[];
-  missingCount: number;
-  totalCount: number;
-};
-
-export function CategoryDebugPanel({
-  open,
-  onOpenChange,
-  categories,
-  missingCount,
-  totalCount
-}: CategoryDebugPanelProps) {
-  const hasCategories = categories.length > 0;
-  const hasActivities = totalCount > 0;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Kategorier (debug)</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 text-sm">
-          <div>
-            <p className="font-semibold">Unika kategorier ({categories.length})</p>
-            {hasCategories ? (
-              <ul className="list-disc pl-5">
-                {categories.map(category => (
-                  <li key={category}>{category}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500">Inga kategorier hittades.</p>
-            )}
-          </div>
-          <div>
-            <p className="font-semibold">Aktiviteter utan kategori</p>
-            <p>{missingCount} av {totalCount}</p>
-          </div>
-          {!hasActivities && (
-            <p className="text-gray-500">Inga aktiviteter laddade ännu.</p>
-          )}
-          <p className="text-xs text-gray-500">
-            Öppna via Ctrl + Shift + C.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="neutral" onClick={() => onOpenChange(false)} className="border-2 border-black">
-            Stäng
           </Button>
         </DialogFooter>
       </DialogContent>

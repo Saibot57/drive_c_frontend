@@ -61,7 +61,8 @@ import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
 import { PlanningBlockCard, PlanningDayOffLabel } from '@/components/schedule/PlanningBlockCard';
 import { DayColumn } from '@/components/schedule/DayColumn';
 import { ArchiveCard } from '@/components/schedule/ArchiveCard';
-import { CategoryDebugPanel, HiddenSettingsPanel } from '@/components/schedule/DebugPanels';
+import { CategoryDebugPanel } from '@/components/schedule/CategoryDebugPanel';
+import { HiddenSettingsDialog } from '@/components/schedule/settings/HiddenSettingsDialog';
 import { ScheduleModals } from '@/components/schedule/ScheduleModals';
 import { BulkEditModal } from '@/components/schedule/BulkEditModal';
 import { FindReplacePanel } from '@/components/schedule/FindReplacePanel';
@@ -2283,7 +2284,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       )}
 
       {/* Modals */}
-      <HiddenSettingsPanel
+      <HiddenSettingsDialog
         open={isHiddenSettingsOpen}
         onOpenChange={setIsHiddenSettingsOpen}
         teachers={teachers}
