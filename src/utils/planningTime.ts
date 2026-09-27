@@ -4,10 +4,11 @@ import { blocksWholeDay, FORENOON_END_MINUTES } from '@/utils/scheduleRules';
 import {
   ALL_TEACHERS_TOKEN,
   isAllTeachersField,
+  mergeIntervals,
   splitTeacherNames,
   TimeInterval
 } from '@/utils/scheduleStats';
-import { END_HOUR, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
+import { clampToGrid, END_HOUR, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
 
 /** Ordet som slår om filterrutan från vanlig sökning till planeringsvy. */
 export const PLANNING_KEYWORD = 'planering';
@@ -15,10 +16,6 @@ export const PLANNING_KEYWORD = 'planering';
 const GRID_START_MINUTES = START_HOUR * 60;
 const GRID_END_MINUTES = END_HOUR * 60;
 
-/** Tider utanför rutnätet går inte att rita, så de dras in till kanten. */
-const clampToGrid = (minutes: number) => (
-  Math.min(GRID_END_MINUTES, Math.max(GRID_START_MINUTES, minutes))
-);
 
 const normalize = (value: string) => value.trim().toLocaleLowerCase('sv');
 
@@ -127,25 +124,6 @@ export const parsePlanningQuery = (query: string, teachers: string[]): PlanningQ
 };
 
 // --- Intervallräkning ---
-
-/** Slår ihop överlappande och angränsande intervall till en sorterad lista. */
-export const mergeIntervals = (intervals: TimeInterval[]): TimeInterval[] => {
-  const sorted = intervals
-    .filter(interval => interval.end > interval.start)
-    .sort((a, b) => a.start - b.start);
-
-  const merged: TimeInterval[] = [];
-  sorted.forEach(interval => {
-    const last = merged[merged.length - 1];
-    if (last && interval.start <= last.end) {
-      last.end = Math.max(last.end, interval.end);
-      return;
-    }
-    merged.push({ ...interval });
-  });
-
-  return merged;
-};
 
 /** Det som blir kvar av ramen när alla bortfall klippts ur. */
 export const subtractIntervals = (frame: TimeInterval, cuts: TimeInterval[]): TimeInterval[] => {

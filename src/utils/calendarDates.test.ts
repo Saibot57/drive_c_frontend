@@ -137,9 +137,9 @@ describe('getIsoWeek', () => {
   });
 
   it('är korrekt för måndagar — regressionsvakt', () => {
-    // isoWeekYear läser med getUTC*. Skickas ett lokalt Date-objekt för en
-    // måndag pekar det på söndagen före i UTC och veckan blir ett för låg.
-    // Varje rad i matrisen börjar på en måndag, så det här måste hålla.
+    // isoWeekYear läste tidigare Date-objekt med getUTC*, så en lokal måndag
+    // blev söndagen före i UTC och veckan ett för låg. Varje rad i matrisen
+    // börjar på en måndag, så det här måste hålla.
     const måndagar: Array<[string, number]> = [
       ['2026-08-17', 34],
       ['2026-01-05', 2],

@@ -13,6 +13,7 @@
 
 import { PLANNER_DAYS } from '@/components/schedule/constants';
 import { ScheduleExportInput } from '@/types/scheduleExport';
+import { toLocalDateKey } from '@/utils/calendarDates';
 import { formatMinutes } from '@/utils/scheduleStats';
 import { buildDayLayout } from '@/utils/scheduleLayout';
 import { EVENT_GAP_PX, MIN_HEIGHT_PX, minutesToTime, timeToMinutes } from '@/utils/scheduleTime';
@@ -28,9 +29,6 @@ const extractUrl = (value?: string) => {
   const match = value.match(/https?:\/\/[^\s]+/i);
   return match ? match[0] : null;
 };
-
-const formatExportDate = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 /** Baslinjen för en rad vars box börjar på `topPx`. */
 const baseline = (topPx: number, sizePx: number, measure: TextMeasurer, font: Parameters<TextMeasurer['ascentRatio']>[0]) =>
@@ -85,7 +83,7 @@ const drawTitleBar = (
 ) => {
   const padX = 6;
   const label = input.archiveName?.trim() || 'Schema';
-  const date = formatExportDate(input.exportedAt ?? new Date());
+  const date = toLocalDateKey(input.exportedAt ?? new Date());
 
   const titleTop = (T.TITLE_H_PX - T.TITLE_FONT_SIZE_PX * T.LINE_HEIGHT_FACTOR) / 2;
   nodes.push({

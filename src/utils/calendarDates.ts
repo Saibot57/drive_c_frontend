@@ -8,11 +8,10 @@
  *    `toISOString().split('T')[0]` ger fel kalenderdag. Den buggen finns live i
  *    `calendarService.ts` och är anledningen till att den här filen existerar.
  *
- * 2. `isoWeekYear` från `dateSv.ts` anropas alltid med *strängen*, aldrig med
- *    ett `Date`-objekt. Den läser med `getUTC*`, så ett lokalt Date-objekt för
- *    en måndag pekar på söndagen före i UTC — och varje rad i månadsvyn börjar
- *    på en måndag. Med Date-objekt hade alltså samtliga veckonummer blivit ett
- *    för lågt.
+ * 2. Veckonummer räknas ur dagnyckeln via `isoWeekYear` i `dateSv.ts`. Den
+ *    läste tidigare `Date`-objekt med `getUTC*`, så en lokal måndag blev
+ *    söndagen före och veckan ett för låg. Det är rättat där, men nyckeln är
+ *    fortfarande det kanoniska sättet att fråga efter en dags vecka.
  */
 import { SV_FROM_ISO, isoWeekYear } from '@/utils/dateSv';
 
@@ -71,7 +70,7 @@ export function isValidDateKey(key: string): boolean {
   );
 }
 
-/** ISO-veckodag, 1 = måndag ... 7 = söndag. Lokal, till skillnad från `dateSv.isoWeekday`. */
+/** ISO-veckodag, 1 = måndag ... 7 = söndag, ur lokal tid. */
 export function localIsoWeekday(date: Date): number {
   const day = date.getDay(); // 0 = söndag
   return day === 0 ? 7 : day;

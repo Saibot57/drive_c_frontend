@@ -29,6 +29,10 @@ export const getPositionStyles = (start: string, duration: number) => {
   return { top, height };
 };
 
+/** Tider utanför rutnätet går inte att rita, så de dras in till kanten. */
+export const clampToGrid = (minutes: number): number =>
+  Math.min(END_HOUR * 60, Math.max(START_HOUR * 60, minutes));
+
 /** Snap-to-grid logik: Avrundar minuter till närmsta kvart */
 export const snapTime = (minutes: number): number => {
   return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
