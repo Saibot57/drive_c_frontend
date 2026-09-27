@@ -7,7 +7,6 @@
  */
 
 import { ThemeArea, ThemeBlock } from '@/types/themeWheel';
-import { DEFAULT_AREA_COLOR } from '@/components/theme-wheel/constants';
 
 export const DERIVED_AREA_PREFIX = 'gen_';
 
@@ -115,21 +114,5 @@ export const buildAreaLibrary = (areas: ThemeArea[], blocks: ThemeBlock[]): Libr
       { area, parentKey: null },
       ...(childrenByKey.get(key) ?? []).map(child => ({ area: child, parentKey: key })),
     ];
-  });
-};
-
-/** Plockar bort skräp ur data som lästs från localStorage eller en JSON-fil. */
-export const sanitizeAreas = (input: unknown): ThemeArea[] => {
-  if (!Array.isArray(input)) return [];
-  return input.flatMap(item => {
-    if (!item || typeof item !== 'object') return [];
-    const raw = item as Partial<ThemeArea>;
-    if (typeof raw.id !== 'string' || typeof raw.title !== 'string') return [];
-    return [{
-      id: raw.id,
-      title: raw.title,
-      color: typeof raw.color === 'string' ? raw.color : DEFAULT_AREA_COLOR,
-      comment: typeof raw.comment === 'string' ? raw.comment : undefined,
-    }];
   });
 };

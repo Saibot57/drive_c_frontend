@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
-import type { FileData, SubSection, SectionData } from '@/types/fileSections';
+import type { SubSection, SectionData } from '@/types/fileSections';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { API_URL } from '@/config/api';
 

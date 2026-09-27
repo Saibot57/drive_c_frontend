@@ -8,11 +8,9 @@ import {
 } from '@dnd-kit/core';
 import {
   Archive,
-  Copy,
   Download,
   Lock,
   RefreshCcw,
-  Trash2,
   Plus,
   ShieldAlert,
   Upload,
@@ -25,7 +23,6 @@ import {
   ChevronUp,
   MoreVertical,
   Search,
-  Share2,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -34,14 +31,13 @@ import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
   DEFAULT_COURSE_COLOR,
-  PLANNER_DAYS,
-  TITLE_HOLD_OPEN_MS
+  PLANNER_DAYS
 } from '@/components/schedule/constants';
 import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
-import { ContextMenuState, GhostPlacement, PlannerNoticeTone } from '@/types/plannerUI';
+import { ContextMenuState, PlannerNoticeTone } from '@/types/plannerUI';
 import {
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE,
-  timeToMinutes, minutesToTime, snapTime,
+  timeToMinutes, minutesToTime,
   EVENT_GAP_PX, MIN_HEIGHT_PX
 } from '@/utils/scheduleTime';
 import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
@@ -272,7 +268,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [findReplaceOptions, setFindReplaceOptions] = useState<FindReplaceOptions>({});
-  const titleHoldTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
   const imageExportMenuRef = useRef<HTMLDivElement>(null);
@@ -285,7 +280,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     ownArchiveNames,
     initialArchiveId,
     serverSyncToken,
-    activeArchive,
     activeArchiveId,
     activeArchiveName,
     isReadOnly,
@@ -770,22 +764,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     window.addEventListener('mousedown', handleOutsideClick);
     return () => window.removeEventListener('mousedown', handleOutsideClick);
   }, [isPdfMenuOpen, isImageExportMenuOpen, isJsonMenuOpen]);
-
-  const startTitleHold = () => {
-    if (titleHoldTimerRef.current) {
-      window.clearTimeout(titleHoldTimerRef.current);
-    }
-    titleHoldTimerRef.current = window.setTimeout(() => {
-      setIsHiddenSettingsOpen(true);
-      titleHoldTimerRef.current = null;
-    }, TITLE_HOLD_OPEN_MS);
-  };
-
-  const clearTitleHold = () => {
-    if (!titleHoldTimerRef.current) return;
-    window.clearTimeout(titleHoldTimerRef.current);
-    titleHoldTimerRef.current = null;
-  };
 
   const categoryStats = useMemo(() => {
     const normalized = schedule.map(entry => (

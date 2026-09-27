@@ -47,6 +47,4 @@ export const ACTIVE_ARCHIVE_ID_KEY = 'active_archive_id';
 export const DEFAULT_PLANNING_MIN_GAP_MINUTES = 45;
 
 export const PLANNER_NOTICE_DISMISS_MS = 2600;
-export const TITLE_HOLD_OPEN_MS = 700;
 export const AUTOSAVE_DELAY_MS = 1000;
-export const AUTOFILL_DISABLE_WINDOW_MS = 7000;

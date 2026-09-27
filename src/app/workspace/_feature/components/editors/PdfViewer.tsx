@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, FileText, Loader2, AlertCircle } from 'lucide-react';
-import type { PdfContent, PdfSource } from '../../types/pdf.types';
+import type { PdfContent } from '../../types/pdf.types';
 import { parseSource, fetchPdfBytes } from '../../services/pdfProxyService';
 
 // pdfjs-dist types are imported lazily inside the effect to keep the main

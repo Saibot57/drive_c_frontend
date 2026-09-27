@@ -32,17 +32,3 @@ export function isoWeekday(input: string | Date): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
   const day = d.getUTCDay();
   return (day === 0 ? 7 : day) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
 }
-
-export function dateFromISOWeek(
-  year: number,
-  week: number,
-  isoWeekday: 1 | 2 | 3 | 4 | 5 | 6 | 7,
-): Date {
-  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-  const dow = simple.getUTCDay() || 7;
-  const monday = new Date(simple);
-  monday.setUTCDate(simple.getUTCDate() - dow + 1);
-  const result = new Date(monday);
-  result.setUTCDate(monday.getUTCDate() + (isoWeekday - 1));
-  return result;
-}

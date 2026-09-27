@@ -289,7 +289,7 @@ const drawLessonDay = (
       });
       if (layoutResult.truncated) truncatedInstanceIds.push(entry.instanceId);
 
-      pushCardText(nodes, layoutResult.lines, x, y, w, fill, measure);
+      pushCardText(nodes, layoutResult.lines, x, y, fill, measure);
 
       const url = extractUrl(entry.category);
       if (url) nodes.push({ kind: 'link', x, y, w, h, url });
@@ -315,7 +315,6 @@ const pushCardText = (
   lines: ReturnType<typeof layoutCardText>['lines'],
   cardX: number,
   cardY: number,
-  cardW: number,
   fill: Rgb,
   measure: TextMeasurer
 ) => {

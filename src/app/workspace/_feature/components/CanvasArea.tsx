@@ -11,7 +11,6 @@ interface CanvasAreaProps {
   onViewportChange: (viewport: Partial<ViewportState>) => void;
   placements: SurfaceElement[];
   elements: Record<string, WorkspaceElement>;
-  selectedElementId: string | null;
   onSelectElement: (elementId: string | null) => void;
   /** Ramar in allt på ytan. Ctrl+0. */
   onZoomToContent?: () => void;
@@ -33,7 +32,6 @@ interface CanvasAreaProps {
 export default function CanvasArea({
   viewport,
   onViewportChange,
-  selectedElementId,
   onSelectElement,
   onZoomToContent,
   isLibraryDragging = false,

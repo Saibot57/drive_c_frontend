@@ -21,7 +21,6 @@ import {
   isDerivedArea,
   mergeAreas,
 } from '@/utils/themeWheelAreas';
-import { generateBoxColor } from '@/config/colorManagement';
 import { deriveChildColor } from '@/utils/readableTextColor';
 import { useThemeWheelHistory } from '@/hooks/useThemeWheelHistory';
 import { useThemeWheelSync } from '@/hooks/useThemeWheelSync';

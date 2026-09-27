@@ -95,11 +95,6 @@ export const monthCalendarService = {
     return unwrap<CalendarDayData[]>(res);
   },
 
-  async getDay(key: DateKey, signal?: AbortSignal): Promise<CalendarDayData> {
-    const res = await fetchWithAuth(`${BASE}/days/${key}`, { signal });
-    return unwrap<CalendarDayData>(res);
-  },
-
   /**
    * `keepalive` används när sidan håller på att stängas: webbläsaren slutför
    * anropet även efter unload, så en anteckning mitt i debouncen inte tappas.

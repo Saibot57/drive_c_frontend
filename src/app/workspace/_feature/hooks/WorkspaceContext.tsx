@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from 'react';
-import type { WorkspaceState, WorkspaceAction, ViewportState } from '../types/workspace.types';
+import type { WorkspaceState, WorkspaceAction } from '../types/workspace.types';
 import { DEFAULT_ZOOM } from '../types/constants';
 
 const initialState: WorkspaceState = {

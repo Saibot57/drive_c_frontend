@@ -58,7 +58,6 @@ function WorkspaceInner() {
     dispatch,
     plannerNotice,
     showNotice,
-    dismissNotice,
     saveStatus,
     canUndo,
     handleUndo,
@@ -782,7 +781,6 @@ function WorkspaceInner() {
           onViewportChange={handleViewportChange}
           placements={state.placements}
           elements={state.elements}
-          selectedElementId={state.selectedElementId}
           onSelectElement={handleSelectElement}
           viewportRef={viewportRef}
           onMarqueeSelect={handleMarqueeSelect}

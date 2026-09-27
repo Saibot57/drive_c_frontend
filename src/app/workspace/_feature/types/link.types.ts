@@ -4,7 +4,3 @@ export interface LinkContent {
   description?: string;
   thumbnailUrl?: string;
 }
-
-export const EMPTY_LINK_CONTENT: LinkContent = {
-  url: '',
-};
