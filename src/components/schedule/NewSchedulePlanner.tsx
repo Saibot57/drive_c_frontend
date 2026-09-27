@@ -86,7 +86,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/components/schedule/courseUtils';
 import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
-import { ExportOutcome, useScheduleExport } from '@/hooks/useScheduleExport';
 import { useScheduleVectorExport, VectorExportOutcome } from '@/hooks/useScheduleVectorExport';
 import { ScheduleExportInput } from '@/types/scheduleExport';
 import { PageMode } from '@/utils/schedulePdf/theme';
@@ -98,6 +97,14 @@ import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import PublicLinkControl from '@/components/schedule/PublicLinkControl';
 import '@/styles/schedule-theme.css';
+
+/** Det exportnotisen behöver veta om den fil som just skapades. */
+type PlannerExportOutcome = {
+  /** Poster vars text inte rymdes i kortet och klipptes med "…". */
+  truncated: ScheduledEntry[];
+  /** Schemat skalades ned så långt att texten knappt går att läsa. */
+  lowScale?: boolean;
+};
 
 // --- Helper: Conflict Check & Filtering ---
 
@@ -481,7 +488,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
    * Avkortad text är samma sorts tysthet, så den rapporteras i samma notis:
    * `plannerNotice` har bara en plats, och två anrop skulle skriva över varann.
    */
-  const handleExportComplete = useCallback((outcome?: ExportOutcome) => {
+  const handleExportComplete = useCallback((outcome?: PlannerExportOutcome) => {
     const parts: string[] = [];
     let tone: PlannerNoticeTone = 'success';
 
@@ -536,13 +543,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     ), 0);
     return latest > 0 ? latest : undefined;
   }, [planningByDay]);
-
-  const { handleExportPDF, handleExportImage } = useScheduleExport({
-    schedule,
-    isExcludedFromExport,
-    extraEndMinutes: planningExportEndMinutes,
-    onExportComplete: handleExportComplete
-  });
 
   /**
    * Allt vektorexporten behöver, hämtat ur det planeraren redan räknat fram.
@@ -1650,21 +1650,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                         {label}
                       </button>
                     ))}
-                    <div className="my-1 sp-divider" />
-                    {(['a4', 'a3'] as const).map(size => (
-                      <button
-                        key={size}
-                        type="button"
-                        title="Gamla vägen: öppnar systemets utskriftsdialog och du väljer själv Spara som PDF."
-                        className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item text-gray-600"
-                        onClick={() => {
-                          handleExportPDF(size);
-                          setIsPdfMenuOpen(false);
-                        }}
-                      >
-                        Utskriftsdialog ({size.toUpperCase()})
-                      </button>
-                    ))}
                   </div>
                 )}
               </div>
@@ -1697,18 +1682,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                         Exportera {label}
                       </button>
                     ))}
-                    <div className="my-1 sp-divider" />
-                    <button
-                      type="button"
-                      title="Gamla vägen: fotar skärmen med html2canvas."
-                      className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item text-gray-600"
-                      onClick={() => {
-                        handleExportImage('png');
-                        setIsImageExportMenuOpen(false);
-                      }}
-                    >
-                      PNG (skärmbild)
-                    </button>
                   </div>
                 )}
               </div>
@@ -2029,7 +2002,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   isNotesProtected={markedIds.has(entry.instanceId) && isPasteProtected(entry)}
                                   color={resolveColor(entry.title, entry.color)}
                                   room={resolveRoom(entry.title, entry.room)}
-                                  excludedFromExport={isExcludedFromExport(entry)}
                                   isBulkSelected={bulkIds.has(entry.instanceId)}
                                   onToggleBulk={toggleBulkId}
                                />
@@ -2097,7 +2069,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                   isNotesProtected={markedIds.has(entry.instanceId) && isPasteProtected(entry)}
                                  color={resolveColor(entry.title, entry.color)}
                                  room={resolveRoom(entry.title, entry.room)}
-                                  excludedFromExport={isExcludedFromExport(entry)}
                                   isBulkSelected={bulkIds.has(entry.instanceId)}
                                   onToggleBulk={toggleBulkId}
                                />

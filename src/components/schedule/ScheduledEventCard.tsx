@@ -31,8 +31,6 @@ type ScheduledEventCardProps = {
    * salsregel fyller det. Utelämnad visas postens egen sal.
    */
   room?: string;
-  /** Syns på skärmen men döljs i PDF/bild av regeln under `.pdf-export`. */
-  excludedFromExport?: boolean;
   /** Ingår i markeringen för massredigering (Cmd+klick). */
   isBulkSelected?: boolean;
   /** Utelämnad betyder att kortet inte går att markera, och klick beter sig som förut. */
@@ -70,7 +68,6 @@ export function ScheduledEventCard({
   isNotesProtected = false,
   color,
   room,
-  excludedFromExport = false,
   isBulkSelected = false,
   onToggleBulk
 }: ScheduledEventCardProps) {
@@ -119,7 +116,6 @@ export function ScheduledEventCard({
         zIndex: isDragging ? 50 : 10
       }}
       data-instance-id={entry.instanceId}
-      data-export-exclude={excludedFromExport ? 'true' : undefined}
       className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''} ${isNotesTarget ? 'ring-4 ring-sky-600 ring-offset-1' : ''} ${isNotesProtected ? 'sp-notes-protected' : ''} ${isBulkSelected ? 'sp-bulk-selected' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
@@ -156,7 +152,7 @@ export function ScheduledEventCard({
                 <FileText size={10} />
               </a>
             )}
-            <div data-card-actions className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-1 bg-white/60 rounded`}>
+            <div className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-1 bg-white/60 rounded`}>
               <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-1 hover:bg-white rounded"><Edit2 size={8} /></button>
               <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-1 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8} /></button>
             </div>
@@ -180,9 +176,7 @@ export function ScheduledEventCard({
           </p>
         )}
         {entry.notes && adjustedHeight > 46 && (
-          /* `data-card-notes` är fästet som exporten klämmer i – klassnamnen
-             byts av `.pdf-export` och duger inte som väljare där. */
-          <p data-card-notes className={`text-gray-600 whitespace-pre-line line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
+          <p className={`text-gray-600 whitespace-pre-line line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
         )}
       </div>
     </div>

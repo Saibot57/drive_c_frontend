@@ -1,7 +1,7 @@
 /**
  * Kortets textinnehåll, utlagt och klämt utan DOM.
  *
- * Ersätter `scheduleExportFit.ts` för den datadrivna vägen. Ordningen på
+ * Ersatte `scheduleExportFit.ts` från den borttagna DOM-exporten. Ordningen på
  * blocken speglar JSX:en i `ScheduledEventCard.tsx` exakt, och trösklarna
  * (`duration < 45`, höjd < 38, > 30, > 46) är samma tal — de bor i `theme.ts`
  * så att de går att jämföra sida vid sida.
@@ -180,7 +180,7 @@ export const layoutCardText = ({
         )
       : [];
 
-  // ── Anteckningar. `.pdf-export` släpper `line-clamp-4`, så inget tak här ──
+  // ── Anteckningar. Som i den gamla DOM-exporten: inget `line-clamp-4`-tak ──
   let notes: CardTextRun[][] =
     entry.notes && adjustedHeightPx > NOTES_MIN_HEIGHT_PX
       ? simpleLines(

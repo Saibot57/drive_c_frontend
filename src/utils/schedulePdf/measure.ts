@@ -23,8 +23,8 @@ export const ELLIPSIS = '…';
 /**
  * Bryter text till rader som ryms inom `maxWidthPx`.
  *
- * `.pdf-export` sätter `white-space: pre-line` och `overflow-wrap: anywhere` på
- * allt i kortet, så radbrytaren måste bevara explicita radbrytningar, kollapsa
+ * Kortets text bryts som med `white-space: pre-line` och `overflow-wrap: anywhere`,
+ * så radbrytaren måste bevara explicita radbrytningar, kollapsa
  * löpande blanksteg och kunna bryta *inuti* ett ord som är bredare än raden.
  *
  * jsPDF:s egen `splitTextToSize` klarar inte det sista — den lämnar en överbred

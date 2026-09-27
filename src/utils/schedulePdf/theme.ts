@@ -40,7 +40,7 @@ export const DIGITAL_WIDTH_PX = TIME_AXIS_W_PX + 5 * 270;
 /** `left: calc(...% + 4px)`, `width: calc(...% - 8px)` i `ScheduledEventCard`. */
 export const CARD_INSET_X_PX = 4;
 
-/** `p-1` (4px) runtom, men `.pdf-export` sätter `padding-top: 6px`. */
+/** `p-1` (4px) runtom, men 6px upptill som i den borttagna DOM-exporten. */
 export const CARD_PAD_TOP_PX = 6;
 export const CARD_PAD_X_PX = 4;
 export const CARD_PAD_BOTTOM_PX = 4;
@@ -51,8 +51,8 @@ export const CARD_RADIUS_PX = 4;
 /**
  * `leading-tight`, alltså vad skärmen faktiskt renderar med.
  *
- * `.pdf-export` sätter 1.4 i `globals.css:148-155`, men det talet är till för
- * att ge luft åt text som plötsligt får radbryta när `truncate` släpps i DOM:en.
+ * Den borttagna DOM-exporten (`.pdf-export`) satte 1.4, men det talet var till
+ * för att ge luft åt text som plötsligt fick radbryta när `truncate` släpptes.
  * Här styr vi radbrytningen själva, och 1.4 skulle kosta innehåll: ett 36 px
  * kort rymmer lärarnamnet vid 1.25 men inte vid 1.4. Skärmen är det Tobias
  * designar mot, så filen följer skärmen.
