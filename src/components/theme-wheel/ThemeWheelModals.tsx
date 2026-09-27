@@ -8,8 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ThemeArea, ThemeBlock, ThemeWheel } from '@/types/themeWheel';
 import { WheelWeek } from '@/utils/themeWheelWeeks';
-import { MAX_WEEK_COUNT, MIN_WEEK_COUNT } from '@/config/themeWheelConstants';
-import { ThemeColorPicker } from '@/components/theme-wheel/ThemeColorPicker';
+import {
+  MAX_RECENT_CUSTOM_COLORS,
+  MAX_WEEK_COUNT,
+  MIN_WEEK_COUNT,
+  THEME_AREA_PALETTE,
+  THEME_WHEEL_RECENT_COLORS_KEY,
+} from '@/config/themeWheelConstants';
+import { ColorPicker } from '@/components/ui/ColorPicker';
 import { generateBoxColor } from '@/config/colorManagement';
 
 type ThemeWheelModalsProps = {
@@ -117,9 +123,13 @@ export function ThemeWheelModals({
                   className="sp-input"
                 />
               </div>
-              <ThemeColorPicker
+              <ColorPicker
                 value={editingArea.color}
                 onChange={color => { setManualColor(true); setEditingArea({ ...editingArea, color }); }}
+                palette={THEME_AREA_PALETTE}
+                recentStorageKey={THEME_WHEEL_RECENT_COLORS_KEY}
+                maxRecent={MAX_RECENT_CUSTOM_COLORS}
+                showTextPreview
               />
               <DialogFooter>
                 <Button type="submit" disabled={!editingArea.title.trim()}>Spara</Button>
@@ -282,9 +292,13 @@ export function ThemeWheelModals({
                 )}
               </div>
 
-              <ThemeColorPicker
+              <ColorPicker
                 value={editingBlock.color}
                 onChange={color => { setManualColor(true); setEditingBlock({ ...editingBlock, color }); }}
+                palette={THEME_AREA_PALETTE}
+                recentStorageKey={THEME_WHEEL_RECENT_COLORS_KEY}
+                maxRecent={MAX_RECENT_CUSTOM_COLORS}
+                showTextPreview
               />
 
               <DialogFooter className="gap-2">

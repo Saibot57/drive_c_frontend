@@ -12,32 +12,9 @@ import {
   HEADING_RECENT_COLORS_MAX,
 } from '../types/constants';
 import { resolveHeadingFont } from './editors/HeadingEditor';
+import { useRecentColors } from '@/hooks/useRecentColors';
 
 const LEVELS: HeadingLevel[] = [1, 2, 3];
-
-function readRecent(): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(HEADING_RECENT_COLORS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((c) => typeof c === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-function pushRecent(color: string): string[] {
-  const next = [color, ...readRecent().filter((c) => c !== color)].slice(
-    0,
-    HEADING_RECENT_COLORS_MAX,
-  );
-  try {
-    window.localStorage.setItem(HEADING_RECENT_COLORS_KEY, JSON.stringify(next));
-  } catch {
-    /* Privat läge eller full kvot — färgen fungerar ändå, den minns bara inte. */
-  }
-  return next;
-}
 
 interface HeadingToolbarProps {
   content: HeadingContent;
@@ -46,12 +23,13 @@ interface HeadingToolbarProps {
 
 export default function HeadingToolbar({ content, onChange }: HeadingToolbarProps) {
   const [colorOpen, setColorOpen] = useState(false);
-  const [recent, setRecent] = useState<string[]>([]);
+  const { recentColors: recent, rememberColor } = useRecentColors(
+    HEADING_RECENT_COLORS_KEY,
+    HEADING_RECENT_COLORS_MAX,
+  );
   const colorRef = useRef<HTMLDivElement>(null);
   const activeFont = resolveHeadingFont(content);
   const activeColor = content.color ?? HEADING_DEFAULT_COLOR;
-
-  useEffect(() => setRecent(readRecent()), []);
 
   useEffect(() => {
     if (!colorOpen) return;
@@ -66,7 +44,7 @@ export default function HeadingToolbar({ content, onChange }: HeadingToolbarProp
 
   const applyColor = (color: string, remember: boolean) => {
     onChange({ ...content, color });
-    if (remember) setRecent(pushRecent(color));
+    if (remember) rememberColor(color);
   };
 
   return (
