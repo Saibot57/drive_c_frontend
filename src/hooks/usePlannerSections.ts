@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { SIDEBAR_SECTIONS_KEY } from '@/components/schedule/constants';
+import { SIDEBAR_SECTIONS_KEY } from '@/config/plannerConstants';
 
 export type PlannerSection = 'courses' | 'stats' | 'subjects' | 'teachers';
 

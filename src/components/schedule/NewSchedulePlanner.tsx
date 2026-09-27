@@ -32,7 +32,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import {
   DEFAULT_COURSE_COLOR,
   PLANNER_DAYS
-} from '@/components/schedule/constants';
+} from '@/config/plannerConstants';
 import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
 import { ContextMenuState, PlannerNoticeTone } from '@/types/plannerUI';
 import {
@@ -79,7 +79,7 @@ import { usePlannerSections } from '@/hooks/usePlannerSections';
 import { useCourseManager } from '@/hooks/useCourseManager';
 import { useArchiveManager } from '@/hooks/useArchiveManager';
 import { useAuth } from '@/contexts/AuthContext';
-import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/components/schedule/courseUtils';
+import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/utils/courseUtils';
 import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
 import { useScheduleVectorExport, VectorExportOutcome } from '@/hooks/useScheduleVectorExport';

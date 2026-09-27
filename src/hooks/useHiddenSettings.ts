@@ -14,7 +14,7 @@ import {
   ROOM_TRIGGERS_KEY,
   TEACHERS_KEY,
   TEACHER_AVAILABILITY_KEY
-} from '@/components/schedule/constants';
+} from '@/config/plannerConstants';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { ColorTriggerRule, RoomTriggerRule, TeacherAvailability } from '@/types/schedule';
 import { sanitizeColorTriggers } from '@/utils/colorTriggers';

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { ACTIVE_ARCHIVE_ID_KEY, ACTIVE_ARCHIVE_NAME_KEY } from '@/components/schedule/constants';
+import { ACTIVE_ARCHIVE_ID_KEY, ACTIVE_ARCHIVE_NAME_KEY } from '@/config/plannerConstants';
 import { plannerService } from '@/services/plannerService';
 import { PlannerActivity, PlannerArchiveSummary, ScheduledEntry } from '@/types/schedule';
 

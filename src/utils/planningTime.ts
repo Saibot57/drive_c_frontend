@@ -1,4 +1,4 @@
-import { DEFAULT_PLANNING_MIN_GAP_MINUTES, PLANNER_DAYS } from '@/components/schedule/constants';
+import { DEFAULT_PLANNING_MIN_GAP_MINUTES, PLANNER_DAYS } from '@/config/plannerConstants';
 import { ScheduledEntry, TeacherAvailability, TeacherDayBlock } from '@/types/schedule';
 import { blocksWholeDay, FORENOON_END_MINUTES } from '@/utils/scheduleRules';
 import {

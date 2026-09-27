@@ -3,7 +3,7 @@
 import { Check, Eraser } from 'lucide-react';
 
 import type { HighlightColor } from '@/services/monthCalendarService';
-import { HIGHLIGHT_PALETTE, MAX_BANDS, MIN_BANDS } from './constants';
+import { HIGHLIGHT_PALETTE, MAX_BANDS, MIN_BANDS } from '@/config/monthCalendarConstants';
 import type { HighlighterMode } from './types';
 
 interface Props {

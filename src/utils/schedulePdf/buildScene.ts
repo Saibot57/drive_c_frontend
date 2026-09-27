@@ -11,7 +11,7 @@
  * filtrerats bort — inte på de synliga.
  */
 
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import { ScheduleExportInput } from '@/types/scheduleExport';
 import { toLocalDateKey } from '@/utils/calendarDates';
 import { formatMinutes } from '@/utils/scheduleStats';

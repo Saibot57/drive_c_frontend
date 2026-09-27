@@ -5,7 +5,7 @@ import type { HighlightColor } from '@/services/monthCalendarService';
  *
  * Värdena är samma pastellfamilj som Schema och Temakalender använder, men
  * kopierade hit med flit i stället för importerade från
- * `@/components/schedule/constants`. Schemats palett är kurser, den här är
+ * `@/config/plannerConstants`. Schemats palett är kurser, den här är
  * överstrykningspennor — de ska kunna utvecklas var för sig utan att en ändring
  * i den ena tyst ändrar den andra.
  */

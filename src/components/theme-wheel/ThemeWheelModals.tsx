@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ThemeArea, ThemeBlock, ThemeWheel } from '@/types/themeWheel';
 import { WheelWeek } from '@/utils/themeWheelWeeks';
-import { MAX_WEEK_COUNT, MIN_WEEK_COUNT } from '@/components/theme-wheel/constants';
+import { MAX_WEEK_COUNT, MIN_WEEK_COUNT } from '@/config/themeWheelConstants';
 import { ThemeColorPicker } from '@/components/theme-wheel/ThemeColorPicker';
 import { generateBoxColor } from '@/config/colorManagement';
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import { ScheduledEntry } from '@/types/schedule';
 import { splitTeacherNames } from '@/utils/scheduleStats';
 import { timeToMinutes } from '@/utils/scheduleTime';

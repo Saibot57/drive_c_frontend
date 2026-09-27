@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import { PlannerArchiveSummary } from '@/types/schedule';
 
 interface UseMobileNavigationParams {

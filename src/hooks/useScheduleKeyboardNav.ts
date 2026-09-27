@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { PlannerArchiveSummary, PlannerCourse, ScheduledEntry } from '@/types/schedule';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import { timeToMinutes } from '@/utils/scheduleTime';
 
 export type ActiveZone = 'courses' | 'grid' | 'archive';

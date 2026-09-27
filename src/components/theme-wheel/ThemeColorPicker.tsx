@@ -5,7 +5,7 @@ import {
   MAX_RECENT_CUSTOM_COLORS,
   THEME_AREA_PALETTE,
   THEME_WHEEL_RECENT_COLORS_KEY,
-} from '@/components/theme-wheel/constants';
+} from '@/config/themeWheelConstants';
 import { getReadableTextColor } from '@/utils/readableTextColor';
 
 type ThemeColorPickerProps = {

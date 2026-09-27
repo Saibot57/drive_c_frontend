@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { X } from 'lucide-react';
-import { COURSE_COLOR_PALETTE, DEFAULT_COURSE_COLOR, MAX_RECENT_CUSTOM_COLORS, RECENT_CUSTOM_COLORS_KEY } from '@/components/schedule/constants';
+import { COURSE_COLOR_PALETTE, DEFAULT_COURSE_COLOR, MAX_RECENT_CUSTOM_COLORS, RECENT_CUSTOM_COLORS_KEY } from '@/config/plannerConstants';
 import { SmartTextInput } from '@/components/ui/SmartTextInput';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';

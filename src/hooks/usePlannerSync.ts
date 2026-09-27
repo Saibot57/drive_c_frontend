@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { PLANNER_DAYS, AUTOSAVE_DELAY_MS } from '@/components/schedule/constants';
+import { PLANNER_DAYS, AUTOSAVE_DELAY_MS } from '@/config/plannerConstants';
 import { generateBoxColor } from '@/config/colorManagement';
 import { ArchiveLockedError, plannerService } from '@/services/plannerService';
 import { PlannerActivity, ScheduledEntry } from '@/types/schedule';

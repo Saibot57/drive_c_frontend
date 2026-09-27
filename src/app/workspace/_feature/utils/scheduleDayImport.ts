@@ -6,7 +6,7 @@
  */
 
 import type { PlannerActivity } from '@/types/schedule';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import {
   END_HOUR,
   PIXELS_PER_MINUTE,

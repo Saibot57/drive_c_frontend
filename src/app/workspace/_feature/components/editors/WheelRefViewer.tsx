@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ExternalLink, Loader2, PieChart, RefreshCw } from 'lucide-react';
 import { ThemeWheel } from '@/components/theme-wheel/ThemeWheel';
-import { ACTIVE_THEME_WHEEL_KEY } from '@/components/theme-wheel/constants';
+import { ACTIVE_THEME_WHEEL_KEY } from '@/config/themeWheelConstants';
 import { themeWheelService } from '@/services/themeWheelService';
 import type { ThemeWheel as ThemeWheelData, ThemeWheelSummary } from '@/types/themeWheel';
 import type { WheelRefContent } from '../../types/wheelRef.types';

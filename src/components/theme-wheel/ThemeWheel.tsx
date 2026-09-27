@@ -14,7 +14,7 @@ import {
   weekSpanAngles,
 } from '@/utils/themeWheelGeometry';
 import { WheelPreview } from '@/hooks/useWheelInteraction';
-import { WHEEL_FONT_STACK, WHEEL_STROKE } from '@/components/theme-wheel/constants';
+import { WHEEL_FONT_STACK, WHEEL_STROKE } from '@/config/themeWheelConstants';
 import { WheelAxis } from '@/components/theme-wheel/WheelAxis';
 import { WheelBlock } from '@/components/theme-wheel/WheelBlock';
 

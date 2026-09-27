@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { PLANNER_DAYS } from '@/components/schedule/constants';
+import { PLANNER_DAYS } from '@/config/plannerConstants';
 import { ScheduledEntry } from '@/types/schedule';
 import { computeExportWindow } from '@/utils/schedulePdf/exportWindow';
 import * as T from '@/utils/schedulePdf/theme';

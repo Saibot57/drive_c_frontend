@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import jsPDF from 'jspdf';
 import { PersistedThemeWheelState, ThemeWheel } from '@/types/themeWheel';
-import { WHEEL_FONT_STACK, WHEEL_STROKE_WIDTH } from '@/components/theme-wheel/constants';
+import { WHEEL_FONT_STACK, WHEEL_STROKE_WIDTH } from '@/config/themeWheelConstants';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

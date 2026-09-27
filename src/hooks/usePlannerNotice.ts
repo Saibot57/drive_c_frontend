@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { PLANNER_NOTICE_DISMISS_MS } from '@/components/schedule/constants';
+import { PLANNER_NOTICE_DISMISS_MS } from '@/config/plannerConstants';
 import { PlannerNotice, PlannerNoticeAction, PlannerNoticeTone } from '@/types/plannerUI';
 
 type ShowNoticeOptions = {

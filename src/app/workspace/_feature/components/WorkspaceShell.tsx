@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ACTIVE_THEME_WHEEL_KEY } from '@/components/theme-wheel/constants';
+import { ACTIVE_THEME_WHEEL_KEY } from '@/config/themeWheelConstants';
 import { PanelLeft, PanelRight, Link2, Copy, ArrowRightToLine, Trash2, Pencil, SquarePen, EyeOff, StretchHorizontal, Clock, RefreshCw, Unlink, ExternalLink } from 'lucide-react';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import ProtectedRoute from '@/components/ProtectedRoute';

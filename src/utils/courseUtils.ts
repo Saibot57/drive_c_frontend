@@ -1,4 +1,4 @@
-import { DEFAULT_COURSE_COLOR, DERIVED_COURSE_PREFIX } from '@/components/schedule/constants';
+import { DEFAULT_COURSE_COLOR, DERIVED_COURSE_PREFIX } from '@/config/plannerConstants';
 import { generateBoxColor } from '@/config/colorManagement';
 import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
 

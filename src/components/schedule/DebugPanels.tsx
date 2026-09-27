@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { DEFAULT_COURSE_COLOR, PLANNER_DAYS } from '@/components/schedule/constants';
+import { DEFAULT_COURSE_COLOR, PLANNER_DAYS } from '@/config/plannerConstants';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';

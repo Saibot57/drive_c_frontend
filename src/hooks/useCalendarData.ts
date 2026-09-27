@@ -15,7 +15,7 @@ import {
   type DateKey,
   type DayCell,
 } from '@/utils/calendarDates';
-import { DEFAULT_BANDS } from '@/components/month-calendar/constants';
+import { DEFAULT_BANDS } from '@/config/monthCalendarConstants';
 import useCalendarAutosave from '@/hooks/useCalendarAutosave';
 
 /**

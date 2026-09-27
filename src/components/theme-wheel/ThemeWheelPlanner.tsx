@@ -32,7 +32,7 @@ import { ThemeWheel } from '@/components/theme-wheel/ThemeWheel';
 import { AreaLibraryCard } from '@/components/theme-wheel/AreaLibraryCard';
 import { ThemeWheelModals } from '@/components/theme-wheel/ThemeWheelModals';
 import { ThemeWheelArchive } from '@/components/theme-wheel/ThemeWheelArchive';
-import { DEFAULT_AREA_COLOR, EMPTY_WHEEL } from '@/components/theme-wheel/constants';
+import { DEFAULT_AREA_COLOR, EMPTY_WHEEL } from '@/config/themeWheelConstants';
 import '@/styles/schedule-theme.css';
 import '@/styles/theme-wheel.css';
 

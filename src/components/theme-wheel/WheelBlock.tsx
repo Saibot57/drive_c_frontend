@@ -29,7 +29,7 @@ import {
   TITLE_MIN_FONT_SIZE,
   WHEEL_STROKE,
   WHEEL_STROKE_WIDTH,
-} from '@/components/theme-wheel/constants';
+} from '@/config/themeWheelConstants';
 
 type WheelBlockProps = {
   block: ThemeBlock;
