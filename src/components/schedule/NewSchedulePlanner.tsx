@@ -63,7 +63,11 @@ import { DayColumn } from '@/components/schedule/DayColumn';
 import { ArchiveCard } from '@/components/schedule/ArchiveCard';
 import { CategoryDebugPanel } from '@/components/schedule/CategoryDebugPanel';
 import { HiddenSettingsDialog } from '@/components/schedule/settings/HiddenSettingsDialog';
-import { ScheduleModals } from '@/components/schedule/ScheduleModals';
+import { ArchiveDialogs } from '@/components/schedule/dialogs/ArchiveDialogs';
+import { ConfirmDialog } from '@/components/schedule/dialogs/ConfirmDialog';
+import { CourseEditorDialog } from '@/components/schedule/dialogs/CourseEditorDialog';
+import { EntryEditorDialog } from '@/components/schedule/dialogs/EntryEditorDialog';
+import { RestrictionsDialog } from '@/components/schedule/dialogs/RestrictionsDialog';
 import { BulkEditModal } from '@/components/schedule/BulkEditModal';
 import { FindReplacePanel } from '@/components/schedule/FindReplacePanel';
 import { applyBulkEdit, BulkEditPatch } from '@/utils/bulkEditSchedule';
@@ -254,11 +258,17 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const imageExportMenuRef = useRef<HTMLDivElement>(null);
   const jsonMenuRef = useRef<HTMLDivElement>(null);
 
+  const archive = useArchiveManager({
+    schedule,
+    commitSchedule: applyScheduleFromServer,
+    mapPlannerActivitiesToSchedule,
+    mapScheduleToPlannerActivities,
+    showNotice
+  });
   const {
     ownArchives,
     sharedArchives,
     sortedArchives,
-    ownArchiveNames,
     initialArchiveId,
     serverSyncToken,
     activeArchiveId,
@@ -269,37 +279,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     markLockLost,
     weekName,
     setWeekName,
-    overwriteArchive,
-    setOverwriteArchive,
-    deleteArchive,
-    setDeleteArchive,
     handleSaveWeek,
     handleLoadWeek,
     handleDeleteWeek,
-    handleConfirmDeleteWeek,
     handleDuplicateWeek,
-    handleConfirmOverwriteWeek,
-    shareArchive,
-    setShareArchive,
-    shareRecipient,
-    setShareRecipient,
-    isSharing,
     handleShareWeek,
-    handleConfirmShareWeek,
-    handleRemoveShare,
-    handleLeaveShare,
-    newScheduleName,
-    setNewScheduleName,
-    isNewScheduleDialogOpen,
-    setIsNewScheduleDialogOpen,
-    handleCreateNewSchedule
-  } = useArchiveManager({
-    schedule,
-    commitSchedule: applyScheduleFromServer,
-    mapPlannerActivitiesToSchedule,
-    mapScheduleToPlannerActivities,
-    showNotice
-  });
+    setIsNewScheduleDialogOpen
+  } = archive;
 
   usePlannerSync({
     schedule,
@@ -2306,68 +2292,78 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         missingCount={categoryStats.missingCount}
         totalCount={categoryStats.totalCount}
       />
-      <ScheduleModals
-        isCourseModalOpen={isCourseModalOpen}
-        onCourseModalOpenChange={setIsCourseModalOpen}
-        editingCourse={editingCourse}
-        setEditingCourse={setEditingCourse}
+      <CourseEditorDialog
+        open={isCourseModalOpen}
+        onOpenChange={setIsCourseModalOpen}
+        course={editingCourse}
+        onCourseChange={setEditingCourse}
         manualColor={manualColor}
-        setManualColor={setManualColor}
-        onSaveCourse={handleSaveCourseSubmit}
+        onManualColorChange={setManualColor}
+        onSave={handleSaveCourseSubmit}
         teachers={teachers}
         rooms={rooms}
         colorTriggers={colorTriggers}
         roomTriggers={roomTriggers}
-        isEntryModalOpen={isEntryModalOpen}
-        onEntryModalOpenChange={setIsEntryModalOpen}
-        editingEntry={editingEntry}
-        setEditingEntry={setEditingEntry}
-        onSaveEntry={handleSaveEntry}
-        isRestrictionsModalOpen={isRestrictionsModalOpen}
-        onRestrictionsModalOpenChange={setIsRestrictionsModalOpen}
+      />
+      <EntryEditorDialog
+        open={isEntryModalOpen}
+        onOpenChange={setIsEntryModalOpen}
+        entry={editingEntry}
+        onEntryChange={setEditingEntry}
+        onSave={handleSaveEntry}
+        teachers={teachers}
+        rooms={rooms}
+        colorTriggers={colorTriggers}
+        roomTriggers={roomTriggers}
+      />
+      <RestrictionsDialog
+        open={isRestrictionsModalOpen}
+        onOpenChange={setIsRestrictionsModalOpen}
         newRule={newRule}
-        setNewRule={setNewRule}
+        onNewRuleChange={setNewRule}
         restrictions={restrictions}
         onAddRule={handleAddRestrictionRule}
         onRemoveRule={handleRemoveRestrictionRule}
-        isImportConfirmOpen={isImportConfirmOpen}
-        onImportConfirmOpenChange={(open) => {
+      />
+      <ConfirmDialog
+        open={isImportConfirmOpen}
+        onOpenChange={(open) => {
           setIsImportConfirmOpen(open);
           if (!open) setPendingImportData(null);
         }}
-        onCancelImport={() => setIsImportConfirmOpen(false)}
-        onConfirmImport={handleConfirmImport}
-        overwriteArchive={overwriteArchive}
-        onOverwriteArchiveChange={setOverwriteArchive}
-        onConfirmOverwriteWeek={handleConfirmOverwriteWeek}
-        deleteArchive={deleteArchive}
-        onDeleteArchiveChange={setDeleteArchive}
-        onConfirmDeleteWeek={handleConfirmDeleteWeek}
-        shareArchive={shareArchive}
-        onShareArchiveChange={setShareArchive}
-        shareRecipient={shareRecipient}
-        onShareRecipientChange={setShareRecipient}
-        onConfirmShareWeek={handleConfirmShareWeek}
-        onRemoveShare={handleRemoveShare}
-        onLeaveShare={handleLeaveShare}
-        currentUsername={user?.username ?? null}
-        isSharing={isSharing}
-        deleteCourseName={deleteCourseName}
-        onDeleteCourseNameChange={(_value) => { setDeleteCourseId(null); }}
-        onConfirmDeleteCourse={handleConfirmDeleteCourse}
-        isClearScheduleConfirmOpen={isClearScheduleConfirmOpen}
-        onClearScheduleConfirmOpenChange={setIsClearScheduleConfirmOpen}
-        onConfirmClearSchedule={() => {
+        onCancel={() => setIsImportConfirmOpen(false)}
+        title="Ersätta nuvarande schema?"
+        confirmLabel="Ersätt schema"
+        onConfirm={handleConfirmImport}
+      >
+        <p className="text-sm text-gray-700">
+          Om du fortsätter ersätts aktuella byggstenar och schema med innehållet från filen.
+        </p>
+      </ConfirmDialog>
+      <ArchiveDialogs archive={archive} currentUsername={user?.username ?? null} />
+      <ConfirmDialog
+        open={Boolean(deleteCourseName)}
+        onOpenChange={(open) => { if (!open) setDeleteCourseId(null); }}
+        title="Ta bort byggsten?"
+        confirmLabel="Ta bort"
+        destructive
+        onConfirm={handleConfirmDeleteCourse}
+      >
+        <p className="text-sm text-gray-700">Ta bort byggstenen &quot;{deleteCourseName}&quot;?</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={isClearScheduleConfirmOpen}
+        onOpenChange={setIsClearScheduleConfirmOpen}
+        title="Rensa schemat?"
+        confirmLabel="Rensa"
+        destructive
+        onConfirm={() => {
           commitSchedule(() => []);
           setIsClearScheduleConfirmOpen(false);
         }}
-        isNewScheduleDialogOpen={isNewScheduleDialogOpen}
-        onNewScheduleDialogOpenChange={setIsNewScheduleDialogOpen}
-        newScheduleName={newScheduleName}
-        onNewScheduleNameChange={setNewScheduleName}
-        onConfirmCreateNewSchedule={handleCreateNewSchedule}
-        newScheduleNameExists={ownArchiveNames.includes(newScheduleName.trim())}
-      />
+      >
+        <p className="text-sm text-gray-700">Detta tar bort alla schemaposter från den aktuella vyn.</p>
+      </ConfirmDialog>
 
       <BulkEditModal
         open={isBulkEditOpen}
