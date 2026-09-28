@@ -1,7 +1,8 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -42,6 +43,19 @@ const features: readonly Feature[] = [
   { label: 'Workspace',       href: '/workspace',                   icon: Briefcase,    shortcut: '6' },
 ];
 
+/**
+ * Sidor som inte står i menyn eller i genvägshjälpen. De finns här bara för
+ * att menyknappen ska visa rätt namn när man väl är där.
+ *
+ * Terminsplaneraren nås med Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
+ * sidan läser bara scheman som den inloggade redan har tillgång till.
+ */
+const hiddenFeatures: readonly Feature[] = [
+  { label: 'Termin',          href: '/features/termin',             icon: Sigma,        shortcut: '' },
+];
+
+const TERM_PLANNER_HREF = '/features/termin';
+
 export function FeatureNavigation() {
   const pathname = usePathname();
   const router = useRouter();
@@ -52,7 +66,7 @@ export function FeatureNavigation() {
     pattern === '/' ? path === '/' : path === pattern || path.startsWith(`${pattern}/`);
 
   const current =
-    features.find(
+    [...features, ...hiddenFeatures].find(
       f => matches(pathname, f.href) || f.aliases?.some(a => matches(pathname, a)),
     ) ?? features[0];
 
@@ -68,6 +82,19 @@ export function FeatureNavigation() {
     })),
     [router],
   );
+
+  // Egen lyssnare i stället för useHotkeys, som inte känner till Alt. Jämför
+  // e.code: med Option på Mac blir e.key ett annat tecken än "t".
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.altKey && e.shiftKey && e.code === 'KeyT') {
+        e.preventDefault();
+        router.push(TERM_PLANNER_HREF);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [router]);
 
   return (
     <>
