@@ -7,8 +7,27 @@ import PublicScheduleView from '@/components/schedule/public/PublicScheduleView'
  * är hela behörigheten, så sidan ska varken indexeras eller läcka adressen
  * som Referer när någon klickar vidare på en uppgiftslänk.
  */
+/**
+ * Titel och beskrivning är fasta med flit, inte veckans namn. Länken är
+ * densamma varje vecka, och chattjänster sparar förhandsvisningen — en titel
+ * som "v. 40" skulle stå kvar när länken delas inför v. 41.
+ *
+ * Ingen förhandsbild (Tobias val). Tjänsterna kan då ta en egen skärmdump.
+ */
+const TITLE = 'Veckans schema';
+const DESCRIPTION = 'Allmän kurs · uppdateras automatiskt';
+
 export const metadata: Metadata = {
-  title: 'Schema',
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    siteName: 'FHSK Schema',
+    type: 'website',
+    locale: 'sv_SE',
+  },
+  twitter: { card: 'summary', title: TITLE, description: DESCRIPTION },
   robots: { index: false, follow: false },
   referrer: 'no-referrer',
 };

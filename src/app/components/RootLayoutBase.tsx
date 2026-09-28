@@ -55,7 +55,10 @@ export default function RootLayoutBase({
     <html lang="en">
       <head>
         <meta charSet="UTF-8" />
-        <title>Drive C</title>
+        {/* Ingen <title> här. En hårdkodad titel hamnade före den som varje
+            sida sätter via `metadata`, och länkförhandsvisningar tar den
+            första — den publika schemalänken visades som "Drive C" i chattar.
+            Appens standardtitel står i `layout.tsx`. */}
       </head>
       <body
         className={`${redHat.className} ${redHat.variable} ${monument.variable} ${bangers.variable} ${archivoBlack.variable} min-h-screen bg-white`}
