@@ -71,6 +71,7 @@ type DragData =
 const SCHEDULE_DROP = 'schedule';
 const NEW_TEAM_DROP = 'new-team';
 const teamDropId = (teamId: string) => `team:${teamId}`;
+const DAY_DROP_PREFIX = 'day:';
 
 const lessonLabel = (lesson: LabLesson) => `${lesson.day.slice(0, 3)} ${lesson.start}`;
 
@@ -125,6 +126,18 @@ export default function LessonLab() {
 
     const classes = state.classes;
     const onTeam = overId.startsWith('team:') ? overId.slice(5) : null;
+    const onDay = overId.startsWith(DAY_DROP_PREFIX) ? overId.slice(DAY_DROP_PREFIX.length) as LabDay : null;
+
+    // En lärare släppt på en dag blir tillgänglig den dagen.
+    if (onDay && data.kind === 'teacher') {
+      commit(current => ({
+        ...current,
+        teachers: current.teachers.map(t => (t.id === data.teacherId && !t.days.includes(onDay)
+          ? { ...t, days: LAB_DAYS.filter(d => d === onDay || t.days.includes(d)) }
+          : t)),
+      }));
+      return;
+    }
 
     commit(current => {
       let next = current;
@@ -155,7 +168,8 @@ export default function LessonLab() {
               : t)),
           } : next;
         case 'brick':
-          if (overId === SCHEDULE_DROP) return mapLesson(data.lessonId, l => reassignTeam(l, classes, data.teamId, null));
+          // Dagarna ligger i schemat: släppt på en dag är också släppt i schemat.
+          if (overId === SCHEDULE_DROP || onDay) return mapLesson(data.lessonId, l => reassignTeam(l, classes, data.teamId, null));
           if (target && target !== data.teamId) return mapLesson(data.lessonId, l => reassignTeam(l, classes, data.teamId, target));
           return next;
       }
@@ -177,7 +191,7 @@ export default function LessonLab() {
             <FeatureNavigation />
             <p className="max-w-md text-xs text-gray-600">
               Dra en lektion till en arbetsgrupp. Dela en ruta för att ge klasserna olika grupper.
-              Dra lärare in i grupperna.
+              Dra lärare till en dag för att göra dem tillgängliga, eller in i en grupp.
             </p>
             <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
               <Button variant="neutral" size="icon" className="sp-btn" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
@@ -198,6 +212,10 @@ export default function LessonLab() {
             state={state}
             lessons={lessons}
             shortByLesson={shortByLesson}
+            onRemoveDay={(teacherId, day) => commit(current => ({
+              ...current,
+              teachers: current.teachers.map(t => (t.id === teacherId ? { ...t, days: t.days.filter(d => d !== day) } : t)),
+            }))}
             onSplit={id => updateLesson(id, l => splitLesson(l, state.classes))}
             onMerge={id => updateLesson(id, l => mergeLesson(l, state.classes))}
           />
@@ -229,12 +247,14 @@ function Schedule({
   state,
   lessons,
   shortByLesson,
+  onRemoveDay,
   onSplit,
   onMerge,
 }: {
   state: LabState;
   lessons: LabLesson[];
   shortByLesson: Map<string, string[]>;
+  onRemoveDay: (teacherId: string, day: LabDay) => void;
   onSplit: (lessonId: string) => void;
   onMerge: (lessonId: string) => void;
 }) {
@@ -255,6 +275,7 @@ function Schedule({
             state={state}
             lessons={sortLessons(lessons.filter(l => l.day === day))}
             shortByLesson={shortByLesson}
+            onRemoveDay={onRemoveDay}
             onSplit={onSplit}
             onMerge={onMerge}
           />
@@ -269,6 +290,7 @@ function DayColumn({
   state,
   lessons,
   shortByLesson,
+  onRemoveDay,
   onSplit,
   onMerge,
 }: {
@@ -276,6 +298,7 @@ function DayColumn({
   state: LabState;
   lessons: LabLesson[];
   shortByLesson: Map<string, string[]>;
+  onRemoveDay: (teacherId: string, day: LabDay) => void;
   onSplit: (lessonId: string) => void;
   onMerge: (lessonId: string) => void;
 }) {
@@ -289,9 +312,31 @@ function DayColumn({
       onMerge={() => onMerge(lesson.id)}
     />
   );
+  // Hela dagen tar emot lärare, så att man inte behöver pricka rubriken.
+  const { setNodeRef, isOver, active } = useDroppable({ id: `${DAY_DROP_PREFIX}${day}` });
+  const teacherOver = isOver && (active?.data.current as DragData | undefined)?.kind === 'teacher';
+  const available = state.teachers.filter(t => !t.resource && t.days.includes(day));
+
   return (
-    <div className="sp-card flex flex-col">
-      <h2 className="border-b-2 border-black px-3 py-2 text-lg font-black uppercase tracking-wide">{day.slice(0, 3)}</h2>
+    <div ref={setNodeRef} className={cn('sp-card flex flex-col', teacherOver && 'outline outline-4 outline-offset-2 outline-black')}>
+      <div className={cn('border-b-2 border-black px-3 py-2', teacherOver && 'bg-amber-50')}>
+        <h2 className="text-lg font-black uppercase tracking-wide">{day.slice(0, 3)}</h2>
+        <div className="mt-1 flex min-h-[26px] flex-wrap gap-1">
+          {available.length === 0 && <span className="text-xs text-gray-400">Dra lärare hit.</span>}
+          {available.map(teacher => (
+            <TeacherChip
+              key={teacher.id}
+              teacherId={teacher.id}
+              name={teacher.name}
+              days={teacher.days}
+              dragId={`teacher:${teacher.id}:${day}`}
+              size="sm"
+              onRemove={() => onRemoveDay(teacher.id, day)}
+              removeLabel={`${teacher.name} är inte tillgänglig på ${day.toLowerCase()}`}
+            />
+          ))}
+        </div>
+      </div>
       <div className="flex flex-1 flex-col gap-2 p-2">
         {lessons.filter(isBeforeLunch).map(box)}
         <div className="my-2 border-t-[3px] border-dotted border-gray-400" aria-label="Lunch" />
@@ -442,9 +487,29 @@ function Teams({
   );
 }
 
-function TeacherChip({ teacherId, name, days }: { teacherId: string; name: string; days: LabDay[] }) {
+/**
+ * En lärare att dra: till en dag (blir tillgänglig), till en arbetsgrupp
+ * (blir medlem). Samma lärare kan stå på flera ställen, därför eget `dragId`.
+ */
+function TeacherChip({
+  teacherId,
+  name,
+  days,
+  dragId = `teacher:${teacherId}`,
+  size = 'md',
+  onRemove,
+  removeLabel,
+}: {
+  teacherId: string;
+  name: string;
+  days: LabDay[];
+  dragId?: string;
+  size?: 'sm' | 'md';
+  onRemove?: () => void;
+  removeLabel?: string;
+}) {
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
-    id: `teacher:${teacherId}`,
+    id: dragId,
     data: { kind: 'teacher', teacherId } satisfies DragData,
   });
   return (
@@ -453,9 +518,26 @@ function TeacherChip({ teacherId, name, days }: { teacherId: string; name: strin
       {...attributes}
       {...listeners}
       title={`Tillgänglig: ${days.map(d => d.slice(0, 3).toLowerCase()).join(', ') || 'inga dagar'}`}
-      className={cn('cursor-grab touch-none rounded-full border-2 border-black bg-white px-3 py-1 text-sm font-bold active:cursor-grabbing', isDragging && 'opacity-40')}
+      className={cn(
+        'flex cursor-grab touch-none items-center gap-1 rounded-full border-2 border-black bg-white font-bold active:cursor-grabbing',
+        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm',
+        isDragging && 'opacity-40'
+      )}
     >
       {name}
+      {onRemove && (
+        <button
+          type="button"
+          onPointerDown={event => event.stopPropagation()}
+          onKeyDown={event => event.stopPropagation()}
+          onClick={onRemove}
+          title={removeLabel}
+          aria-label={removeLabel}
+          className="-mr-1 rounded-full p-0.5 text-gray-500 hover:bg-rose-50 hover:text-rose-700"
+        >
+          <X size={10} />
+        </button>
+      )}
     </span>
   );
 }
