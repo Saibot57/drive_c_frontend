@@ -20,7 +20,8 @@ type Props = {
   weeks: TermWeek[];
   calendarWeeks: WheelWeek[];
   states: WeekState[];
-  archives: PlannerArchiveSummary[];
+  /** null tills planerarens scheman har hämtats, eller om hämtningen misslyckades. */
+  archives: PlannerArchiveSummary[] | null;
   onChangeWeek: (index: number, changes: Partial<TermWeek>) => void;
 };
 
@@ -64,7 +65,7 @@ function StateCell({ state }: { state: WeekState }) {
 }
 
 export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeWeek }: Props) {
-  const sortedArchives = useMemo(() => sortArchives(archives), [archives]);
+  const sortedArchives = useMemo(() => sortArchives(archives ?? []), [archives]);
   const themes = useMemo(() => termThemes(weeks), [weeks]);
 
   return (
@@ -88,7 +89,9 @@ export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeW
             const state = states[index];
             // Ett arkiv som raderats eller slutat delas finns inte i listan,
             // men valet ska ändå synas i stället för att tyst bli "inget".
-            const unknownArchive = week.archiveId && !archives.some(a => a.id === week.archiveId);
+            // Innan listan har kommit vet vi inte vilket det är.
+            const unlistedArchive = week.archiveId && !archives?.some(a => a.id === week.archiveId);
+            const unlistedLabel = archives ? '(borttaget schema)' : '(schema valt)';
 
             return (
               <tr
@@ -122,12 +125,14 @@ export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeW
                   <select
                     className={inputClassName}
                     value={week.archiveId ?? ''}
-                    disabled={week.holiday}
+                    // Låst tills listan finns, så att ett val inte skrivs över
+                    // med "inget schema" bara för att alternativen saknas.
+                    disabled={week.holiday || !archives}
                     aria-label={`Schema ${calendarWeek?.label}`}
                     onChange={event => onChangeWeek(index, { archiveId: event.target.value || null })}
                   >
                     <option value="">— inget schema —</option>
-                    {unknownArchive && <option value={week.archiveId!}>(borttaget schema)</option>}
+                    {unlistedArchive && <option value={week.archiveId!}>{unlistedLabel}</option>}
                     {sortedArchives.map(archive => (
                       <option key={archive.id} value={archive.id}>{archiveLabel(archive)}</option>
                     ))}

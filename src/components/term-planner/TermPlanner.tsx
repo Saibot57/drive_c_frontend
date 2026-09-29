@@ -40,6 +40,26 @@ type CacheEntry =
   | { status: 'error' }
   | { status: 'loaded'; activities: PlannerActivity[] };
 
+/**
+ * Väntetider mellan försöken när planerarens scheman hämtas. Första
+ * laddningen har misslyckats tillfälligt i produktion (Safari, 29 sep 2026)
+ * medan "Uppdatera" direkt efter gick bra, så ett par nya försök räcker.
+ */
+const RETRY_DELAYS_MS = [700, 2000];
+
+const withRetry = async <T,>(load: () => Promise<T>): Promise<T> => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await load();
+    } catch (error) {
+      if (attempt >= RETRY_DELAYS_MS.length) throw error;
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+    }
+  }
+};
+
+const errorDetail = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
 const readLastTermId = () => {
   try { return window.localStorage.getItem(LAST_TERM_KEY); } catch { return null; }
 };
@@ -52,7 +72,10 @@ export default function TermPlanner() {
   const [term, setTerm] = useState<Term | null>(null);
   const [loadStatus, setLoadStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  // null tills listan har hämtats. Misslyckas hämtningen förblir den null, så
+  // att veckor med schema visas som fel och inte som "finns inte".
   const [archives, setArchives] = useState<PlannerArchiveSummary[] | null>(null);
+  const [archivesError, setArchivesError] = useState<string | null>(null);
   const [cache, setCache] = useState<Record<string, CacheEntry>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [newTermOpen, setNewTermOpen] = useState(false);
@@ -63,10 +86,14 @@ export default function TermPlanner() {
 
   const loadArchives = useCallback(async () => {
     try {
-      setArchives(await plannerService.listArchives());
-    } catch {
-      setArchives([]);
-      setNotice('Kunde inte hämta scheman från planeraren.');
+      setArchives(await withRetry(() => plannerService.listArchives()));
+      setArchivesError(null);
+    } catch (error) {
+      console.error('Terminsplaneraren: kunde inte hämta scheman', error);
+      // Bara felkoden, eller webbläsarens egen text ("Load failed") när
+      // anropet aldrig nådde servern. Resten står redan i rutan.
+      const detail = errorDetail(error);
+      setArchivesError(detail.match(/HTTP \d+/)?.[0] ?? detail);
     }
   }, []);
 
@@ -190,7 +217,7 @@ export default function TermPlanner() {
       return next;
     });
     missing.forEach(id => {
-      plannerService.getArchiveActivities(id)
+      withRetry(() => plannerService.getArchiveActivities(id))
         .then(result => setCache(current => ({ ...current, [id]: { status: 'loaded', activities: result.activities } })))
         .catch(() => setCache(current => ({ ...current, [id]: { status: 'error' } })));
     });
@@ -204,13 +231,13 @@ export default function TermPlanner() {
   const weekStates: WeekState[] = useMemo(() => (term?.weeks ?? []).map(week => {
     if (week.holiday) return { kind: 'holiday' };
     if (!week.archiveId) return { kind: 'empty' };
-    if (!archives) return { kind: 'loading' };
+    if (!archives) return archivesError ? { kind: 'error' } : { kind: 'loading' };
     if (!archiveIds.has(week.archiveId)) return { kind: 'missing' };
     const entry = cache[week.archiveId];
     if (!entry || entry.status === 'loading') return { kind: 'loading' };
     if (entry.status === 'error') return { kind: 'error' };
     return { kind: 'ready', passCount: entry.activities.length };
-  }), [term, archives, archiveIds, cache]);
+  }), [term, archives, archivesError, archiveIds, cache]);
 
   // --- Statistik ---
 
@@ -237,14 +264,16 @@ export default function TermPlanner() {
   const scopeSummary = useMemo(() => {
     const scoped = weekStates.map((state, index) => ({ state, index })).filter(({ index }) => inScope(index));
     const count = (kind: WeekState['kind']) => scoped.filter(({ state }) => state.kind === kind).length;
+    const labels = (...kinds: WeekState['kind'][]) => scoped
+      .filter(({ state }) => kinds.includes(state.kind))
+      .map(({ index }) => calendarWeeks[index]?.label)
+      .filter(Boolean) as string[];
     return {
       counted: count('ready'),
       holidays: count('holiday'),
       loading: count('loading'),
-      uncounted: scoped
-        .filter(({ state }) => state.kind === 'empty' || state.kind === 'missing' || state.kind === 'error')
-        .map(({ index }) => calendarWeeks[index]?.label)
-        .filter(Boolean) as string[],
+      uncounted: labels('empty', 'missing'),
+      unreadable: labels('error'),
     };
   }, [weekStates, inScope, calendarWeeks]);
 
@@ -357,6 +386,15 @@ export default function TermPlanner() {
             <button type="button" className="text-xs font-semibold underline" onClick={() => setNotice(null)}>Stäng</button>
           </div>
         )}
+        {archivesError && (
+          <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm">
+            <span>
+              Kunde inte hämta scheman från planeraren.
+              <span className="ml-2 text-xs text-gray-500">{archivesError}</span>
+            </span>
+            <button type="button" className="text-xs font-semibold underline" onClick={refresh}>Försök igen</button>
+          </div>
+        )}
 
         {loadStatus === 'loading' && (
           <div className="sp-card p-6 text-sm text-gray-500">Laddar…</div>
@@ -396,7 +434,7 @@ export default function TermPlanner() {
                   weeks={term.weeks}
                   calendarWeeks={calendarWeeks}
                   states={weekStates}
-                  archives={archives ?? []}
+                  archives={archives}
                   onChangeWeek={changeWeek}
                 />
               </div>
@@ -421,6 +459,9 @@ export default function TermPlanner() {
                 {scopeSummary.loading > 0 && ` · ${scopeSummary.loading} laddas`}
                 {scopeSummary.uncounted.length > 0 && (
                   <span className="text-amber-700"> · utan schema: {scopeSummary.uncounted.join(', ')}</span>
+                )}
+                {scopeSummary.unreadable.length > 0 && (
+                  <span className="text-rose-700"> · kunde inte läsas: {scopeSummary.unreadable.join(', ')}</span>
                 )}
                 <div className="mt-1 text-gray-400">
                   Pass med &quot;alla&quot; som lärare räknas inte. Samtidiga pass räknas en gång i Totalt.
