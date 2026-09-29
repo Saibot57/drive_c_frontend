@@ -455,6 +455,31 @@ export const teamSummaries = (state: LabState, lessons: LabLesson[]): TeamSummar
   });
 };
 
+/**
+ * Varje lärares del av arbetsgruppernas lektioner, i minuter. En lektions tid
+ * delas lika mellan medlemmarna i gruppen som äger den: en tvåtimmarslektion
+ * i en grupp på två ger en timme var. Äger gruppen bara en del av en delad
+ * lektion får den samma del av tiden, till exempel en tredjedel för en klass
+ * av tre. Grupper utan medlemmar räknas inte.
+ */
+export const teacherShareMinutes = (state: LabState, lessons: LabLesson[]): Map<string, number> => {
+  const teams = new Map(state.teams.map(t => [t.id, t]));
+  const shares = new Map<string, number>();
+  for (const lesson of lessons) {
+    teamsInLesson(lesson, state.classes).forEach((owned, teamId) => {
+      const members = teams.get(teamId)?.memberIds ?? [];
+      if (members.length === 0) return;
+      const share = (lessonMinutes(lesson) * owned.length) / state.classes.length / members.length;
+      members.forEach(id => shares.set(id, (shares.get(id) ?? 0) + share));
+    });
+  }
+  return shares;
+};
+
+/** Timmar med en decimal: "1 h", "1,5 h", "0,7 h". */
+export const formatHours = (minutes: number) =>
+  `${(Math.round(minutes / 6) / 10).toLocaleString('sv-SE', { maximumFractionDigits: 1 })} h`;
+
 // ── Hjälp vid fördelning ──
 
 /** Lärare som redan har en klass i en annan lektion som överlappar. */

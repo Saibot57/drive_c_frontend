@@ -26,6 +26,7 @@ import type { LabDay, LabLesson, LabState, LabTeam } from '@/types/lessonLab';
 import {
   assignTeam,
   classTeamId,
+  formatHours,
   formatMinutes,
   isBeforeLunch,
   LAB_COLORS,
@@ -37,6 +38,7 @@ import {
   reassignTeam,
   sortLessons,
   splitLesson,
+  teacherShareMinutes,
   teamsInLesson,
 } from '@/utils/lessonLab';
 import '@/styles/schedule-theme.css';
@@ -473,11 +475,20 @@ function Teams({
   onNewTeam: () => void;
 }) {
   const plannable = state.teachers.filter(t => !t.resource);
+  const shares = useMemo(() => teacherShareMinutes(state, lessons), [state, lessons]);
   return (
     <section className="mt-8 grid gap-4">
       <div className="sp-card flex flex-wrap items-center gap-2 px-4 py-3">
-        <h2 className="mr-2 font-bold">Lärare</h2>
-        {plannable.map(teacher => <TeacherChip key={teacher.id} teacherId={teacher.id} name={teacher.name} days={teacher.days} />)}
+        <h2 className="mr-2 font-bold" title="Timmar per vecka: varje lektion delas lika mellan arbetsgruppens medlemmar">Lärare</h2>
+        {plannable.map(teacher => (
+          <TeacherChip
+            key={teacher.id}
+            teacherId={teacher.id}
+            name={teacher.name}
+            days={teacher.days}
+            hours={shares.get(teacher.id) ?? 0}
+          />
+        ))}
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {state.teams.map(team => <TeamCard key={team.id} team={team} state={state} lessons={lessons} commit={commit} />)}
@@ -497,6 +508,7 @@ function TeacherChip({
   days,
   dragId = `teacher:${teacherId}`,
   size = 'md',
+  hours,
   onRemove,
   removeLabel,
 }: {
@@ -504,6 +516,8 @@ function TeacherChip({
   name: string;
   days: LabDay[];
   dragId?: string;
+  /** Lärarens del av gruppernas lektioner, i minuter. Visas som en räknare. */
+  hours?: number;
   size?: 'sm' | 'md';
   onRemove?: () => void;
   removeLabel?: string;
@@ -525,6 +539,14 @@ function TeacherChip({
       )}
     >
       {name}
+      {hours !== undefined && (
+        <span
+          className={cn('rounded-full px-1.5 text-[11px] tabular-nums', hours > 0 ? 'bg-black text-white' : 'bg-gray-100 text-gray-500')}
+          title="Timmar per vecka: lektionerna delas lika mellan arbetsgruppens medlemmar"
+        >
+          {formatHours(hours)}
+        </span>
+      )}
       {onRemove && (
         <button
           type="button"

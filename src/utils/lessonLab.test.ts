@@ -5,9 +5,11 @@ import {
   assignTeam,
   classAreaMinutes,
   classTeamId,
+  formatHours,
   mergeLesson,
   reassignTeam,
   splitLesson,
+  teacherShareMinutes,
   fillFromTeam,
   isBeforeLunch,
   labWarnings,
@@ -285,5 +287,41 @@ describe('arbetsgrupper per klass', () => {
       template: [lesson('l', { split: false, classTeams: { Grund: 'x' } })],
     })!;
     expect(parsed.template[0].classTeams).toEqual({});
+  });
+});
+
+describe('teacherShareMinutes', () => {
+  const classes = ['Grund', 'Oliv', 'Rosa'];
+  const state: LabState = {
+    ...LAB_SEED,
+    teams: [
+      { id: 'två', name: 'Två', color: '#fde68a', memberIds: ['t-tobias', 't-victor'] },
+      { id: 'en', name: 'En', color: '#bae6fd', memberIds: ['t-anna'] },
+      { id: 'tom', name: 'Tom', color: '#bae6fd', memberIds: [] },
+    ],
+  };
+
+  it('delar en lektion lika mellan gruppens medlemmar', () => {
+    const lessons = [assignTeam(lesson('l', { start: '12:30', end: '14:30' }), classes, 'två')];
+    const shares = teacherShareMinutes(state, lessons);
+    expect(shares.get('t-tobias')).toBe(60);
+    expect(shares.get('t-victor')).toBe(60);
+  });
+
+  it('ger en grupp sin del av en delad lektion', () => {
+    // 90 min: en klass till "en", två klasser till "två".
+    const split = assignTeam(assignTeam(lesson('l', { start: '10:00', end: '11:30' }), classes, 'två'), classes, 'en', 'Grund');
+    const shares = teacherShareMinutes(state, [split]);
+    expect(shares.get('t-anna')).toBe(30);
+    expect(shares.get('t-tobias')).toBe(30);
+  });
+
+  it('räknar inte lektioner utan grupp eller grupper utan medlemmar', () => {
+    const lessons = [lesson('a'), assignTeam(lesson('b'), classes, 'tom')];
+    expect(teacherShareMinutes(state, lessons).size).toBe(0);
+  });
+
+  it('skriver timmar med en decimal', () => {
+    expect([60, 90, 40, 0].map(formatHours)).toEqual(['1 h', '1,5 h', '0,7 h', '0 h']);
   });
 });
