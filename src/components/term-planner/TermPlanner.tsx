@@ -28,7 +28,7 @@ import '@/styles/schedule-theme.css';
  * Veckoschemana läses från planerarens arkiv varje gång sidan laddas (eller
  * vid "Uppdatera"), så statistiken följer med när ett schema ändras.
  *
- * Sidan är olistad: den nås bara med Ctrl+Alt+Shift+T (se FeatureNavigation).
+ * Sidan är olistad: den nås med t-t-t eller Ctrl+Alt+Shift+T (se FeatureNavigation).
  */
 
 const LAST_TERM_KEY = 'termPlanner.lastTermId';
