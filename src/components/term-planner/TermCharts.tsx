@@ -7,8 +7,10 @@ import {
   classShareSlices,
   foldSlices,
   formatHours,
+  LessonTeachers,
   StatColumn,
   TeacherLessonMix,
+  teacherShareSlices,
   TermStats,
 } from '@/utils/termPlanner';
 
@@ -28,6 +30,8 @@ const chartGrid = 'grid gap-4 p-3 grid-cols-[repeat(auto-fill,minmax(200px,1fr))
 // normaliserade namn, så en lärare behåller sin plats mellan terminer.
 const CLASS_ORDER_KEY = 'termPlanner.order.classes.v1';
 const LESSON_ORDER_KEY = 'termPlanner.order.lessons.v1';
+// Passens titel, normaliserad.
+const LESSON_TYPE_ORDER_KEY = 'termPlanner.order.lessonTypes.v1';
 
 const Empty = () => <p className="p-4 text-sm italic text-gray-500">Inga lärartimmar att visa ännu.</p>;
 
@@ -77,6 +81,47 @@ export function LessonMixPanel({ mixes, teacherColors }: {
               </span>
             )}
             slices={foldSlices(mix.lessons, MAX_LESSON_SLICES)}
+          />
+        ),
+      }))}
+    />
+  );
+}
+
+/**
+ * Hur varje valt pass fördelas på lärarna — som Oliv, Rosa och Grund, men för
+ * de pass som väljs under kugghjulet.
+ */
+export function LessonTeachersPanel({ lessons, isSelected, teacherColors }: {
+  lessons: LessonTeachers[];
+  isSelected: (lesson: LessonTeachers) => boolean;
+  teacherColors: Map<string, string>;
+}) {
+  if (lessons.length === 0) return <Empty />;
+  const shown = lessons.filter(isSelected);
+  if (shown.length === 0) {
+    return <p className="p-4 text-sm italic text-gray-500">Inga pass valda. Välj pass under kugghjulet.</p>;
+  }
+  return (
+    <SortableCharts
+      storageKey={LESSON_TYPE_ORDER_KEY}
+      className={chartGrid}
+      items={shown.map(lesson => ({
+        id: lesson.key,
+        label: lesson.label,
+        node: (
+          <DonutChart
+            title={(
+              <span className="inline-flex max-w-full items-center gap-1.5">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                  style={{ backgroundColor: lesson.color }}
+                  aria-hidden
+                />
+                <span className="truncate">{lesson.label}</span>
+              </span>
+            )}
+            slices={teacherShareSlices(lesson.teachers, teacherColors)}
           />
         ),
       }))}
