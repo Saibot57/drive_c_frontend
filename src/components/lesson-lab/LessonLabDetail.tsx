@@ -12,6 +12,7 @@ import { LabOverview } from '@/components/lesson-lab/LabOverview';
 import { LabSidebar } from '@/components/lesson-lab/LabSidebar';
 import { LAB_SEED } from '@/config/lessonLabSeed';
 import { cn } from '@/lib/utils';
+import { useLabArchive } from '@/hooks/useLabArchive';
 import { readStored, useLessonLabState, writeStored } from '@/hooks/useLessonLabState';
 import type { LabLesson } from '@/types/lessonLab';
 import { downloadBlob } from '@/utils/download';
@@ -43,6 +44,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function LessonLabDetail() {
   const { state, loaded, commit, undo, redo, canUndo, canRedo } = useLessonLabState();
+  // Arkivet som mallen byggdes från: fasta pass gör lärare upptagna.
+  const source = useLabArchive(state, loaded);
   const [viewId, setViewId] = useState<string>(TEMPLATE_VIEW);
   const [focusTeacherId, setFocusTeacherId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export default function LessonLabDetail() {
   const activeView = viewId === TEMPLATE_VIEW || state.weeks.some(w => w.id === viewId) ? viewId : TEMPLATE_VIEW;
   const activeWeek = state.weeks.find(w => w.id === activeView) ?? null;
   const lessons = lessonsForView(state, activeView);
-  const warnings = useMemo(() => labWarnings(state, lessons), [state, lessons]);
+  const warnings = useMemo(() => labWarnings(state, lessons, source.busy), [state, lessons, source.busy]);
 
   const commitLessons = useCallback((change: (current: LabLesson[]) => LabLesson[]) => {
     commit(current => withLessons(current, activeView, change(lessonsForView(current, activeView))));
@@ -235,6 +238,7 @@ export default function LessonLabDetail() {
               state={state}
               lessons={lessons}
               warnings={warnings}
+              busy={source.busy}
               commitLessons={commitLessons}
               focusTeacherId={focus}
               onFocusTeacher={setFocusTeacherId}
@@ -244,6 +248,7 @@ export default function LessonLabDetail() {
               state={state}
               lessons={lessons}
               warnings={warnings}
+              fixed={source.fixed}
               focusTeacherId={focus}
               onFocusTeacher={setFocusTeacherId}
             />

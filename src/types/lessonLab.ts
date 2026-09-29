@@ -62,6 +62,11 @@ export interface LabLesson {
   classTeams: Record<string, string | null>;
   /** Klassnamn → lärar-id. En klass som saknas eller är `null` har ingen lärare. */
   classTeachers: Record<string, string | null>;
+  /**
+   * Klasser som inte har lektionen, t.ex. när bara Grund och Rosa har tema
+   * vid en viss tid i arkivet. De kan inte få arbetsgrupp eller lärare.
+   */
+  absentClasses?: string[];
 }
 
 /** En enskild vecka. Skapas som en kopia av mallen och ändras sedan fritt. */
@@ -79,5 +84,11 @@ export interface LabState {
   areas: LabArea[];
   /** Veckomallen, som gäller alla veckor som inte har ändrats. */
   template: LabLesson[];
+  /**
+   * Schemaplanerarens arkiv som mallen byggdes från, eller `null` för tavlan.
+   * Arkivets övriga pass (matte m.m.) läses om varje gång och räknas som
+   * lärarnas fasta timmar.
+   */
+  archiveId?: string | null;
   weeks: LabWeek[];
 }

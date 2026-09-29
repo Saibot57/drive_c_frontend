@@ -61,4 +61,5 @@ export const LAB_SEED: LabState = {
     lesson('l-fre-2', 'Fredag', '12:30', '14:30'),
   ],
   weeks: [],
+  archiveId: null,
 };
