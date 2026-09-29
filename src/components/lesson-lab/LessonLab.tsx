@@ -16,10 +16,11 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { Columns3, DoorOpen, Plus, Redo2, Square, Trash2, Undo2, X } from 'lucide-react';
+import { Columns3, DoorOpen, Loader2, Plus, Redo2, RefreshCw, Square, Trash2, Undo2, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ColorSwatch, CommitInput } from '@/components/lesson-lab/LabInputs';
+import { useLabArchive } from '@/hooks/useLabArchive';
 import { useLessonLabState } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
 import type { LabDay, LabLesson, LabState, LabTeam } from '@/types/lessonLab';
@@ -41,6 +42,7 @@ import {
   teacherShareMinutes,
   teamsInLesson,
 } from '@/utils/lessonLab';
+import { FixedHours, lessonsFromArchive } from '@/utils/lessonLabArchive';
 import '@/styles/schedule-theme.css';
 
 /**
@@ -51,6 +53,10 @@ import '@/styles/schedule-theme.css';
  * Här visas bara veckomallen. Lärare per klass, områden, tider, egna veckor
  * och varningar finns i detaljplanen, bakom dörren längst ned till vänster.
  * Båda vyerna delar samma data (`useLessonLabState`).
+ *
+ * Mallen kan byggas från ett arkiv i schemaplaneraren. Då blir arkivets
+ * temapass rutorna, och övriga pass (matte m.m.) lärarnas fasta timmar i
+ * räknaren (`useLabArchive`, `lessonLabArchive`).
  */
 
 /** Klassernas färger, som i schemat: Grund senap, Oliv oliv, Rosa rosa. */
@@ -78,8 +84,34 @@ const DAY_DROP_PREFIX = 'day:';
 const lessonLabel = (lesson: LabLesson) => `${lesson.day.slice(0, 3)} ${lesson.start}`;
 
 export default function LessonLab() {
-  const { state, commit, undo, redo, canUndo, canRedo } = useLessonLabState();
+  const { state, loaded, commit, undo, redo, canUndo, canRedo } = useLessonLabState();
+  const source = useLabArchive(state, loaded);
   const [dragging, setDragging] = useState<DragData | null>(null);
+
+  /** Bygger mallen från ett arkiv. Lektioner vid samma tid behåller sina grupper. */
+  const buildFromArchive = async (archiveId: string) => {
+    const activities = await source.fetchActivities(archiveId);
+    if (!activities) return;
+    commit(current => ({
+      ...current,
+      archiveId,
+      template: lessonsFromArchive(activities, current.classes, current.template, uuidv4),
+    }));
+  };
+
+  const chooseArchive = (archiveId: string) => {
+    // Utan arkiv ligger rutorna kvar som de är, men de fasta timmarna försvinner.
+    if (!archiveId) commit(current => ({ ...current, archiveId: null }));
+    else void buildFromArchive(archiveId);
+  };
+
+  const addUnknownTeachers = () => commit(current => ({
+    ...current,
+    teachers: [
+      ...current.teachers,
+      ...source.unknownNames.map(name => ({ id: uuidv4(), name, days: [...LAB_DAYS], resource: false })),
+    ],
+  }));
 
   const sensors = useSensors(
     // En kort sträcka innan det blir ett drag, så att knapparna i rutorna går att klicka.
@@ -98,11 +130,11 @@ export default function LessonLab() {
   // Bara det som gör en lektion omöjlig att bemanna: för få tillgängliga i gruppen.
   const shortByLesson = useMemo(() => {
     const map = new Map<string, string[]>();
-    labWarnings(state, lessons).filter(w => w.kind === 'shortTeam').forEach(w => {
+    labWarnings(state, lessons, source.busy).filter(w => w.kind === 'shortTeam').forEach(w => {
       map.set(w.lessonId, [...(map.get(w.lessonId) ?? []), w.detail]);
     });
     return map;
-  }, [state, lessons]);
+  }, [state, lessons, source.busy]);
 
   const newTeam = (current: LabState, memberIds: string[] = []): { state: LabState; teamId: string } => {
     const teamId = uuidv4();
@@ -196,6 +228,33 @@ export default function LessonLab() {
               Dra lärare till en dag för att göra dem tillgängliga, eller in i en grupp.
             </p>
             <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+              <select
+                className="sp-input h-10 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
+                value={state.archiveId ?? ''}
+                onChange={event => chooseArchive(event.target.value)}
+                disabled={source.status === 'loading'}
+                aria-label="Arkiv som grund"
+                title="Arkivets temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
+              >
+                <option value="">Tavlan (inget arkiv)</option>
+                {state.archiveId && !source.archives?.some(a => a.id === state.archiveId) && (
+                  <option value={state.archiveId}>{source.archives ? 'Arkivet finns inte längre' : 'Laddar arkiv…'}</option>
+                )}
+                {(source.archives ?? []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              {state.archiveId && (
+                <Button
+                  variant="neutral"
+                  size="icon"
+                  className="sp-btn"
+                  onClick={() => void buildFromArchive(state.archiveId as string)}
+                  disabled={source.status === 'loading'}
+                  title="Läs om arkivet. Lektioner vid samma tid behåller sina arbetsgrupper."
+                  aria-label="Läs om arkivet"
+                >
+                  {source.status === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                </Button>
+              )}
               <Button variant="neutral" size="icon" className="sp-btn" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
                 <Undo2 size={16} />
               </Button>
@@ -210,6 +269,25 @@ export default function LessonLab() {
             </div>
           </div>
 
+          {source.status === 'error' && (
+            <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm" role="status">
+              <span>Kunde inte läsa arkivet{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
+              {state.archiveId && (
+                <button type="button" className="text-xs font-semibold underline" onClick={() => void source.fetchActivities(state.archiveId as string)}>
+                  Försök igen
+                </button>
+              )}
+            </div>
+          )}
+          {source.unknownNames.length > 0 && (
+            <div className="sp-toast mb-4 flex flex-wrap items-center justify-between gap-2 bg-amber-50 px-4 py-2 text-sm" role="status">
+              <span>I arkivet finns också {source.unknownNames.join(', ')}, som inte är med i labbet.</span>
+              <button type="button" className="flex items-center gap-1 text-xs font-semibold underline" onClick={addUnknownTeachers}>
+                <UserPlus size={14} /> Lägg till
+              </button>
+            </div>
+          )}
+
           <Schedule
             state={state}
             lessons={lessons}
@@ -222,7 +300,13 @@ export default function LessonLab() {
             onMerge={id => updateLesson(id, l => mergeLesson(l, state.classes))}
           />
 
-          <Teams state={state} lessons={lessons} commit={commit} onNewTeam={() => commit(current => newTeam(current).state)} />
+          <Teams
+            state={state}
+            lessons={lessons}
+            fixed={source.fixed}
+            commit={commit}
+            onNewTeam={() => commit(current => newTeam(current).state)}
+          />
         </div>
 
         <DragOverlay dropAnimation={null}>
@@ -377,7 +461,8 @@ function LessonBox({
     />
   );
 
-  const toggle = (
+  const partial = (lesson.absentClasses?.length ?? 0) > 0;
+  const toggle = partial ? null : (
     <button
       type="button"
       onClick={lesson.split ? onMerge : onSplit}
@@ -389,7 +474,8 @@ function LessonBox({
     </button>
   );
 
-  if (lesson.split) {
+  // En lektion där någon klass saknas visas alltid per klass.
+  if (lesson.split || partial) {
     return (
       <div className="relative" style={{ minHeight: height }}>
         <div className="mb-0.5 flex items-center justify-between px-0.5">
@@ -431,10 +517,23 @@ function LessonBox({
 
 function ClassPart({ lesson, className, state }: { lesson: LabLesson; className: string; state: LabState }) {
   const team = state.teams.find(t => t.id === classTeamId(lesson, className));
+  const absent = lesson.absentClasses?.includes(className) ?? false;
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: `part:${lesson.id}:${className}`,
     data: { kind: 'part', lessonId: lesson.id, className } satisfies DragData,
+    disabled: absent,
   });
+  if (absent) {
+    // Klassen har inte tema den här tiden i arkivet.
+    return (
+      <div
+        title={`${className} har inte tema den här tiden`}
+        aria-label={`${lessonLabel(lesson)} ${className}, ingen lektion`}
+        className="rounded border-2 border-dashed border-black/20 opacity-50"
+        style={{ background: `repeating-linear-gradient(135deg, ${classColor(className)} 0 4px, transparent 4px 9px)` }}
+      />
+    );
+  }
   return (
     <div
       ref={setNodeRef}
@@ -466,11 +565,13 @@ function ClassPart({ lesson, className, state }: { lesson: LabLesson; className:
 function Teams({
   state,
   lessons,
+  fixed,
   commit,
   onNewTeam,
 }: {
   state: LabState;
   lessons: LabLesson[];
+  fixed: Map<string, FixedHours>;
   commit: (change: (current: LabState) => LabState) => void;
   onNewTeam: () => void;
 }) {
@@ -479,7 +580,7 @@ function Teams({
   return (
     <section className="mt-8 grid gap-4">
       <div className="sp-card flex flex-wrap items-center gap-2 px-4 py-3">
-        <h2 className="mr-2 font-bold" title="Timmar per vecka: varje lektion delas lika mellan arbetsgruppens medlemmar">Lärare</h2>
+        <h2 className="mr-2 font-bold" title="Timmar per vecka: fasta pass i arkivet plus lärarens del av arbetsgruppernas lektioner">Lärare</h2>
         {plannable.map(teacher => (
           <TeacherChip
             key={teacher.id}
@@ -487,6 +588,7 @@ function Teams({
             name={teacher.name}
             days={teacher.days}
             hours={shares.get(teacher.id) ?? 0}
+            fixed={fixed.get(teacher.id)}
           />
         ))}
       </div>
@@ -509,6 +611,7 @@ function TeacherChip({
   dragId = `teacher:${teacherId}`,
   size = 'md',
   hours,
+  fixed,
   onRemove,
   removeLabel,
 }: {
@@ -518,6 +621,8 @@ function TeacherChip({
   dragId?: string;
   /** Lärarens del av gruppernas lektioner, i minuter. Visas som en räknare. */
   hours?: number;
+  /** Fasta pass i arkivet, t.ex. matte. Läggs till räknaren. */
+  fixed?: FixedHours;
   size?: 'sm' | 'md';
   onRemove?: () => void;
   removeLabel?: string;
@@ -539,14 +644,7 @@ function TeacherChip({
       )}
     >
       {name}
-      {hours !== undefined && (
-        <span
-          className={cn('rounded-full px-1.5 text-[11px] tabular-nums', hours > 0 ? 'bg-black text-white' : 'bg-gray-100 text-gray-500')}
-          title="Timmar per vecka: lektionerna delas lika mellan arbetsgruppens medlemmar"
-        >
-          {formatHours(hours)}
-        </span>
-      )}
+      {hours !== undefined && <HourCounter tema={hours} fixed={fixed} />}
       {onRemove && (
         <button
           type="button"
@@ -559,6 +657,36 @@ function TeacherChip({
         >
           <X size={10} />
         </button>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Lärarens timmar per vecka: summan, med en stapel där den grå delen är fasta
+ * pass ur arkivet och den svarta temat. Uppdelningen står i verktygstipset.
+ */
+function HourCounter({ tema, fixed }: { tema: number; fixed?: FixedHours }) {
+  const fixedMinutes = fixed?.total ?? 0;
+  const total = tema + fixedMinutes;
+  const breakdown = [
+    ...(fixed?.parts ?? []).map(part => `${part.label} ${formatHours(part.minutes)}`),
+    `tema ${formatHours(tema)}`,
+  ].join(' + ');
+  return (
+    <span
+      className={cn(
+        'relative overflow-hidden rounded-full border px-1.5 pb-[3px] text-[11px] leading-tight tabular-nums',
+        total > 0 ? 'border-black bg-white text-black' : 'border-gray-200 bg-gray-100 text-gray-500'
+      )}
+      title={`${breakdown} = ${formatHours(total)} per vecka. Temat delas lika mellan arbetsgruppens medlemmar.`}
+    >
+      {formatHours(total)}
+      {total > 0 && (
+        <span className="absolute inset-x-0 bottom-0 flex h-[3px]" aria-hidden>
+          <span className="bg-gray-400" style={{ width: `${(fixedMinutes / total) * 100}%` }} />
+          <span className="flex-1 bg-black" />
+        </span>
       )}
     </span>
   );

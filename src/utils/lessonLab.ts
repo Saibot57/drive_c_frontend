@@ -96,6 +96,11 @@ const cleanLesson = (
   const areaId = str(raw.areaId);
   const teamId = str(raw.teamId);
   const split = raw.split === true;
+  const absent = Array.isArray(raw.absentClasses)
+    ? classes.filter(c => (raw.absentClasses as unknown[]).includes(c))
+    : [];
+  // En lektion utan en enda klass är ingen lektion.
+  if (absent.length === classes.length) return null;
   const rawTeams = isRecord(raw.classTeams) ? raw.classTeams : {};
   const classTeams: Record<string, string | null> = {};
   if (split) {
@@ -115,6 +120,7 @@ const cleanLesson = (
     split,
     classTeams,
     classTeachers,
+    ...(absent.length > 0 ? { absentClasses: absent } : {}),
   };
 };
 
@@ -163,7 +169,8 @@ export const parseLabState = (raw: unknown): LabState | null => {
     return [{ id: str(w.id), label: str(w.label).trim() || 'Vecka', lessons: lessonsFrom(w.lessons) }];
   }));
 
-  return { version: 1, classes, teachers, teams, areas, template: lessonsFrom(raw.template), weeks };
+  const archiveId = typeof raw.archiveId === 'string' && raw.archiveId ? raw.archiveId : null;
+  return { version: 1, classes, teachers, teams, areas, template: lessonsFrom(raw.template), weeks, archiveId };
 };
 
 /** Som `parseLabState`, men faller tillbaka på tavlan. För localStorage. */
@@ -202,9 +209,17 @@ export const weekFromTemplate = (state: LabState, id: string, label: string): La
 
 // ── Arbetsgrupper per klass ──
 
+/** Klasserna som har lektionen. Oftast alla. */
+export const presentClasses = (lesson: LabLesson, classes: string[]): string[] =>
+  lesson.absentClasses?.length ? classes.filter(c => !lesson.absentClasses!.includes(c)) : classes;
+
+const isAbsent = (lesson: LabLesson, className: string) => lesson.absentClasses?.includes(className) ?? false;
+
 /** Arbetsgruppen som äger en klass i lektionen. */
-export const classTeamId = (lesson: LabLesson, className: string): string | null =>
-  lesson.split ? lesson.classTeams[className] ?? null : lesson.teamId;
+export const classTeamId = (lesson: LabLesson, className: string): string | null => {
+  if (isAbsent(lesson, className)) return null;
+  return lesson.split ? lesson.classTeams[className] ?? null : lesson.teamId;
+};
 
 /** Arbetsgrupperna i lektionen, med klasserna var och en äger. */
 export const teamsInLesson = (lesson: LabLesson, classes: string[]): Map<string, string[]> => {
@@ -226,7 +241,7 @@ export const splitLesson = (lesson: LabLesson, classes: string[]): LabLesson => 
     ...lesson,
     split: true,
     teamId: null,
-    classTeams: Object.fromEntries(classes.map(c => [c, lesson.teamId])),
+    classTeams: Object.fromEntries(presentClasses(lesson, classes).map(c => [c, lesson.teamId])),
   }
 );
 
@@ -236,7 +251,7 @@ export const splitLesson = (lesson: LabLesson, classes: string[]): LabLesson => 
  */
 export const mergeLesson = (lesson: LabLesson, classes: string[]): LabLesson => {
   if (!lesson.split) return lesson;
-  const teams = new Set(classes.map(c => lesson.classTeams[c] ?? null));
+  const teams = new Set(presentClasses(lesson, classes).map(c => lesson.classTeams[c] ?? null));
   return { ...lesson, split: false, classTeams: {}, teamId: teams.size === 1 ? Array.from(teams)[0] : null };
 };
 
@@ -251,9 +266,10 @@ export const assignTeam = (
   className?: string
 ): LabLesson => {
   if (!className) return { ...lesson, split: false, classTeams: {}, teamId };
+  if (isAbsent(lesson, className)) return lesson;
   const base = splitLesson(lesson, classes);
   const next = { ...base, classTeams: { ...base.classTeams, [className]: teamId } };
-  const teams = new Set(classes.map(c => next.classTeams[c] ?? null));
+  const teams = new Set(presentClasses(lesson, classes).map(c => next.classTeams[c] ?? null));
   return teamId && teams.size === 1 ? mergeLesson(next, classes) : next;
 };
 
@@ -277,6 +293,7 @@ export const reassignTeam = (
 
 export type LabWarningKind =
   | 'unavailable'
+  | 'busy'
   | 'double'
   | 'shortTeam'
   | 'outsideTeam'
@@ -302,7 +319,14 @@ const lessonLabel = (lesson: LabLesson) =>
 
 export const availableOn = (teacher: LabTeacher, day: LabDay) => teacher.days.includes(day);
 
-export const labWarnings = (state: LabState, lessons: LabLesson[]): LabWarning[] => {
+/** Tider då en lärare redan har en fast lektion, per lärar-id. */
+export type BusyMap = Map<string, { day: LabDay; start: string; end: string; title: string }[]>;
+
+/** Den fasta lektion läraren har under lektionen, om någon. */
+export const busyDuring = (busy: BusyMap | undefined, teacherId: string, lesson: LabLesson) =>
+  busy?.get(teacherId)?.find(b => b.day === lesson.day && checkOverlap(b.start, b.end, lesson.start, lesson.end));
+
+export const labWarnings = (state: LabState, lessons: LabLesson[], busy?: BusyMap): LabWarning[] => {
   const teachers = new Map(state.teachers.map(t => [t.id, t]));
   const teams = new Map(state.teams.map(t => [t.id, t]));
   const warnings: LabWarning[] = [];
@@ -311,8 +335,9 @@ export const labWarnings = (state: LabState, lessons: LabLesson[]): LabWarning[]
     warnings.push({ ...warning, message: `${lessonLabel(lesson)}: ${detail}`, detail });
 
   for (const lesson of lessons) {
-    const withoutTeam = state.classes.filter(c => !teams.has(classTeamId(lesson, c) ?? ''));
-    if (withoutTeam.length === state.classes.length) {
+    const present = presentClasses(lesson, state.classes);
+    const withoutTeam = present.filter(c => !teams.has(classTeamId(lesson, c) ?? ''));
+    if (withoutTeam.length === present.length) {
       push({ kind: 'noTeam', severity: 'info', lessonId: lesson.id }, lesson, 'Ingen arbetsgrupp.');
     } else if (withoutTeam.length > 0) {
       push({ kind: 'noTeam', severity: 'info', lessonId: lesson.id }, lesson, `Ingen arbetsgrupp för ${withoutTeam.join(', ')}.`);
@@ -322,9 +347,10 @@ export const labWarnings = (state: LabState, lessons: LabLesson[]): LabWarning[]
     teamsInLesson(lesson, state.classes).forEach((owned, teamId) => {
       const team = teams.get(teamId);
       if (!team) return;
+      // En lärare med en fast lektion samtidigt kan inte ta en klass här.
       const available = team.memberIds.filter(id => {
         const teacher = teachers.get(id);
-        return teacher && availableOn(teacher, lesson.day);
+        return teacher && availableOn(teacher, lesson.day) && !busyDuring(busy, id, lesson);
       });
       if (available.length < owned.length) {
         push({ kind: 'shortTeam', severity: 'warn', lessonId: lesson.id }, lesson,
@@ -332,18 +358,23 @@ export const labWarnings = (state: LabState, lessons: LabLesson[]): LabWarning[]
       }
     });
 
-    const missing = state.classes.filter(c => !lesson.classTeachers[c]);
+    const missing = present.filter(c => !lesson.classTeachers[c]);
     if (missing.length > 0) {
       push({ kind: 'unassigned', severity: 'info', lessonId: lesson.id }, lesson, `Ingen lärare för ${missing.join(', ')}.`);
     }
 
-    for (const className of state.classes) {
+    for (const className of present) {
       const teacherId = lesson.classTeachers[className];
       if (!teacherId) continue;
       const teacher = teachers.get(teacherId);
       if (teacher && !availableOn(teacher, lesson.day)) {
         push({ kind: 'unavailable', severity: 'error', lessonId: lesson.id, teacherId }, lesson,
           `${teacher.name} är inte tillgänglig på ${lesson.day.toLowerCase()}.`);
+      }
+      const fixed = busyDuring(busy, teacherId, lesson);
+      if (teacher && fixed) {
+        push({ kind: 'busy', severity: 'error', lessonId: lesson.id, teacherId }, lesson,
+          `${teacher.name} har ${fixed.title} samtidigt.`);
       }
       const team = teams.get(classTeamId(lesson, className) ?? '');
       if (team && !team.memberIds.includes(teacherId)) {
@@ -355,7 +386,7 @@ export const labWarnings = (state: LabState, lessons: LabLesson[]): LabWarning[]
 
   // Dubbelbokning: samma lärare i två klasser samtidigt, i samma lektion
   // eller i två lektioner som överlappar.
-  const placements = lessons.flatMap(lesson => state.classes
+  const placements = lessons.flatMap(lesson => presentClasses(lesson, state.classes)
     .filter(c => lesson.classTeachers[c])
     .map(c => ({ lesson, className: c, teacherId: lesson.classTeachers[c] as string })));
   const reported = new Set<string>();
@@ -396,7 +427,7 @@ export type TeacherSummary = {
 
 export const teacherSummaries = (state: LabState, lessons: LabLesson[]): TeacherSummary[] =>
   state.teachers.filter(t => !t.resource).map(teacher => {
-    const teaching = lessons.filter(l => state.classes.some(c => l.classTeachers[c] === teacher.id));
+    const teaching = lessons.filter(l => presentClasses(l, state.classes).some(c => l.classTeachers[c] === teacher.id));
     const byArea: Record<string, number> = {};
     teaching.forEach(l => {
       const key = l.areaId ?? '';
@@ -419,6 +450,7 @@ export const classAreaMinutes = (state: LabState, lessons: LabLesson[]): Record<
   for (const className of state.classes) {
     const row: Record<string, number> = {};
     lessons.forEach(l => {
+      if (!presentClasses(l, state.classes).includes(className)) return;
       const key = l.areaId ?? '';
       row[key] = (row[key] ?? 0) + lessonMinutes(l);
     });
@@ -460,7 +492,7 @@ export const teamSummaries = (state: LabState, lessons: LabLesson[]): TeamSummar
  * delas lika mellan medlemmarna i gruppen som äger den: en tvåtimmarslektion
  * i en grupp på två ger en timme var. Äger gruppen bara en del av en delad
  * lektion får den samma del av tiden, till exempel en tredjedel för en klass
- * av tre. Grupper utan medlemmar räknas inte.
+ * av tre (av de klasser som har lektionen). Grupper utan medlemmar räknas inte.
  */
 export const teacherShareMinutes = (state: LabState, lessons: LabLesson[]): Map<string, number> => {
   const teams = new Map(state.teams.map(t => [t.id, t]));
@@ -469,7 +501,7 @@ export const teacherShareMinutes = (state: LabState, lessons: LabLesson[]): Map<
     teamsInLesson(lesson, state.classes).forEach((owned, teamId) => {
       const members = teams.get(teamId)?.memberIds ?? [];
       if (members.length === 0) return;
-      const share = (lessonMinutes(lesson) * owned.length) / state.classes.length / members.length;
+      const share = (lessonMinutes(lesson) * owned.length) / presentClasses(lesson, state.classes).length / members.length;
       members.forEach(id => shares.set(id, (shares.get(id) ?? 0) + share));
     });
   }
@@ -498,7 +530,12 @@ const busyTeachers = (lessons: LabLesson[], target: LabLesson, classes: string[]
  * tillgängliga den dagen, inte redan har en klass i lektionen och inte är
  * upptagna i en annan lektion samtidigt. Klasser som redan har lärare rörs inte.
  */
-export const fillFromTeam = (state: LabState, lessons: LabLesson[], lessonId: string): LabLesson[] => {
+export const fillFromTeam = (
+  state: LabState,
+  lessons: LabLesson[],
+  lessonId: string,
+  fixedBusy?: BusyMap
+): LabLesson[] => {
   const lesson = lessons.find(l => l.id === lessonId);
   if (!lesson || teamsInLesson(lesson, state.classes).size === 0) return lessons;
 
@@ -514,7 +551,8 @@ export const fillFromTeam = (state: LabState, lessons: LabLesson[], lessonId: st
     const team = teams.get(classTeamId(lesson, className) ?? '');
     const next = team?.memberIds.find(id => {
       const teacher = teachers.get(id);
-      return teacher && !teacher.resource && availableOn(teacher, lesson.day) && !busy.has(id) && !used.has(id);
+      return teacher && !teacher.resource && availableOn(teacher, lesson.day)
+        && !busy.has(id) && !used.has(id) && !busyDuring(fixedBusy, id, lesson);
     });
     if (!next) continue;
     classTeachers[className] = next;

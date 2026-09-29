@@ -12,19 +12,23 @@ import {
   teacherSummaries,
   teamSummaries,
 } from '@/utils/lessonLab';
+import type { FixedHours } from '@/utils/lessonLabArchive';
 import { LabCard } from '@/components/lesson-lab/LabInputs';
 
 type Props = {
   state: LabState;
   lessons: LabLesson[];
   warnings: LabWarning[];
+  /** Fasta pass i arkivet per lärare. Tom när labbet inte bygger på ett arkiv. */
+  fixed?: Map<string, FixedHours>;
   focusTeacherId: string | null;
   onFocusTeacher: (id: string | null) => void;
 };
 
 const NO_AREA = '';
 
-export function LabOverview({ state, lessons, warnings, focusTeacherId, onFocusTeacher }: Props) {
+export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, onFocusTeacher }: Props) {
+  const showFixed = (fixed?.size ?? 0) > 0;
   const teachers = useMemo(() => teacherSummaries(state, lessons), [state, lessons]);
   const classes = useMemo(() => classAreaMinutes(state, lessons), [state, lessons]);
   const teams = useMemo(() => teamSummaries(state, lessons), [state, lessons]);
@@ -78,6 +82,7 @@ export function LabOverview({ state, lessons, warnings, focusTeacherId, onFocusT
             <thead>
               <tr className="border-b-2 border-black text-left text-[11px] uppercase tracking-wide text-gray-500">
                 <th className="px-2 py-1">Lärare</th>
+                {showFixed && <th className="px-2 py-1 text-right" title="Pass i arkivet som inte är tema, t.ex. matte">Fast</th>}
                 <th className="px-2 py-1 text-right">Undervisar</th>
                 <th className="px-2 py-1 text-right" title="Lektioner som ägs av lärarens arbetsgrupper">Planerar</th>
                 <th className="px-2 py-1">Områden</th>
@@ -91,6 +96,14 @@ export function LabOverview({ state, lessons, warnings, focusTeacherId, onFocusT
                   onClick={() => onFocusTeacher(focusTeacherId === row.teacher.id ? null : row.teacher.id)}
                 >
                   <td className="px-2 py-1 font-semibold">{row.teacher.name}</td>
+                  {showFixed && (
+                    <td
+                      className="px-2 py-1 text-right text-gray-600"
+                      title={fixed?.get(row.teacher.id)?.parts.map(p => `${p.label} ${formatMinutes(p.minutes)}`).join(', ')}
+                    >
+                      {fixed?.get(row.teacher.id) ? formatMinutes(fixed.get(row.teacher.id)!.total) : '–'}
+                    </td>
+                  )}
                   <td className="px-2 py-1 text-right">
                     {row.minutes > 0 ? formatMinutes(row.minutes) : '–'}
                     <span className="ml-1 text-xs text-gray-500">{row.lessonCount > 0 && `(${row.lessonCount})`}</span>
@@ -113,6 +126,7 @@ export function LabOverview({ state, lessons, warnings, focusTeacherId, onFocusT
             </tbody>
           </table>
           <p className="px-2 pt-2 text-xs text-gray-500">
+            {showFixed && 'Fast är passen i arkivet som inte är tema, t.ex. matte. '}
             Undervisar räknar en lektion en gång även om läraren står på två klasser. Planerar är lektionerna som lärarens arbetsgrupper äger.
           </p>
         </div>

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import type { LabDay, LabLesson, LabState } from '@/types/lessonLab';
 import {
   assignTeam,
+  BusyMap,
   availableOn,
   classTeamId,
   fillFromTeam,
@@ -30,6 +31,8 @@ type Props = {
   state: LabState;
   lessons: LabLesson[];
   warnings: LabWarning[];
+  /** Fasta pass ur arkivet. "Fyll från arbetsgruppen" hoppar över upptagna lärare. */
+  busy?: BusyMap;
   commitLessons: CommitLessons;
   focusTeacherId: string | null;
   onFocusTeacher: (id: string | null) => void;
@@ -144,7 +147,7 @@ function DayHeader({ state, day, dayLessons, focusTeacherId, onFocusTeacher }: P
   );
 }
 
-function LessonCard({ state, lessons, warnings, commitLessons, focusTeacherId, lesson }: Props & { lesson: LabLesson }) {
+function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeacherId, lesson }: Props & { lesson: LabLesson }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ start: lesson.start, end: lesson.end });
 
@@ -182,7 +185,7 @@ function LessonCard({ state, lessons, warnings, commitLessons, focusTeacherId, l
           <span className="ml-1 font-sans font-normal text-gray-700">{lessonMinutes(lesson)} min</span>
         </span>
         <span className="flex items-center">
-          <IconButton label="Fyll tomma klasser från arbetsgruppen" disabled={lessonTeams.size === 0} onClick={() => commitLessons(current => fillFromTeam(state, current, lesson.id))}>
+          <IconButton label="Fyll tomma klasser från arbetsgruppen" disabled={lessonTeams.size === 0} onClick={() => commitLessons(current => fillFromTeam(state, current, lesson.id, busy))}>
             <Wand2 size={13} />
           </IconButton>
           <IconButton label="Rotera lärarna ett steg mellan klasserna" onClick={() => update(rotateClasses(lesson, state.classes))}>
@@ -252,6 +255,14 @@ function LessonCard({ state, lessons, warnings, commitLessons, focusTeacherId, l
 
         <div className="mt-0.5 grid gap-0.5">
           {state.classes.map(className => {
+            if (lesson.absentClasses?.includes(className)) {
+              return (
+                <div key={className} className="flex items-center gap-1 text-xs text-gray-400">
+                  <span className="w-11 shrink-0 font-semibold line-through">{className}</span>
+                  <span>har inte tema den här tiden</span>
+                </div>
+              );
+            }
             const teacherId = lesson.classTeachers[className] ?? '';
             const options = teacherOptions(state, lesson, className);
             const classTeam = lesson.split ? teamName(classTeamId(lesson, className)) : undefined;
