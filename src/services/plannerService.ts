@@ -141,7 +141,7 @@ export const plannerService = {
   async listArchives(): Promise<PlannerArchiveSummary[]> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives`);
     if (!response.ok) {
-      throw new Error('Kunde inte hämta scheman.');
+      throw new Error(`Kunde inte hämta scheman (HTTP ${response.status}).`);
     }
     const archives = unwrap(await response.json());
     return Array.isArray(archives) ? (archives as PlannerArchiveSummary[]) : [];
@@ -162,7 +162,7 @@ export const plannerService = {
   async getArchiveActivities(archiveId: string): Promise<ArchiveActivitiesResult> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/activities`);
     if (!response.ok) {
-      throw new Error('Kunde inte hämta schemat.');
+      throw new Error(`Kunde inte hämta schemat (HTTP ${response.status}).`);
     }
     const result = unwrap(await response.json());
     return {
