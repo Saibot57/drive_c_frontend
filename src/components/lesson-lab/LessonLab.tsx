@@ -1,175 +1,168 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
-import { CopyPlus, DoorOpen, Download, Redo2, RotateCcw, Trash2, Undo2, Upload } from 'lucide-react';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { Columns3, DoorOpen, Plus, Redo2, Square, Trash2, Undo2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
-import { LabBoard } from '@/components/lesson-lab/LabBoard';
-import { CommitInput } from '@/components/lesson-lab/LabInputs';
-import { LabOverview } from '@/components/lesson-lab/LabOverview';
-import { LabSidebar } from '@/components/lesson-lab/LabSidebar';
-import { LAB_SEED } from '@/config/lessonLabSeed';
+import { ColorSwatch, CommitInput } from '@/components/lesson-lab/LabInputs';
+import { useLessonLabState } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
-import type { LabLesson, LabState } from '@/types/lessonLab';
-import { isEditableElement } from '@/utils/dom';
-import { downloadBlob } from '@/utils/download';
+import type { LabDay, LabLesson, LabState, LabTeam } from '@/types/lessonLab';
 import {
+  assignTeam,
+  classTeamId,
+  formatMinutes,
+  isBeforeLunch,
+  LAB_COLORS,
+  LAB_DAYS,
   labWarnings,
-  lessonsForView,
-  parseLabState,
-  sanitizeLabState,
-  TEMPLATE_VIEW,
-  weekFromTemplate,
-  withLessons,
+  lessonMinutes,
+  mergeLesson,
+  nextColor,
+  reassignTeam,
+  sortLessons,
+  splitLesson,
+  teamsInLesson,
 } from '@/utils/lessonLab';
-import { commitUndoState, initialUndoState, redoState, undoState, UndoState } from '@/utils/undoHistory';
 import '@/styles/schedule-theme.css';
 
 /**
- * Veckolabbet: ett fristående laboratorium för att pröva hur lärare,
- * arbetsgrupper och fasta lektioner kan fördelas över en vecka.
+ * Veckolabbet, enkla vyn: veckans fasta lektioner som röda rutor överst och
+ * arbetsgrupperna nederst. Man drar en lektion till en arbetsgrupp. En ruta
+ * kan delas i tre, en per klass, så att klasserna kan få olika grupper.
  *
- * Utgångsläget är arbetslagets tavla (se `lessonLabSeed`). Allt sparas i den
- * här webbläsaren och kan flyttas som JSON-fil. Inget skrivs till
- * schemaplaneraren eller terminsplaneraren.
- *
- * Sidan är olistad, precis som terminsplaneraren. Dörren längst ned till
- * vänster på `/features/termin` leder hit.
+ * Här visas bara veckomallen. Lärare per klass, områden, tider, egna veckor
+ * och varningar finns i detaljplanen, bakom dörren längst ned till vänster.
+ * Båda vyerna delar samma data (`useLessonLabState`).
  */
 
-const STATE_KEY = 'lessonLab.state.v1';
-const VIEW_KEY = 'lessonLab.view.v1';
-
-const readStored = <T,>(key: string, parse: (raw: unknown) => T, fallback: T): T => {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw === null ? fallback : parse(JSON.parse(raw));
-  } catch {
-    return fallback;
-  }
+/** Klassernas färger, som i schemat: Grund senap, Oliv oliv, Rosa rosa. */
+const CLASS_COLORS: Record<string, string> = {
+  Grund: '#f2c14e',
+  Oliv: '#9bbf4f',
+  Rosa: '#f4a6c6',
 };
+const classColor = (className: string) => CLASS_COLORS[className] ?? '#e5e7eb';
 
-const writeStored = (key: string, value: unknown) => {
-  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* full eller blockerad lagring */ }
-};
+/** Höjd per minut, så att en 120-minuterslektion syns längre än en på 75. */
+const PX_PER_MINUTE = 0.75;
 
-const today = () => new Date().toISOString().slice(0, 10);
+type DragData =
+  | { kind: 'lesson'; lessonId: string }
+  | { kind: 'part'; lessonId: string; className: string }
+  | { kind: 'teacher'; teacherId: string }
+  | { kind: 'brick'; lessonId: string; teamId: string };
+
+const SCHEDULE_DROP = 'schedule';
+const NEW_TEAM_DROP = 'new-team';
+const teamDropId = (teamId: string) => `team:${teamId}`;
+
+const lessonLabel = (lesson: LabLesson) => `${lesson.day.slice(0, 3)} ${lesson.start}`;
 
 export default function LessonLab() {
-  const [history, setHistory] = useState<UndoState<LabState>>(() => initialUndoState(LAB_SEED));
-  const [loaded, setLoaded] = useState(false);
-  const [viewId, setViewId] = useState<string>(TEMPLATE_VIEW);
-  const [focusTeacherId, setFocusTeacherId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const { state, commit, undo, redo, canUndo, canRedo } = useLessonLabState();
+  const [dragging, setDragging] = useState<DragData | null>(null);
 
-  const state = history.present;
+  const sensors = useSensors(
+    // En kort sträcka innan det blir ett drag, så att knapparna i rutorna går att klicka.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // På pekskärm: håll kvar en stund, annars går det inte att skrolla.
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
 
-  // Läget läses efter montering, så att servern och första renderingen är lika.
-  useEffect(() => {
-    setHistory(initialUndoState(readStored(STATE_KEY, sanitizeLabState, LAB_SEED)));
-    setViewId(readStored(VIEW_KEY, raw => (typeof raw === 'string' ? raw : TEMPLATE_VIEW), TEMPLATE_VIEW));
-    setLoaded(true);
-  }, []);
+  const lessons = state.template;
+  const commitLessons = (change: (current: LabLesson[]) => LabLesson[]) =>
+    commit(current => ({ ...current, template: change(current.template) }));
+  const updateLesson = (lessonId: string, change: (lesson: LabLesson) => LabLesson) =>
+    commitLessons(current => current.map(l => (l.id === lessonId ? change(l) : l)));
 
-  useEffect(() => { if (loaded) writeStored(STATE_KEY, state); }, [loaded, state]);
-  useEffect(() => { if (loaded) writeStored(VIEW_KEY, viewId); }, [loaded, viewId]);
-
-  /**
-   * Varje ändring går genom tvätten, så att en borttagen lärare också
-   * försvinner ur arbetsgrupper och klasser. Ett läge som inte går igenom
-   * tvätten (borde inte hända) släpps i stället för att skriva över.
-   */
-  const commit = useCallback((change: (current: LabState) => LabState) => {
-    setHistory(h => {
-      const next = parseLabState(change(h.present));
-      return next ? commitUndoState(h, next) : h;
+  // Bara det som gör en lektion omöjlig att bemanna: för få tillgängliga i gruppen.
+  const shortByLesson = useMemo(() => {
+    const map = new Map<string, string[]>();
+    labWarnings(state, lessons).filter(w => w.kind === 'shortTeam').forEach(w => {
+      map.set(w.lessonId, [...(map.get(w.lessonId) ?? []), w.detail]);
     });
-  }, []);
+    return map;
+  }, [state, lessons]);
 
-  const undo = useCallback(() => setHistory(undoState), []);
-  const redo = useCallback(() => setHistory(redoState), []);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || isEditableElement(event.target)) return;
-      const key = event.key.toLowerCase();
-      if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
-      else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); redo(); }
+  const newTeam = (current: LabState, memberIds: string[] = []): { state: LabState; teamId: string } => {
+    const teamId = uuidv4();
+    return {
+      teamId,
+      state: {
+        ...current,
+        teams: [...current.teams, {
+          id: teamId,
+          name: `Arbetsgrupp ${current.teams.length + 1}`,
+          color: LAB_COLORS[current.teams.length % LAB_COLORS.length],
+          memberIds,
+        }],
+      },
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]);
-
-  // En vecka som tagits bort (eller ett gammalt id i lagringen) visar mallen.
-  const activeView = viewId === TEMPLATE_VIEW || state.weeks.some(w => w.id === viewId) ? viewId : TEMPLATE_VIEW;
-  const activeWeek = state.weeks.find(w => w.id === activeView) ?? null;
-  const lessons = lessonsForView(state, activeView);
-  const warnings = useMemo(() => labWarnings(state, lessons), [state, lessons]);
-
-  const commitLessons = useCallback((change: (current: LabLesson[]) => LabLesson[]) => {
-    commit(current => withLessons(current, activeView, change(lessonsForView(current, activeView))));
-  }, [commit, activeView]);
-
-  // Ett markerat namn som inte längre finns ska inte dimma hela veckan.
-  const focus = focusTeacherId && state.teachers.some(t => t.id === focusTeacherId && !t.resource) ? focusTeacherId : null;
-
-  // --- Veckor ---
-
-  const addWeek = () => {
-    const id = uuidv4();
-    commit(current => ({
-      ...current,
-      weeks: [...current.weeks, weekFromTemplate(current, id, `Vecka ${current.weeks.length + 1}`)],
-    }));
-    setViewId(id);
   };
 
-  const resetWeekFromTemplate = () => {
-    if (!activeWeek) return;
-    commit(current => ({
-      ...current,
-      weeks: current.weeks.map(w => (w.id === activeWeek.id ? weekFromTemplate(current, w.id, w.label) : w)),
-    }));
-    setNotice(`${activeWeek.label} är nu en kopia av mallen igen. Ångra med Ctrl+Z.`);
-  };
+  const onDragEnd = (event: DragEndEvent) => {
+    setDragging(null);
+    const data = event.active.data.current as DragData | undefined;
+    const overId = event.over?.id ? String(event.over.id) : null;
+    if (!data || !overId) return;
 
-  const deleteWeek = () => {
-    if (!activeWeek) return;
-    commit(current => ({ ...current, weeks: current.weeks.filter(w => w.id !== activeWeek.id) }));
-    setViewId(TEMPLATE_VIEW);
-    setNotice(`${activeWeek.label} är borttagen. Ångra med Ctrl+Z.`);
-  };
+    const classes = state.classes;
+    const onTeam = overId.startsWith('team:') ? overId.slice(5) : null;
 
-  // --- Fil ---
-
-  const exportFile = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    downloadBlob(blob, `veckolabb-${today()}.json`);
-  };
-
-  const importFile = async (file: File) => {
-    try {
-      const parsed = parseLabState(JSON.parse(await file.text()));
-      if (!parsed) {
-        setNotice(`${file.name} är ingen fil från veckolabbet.`);
-        return;
+    commit(current => {
+      let next = current;
+      let target = onTeam;
+      if (overId === NEW_TEAM_DROP) {
+        if (data.kind === 'brick') return current;
+        const created = newTeam(current, data.kind === 'teacher' ? [data.teacherId] : []);
+        next = created.state;
+        target = created.teamId;
+        if (data.kind === 'teacher') return next;
       }
-      commit(() => parsed);
-      setViewId(TEMPLATE_VIEW);
-      setNotice(`Läste in ${file.name}. Ångra med Ctrl+Z för att gå tillbaka.`);
-    } catch {
-      setNotice(`Kunde inte läsa ${file.name}. Är det en JSON-fil?`);
-    }
+
+      const mapLesson = (lessonId: string, change: (l: LabLesson) => LabLesson) => ({
+        ...next,
+        template: next.template.map(l => (l.id === lessonId ? change(l) : l)),
+      });
+
+      switch (data.kind) {
+        case 'lesson':
+          return target ? mapLesson(data.lessonId, l => assignTeam(l, classes, target)) : next;
+        case 'part':
+          return target ? mapLesson(data.lessonId, l => assignTeam(l, classes, target, data.className)) : next;
+        case 'teacher':
+          return target ? {
+            ...next,
+            teams: next.teams.map(t => (t.id === target && !t.memberIds.includes(data.teacherId)
+              ? { ...t, memberIds: [...t.memberIds, data.teacherId] }
+              : t)),
+          } : next;
+        case 'brick':
+          if (overId === SCHEDULE_DROP) return mapLesson(data.lessonId, l => reassignTeam(l, classes, data.teamId, null));
+          if (target && target !== data.teamId) return mapLesson(data.lessonId, l => reassignTeam(l, classes, data.teamId, target));
+          return next;
+      }
+    });
   };
 
-  const resetToBoard = () => {
-    commit(() => LAB_SEED);
-    setViewId(TEMPLATE_VIEW);
-    setNotice('Labbet är återställt till tavlan. Ångra med Ctrl+Z.');
-  };
+  const onDragStart = (event: DragStartEvent) => setDragging((event.active.data.current as DragData) ?? null);
 
   return (
     <div className="sp-root">
@@ -178,142 +171,468 @@ export default function LessonLab() {
         <img src="/bakgrund59.png" alt="" className="h-full w-full object-cover" />
       </div>
 
-      <div className="relative z-10 pb-20">
-        <div className="sp-toolbar mb-6 flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
-          <FeatureNavigation />
-          <p className="max-w-xs text-xs text-gray-600">
-            Lärare, arbetsgrupper och fasta lektioner. Sparas bara i den här webbläsaren.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-            <Button variant="neutral" size="icon" className="sp-btn" onClick={undo} disabled={history.past.length === 0} title="Ångra (Ctrl+Z)" aria-label="Ångra">
-              <Undo2 size={16} />
-            </Button>
-            <Button variant="neutral" size="icon" className="sp-btn" onClick={redo} disabled={history.future.length === 0} title="Gör om (Ctrl+Shift+Z)" aria-label="Gör om">
-              <Redo2 size={16} />
-            </Button>
-            <Button variant="neutral" className="sp-btn" onClick={exportFile} title="Spara labbet som en fil, t.ex. för att dela">
-              <Download size={16} className="mr-2" /> Spara fil
-            </Button>
-            <Button variant="neutral" className="sp-btn" onClick={() => fileInput.current?.click()} title="Läs in en fil från veckolabbet">
-              <Upload size={16} className="mr-2" /> Öppna fil
-            </Button>
-            <input
-              ref={fileInput}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={event => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (file) void importFile(file);
-              }}
-            />
-            <Button variant="neutral" className="sp-btn" onClick={resetToBoard} title="Börja om från tavlan (går att ångra)">
-              <RotateCcw size={16} className="mr-2" /> Tavlan
-            </Button>
-            <Button asChild variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200">
-              <Link href="/features/termin" title="Tillbaka till terminsplaneraren">
-                <DoorOpen size={16} className="mr-2" /> Terminen
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        {notice && (
-          <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-amber-50 px-4 py-2 text-sm" role="status">
-            <span>{notice}</span>
-            <button type="button" className="text-xs font-semibold underline" onClick={() => setNotice(null)}>Stäng</button>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-6 2xl:flex-row 2xl:items-start">
-          <div className="shrink-0 2xl:w-[380px]">
-            <LabSidebar
-              state={state}
-              commit={commit}
-              focusTeacherId={focus}
-              onFocusTeacher={setFocusTeacherId}
-              onNotice={setNotice}
-            />
-          </div>
-
-          <div className="grid min-w-0 flex-1 gap-6">
-            <div className="sp-card">
-              <div className="flex flex-wrap items-center gap-2 border-b-2 border-black px-4 py-3">
-                <div role="tablist" aria-label="Vecka" className="flex flex-wrap gap-1.5">
-                  <WeekTab active={activeView === TEMPLATE_VIEW} onClick={() => setViewId(TEMPLATE_VIEW)}>Veckomall</WeekTab>
-                  {state.weeks.map(week => (
-                    <WeekTab key={week.id} active={activeView === week.id} onClick={() => setViewId(week.id)}>{week.label}</WeekTab>
-                  ))}
-                </div>
-                <button type="button" onClick={addWeek} className="flex items-center gap-1 text-xs font-semibold underline" title="Ny vecka som kopia av mallen">
-                  <CopyPlus size={14} /> Ny vecka
-                </button>
-                {focus && (
-                  <button type="button" onClick={() => setFocusTeacherId(null)} className="ml-auto rounded-full border-2 border-black bg-amber-100 px-2 py-0.5 text-xs font-bold">
-                    Markerad: {state.teachers.find(t => t.id === focus)?.name} ✕
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-3 px-4 py-2 text-xs text-gray-600">
-                {activeWeek ? (
-                  <>
-                    <CommitInput
-                      value={activeWeek.label}
-                      ariaLabel="Veckans namn"
-                      className="w-40 text-sm font-bold text-black"
-                      onCommit={label => commit(current => ({ ...current, weeks: current.weeks.map(w => (w.id === activeWeek.id ? { ...w, label } : w)) }))}
-                    />
-                    <span>Egen vecka. Ändringar här påverkar inte mallen.</span>
-                    <button type="button" onClick={resetWeekFromTemplate} className="flex items-center gap-1 font-semibold underline">
-                      <RotateCcw size={12} /> Kopiera mallen igen
-                    </button>
-                    <button type="button" onClick={deleteWeek} className="flex items-center gap-1 font-semibold text-rose-700 underline">
-                      <Trash2 size={12} /> Ta bort veckan
-                    </button>
-                  </>
-                ) : (
-                  <span>
-                    Mallen gäller varje vecka. Gör en egen vecka med &quot;Ny vecka&quot; för att pröva något annat, till exempel en rotation.
-                  </span>
-                )}
-              </div>
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
+        <div className="relative z-10 pb-24">
+          <div className="sp-toolbar mb-6 flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
+            <FeatureNavigation />
+            <p className="max-w-md text-xs text-gray-600">
+              Dra en lektion till en arbetsgrupp. Dela en ruta för att ge klasserna olika grupper.
+              Dra lärare in i grupperna.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+              <Button variant="neutral" size="icon" className="sp-btn" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
+                <Undo2 size={16} />
+              </Button>
+              <Button variant="neutral" size="icon" className="sp-btn" onClick={redo} disabled={!canRedo} title="Gör om (Ctrl+Shift+Z)" aria-label="Gör om">
+                <Redo2 size={16} />
+              </Button>
+              <Button asChild variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200">
+                <Link href="/features/termin" title="Tillbaka till terminsplaneraren">
+                  <DoorOpen size={16} className="mr-2" /> Terminen
+                </Link>
+              </Button>
             </div>
-
-            <LabBoard
-              state={state}
-              lessons={lessons}
-              warnings={warnings}
-              commitLessons={commitLessons}
-              focusTeacherId={focus}
-              onFocusTeacher={setFocusTeacherId}
-            />
-
-            <LabOverview
-              state={state}
-              lessons={lessons}
-              warnings={warnings}
-              focusTeacherId={focus}
-              onFocusTeacher={setFocusTeacherId}
-            />
           </div>
+
+          <Schedule
+            state={state}
+            lessons={lessons}
+            shortByLesson={shortByLesson}
+            onSplit={id => updateLesson(id, l => splitLesson(l, state.classes))}
+            onMerge={id => updateLesson(id, l => mergeLesson(l, state.classes))}
+          />
+
+          <Teams state={state} lessons={lessons} commit={commit} onNewTeam={() => commit(current => newTeam(current).state)} />
         </div>
+
+        <DragOverlay dropAnimation={null}>
+          {dragging && <DragPreview data={dragging} state={state} />}
+        </DragOverlay>
+      </DndContext>
+
+      {/* Dörren till detaljplanen. Liten med flit, som dörren hit från terminen. */}
+      <Link
+        href="/features/termin/labb/detalj"
+        title="Detaljplan"
+        aria-label="Detaljplan"
+        className="fixed bottom-4 left-4 z-20 rounded-md border-2 border-black bg-white p-1.5 opacity-60 shadow-[2px_2px_0_0_#000] transition-opacity hover:opacity-100 focus-visible:opacity-100"
+      >
+        <DoorOpen size={18} />
+      </Link>
+    </div>
+  );
+}
+
+// ── Schemat ──
+
+function Schedule({
+  state,
+  lessons,
+  shortByLesson,
+  onSplit,
+  onMerge,
+}: {
+  state: LabState;
+  lessons: LabLesson[];
+  shortByLesson: Map<string, string[]>;
+  onSplit: (lessonId: string) => void;
+  onMerge: (lessonId: string) => void;
+}) {
+  // Hela schemat tar emot brickor från arbetsgrupperna: släppt här = ingen grupp.
+  const { setNodeRef, isOver, active } = useDroppable({ id: SCHEDULE_DROP });
+  const returning = (active?.data.current as DragData | undefined)?.kind === 'brick';
+
+  return (
+    <div className="overflow-x-auto">
+      <div
+        ref={setNodeRef}
+        className={cn('grid min-w-[900px] grid-cols-5 gap-3 rounded-xl', returning && isOver && 'outline-dashed outline-2 outline-offset-4 outline-rose-600')}
+      >
+        {LAB_DAYS.map(day => (
+          <DayColumn
+            key={day}
+            day={day}
+            state={state}
+            lessons={sortLessons(lessons.filter(l => l.day === day))}
+            shortByLesson={shortByLesson}
+            onSplit={onSplit}
+            onMerge={onMerge}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-function WeekTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function DayColumn({
+  day,
+  state,
+  lessons,
+  shortByLesson,
+  onSplit,
+  onMerge,
+}: {
+  day: LabDay;
+  state: LabState;
+  lessons: LabLesson[];
+  shortByLesson: Map<string, string[]>;
+  onSplit: (lessonId: string) => void;
+  onMerge: (lessonId: string) => void;
+}) {
+  const box = (lesson: LabLesson) => (
+    <LessonBox
+      key={lesson.id}
+      lesson={lesson}
+      state={state}
+      problems={shortByLesson.get(lesson.id) ?? []}
+      onSplit={() => onSplit(lesson.id)}
+      onMerge={() => onMerge(lesson.id)}
+    />
+  );
   return (
+    <div className="sp-card flex flex-col">
+      <h2 className="border-b-2 border-black px-3 py-2 text-lg font-black uppercase tracking-wide">{day.slice(0, 3)}</h2>
+      <div className="flex flex-1 flex-col gap-2 p-2">
+        {lessons.filter(isBeforeLunch).map(box)}
+        <div className="my-2 border-t-[3px] border-dotted border-gray-400" aria-label="Lunch" />
+        {lessons.filter(l => !isBeforeLunch(l)).map(box)}
+      </div>
+    </div>
+  );
+}
+
+function LessonBox({
+  lesson,
+  state,
+  problems,
+  onSplit,
+  onMerge,
+}: {
+  lesson: LabLesson;
+  state: LabState;
+  problems: string[];
+  onSplit: () => void;
+  onMerge: () => void;
+}) {
+  const height = Math.max(48, lessonMinutes(lesson) * PX_PER_MINUTE);
+  const team = state.teams.find(t => t.id === lesson.teamId);
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+    id: `lesson:${lesson.id}`,
+    data: { kind: 'lesson', lessonId: lesson.id } satisfies DragData,
+    disabled: lesson.split,
+  });
+
+  const warning = problems.length > 0 && (
+    <span
+      className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full border border-white bg-rose-600"
+      title={problems.join('\n')}
+      aria-label={problems.join(' ')}
+    />
+  );
+
+  const toggle = (
     <button
       type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={cn('rounded border-2 border-black px-3 py-1 text-sm font-bold', active ? 'bg-black text-white' : 'bg-white text-black')}
+      onClick={lesson.split ? onMerge : onSplit}
+      title={lesson.split ? 'Slå ihop till en ruta' : 'Dela i tre, en per klass'}
+      aria-label={lesson.split ? 'Slå ihop till en ruta' : 'Dela i tre, en per klass'}
+      className="rounded p-0.5 text-gray-600 hover:bg-black/10 hover:text-black"
     >
-      {children}
+      {lesson.split ? <Square size={13} /> : <Columns3 size={13} />}
     </button>
+  );
+
+  if (lesson.split) {
+    return (
+      <div className="relative" style={{ minHeight: height }}>
+        <div className="mb-0.5 flex items-center justify-between px-0.5">
+          <span className="font-mono text-[11px] font-bold">{lesson.start}–{lesson.end}</span>
+          {toggle}
+        </div>
+        <div className="grid grid-cols-3 gap-1" style={{ minHeight: height - 20 }}>
+          {state.classes.map(className => (
+            <ClassPart key={className} lesson={lesson} className={className} state={state} />
+          ))}
+        </div>
+        {warning}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        'relative flex cursor-grab touch-none flex-col justify-between rounded-md border-2 px-2 py-1 active:cursor-grabbing',
+        team ? 'border-black' : 'border-rose-600 bg-white',
+        isDragging && 'opacity-40'
+      )}
+      style={{ minHeight: height, background: team?.color }}
+      aria-label={`${lessonLabel(lesson)}${team ? `, ${team.name}` : ', ingen arbetsgrupp'}`}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <span className={cn('font-mono text-xs font-bold', !team && 'text-rose-700')}>{lesson.start}–{lesson.end}</span>
+        {toggle}
+      </div>
+      {team && <span className="truncate text-sm font-black">{team.name}</span>}
+      {warning}
+    </div>
+  );
+}
+
+function ClassPart({ lesson, className, state }: { lesson: LabLesson; className: string; state: LabState }) {
+  const team = state.teams.find(t => t.id === classTeamId(lesson, className));
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+    id: `part:${lesson.id}:${className}`,
+    data: { kind: 'part', lessonId: lesson.id, className } satisfies DragData,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      title={`${className}${team ? `: ${team.name}` : ''}`}
+      aria-label={`${lessonLabel(lesson)} ${className}${team ? `, ${team.name}` : ', ingen arbetsgrupp'}`}
+      className={cn(
+        'flex min-w-0 cursor-grab touch-none flex-col justify-end rounded border-2 p-1 active:cursor-grabbing',
+        team ? 'border-black' : 'border-black/30',
+        isDragging && 'opacity-40'
+      )}
+      style={{ background: classColor(className) }}
+    >
+      {team && (
+        <span
+          className="truncate rounded-sm border border-black px-0.5 text-[10px] font-bold leading-tight"
+          style={{ background: team.color }}
+        >
+          {team.name}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ── Arbetsgrupperna ──
+
+function Teams({
+  state,
+  lessons,
+  commit,
+  onNewTeam,
+}: {
+  state: LabState;
+  lessons: LabLesson[];
+  commit: (change: (current: LabState) => LabState) => void;
+  onNewTeam: () => void;
+}) {
+  const plannable = state.teachers.filter(t => !t.resource);
+  return (
+    <section className="mt-8 grid gap-4">
+      <div className="sp-card flex flex-wrap items-center gap-2 px-4 py-3">
+        <h2 className="mr-2 font-bold">Lärare</h2>
+        {plannable.map(teacher => <TeacherChip key={teacher.id} teacherId={teacher.id} name={teacher.name} days={teacher.days} />)}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {state.teams.map(team => <TeamCard key={team.id} team={team} state={state} lessons={lessons} commit={commit} />)}
+        <NewTeamCard onClick={onNewTeam} />
+      </div>
+    </section>
+  );
+}
+
+function TeacherChip({ teacherId, name, days }: { teacherId: string; name: string; days: LabDay[] }) {
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+    id: `teacher:${teacherId}`,
+    data: { kind: 'teacher', teacherId } satisfies DragData,
+  });
+  return (
+    <span
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      title={`Tillgänglig: ${days.map(d => d.slice(0, 3).toLowerCase()).join(', ') || 'inga dagar'}`}
+      className={cn('cursor-grab touch-none rounded-full border-2 border-black bg-white px-3 py-1 text-sm font-bold active:cursor-grabbing', isDragging && 'opacity-40')}
+    >
+      {name}
+    </span>
+  );
+}
+
+function TeamCard({
+  team,
+  state,
+  lessons,
+  commit,
+}: {
+  team: LabTeam;
+  state: LabState;
+  lessons: LabLesson[];
+  commit: (change: (current: LabState) => LabState) => void;
+}) {
+  const { setNodeRef, isOver, active } = useDroppable({ id: teamDropId(team.id) });
+  const accepts = active && (active.data.current as DragData | undefined)?.kind !== undefined;
+
+  const owned = sortLessons(lessons).flatMap(lesson => {
+    const classes = teamsInLesson(lesson, state.classes).get(team.id);
+    return classes ? [{ lesson, classes }] : [];
+  });
+  const minutes = owned.reduce((sum, { lesson }) => sum + lessonMinutes(lesson), 0);
+  const members = team.memberIds.map(id => state.teachers.find(t => t.id === id)).filter(Boolean) as LabState['teachers'];
+
+  const updateTeam = (change: (t: LabTeam) => LabTeam) =>
+    commit(current => ({ ...current, teams: current.teams.map(t => (t.id === team.id ? change(t) : t)) }));
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn('sp-card flex flex-col', accepts && isOver && 'outline outline-4 outline-offset-2 outline-black')}
+    >
+      <div className="flex items-center gap-2 border-b-2 border-black px-3 py-2" style={{ background: team.color }}>
+        <ColorSwatch color={team.color} label={team.name} onNext={() => updateTeam(t => ({ ...t, color: nextColor(t.color) }))} />
+        <CommitInput
+          value={team.name}
+          ariaLabel="Arbetsgruppens namn"
+          className="flex-1 font-black"
+          onCommit={name => updateTeam(t => ({ ...t, name }))}
+        />
+        <button
+          type="button"
+          aria-label={`Ta bort ${team.name}`}
+          title="Ta bort (går att ångra)"
+          className="rounded p-1 text-gray-700 hover:bg-black/10"
+          onClick={() => commit(current => ({ ...current, teams: current.teams.filter(t => t.id !== team.id) }))}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1 px-3 pt-2">
+        {members.length === 0 && <span className="text-xs text-gray-500">Dra lärare hit.</span>}
+        {members.map(teacher => (
+          <button
+            key={teacher.id}
+            type="button"
+            onClick={() => updateTeam(t => ({ ...t, memberIds: t.memberIds.filter(id => id !== teacher.id) }))}
+            title={`Ta bort ${teacher.name} ur gruppen`}
+            className="flex items-center gap-1 rounded-full border-2 border-black bg-black px-2 py-0.5 text-xs font-bold text-white hover:bg-gray-700"
+          >
+            {teacher.name} <X size={11} />
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        {owned.length === 0 && (
+          <div className="flex flex-1 items-center justify-center rounded-md border-2 border-dashed border-gray-300 p-3 text-center text-xs text-gray-500">
+            Dra lektioner hit.
+          </div>
+        )}
+        {owned.map(({ lesson, classes }) => (
+          <Brick
+            key={lesson.id}
+            lesson={lesson}
+            teamId={team.id}
+            classes={classes.length === state.classes.length ? null : classes}
+            onRemove={() => commit(current => ({
+              ...current,
+              template: current.template.map(l => (l.id === lesson.id ? reassignTeam(l, current.classes, team.id, null) : l)),
+            }))}
+          />
+        ))}
+      </div>
+
+      {owned.length > 0 && (
+        <div className="border-t border-gray-200 px-3 py-1.5 text-xs text-gray-600">
+          {owned.length} {owned.length === 1 ? 'lektion' : 'lektioner'} · {formatMinutes(minutes)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** En lektion i en arbetsgrupp. Dra tillbaka till schemat eller till en annan grupp. */
+function Brick({
+  lesson,
+  teamId,
+  classes,
+  onRemove,
+}: {
+  lesson: LabLesson;
+  teamId: string;
+  /** Klasserna gruppen äger, eller `null` när den äger hela lektionen. */
+  classes: string[] | null;
+  onRemove: () => void;
+}) {
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+    id: `brick:${teamId}:${lesson.id}`,
+    data: { kind: 'brick', lessonId: lesson.id, teamId } satisfies DragData,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn('flex cursor-grab touch-none items-center gap-2 rounded border-2 border-black bg-white px-2 py-1 text-xs active:cursor-grabbing', isDragging && 'opacity-40')}
+    >
+      <span className="font-mono font-bold">{lessonLabel(lesson)}</span>
+      {classes && (
+        <span className="flex gap-0.5">
+          {classes.map(c => (
+            <span key={c} className="rounded-sm border border-black/40 px-1 text-[10px] font-semibold" style={{ background: classColor(c) }}>{c}</span>
+          ))}
+        </span>
+      )}
+      <button
+        type="button"
+        onPointerDown={event => event.stopPropagation()}
+        onClick={onRemove}
+        title="Ta bort ur gruppen"
+        aria-label={`Ta bort ${lessonLabel(lesson)} ur gruppen`}
+        className="ml-auto rounded p-0.5 text-gray-500 hover:bg-rose-50 hover:text-rose-700"
+      >
+        <X size={12} />
+      </button>
+    </div>
+  );
+}
+
+function NewTeamCard({ onClick }: { onClick: () => void }) {
+  const { setNodeRef, isOver, active } = useDroppable({ id: NEW_TEAM_DROP });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex min-h-[140px] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-black/40 bg-white/70 p-4 text-sm font-semibold text-gray-600 hover:border-black hover:text-black',
+        active && isOver && 'border-black bg-white text-black'
+      )}
+    >
+      <Plus size={18} />
+      Ny arbetsgrupp
+      <span className="text-xs font-normal text-gray-500">Klicka, eller släpp en lektion eller lärare här</span>
+    </button>
+  );
+}
+
+// ── Det som följer muspekaren ──
+
+function DragPreview({ data, state }: { data: DragData; state: LabState }) {
+  const lesson = 'lessonId' in data ? state.template.find(l => l.id === data.lessonId) : undefined;
+  if (data.kind === 'teacher') {
+    const teacher = state.teachers.find(t => t.id === data.teacherId);
+    return <span className="rounded-full border-2 border-black bg-white px-3 py-1 text-sm font-bold shadow-[2px_2px_0_0_#000]">{teacher?.name}</span>;
+  }
+  if (!lesson) return null;
+  const background = data.kind === 'part' ? classColor(data.className) : '#fff';
+  return (
+    <span
+      className="inline-block rounded-md border-2 border-black px-2 py-1 font-mono text-xs font-bold shadow-[2px_2px_0_0_#000]"
+      style={{ background }}
+    >
+      {lessonLabel(lesson)}{data.kind === 'part' && ` · ${data.className}`}
+    </span>
   );
 }

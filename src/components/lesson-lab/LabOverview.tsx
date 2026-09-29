@@ -169,7 +169,8 @@ export function LabOverview({ state, lessons, warnings, focusTeacherId, onFocusT
                   <th className="px-2 py-1">Arbetsgrupp</th>
                   <th className="px-2 py-1">Lärare</th>
                   <th className="px-2 py-1 text-right">Lektioner</th>
-                  <th className="px-2 py-1 text-right">Tid per klass</th>
+                  <th className="px-2 py-1 text-right" title="Lektion gånger klass. En hel lektion är tre klasspass.">Klasspass</th>
+                  <th className="px-2 py-1 text-right">Tid i schemat</th>
                   {LAB_DAYS.map(day => <th key={day} className="px-2 py-1 text-right" title="Tillgängliga medlemmar">{day.slice(0, 3)}</th>)}
                 </tr>
               </thead>
@@ -184,6 +185,7 @@ export function LabOverview({ state, lessons, warnings, focusTeacherId, onFocusT
                       {row.team.memberIds.map(id => state.teachers.find(t => t.id === id)?.name).filter(Boolean).join(', ') || '–'}
                     </td>
                     <td className="px-2 py-1 text-right">{row.lessonCount}</td>
+                    <td className="px-2 py-1 text-right">{row.classPasses}</td>
                     <td className="px-2 py-1 text-right">{row.minutes > 0 ? formatMinutes(row.minutes) : '–'}</td>
                     {LAB_DAYS.map(day => (
                       <td
