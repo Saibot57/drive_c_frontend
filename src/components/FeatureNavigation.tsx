@@ -2,7 +2,7 @@
 
 import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useHotkeys } from '@/hooks/useHotkeys';
+import { isEditableElement } from '@/utils/dom';
 import { ShortcutHelpOverlay } from '@/components/ShortcutHelpOverlay';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -47,7 +48,8 @@ const features: readonly Feature[] = [
  * Sidor som inte står i menyn eller i genvägshjälpen. De finns här bara för
  * att menyknappen ska visa rätt namn när man väl är där.
  *
- * Terminsplaneraren nås med Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
+ * Terminsplaneraren nås med t-t-t (tre gånger inom en sekund, utanför
+ * textfält) eller Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
  * sidan läser bara scheman som den inloggade redan har tillgång till.
  */
 const hiddenFeatures: readonly Feature[] = [
@@ -85,10 +87,30 @@ export function FeatureNavigation() {
 
   // Egen lyssnare i stället för useHotkeys, som inte känner till Alt. Jämför
   // e.code: med Option på Mac blir e.key ett annat tecken än "t".
+  //
+  // Kombinationen kan fångas av operativsystemet eller webbläsaren innan sidan
+  // ser den, så "t" tre gånger inom en sekund leder också dit. Det kräver inga
+  // modifierare, och t är inte bundet någon annanstans. Inte i textfält.
+  const tPresses = useRef<number[]>([]);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.altKey && e.shiftKey && e.code === 'KeyT') {
         e.preventDefault();
+        router.push(TERM_PLANNER_HREF);
+        return;
+      }
+
+      // Chromes autofyll skickar keydown utan `key`, därav typkontrollen.
+      if (e.ctrlKey || e.metaKey || e.altKey || typeof e.key !== 'string' || e.key.toLowerCase() !== 't') {
+        tPresses.current = [];
+        return;
+      }
+      if (e.repeat || isEditableElement(e.target)) return;
+
+      const now = Date.now();
+      tPresses.current = [...tPresses.current, now].filter(t => now - t < 1000);
+      if (tPresses.current.length >= 3) {
+        tPresses.current = [];
         router.push(TERM_PLANNER_HREF);
       }
     };
