@@ -25,6 +25,8 @@ export type PanelDef = {
   id: string;
   title: React.ReactNode;
   content: React.ReactNode;
+  /** Knappar i rubriken, till vänster om hopfällningspilen. */
+  actions?: React.ReactNode;
   /** Bredden första gången. Standard: hel. */
   defaultWide?: boolean;
 };
@@ -275,6 +277,7 @@ export function TermPanels({ panels }: { panels: PanelDef[] }) {
                 <GripVertical size={16} />
               </button>
               <h2 className="min-w-0 flex-1 truncate font-bold">{panel.title}</h2>
+              {panel.actions}
               <button
                 type="button"
                 className="rounded p-1 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"

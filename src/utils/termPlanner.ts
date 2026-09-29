@@ -303,27 +303,30 @@ export const foldSlices = (slices: Slice[], max: number, otherLabel = 'Övriga')
   ];
 };
 
+export interface TeacherShare {
+  /** Lärarens normaliserade namn, samma nyckel som i `teacherColorMap`. */
+  key: string;
+  label: string;
+  minutes: number;
+}
+
 /**
- * Hur en klass tid fördelas på lärarna. Lärare utan egen färg (efter den
- * åttonde) slås ihop, så att två gråa bitar aldrig står bredvid varandra.
+ * Lärarnas andelar som bitar i lärarens färg, störst först. Lärare utan egen
+ * färg (efter den åttonde) slås ihop, så att två gråa bitar aldrig står
+ * bredvid varandra.
  */
-export const classShareSlices = (
-  stats: TermStats,
-  column: StatColumn,
-  colors: Map<string, string>
-): Slice[] => {
+export const teacherShareSlices = (shares: TeacherShare[], colors: Map<string, string>): Slice[] => {
   const named: Slice[] = [];
   let otherMinutes = 0;
   let otherCount = 0;
-  stats.rows.forEach(row => {
-    const minutes = row.minutes.byColumn[column];
-    if (minutes <= 0) return;
-    const color = colors.get(row.key) ?? OTHER_COLOR;
+  shares.forEach(share => {
+    if (share.minutes <= 0) return;
+    const color = colors.get(share.key) ?? OTHER_COLOR;
     if (color === OTHER_COLOR) {
-      otherMinutes += minutes;
+      otherMinutes += share.minutes;
       otherCount += 1;
     } else {
-      named.push({ key: row.key, label: row.label, minutes, color });
+      named.push({ ...share, color });
     }
   });
   const slices = named.sort((a, b) => b.minutes - a.minutes);
@@ -332,6 +335,16 @@ export const classShareSlices = (
   }
   return slices;
 };
+
+/** Hur en klass tid fördelas på lärarna. */
+export const classShareSlices = (
+  stats: TermStats,
+  column: StatColumn,
+  colors: Map<string, string>
+): Slice[] => teacherShareSlices(
+  stats.rows.map(row => ({ key: row.key, label: row.label, minutes: row.minutes.byColumn[column] })),
+  colors
+);
 
 export type LessonActivity = StatsActivity & { color?: string | null };
 
@@ -430,4 +443,47 @@ export const teacherLessonMix = (
     })
     .filter(mix => mix.total > 0)
     .sort((a, b) => a.label.localeCompare(b.label, 'sv'));
+};
+
+export interface LessonTeachers {
+  /** Titeln normaliserad, samma nyckel som i `teacherLessonMix`. */
+  key: string;
+  label: string;
+  /** Lektionens färg från planeraren. */
+  color: string;
+  total: number;
+  teachers: TeacherShare[];
+}
+
+/**
+ * Samma siffror som `teacherLessonMix`, vända: per pass, hur tiden fördelas
+ * på lärarna. Störst pass först.
+ */
+export const lessonTeacherBreakdown = (mixes: TeacherLessonMix[]): LessonTeachers[] => {
+  const lessons = new Map<string, LessonTeachers>();
+  mixes.forEach(mix => {
+    mix.lessons.forEach(lesson => {
+      const entry = lessons.get(lesson.key)
+        ?? { key: lesson.key, label: lesson.label, color: lesson.color, total: 0, teachers: [] };
+      entry.teachers.push({ key: mix.key, label: mix.label, minutes: lesson.minutes });
+      entry.total += lesson.minutes;
+      lessons.set(lesson.key, entry);
+    });
+  });
+  return Array.from(lessons.values())
+    .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'sv'));
+};
+
+/** Tema Oliv, Rosa och Grund — de pass som redan har en egen ruta. */
+export const isClassLesson = (title: string): boolean => {
+  const column = columnForTitle(title);
+  return column === 'oliv' || column === 'rosa' || column === 'grund';
+};
+
+/** För `usePersistentState`: titel → ikryssad, bara riktiga booleska värden. */
+export const sanitizeSelection = (raw: unknown): Record<string, boolean> => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).filter(([, value]) => typeof value === 'boolean')
+  ) as Record<string, boolean>;
 };

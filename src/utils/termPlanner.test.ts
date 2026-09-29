@@ -8,15 +8,19 @@ import {
   fillSuggestedArchives,
   foldSlices,
   formatHours,
+  isClassLesson,
+  lessonTeacherBreakdown,
   OTHER_COLOR,
   OTHER_SLICE_KEY,
   resizeTermWeeks,
+  sanitizeSelection,
   StatsActivity,
   suggestArchiveForWeek,
   TEACHER_COLORS,
   teacherColorMap,
   teacherLessonMix,
   teacherMinutesForWeek,
+  teacherShareSlices,
   termWeeksFromWheel,
   weekNumberFromName,
 } from '@/utils/termPlanner';
@@ -296,5 +300,55 @@ describe('teacherLessonMix', () => {
     expect(teacherLessonMix([{ activities }])[0].lessons[0].color).toBe('#222222');
     const byRule = teacherLessonMix([{ activities }], title => (title === 'Svenska' ? '#ff0000' : '#000000'));
     expect(byRule[0].lessons[0].color).toBe('#ff0000');
+  });
+});
+
+describe('lessonTeacherBreakdown', () => {
+  it('vänder lärarnas lektioner till passens lärare', () => {
+    const mixes = teacherLessonMix([{
+      activities: [
+        { ...pass('Ma 1', 'Anna', '08:00', '10:00'), color: '#a5f3fc' },
+        { ...pass('Ma 1', 'Björn', '08:00', '09:00'), color: '#a5f3fc' },
+        { ...pass('Onsdagsklubben', 'Björn', '13:00', '16:00'), color: '#fed7aa' },
+      ],
+    }]);
+    expect(lessonTeacherBreakdown(mixes)).toEqual([
+      {
+        key: 'ma 1', label: 'Ma 1', color: '#a5f3fc', total: 180,
+        teachers: [{ key: 'anna', label: 'Anna', minutes: 120 }, { key: 'björn', label: 'Björn', minutes: 60 }],
+      },
+      {
+        key: 'onsdagsklubben', label: 'Onsdagsklubben', color: '#fed7aa', total: 180,
+        teachers: [{ key: 'björn', label: 'Björn', minutes: 180 }],
+      },
+    ]);
+  });
+});
+
+describe('isClassLesson', () => {
+  it('känner igen Tema Oliv, Rosa och Grund men inte matte', () => {
+    expect(['Tema Oliv', 'tema rosa', 'Tema  Grund'].every(isClassLesson)).toBe(true);
+    expect(['Ma Grund', 'Onsdagsklubben', 'Studieverkstad'].some(isClassLesson)).toBe(false);
+  });
+});
+
+describe('teacherShareSlices', () => {
+  it('ger lärarnas färger och hoppar över nollor', () => {
+    const colors = teacherColorMap(['anna', 'björn']);
+    expect(teacherShareSlices([
+      { key: 'anna', label: 'Anna', minutes: 30 },
+      { key: 'björn', label: 'Björn', minutes: 90 },
+      { key: 'cecilia', label: 'Cecilia', minutes: 0 },
+    ], colors)).toEqual([
+      { key: 'björn', label: 'Björn', minutes: 90, color: TEACHER_COLORS[1] },
+      { key: 'anna', label: 'Anna', minutes: 30, color: TEACHER_COLORS[0] },
+    ]);
+  });
+});
+
+describe('sanitizeSelection', () => {
+  it('behåller bara booleska värden', () => {
+    expect(sanitizeSelection({ 'ma 1': true, lunch: false, x: 'ja' })).toEqual({ 'ma 1': true, lunch: false });
+    expect(sanitizeSelection(['ma 1'])).toEqual({});
   });
 });

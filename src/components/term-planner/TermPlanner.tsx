@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Cloud, CloudOff, Loader2, Plus, RefreshCw, Settings, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
-import { ClassSharePanel, LessonMixPanel } from '@/components/term-planner/TermCharts';
+import { LessonSelectionMenu, useLessonSelection } from '@/components/term-planner/LessonSelection';
+import { ClassSharePanel, LessonMixPanel, LessonTeachersPanel } from '@/components/term-planner/TermCharts';
 import { NewTermDialog, TermMeta, TermSettingsDialog } from '@/components/term-planner/TermDialogs';
 import { PanelDef, TermPanels } from '@/components/term-planner/TermPanels';
 import { TermStatsTable } from '@/components/term-planner/TermStatsTable';
@@ -20,6 +21,7 @@ import { buildWheelWeeks } from '@/utils/themeWheelWeeks';
 import {
   buildTermStats,
   CountedWeek,
+  lessonTeacherBreakdown,
   fillSuggestedArchives,
   resizeTermWeeks,
   teacherColorMap,
@@ -269,6 +271,8 @@ export default function TermPlanner() {
     () => teacherLessonMix(countedWeeks, resolveColor),
     [countedWeeks, resolveColor]
   );
+  const lessonTeachers = useMemo(() => lessonTeacherBreakdown(lessonMixes), [lessonMixes]);
+  const lessonSelection = useLessonSelection();
 
   const scopeSummary = useMemo(() => {
     const scoped = weekStates.map((state, index) => ({ state, index }));
@@ -373,6 +377,18 @@ export default function TermPlanner() {
       id: 'lessons',
       title: 'Lärarnas lektioner',
       content: <LessonMixPanel mixes={lessonMixes} teacherColors={teacherColors} />,
+    },
+    {
+      id: 'lessonTypes',
+      title: 'Pass per lärare',
+      actions: <LessonSelectionMenu lessons={lessonTeachers} selection={lessonSelection} />,
+      content: (
+        <LessonTeachersPanel
+          lessons={lessonTeachers}
+          isSelected={lessonSelection.isSelected}
+          teacherColors={teacherColors}
+        />
+      ),
     },
   ];
 
