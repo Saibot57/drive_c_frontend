@@ -8,8 +8,8 @@ import { formatHours, STAT_COLUMNS, TeacherMinutes, TermStats } from '@/utils/te
 type Props = {
   stats: TermStats;
   calendarWeeks: WheelWeek[];
-  /** Temat per terminsvecka, för raderna vecka för vecka. */
-  themes: string[];
+  /** Lärarens färg i diagrammen, som en prick vid namnet. */
+  teacherColors: Map<string, string>;
 };
 
 const numberCell = 'px-2 py-1.5 text-right tabular-nums';
@@ -27,7 +27,7 @@ function MinuteCells({ minutes, strong = false }: { minutes: TeacherMinutes; str
   );
 }
 
-export function TermStatsTable({ stats, calendarWeeks, themes }: Props) {
+export function TermStatsTable({ stats, calendarWeeks, teacherColors }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggle = (key: string) => setExpanded(current => {
@@ -64,6 +64,11 @@ export function TermStatsTable({ stats, calendarWeeks, themes }: Props) {
                   <td className="whitespace-nowrap px-2 py-1.5 font-semibold">
                     <span className="inline-flex items-center gap-1">
                       {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      <span
+                        className="mx-0.5 h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: teacherColors.get(row.key) }}
+                        aria-hidden
+                      />
                       {row.label}
                     </span>
                   </td>
@@ -73,7 +78,7 @@ export function TermStatsTable({ stats, calendarWeeks, themes }: Props) {
                   <tr key={week.index} className="border-b border-gray-100 bg-gray-50 text-xs text-gray-600">
                     <td className="whitespace-nowrap py-1 pl-7 pr-2">
                       {calendarWeeks[week.index]?.label}
-                      {themes[week.index] && <span className="ml-2 text-gray-400">{themes[week.index]}</span>}
+                      <span className="ml-2 text-gray-400">{calendarWeeks[week.index]?.dateLabel}</span>
                     </td>
                     <MinuteCells minutes={week.minutes} />
                   </tr>

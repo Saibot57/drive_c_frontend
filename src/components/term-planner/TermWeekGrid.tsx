@@ -5,7 +5,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import type { PlannerArchiveSummary } from '@/types/schedule';
 import type { TermWeek } from '@/types/term';
 import type { WheelWeek } from '@/utils/themeWheelWeeks';
-import { termThemes, weekNumberFromName } from '@/utils/termPlanner';
+import { weekNumberFromName } from '@/utils/termPlanner';
 
 /** Hur det står till med en veckas schema, för rutnätet och statistiken. */
 export type WeekState =
@@ -66,18 +66,13 @@ function StateCell({ state }: { state: WeekState }) {
 
 export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeWeek }: Props) {
   const sortedArchives = useMemo(() => sortArchives(archives ?? []), [archives]);
-  const themes = useMemo(() => termThemes(weeks), [weeks]);
 
   return (
     <div className="overflow-x-auto">
-      <datalist id="term-themes">
-        {themes.map(theme => <option key={theme} value={theme} />)}
-      </datalist>
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b-2 border-black text-left text-xs uppercase tracking-wide text-gray-500">
             <th className="px-2 py-2 font-semibold">Vecka</th>
-            <th className="px-2 py-2 font-semibold">Tema</th>
             <th className="px-2 py-2 text-center font-semibold">Lov</th>
             <th className="px-2 py-2 font-semibold">Schema</th>
             <th className="px-2 py-2 font-semibold" />
@@ -101,16 +96,6 @@ export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeW
                 <td className="whitespace-nowrap px-2 py-1.5">
                   <div className="font-semibold">{calendarWeek?.label}</div>
                   <div className="text-2xs text-gray-500">{calendarWeek?.dateLabel}</div>
-                </td>
-                <td className="min-w-[140px] px-2 py-1.5">
-                  <input
-                    className={inputClassName}
-                    list="term-themes"
-                    value={week.theme}
-                    placeholder="Tema"
-                    aria-label={`Tema ${calendarWeek?.label}`}
-                    onChange={event => onChangeWeek(index, { theme: event.target.value })}
-                  />
                 </td>
                 <td className="px-2 py-1.5 text-center">
                   <input

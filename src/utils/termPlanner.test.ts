@@ -3,14 +3,20 @@ import type { PlannerArchiveSummary } from '@/types/schedule';
 import type { ThemeWheel } from '@/types/themeWheel';
 import {
   buildTermStats,
+  classShareSlices,
   columnForTitle,
   fillSuggestedArchives,
+  foldSlices,
   formatHours,
+  OTHER_COLOR,
+  OTHER_SLICE_KEY,
   resizeTermWeeks,
   StatsActivity,
   suggestArchiveForWeek,
+  TEACHER_COLORS,
+  teacherColorMap,
+  teacherLessonMix,
   teacherMinutesForWeek,
-  termThemes,
   termWeeksFromWheel,
   weekNumberFromName,
 } from '@/utils/termPlanner';
@@ -163,7 +169,7 @@ describe('suggestArchiveForWeek', () => {
 });
 
 describe('termWeeksFromWheel', () => {
-  it('tar lov och huvudområden som tema', () => {
+  it('tar veckor och lov men inga teman', () => {
     const wheel: ThemeWheel = {
       id: 'w',
       name: 'HT',
@@ -178,27 +184,117 @@ describe('termWeeksFromWheel', () => {
       ],
     };
     expect(termWeeksFromWheel(wheel)).toEqual([
-      { theme: 'Hav', holiday: false, archiveId: null },
-      { theme: 'Hav / Rymd', holiday: false, archiveId: null },
-      { theme: 'Rymd', holiday: true, archiveId: null },
-      { theme: 'Rymd', holiday: false, archiveId: null },
+      { theme: '', holiday: false, archiveId: null },
+      { theme: '', holiday: false, archiveId: null },
+      { theme: '', holiday: true, archiveId: null },
+      { theme: '', holiday: false, archiveId: null },
     ]);
   });
 });
 
-describe('resizeTermWeeks och termThemes', () => {
+describe('resizeTermWeeks', () => {
   it('behåller veckor och fyller på tomma', () => {
-    const weeks = [{ theme: 'Hav', holiday: false, archiveId: 'a' }];
+    const weeks = [{ theme: '', holiday: false, archiveId: 'a' }];
     expect(resizeTermWeeks(weeks, 2)).toEqual([weeks[0], { theme: '', holiday: false, archiveId: null }]);
     expect(resizeTermWeeks(resizeTermWeeks(weeks, 2), 1)).toEqual(weeks);
   });
+});
 
-  it('listar teman i ordning utan dubbletter', () => {
-    expect(termThemes([
-      { theme: 'Hav', holiday: false, archiveId: null },
-      { theme: ' ', holiday: false, archiveId: null },
-      { theme: 'Rymd', holiday: false, archiveId: null },
-      { theme: 'Hav', holiday: true, archiveId: null },
-    ])).toEqual(['Hav', 'Rymd']);
+describe('teacherColorMap', () => {
+  it('ger lärarna paletten i ordning och grått efter den åttonde', () => {
+    const keys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
+    const colors = teacherColorMap(keys);
+    expect(colors.get('a')).toBe(TEACHER_COLORS[0]);
+    expect(colors.get('h')).toBe(TEACHER_COLORS[7]);
+    expect(colors.get('i')).toBe(OTHER_COLOR);
+  });
+});
+
+describe('foldSlices', () => {
+  const slice = (key: string, minutes: number) => ({ key, label: key, minutes, color: '#000' });
+
+  it('lämnar få bitar orörda men sorterar och tar bort nollor', () => {
+    expect(foldSlices([slice('a', 10), slice('b', 30), slice('c', 0)], 7).map(s => s.key)).toEqual(['b', 'a']);
+  });
+
+  it('slår ihop resten till Övriga', () => {
+    const folded = foldSlices([slice('a', 50), slice('b', 40), slice('c', 30), slice('d', 20), slice('e', 10)], 3);
+    expect(folded.map(s => [s.key, s.minutes])).toEqual([['a', 50], ['b', 40], [OTHER_SLICE_KEY, 60]]);
+    expect(folded[2].label).toBe('Övriga (3)');
+    expect(folded[2].color).toBe(OTHER_COLOR);
+  });
+});
+
+describe('classShareSlices', () => {
+  it('fördelar en klass på lärarna i lärarens färg', () => {
+    const stats = buildTermStats([{
+      index: 0,
+      activities: [
+        pass('Tema Oliv', 'Anna', '08:00', '10:00'),
+        pass('Tema Oliv', 'Björn', '10:00', '11:00'),
+        pass('Tema Rosa', 'Cecilia', '08:00', '09:00'),
+      ],
+    }]);
+    const colors = teacherColorMap(stats.rows.map(row => row.key));
+    expect(classShareSlices(stats, 'oliv', colors)).toEqual([
+      { key: 'anna', label: 'Anna', minutes: 120, color: TEACHER_COLORS[0] },
+      { key: 'björn', label: 'Björn', minutes: 60, color: TEACHER_COLORS[1] },
+    ]);
+  });
+
+  it('slår ihop lärare utan egen färg', () => {
+    const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const stats = buildTermStats([{
+      index: 0,
+      activities: names.map(name => pass('Tema Grund', name, '08:00', '09:00')),
+    }]);
+    const slices = classShareSlices(stats, 'grund', teacherColorMap(stats.rows.map(row => row.key)));
+    expect(slices).toHaveLength(9);
+    expect(slices[8]).toEqual({ key: OTHER_SLICE_KEY, label: 'Övriga lärare (2)', minutes: 120, color: OTHER_COLOR });
+  });
+});
+
+describe('teacherLessonMix', () => {
+  const colored = (title: string, teacher: string, start: string, end: string, color: string, day = 'Måndag') => ({
+    ...pass(title, teacher, start, end, day), color,
+  });
+
+  it('delar lärarens tid per lektionstitel över veckorna', () => {
+    const mix = teacherLessonMix([
+      { activities: [colored('Tema Oliv', 'Anna', '08:00', '10:00', '#bef264'), colored('Ma 1', 'Anna', '10:00', '11:00', '#bae6fd')] },
+      { activities: [colored('tema  oliv', 'Anna', '08:00', '09:00', '#bef264')] },
+    ]);
+    expect(mix).toEqual([{
+      key: 'anna',
+      label: 'Anna',
+      total: 240,
+      lessons: [
+        { key: 'tema oliv', label: 'Tema Oliv', minutes: 180, color: '#bef264' },
+        { key: 'ma 1', label: 'Ma 1', minutes: 60, color: '#bae6fd' },
+      ],
+    }]);
+  });
+
+  it('räknar samtidiga pass med samma titel en gång och hoppar över "alla"', () => {
+    const mix = teacherLessonMix([{
+      activities: [
+        colored('Tema Rosa', 'Anna', '08:00', '09:00', '#fecdd3'),
+        colored('Tema Rosa', 'Anna', '08:30', '09:30', '#fecdd3'),
+        colored('Onsdagsklubben', 'alla', '13:00', '14:00', '#e9d5ff'),
+      ],
+    }]);
+    expect(mix).toHaveLength(1);
+    expect(mix[0].lessons).toEqual([{ key: 'tema rosa', label: 'Tema Rosa', minutes: 90, color: '#fecdd3' }]);
+  });
+
+  it('tar den vanligaste färgen och låter färgreglerna gå före', () => {
+    const activities = [
+      colored('Svenska', 'Anna', '08:00', '09:00', '#111111'),
+      colored('Svenska', 'Anna', '09:00', '10:00', '#222222', 'Tisdag'),
+      colored('Svenska', 'Anna', '09:00', '10:00', '#222222', 'Onsdag'),
+    ];
+    expect(teacherLessonMix([{ activities }])[0].lessons[0].color).toBe('#222222');
+    const byRule = teacherLessonMix([{ activities }], title => (title === 'Svenska' ? '#ff0000' : '#000000'));
+    expect(byRule[0].lessons[0].color).toBe('#ff0000');
   });
 });

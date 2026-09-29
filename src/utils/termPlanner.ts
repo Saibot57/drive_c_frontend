@@ -242,29 +242,192 @@ export const fillSuggestedArchives = (
 });
 
 /**
- * Terminens veckor ur ett temahjul: lovveckorna och arbetsområdena som tema.
- * Bara huvudområden räknas — delområden ligger inom sin förälder. Går flera
- * huvudområden samma vecka blir temat båda namnen.
+ * Terminens veckor ur ett temahjul: veckorna och lovveckorna. Teman används
+ * inte längre (29 sep 2026), så arbetsområdena följer inte med.
  */
-export const termWeeksFromWheel = (wheel: ThemeWheel): TermWeek[] => {
-  const topLevel = wheel.blocks.filter(block => !block.parentId);
-  return Array.from({ length: wheel.weekCount }, (_, index) => ({
-    theme: topLevel
-      .filter(block => block.startWeek <= index && index <= block.endWeek)
-      .sort((a, b) => a.startWeek - b.startWeek || a.title.localeCompare(b.title, 'sv'))
-      .map(block => block.title)
-      .join(' / '),
+export const termWeeksFromWheel = (wheel: ThemeWheel): TermWeek[] =>
+  Array.from({ length: wheel.weekCount }, (_, index) => ({
+    theme: '',
     holiday: wheel.holidayWeeks.includes(index),
     archiveId: null,
   }));
+
+// --- Diagram ---
+
+/**
+ * Lärarnas färger: referenspaletten ur dataviz-skillen, validerad mot vit
+ * yta (alla hårda krav godkända; tre ljusa steg under 3:1, därför står värdena
+ * alltid utskrivna bredvid diagrammen). Ordningen är det som gör den
+ * färgblindsäker — byt inte plats på stegen.
+ */
+export const TEACHER_COLORS = [
+  '#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948',
+] as const;
+
+/** Det som inte får en egen färg: lärare efter den åttonde, lektioner efter den sjätte. */
+export const OTHER_COLOR = '#a8a7a1';
+
+/**
+ * Färgen följer läraren, inte rangen: lärarna tar paletten i bokstavsordning
+ * över hela terminen, så samma lärare har samma färg i varje diagram.
+ */
+export const teacherColorMap = (teacherKeys: string[]): Map<string, string> =>
+  new Map(teacherKeys.map((key, index) => [key, TEACHER_COLORS[index] ?? OTHER_COLOR]));
+
+export interface Slice {
+  key: string;
+  label: string;
+  minutes: number;
+  color: string;
+}
+
+export const OTHER_SLICE_KEY = '__ovriga__';
+
+/**
+ * Högst `max` bitar: de största behålls och resten slås ihop till "Övriga".
+ * Ett cirkeldiagram med fler bitar än så går inte att läsa.
+ */
+export const foldSlices = (slices: Slice[], max: number, otherLabel = 'Övriga'): Slice[] => {
+  const sorted = slices.filter(slice => slice.minutes > 0).sort((a, b) => b.minutes - a.minutes);
+  if (sorted.length <= max) return sorted;
+  const kept = sorted.slice(0, max - 1);
+  const rest = sorted.slice(max - 1);
+  return [
+    ...kept,
+    {
+      key: OTHER_SLICE_KEY,
+      label: `${otherLabel} (${rest.length})`,
+      minutes: rest.reduce((sum, slice) => sum + slice.minutes, 0),
+      color: OTHER_COLOR,
+    },
+  ];
 };
 
-/** Terminens teman i den ordning de först förekommer. */
-export const termThemes = (weeks: TermWeek[]): string[] => {
-  const seen: string[] = [];
-  weeks.forEach(week => {
-    const theme = week.theme.trim();
-    if (theme && !seen.includes(theme)) seen.push(theme);
+/**
+ * Hur en klass tid fördelas på lärarna. Lärare utan egen färg (efter den
+ * åttonde) slås ihop, så att två gråa bitar aldrig står bredvid varandra.
+ */
+export const classShareSlices = (
+  stats: TermStats,
+  column: StatColumn,
+  colors: Map<string, string>
+): Slice[] => {
+  const named: Slice[] = [];
+  let otherMinutes = 0;
+  let otherCount = 0;
+  stats.rows.forEach(row => {
+    const minutes = row.minutes.byColumn[column];
+    if (minutes <= 0) return;
+    const color = colors.get(row.key) ?? OTHER_COLOR;
+    if (color === OTHER_COLOR) {
+      otherMinutes += minutes;
+      otherCount += 1;
+    } else {
+      named.push({ key: row.key, label: row.label, minutes, color });
+    }
   });
-  return seen;
+  const slices = named.sort((a, b) => b.minutes - a.minutes);
+  if (otherCount > 0) {
+    slices.push({ key: OTHER_SLICE_KEY, label: `Övriga lärare (${otherCount})`, minutes: otherMinutes, color: OTHER_COLOR });
+  }
+  return slices;
+};
+
+export type LessonActivity = StatsActivity & { color?: string | null };
+
+export interface TeacherLessonMix {
+  key: string;
+  label: string;
+  /** En bit per lektionstitel, störst först. Inte hopslagna — det gör diagrammet. */
+  lessons: Slice[];
+  total: number;
+}
+
+const normalizeTitle = (title: string) => title.toLocaleLowerCase('sv').replace(/\s+/g, ' ').trim();
+
+/**
+ * Vad varje lärares tid består av, per lektionstitel, över de räknade
+ * veckorna. Samma regler som tabellen: bara namngivna lärare, och samtidiga
+ * pass med samma titel räknas en gång. Titlar slås ihop oavsett skiftläge och
+ * extra mellanslag ("Ma  Grund" = "Ma Grund").
+ *
+ * Färgen är den som oftast förekommer på titelns pass, genom `resolveColor`
+ * — planerarens färgregler — så att bitarna har samma färg som korten i schemat.
+ */
+export const teacherLessonMix = (
+  weeks: { activities: LessonActivity[] }[],
+  resolveColor: (title: string, fallback: string) => string = (_, fallback) => fallback
+): TeacherLessonMix[] => {
+  const titleLabels = new Map<string, string>();
+  const titleColorCounts = new Map<string, Map<string, number>>();
+  const teacherLabels = new Map<string, string>();
+  const minutes = new Map<string, Map<string, number>>();
+
+  weeks.forEach(({ activities }) => {
+    // lärare -> titel -> dag -> intervall, för en vecka i taget
+    const week = new Map<string, Map<string, DayIntervals>>();
+
+    activities.forEach(activity => {
+      const title = activity.title ?? '';
+      const titleKey = normalizeTitle(title);
+      if (!titleKey) return;
+      if (!titleLabels.has(titleKey)) titleLabels.set(titleKey, title.replace(/\s+/g, ' ').trim());
+      if (activity.color) {
+        const counts = titleColorCounts.get(titleKey) ?? new Map<string, number>();
+        counts.set(activity.color, (counts.get(activity.color) ?? 0) + 1);
+        titleColorCounts.set(titleKey, counts);
+      }
+
+      const interval = {
+        start: timeToMinutes(activity.startTime ?? ''),
+        end: timeToMinutes(activity.endTime ?? ''),
+      };
+      countedTeachers(activity.teacher).forEach(name => {
+        const teacherKey = normalizeName(name);
+        if (!teacherLabels.has(teacherKey)) teacherLabels.set(teacherKey, name.trim());
+        const byTitle = week.get(teacherKey) ?? new Map<string, DayIntervals>();
+        week.set(teacherKey, byTitle);
+        const days = byTitle.get(titleKey) ?? {};
+        byTitle.set(titleKey, days);
+        days[activity.day] = [...(days[activity.day] ?? []), interval];
+      });
+    });
+
+    week.forEach((byTitle, teacherKey) => {
+      const totals = minutes.get(teacherKey) ?? new Map<string, number>();
+      minutes.set(teacherKey, totals);
+      byTitle.forEach((days, titleKey) => {
+        totals.set(titleKey, (totals.get(titleKey) ?? 0) + sumByDay(days));
+      });
+    });
+  });
+
+  const colorFor = (titleKey: string) => {
+    const counts = titleColorCounts.get(titleKey);
+    const common = counts
+      ? Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0][0]
+      : OTHER_COLOR;
+    return resolveColor(titleLabels.get(titleKey) ?? titleKey, common);
+  };
+
+  return Array.from(minutes.entries())
+    .map(([teacherKey, totals]) => {
+      const lessons = Array.from(totals.entries())
+        .filter(([, value]) => value > 0)
+        .map(([titleKey, value]) => ({
+          key: titleKey,
+          label: titleLabels.get(titleKey) ?? titleKey,
+          minutes: value,
+          color: colorFor(titleKey),
+        }))
+        .sort((a, b) => b.minutes - a.minutes);
+      return {
+        key: teacherKey,
+        label: teacherLabels.get(teacherKey) ?? teacherKey,
+        lessons,
+        total: lessons.reduce((sum, lesson) => sum + lesson.minutes, 0),
+      };
+    })
+    .filter(mix => mix.total > 0)
+    .sort((a, b) => a.label.localeCompare(b.label, 'sv'));
 };
