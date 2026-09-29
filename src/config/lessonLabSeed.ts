@@ -19,6 +19,8 @@ const lesson = (id: string, day: LabLesson['day'], start: string, end: string): 
   title: '',
   areaId: null,
   teamId: null,
+  split: false,
+  classTeams: {},
   classTeachers: {},
 });
 

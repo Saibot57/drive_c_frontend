@@ -6,7 +6,9 @@ import { AlertTriangle, Pencil, Plus, Repeat, Trash2, Wand2 } from 'lucide-react
 import { cn } from '@/lib/utils';
 import type { LabDay, LabLesson, LabState } from '@/types/lessonLab';
 import {
+  assignTeam,
   availableOn,
+  classTeamId,
   fillFromTeam,
   isBeforeLunch,
   LAB_DAYS,
@@ -15,8 +17,12 @@ import {
   rotateClasses,
   sortLessons,
   teacherOptions,
+  teamsInLesson,
 } from '@/utils/lessonLab';
 import { minutesToTime, timeToMinutes } from '@/utils/scheduleTime';
+
+/** Arbetsgruppsvalets värde när klasserna har var sin grupp. */
+const SPLIT_VALUE = '__delad__';
 
 type CommitLessons = (change: (lessons: LabLesson[]) => LabLesson[]) => void;
 
@@ -50,6 +56,8 @@ export function LabBoard(props: Props) {
       title: '',
       areaId: null,
       teamId: null,
+      split: false,
+      classTeams: {},
       classTeachers: {},
     }]);
   };
@@ -142,13 +150,15 @@ function LessonCard({ state, lessons, warnings, commitLessons, focusTeacherId, l
 
   const area = state.areas.find(a => a.id === lesson.areaId);
   const team = state.teams.find(t => t.id === lesson.teamId);
-  const options = useMemo(() => teacherOptions(state, lesson), [state, lesson]);
+  const lessonTeams = useMemo(() => teamsInLesson(lesson, state.classes), [lesson, state.classes]);
+  const teamName = (id: string | null) => state.teams.find(t => t.id === id)?.name;
   const own = warnings.filter(w => w.lessonId === lesson.id);
   const problems = own.filter(w => w.severity !== 'info');
   const badTeachers = new Set(own.filter(w => w.severity === 'error' && w.teacherId).map(w => w.teacherId));
 
   const involved = focusTeacherId !== null && (
-    state.classes.some(c => lesson.classTeachers[c] === focusTeacherId) || (team?.memberIds.includes(focusTeacherId) ?? false)
+    state.classes.some(c => lesson.classTeachers[c] === focusTeacherId)
+    || state.teams.some(t => lessonTeams.has(t.id) && t.memberIds.includes(focusTeacherId))
   );
 
   const update = (change: Partial<LabLesson>) =>
@@ -172,7 +182,7 @@ function LessonCard({ state, lessons, warnings, commitLessons, focusTeacherId, l
           <span className="ml-1 font-sans font-normal text-gray-700">{lessonMinutes(lesson)} min</span>
         </span>
         <span className="flex items-center">
-          <IconButton label="Fyll tomma klasser från arbetsgruppen" disabled={!team} onClick={() => commitLessons(current => fillFromTeam(state, current, lesson.id))}>
+          <IconButton label="Fyll tomma klasser från arbetsgruppen" disabled={lessonTeams.size === 0} onClick={() => commitLessons(current => fillFromTeam(state, current, lesson.id))}>
             <Wand2 size={13} />
           </IconButton>
           <IconButton label="Rotera lärarna ett steg mellan klasserna" onClick={() => update(rotateClasses(lesson, state.classes))}>
@@ -228,12 +238,14 @@ function LessonCard({ state, lessons, warnings, commitLessons, focusTeacherId, l
             {state.areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
           <select
-            value={lesson.teamId ?? ''}
+            value={lesson.split ? SPLIT_VALUE : lesson.teamId ?? ''}
             aria-label="Arbetsgrupp"
-            onChange={e => update({ teamId: e.target.value || null })}
+            title={lesson.split ? 'Klasserna har var sin arbetsgrupp. Välj en grupp för att ge alla klasser samma.' : undefined}
+            onChange={e => update(assignTeam(lesson, state.classes, e.target.value || null))}
             className="min-w-0 rounded border border-gray-300 bg-white px-1 py-0.5 text-xs"
           >
             <option value="">Arbetsgrupp…</option>
+            {lesson.split && <option value={SPLIT_VALUE} disabled>Delad per klass</option>}
             {state.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
@@ -241,9 +253,13 @@ function LessonCard({ state, lessons, warnings, commitLessons, focusTeacherId, l
         <div className="mt-0.5 grid gap-0.5">
           {state.classes.map(className => {
             const teacherId = lesson.classTeachers[className] ?? '';
+            const options = teacherOptions(state, lesson, className);
+            const classTeam = lesson.split ? teamName(classTeamId(lesson, className)) : undefined;
             return (
               <label key={className} className="flex items-center gap-1 text-xs">
-                <span className="w-11 shrink-0 font-semibold text-gray-600">{className}</span>
+                <span className="w-11 shrink-0 font-semibold text-gray-600" title={classTeam ? `Arbetsgrupp: ${classTeam}` : undefined}>
+                  {className}{lesson.split && <span className="block text-[9px] font-normal leading-none text-gray-500">{classTeam ?? 'ingen grupp'}</span>}
+                </span>
                 <select
                   value={teacherId}
                   aria-label={`Lärare för ${className}`}
@@ -256,12 +272,12 @@ function LessonCard({ state, lessons, warnings, commitLessons, focusTeacherId, l
                 >
                   <option value="">–</option>
                   {options.team.length > 0 && (
-                    <optgroup label={team ? team.name : 'Arbetsgruppen'}>
+                    <optgroup label={teamName(classTeamId(lesson, className)) ?? 'Arbetsgruppen'}>
                       {options.team.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </optgroup>
                   )}
                   {options.others.length > 0 && (
-                    <optgroup label={team ? 'Andra tillgängliga' : 'Tillgängliga'}>
+                    <optgroup label={options.team.length > 0 ? 'Andra tillgängliga' : 'Tillgängliga'}>
                       {options.others.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </optgroup>
                   )}

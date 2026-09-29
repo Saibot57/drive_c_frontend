@@ -51,7 +51,15 @@ export interface LabLesson {
   end: string;
   title: string;
   areaId: string | null;
+  /** Arbetsgruppen för hela lektionen. Gäller bara när lektionen inte är delad. */
   teamId: string | null;
+  /**
+   * Delad lektion: klasserna kan ha var sin arbetsgrupp, i `classTeams`.
+   * En hel lektion har en arbetsgrupp för alla klasser, i `teamId`.
+   */
+  split: boolean;
+  /** Klassnamn → arbetsgrupp. Används bara när `split` är sant. */
+  classTeams: Record<string, string | null>;
   /** Klassnamn → lärar-id. En klass som saknas eller är `null` har ingen lärare. */
   classTeachers: Record<string, string | null>;
 }
