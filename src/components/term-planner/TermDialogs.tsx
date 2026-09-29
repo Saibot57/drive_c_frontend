@@ -84,7 +84,7 @@ type NewTermDialogProps = {
   onCreate: (meta: TermMeta, weeks: TermWeek[] | null) => Promise<void>;
 };
 
-/** Ny termin, tom eller med veckor, lov och teman från ett temahjul. */
+/** Ny termin, tom eller med veckor och lov från ett temahjul. */
 export function NewTermDialog({ open, onClose, onCreate }: NewTermDialogProps) {
   const [meta, setMeta] = useState<TermMeta>(defaultMeta);
   const [wheels, setWheels] = useState<ThemeWheelSummary[]>([]);
@@ -157,7 +157,7 @@ export function NewTermDialog({ open, onClose, onCreate }: NewTermDialogProps) {
             </select>
             {wheelWeeks && (
               <p className="text-xs text-gray-500">
-                Veckor, lov och arbetsområden hämtas från hjulet. Allt går att ändra efteråt.
+                Veckor och lov hämtas från hjulet. Allt går att ändra efteråt.
               </p>
             )}
           </div>

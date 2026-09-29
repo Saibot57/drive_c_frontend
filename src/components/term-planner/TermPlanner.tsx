@@ -4,20 +4,26 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Cloud, CloudOff, Loader2, Plus, RefreshCw, Settings, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
+import { ClassSharePanel, LessonMixPanel } from '@/components/term-planner/TermCharts';
 import { NewTermDialog, TermMeta, TermSettingsDialog } from '@/components/term-planner/TermDialogs';
+import { PanelDef, TermPanels } from '@/components/term-planner/TermPanels';
 import { TermStatsTable } from '@/components/term-planner/TermStatsTable';
 import { TermWeekGrid, WeekState } from '@/components/term-planner/TermWeekGrid';
+import { COLOR_TRIGGERS_KEY } from '@/config/plannerConstants';
+import { usePersistentState } from '@/hooks/usePersistentState';
 import { plannerService } from '@/services/plannerService';
 import { termService } from '@/services/termService';
-import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
+import type { ColorTriggerRule, PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
 import type { Term, TermSummary, TermWeek } from '@/types/term';
+import { createColorResolver, sanitizeColorTriggers } from '@/utils/colorTriggers';
 import { buildWheelWeeks } from '@/utils/themeWheelWeeks';
 import {
   buildTermStats,
   CountedWeek,
   fillSuggestedArchives,
   resizeTermWeeks,
-  termThemes,
+  teacherColorMap,
+  teacherLessonMix,
 } from '@/utils/termPlanner';
 import '@/styles/schedule-theme.css';
 
@@ -32,6 +38,7 @@ import '@/styles/schedule-theme.css';
  */
 
 const LAST_TERM_KEY = 'termPlanner.lastTermId';
+const NO_COLOR_TRIGGERS: ColorTriggerRule[] = [];
 const SAVE_DELAY_MS = 800;
 
 type SaveStatus = 'saved' | 'pending' | 'saving' | 'error';
@@ -80,7 +87,12 @@ export default function TermPlanner() {
   const [notice, setNotice] = useState<string | null>(null);
   const [newTermOpen, setNewTermOpen] = useState(false);
   const [settingsFor, setSettingsFor] = useState<TermMeta | null>(null);
-  const [themeFilter, setThemeFilter] = useState('');
+
+  // Planerarens färgregler, bara för att läsa: då får lektionsdiagrammen
+  // samma färger som korten i schemat.
+  const [colorTriggers] = usePersistentState<ColorTriggerRule[]>(
+    COLOR_TRIGGERS_KEY, sanitizeColorTriggers, NO_COLOR_TRIGGERS
+  );
 
   // --- Laddning ---
 
@@ -102,7 +114,6 @@ export default function TermPlanner() {
       const loaded = await termService.getTerm(id);
       setTerm(loaded);
       setSaveStatus('saved');
-      setThemeFilter('');
       writeLastTermId(id);
     } catch (e) {
       setNotice(e instanceof Error ? e.message : 'Kunde inte hämta terminen.');
@@ -241,28 +252,26 @@ export default function TermPlanner() {
 
   // --- Statistik ---
 
-  const themesByWeek = useMemo(() => (term?.weeks ?? []).map(week => week.theme.trim()), [term]);
-  const themes = useMemo(() => termThemes(term?.weeks ?? []), [term]);
-
-  const inScope = useCallback(
-    (index: number) => !themeFilter || themesByWeek[index] === themeFilter,
-    [themeFilter, themesByWeek]
-  );
-
   const countedWeeks: CountedWeek[] = useMemo(() => {
     if (!term) return [];
     return term.weeks.flatMap((week, index) => {
       const state = weekStates[index];
       const entry = week.archiveId ? cache[week.archiveId] : undefined;
-      if (state?.kind !== 'ready' || entry?.status !== 'loaded' || !inScope(index)) return [];
+      if (state?.kind !== 'ready' || entry?.status !== 'loaded') return [];
       return [{ index, activities: entry.activities }];
     });
-  }, [term, weekStates, cache, inScope]);
+  }, [term, weekStates, cache]);
 
   const stats = useMemo(() => buildTermStats(countedWeeks), [countedWeeks]);
+  const teacherColors = useMemo(() => teacherColorMap(stats.rows.map(row => row.key)), [stats]);
+  const resolveColor = useMemo(() => createColorResolver(colorTriggers), [colorTriggers]);
+  const lessonMixes = useMemo(
+    () => teacherLessonMix(countedWeeks, resolveColor),
+    [countedWeeks, resolveColor]
+  );
 
   const scopeSummary = useMemo(() => {
-    const scoped = weekStates.map((state, index) => ({ state, index })).filter(({ index }) => inScope(index));
+    const scoped = weekStates.map((state, index) => ({ state, index }));
     const count = (kind: WeekState['kind']) => scoped.filter(({ state }) => state.kind === kind).length;
     const labels = (...kinds: WeekState['kind'][]) => scoped
       .filter(({ state }) => kinds.includes(state.kind))
@@ -275,7 +284,7 @@ export default function TermPlanner() {
       uncounted: labels('empty', 'missing'),
       unreadable: labels('error'),
     };
-  }, [weekStates, inScope, calendarWeeks]);
+  }, [weekStates, calendarWeeks]);
 
   // --- Termin: skapa, ändra, radera ---
 
@@ -294,7 +303,6 @@ export default function TermPlanner() {
     ]);
     setTerm(created);
     setSaveStatus('saved');
-    setThemeFilter('');
     writeLastTermId(created.id);
   };
 
@@ -324,6 +332,49 @@ export default function TermPlanner() {
   };
 
   // --- Render ---
+
+  const countSummary = (
+    <div className="border-b border-gray-100 px-4 py-2 text-xs text-gray-600">
+      Timmar, räknat ur {scopeSummary.counted} {scopeSummary.counted === 1 ? 'vecka' : 'veckor'}
+      {scopeSummary.holidays > 0 && ` · ${scopeSummary.holidays} lov`}
+      {scopeSummary.loading > 0 && ` · ${scopeSummary.loading} laddas`}
+      {scopeSummary.uncounted.length > 0 && (
+        <span className="text-amber-700"> · utan schema: {scopeSummary.uncounted.join(', ')}</span>
+      )}
+      {scopeSummary.unreadable.length > 0 && (
+        <span className="text-rose-700"> · kunde inte läsas: {scopeSummary.unreadable.join(', ')}</span>
+      )}
+      <div className="mt-1 text-gray-400">
+        Pass med &quot;alla&quot; som lärare räknas inte. Samtidiga pass räknas en gång.
+        Klicka på en lärare för vecka för vecka.
+      </div>
+    </div>
+  );
+
+  const panels: PanelDef[] = [
+    {
+      id: 'hours',
+      title: 'Lärartimmar',
+      content: (
+        <>
+          {countSummary}
+          <div className="p-2">
+            <TermStatsTable stats={stats} calendarWeeks={calendarWeeks} teacherColors={teacherColors} />
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'classes',
+      title: 'Oliv, Rosa och Grund per lärare',
+      content: <ClassSharePanel stats={stats} teacherColors={teacherColors} />,
+    },
+    {
+      id: 'lessons',
+      title: 'Lärarnas lektioner',
+      content: <LessonMixPanel mixes={lessonMixes} teacherColors={teacherColors} />,
+    },
+  ];
 
   return (
     <div className="sp-root">
@@ -406,7 +457,7 @@ export default function TermPlanner() {
           <div className="sp-card p-6">
             <h2 className="mb-2 font-bold">Terminsplaneraren</h2>
             <p className="mb-4 text-sm text-gray-600">
-              Lägg upp terminens veckor, markera lov och teman, och välj vilket veckoschema som gäller.
+              Lägg upp terminens veckor, markera lov och välj vilket veckoschema som gäller.
               Då räknas lärarnas timmar per klass ihop för hela terminen.
             </p>
             <Button onClick={() => setNewTermOpen(true)}><Plus size={16} className="mr-2" /> Ny termin</Button>
@@ -415,7 +466,7 @@ export default function TermPlanner() {
 
         {term && (
           <div className="flex flex-col gap-6 2xl:flex-row 2xl:items-start">
-            <div className="sp-card shrink-0 2xl:w-[640px]">
+            <div className="sp-card shrink-0 2xl:w-[440px]">
               <div className="flex items-center justify-between gap-2 border-b-2 border-black px-4 py-3">
                 <h2 className="font-bold">{term.name} · veckor</h2>
                 <Button
@@ -440,37 +491,8 @@ export default function TermPlanner() {
               </div>
             </div>
 
-            <div className="sp-card min-w-0 flex-1">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-black px-4 py-3">
-                <h2 className="font-bold">Lärartimmar</h2>
-                <select
-                  className="sp-input h-9 rounded-md bg-white px-3 text-sm"
-                  value={themeFilter}
-                  onChange={event => setThemeFilter(event.target.value)}
-                  aria-label="Visa tema"
-                >
-                  <option value="">Hela terminen</option>
-                  {themes.map(theme => <option key={theme} value={theme}>{theme}</option>)}
-                </select>
-              </div>
-              <div className="border-b border-gray-100 px-4 py-2 text-xs text-gray-600">
-                Timmar, räknat ur {scopeSummary.counted} {scopeSummary.counted === 1 ? 'vecka' : 'veckor'}
-                {scopeSummary.holidays > 0 && ` · ${scopeSummary.holidays} lov`}
-                {scopeSummary.loading > 0 && ` · ${scopeSummary.loading} laddas`}
-                {scopeSummary.uncounted.length > 0 && (
-                  <span className="text-amber-700"> · utan schema: {scopeSummary.uncounted.join(', ')}</span>
-                )}
-                {scopeSummary.unreadable.length > 0 && (
-                  <span className="text-rose-700"> · kunde inte läsas: {scopeSummary.unreadable.join(', ')}</span>
-                )}
-                <div className="mt-1 text-gray-400">
-                  Pass med &quot;alla&quot; som lärare räknas inte. Samtidiga pass räknas en gång i Totalt.
-                  Klicka på en lärare för vecka för vecka.
-                </div>
-              </div>
-              <div className="p-2">
-                <TermStatsTable stats={stats} calendarWeeks={calendarWeeks} themes={themesByWeek} />
-              </div>
+            <div className="min-w-0 flex-1">
+              <TermPanels panels={panels} />
             </div>
           </div>
         )}
