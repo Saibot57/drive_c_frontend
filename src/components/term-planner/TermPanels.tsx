@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePersistentState } from '@/hooks/usePersistentState';
+import { moveId } from '@/utils/sortOrder';
 
 /**
  * Terminsplanerarens rutor till höger: flyttbara med dra och släpp,
@@ -73,13 +74,6 @@ const mergeLayout = (stored: PanelLayout[], panels: PanelDef[]): PanelLayout[] =
     .filter(panel => !seen.has(panel.id))
     .map(panel => ({ id: panel.id, collapsed: false, wide: panel.defaultWide !== false, height: null }));
   return [...kept, ...added];
-};
-
-const moveId = (ids: string[], dragId: string, targetId: string, after: boolean) => {
-  const without = ids.filter(id => id !== dragId);
-  const index = without.indexOf(targetId) + (after ? 1 : 0);
-  without.splice(index, 0, dragId);
-  return without;
 };
 
 type DropTarget = { id: string; after: boolean; horizontal: boolean };

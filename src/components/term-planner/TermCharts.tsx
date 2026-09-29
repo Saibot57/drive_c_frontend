@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { DonutChart } from '@/components/term-planner/DonutChart';
+import { SortableCharts } from '@/components/term-planner/SortableCharts';
 import {
   classShareSlices,
   foldSlices,
@@ -20,7 +21,13 @@ const CLASSES: { key: StatColumn; label: string }[] = [
 /** Fler bitar än så går inte att läsa i ett cirkeldiagram. */
 const MAX_LESSON_SLICES = 7;
 
-const chartGrid = 'grid gap-x-6 gap-y-8 p-4 grid-cols-[repeat(auto-fill,minmax(190px,1fr))]';
+// Korten har egen luft och en ram vid hovring, så gapet är mindre än förut.
+const chartGrid = 'grid gap-4 p-3 grid-cols-[repeat(auto-fill,minmax(200px,1fr))]';
+
+// Ordningen sparas per ruta. Id:na är klassnyckeln respektive lärarens
+// normaliserade namn, så en lärare behåller sin plats mellan terminer.
+const CLASS_ORDER_KEY = 'termPlanner.order.classes.v1';
+const LESSON_ORDER_KEY = 'termPlanner.order.lessons.v1';
 
 const Empty = () => <p className="p-4 text-sm italic text-gray-500">Inga lärartimmar att visa ännu.</p>;
 
@@ -31,11 +38,15 @@ export function ClassSharePanel({ stats, teacherColors }: {
 }) {
   if (stats.rows.length === 0) return <Empty />;
   return (
-    <div className={chartGrid}>
-      {CLASSES.map(({ key, label }) => (
-        <DonutChart key={key} title={label} slices={classShareSlices(stats, key, teacherColors)} />
-      ))}
-    </div>
+    <SortableCharts
+      storageKey={CLASS_ORDER_KEY}
+      className={chartGrid}
+      items={CLASSES.map(({ key, label }) => ({
+        id: key,
+        label,
+        node: <DonutChart title={label} slices={classShareSlices(stats, key, teacherColors)} />,
+      }))}
+    />
   );
 }
 
@@ -46,24 +57,29 @@ export function LessonMixPanel({ mixes, teacherColors }: {
 }) {
   if (mixes.length === 0) return <Empty />;
   return (
-    <div className={chartGrid}>
-      {mixes.map(mix => (
-        <DonutChart
-          key={mix.key}
-          title={(
-            <span className="inline-flex max-w-full items-center gap-1.5">
-              <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: teacherColors.get(mix.key) }}
-                aria-hidden
-              />
-              <span className="truncate">{mix.label}</span>
-              <span className="font-normal text-gray-500">· {formatHours(mix.total)} h</span>
-            </span>
-          )}
-          slices={foldSlices(mix.lessons, MAX_LESSON_SLICES)}
-        />
-      ))}
-    </div>
+    <SortableCharts
+      storageKey={LESSON_ORDER_KEY}
+      className={chartGrid}
+      items={mixes.map(mix => ({
+        id: mix.key,
+        label: mix.label,
+        node: (
+          <DonutChart
+            title={(
+              <span className="inline-flex max-w-full items-center gap-1.5">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: teacherColors.get(mix.key) }}
+                  aria-hidden
+                />
+                <span className="truncate">{mix.label}</span>
+                <span className="font-normal text-gray-500">· {formatHours(mix.total)} h</span>
+              </span>
+            )}
+            slices={foldSlices(mix.lessons, MAX_LESSON_SLICES)}
+          />
+        ),
+      }))}
+    />
   );
 }
