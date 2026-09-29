@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -51,8 +51,12 @@ const features: readonly Feature[] = [
  * Terminsplaneraren nås med t-t-t (tre gånger inom en sekund, utanför
  * textfält) eller Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
  * sidan läser bara scheman som den inloggade redan har tillgång till.
+ *
+ * Veckolabbet nås via dörren längst ned till vänster i terminsplaneraren.
+ * Det står före Termin, eftersom dess sökväg också matchar Termins.
  */
 const hiddenFeatures: readonly Feature[] = [
+  { label: 'Veckolabbet',     href: '/features/termin/labb',        icon: DoorOpen,     shortcut: '' },
   { label: 'Termin',          href: '/features/termin',             icon: Sigma,        shortcut: '' },
 ];
 

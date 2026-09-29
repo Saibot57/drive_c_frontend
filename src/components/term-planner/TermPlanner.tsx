@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Cloud, CloudOff, Loader2, Plus, RefreshCw, Settings, Wand2 } from 'lucide-react';
+import Link from 'next/link';
+import { Cloud, CloudOff, DoorOpen, Loader2, Plus, RefreshCw, Settings, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { LessonSelectionMenu, useLessonSelection } from '@/components/term-planner/LessonSelection';
@@ -513,6 +514,17 @@ export default function TermPlanner() {
           </div>
         )}
       </div>
+
+      {/* Den gömda dörren till veckolabbet. Liten med flit: labbet är ett
+          experiment och ska inte ta plats från terminen. */}
+      <Link
+        href="/features/termin/labb"
+        title="Veckolabbet"
+        aria-label="Veckolabbet"
+        className="fixed bottom-4 left-4 z-20 rounded-md border-2 border-black bg-white p-1.5 opacity-60 shadow-[2px_2px_0_0_#000] transition-opacity hover:opacity-100 focus-visible:opacity-100"
+      >
+        <DoorOpen size={18} />
+      </Link>
 
       <NewTermDialog open={newTermOpen} onClose={() => setNewTermOpen(false)} onCreate={createTerm} />
       <TermSettingsDialog
