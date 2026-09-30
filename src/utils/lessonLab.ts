@@ -488,24 +488,59 @@ export const teamSummaries = (state: LabState, lessons: LabLesson[]): TeamSummar
 };
 
 /**
- * Varje lärares del av arbetsgruppernas lektioner, i minuter. En lektions tid
- * delas lika mellan medlemmarna i gruppen som äger den: en tvåtimmarslektion
- * i en grupp på två ger en timme var. Äger gruppen bara en del av en delad
- * lektion får den samma del av tiden, till exempel en tredjedel för en klass
- * av tre (av de klasser som har lektionen). Grupper utan medlemmar räknas inte.
+ * Varje lärares undervisningstid i temat, i minuter, räknad i klasspass: varje
+ * klass behöver en egen lärare hela lektionen, så en hel lektion med tre
+ * klasser är tre lärarpass.
+ *
+ * - En klass där man satt en lärare (detaljplanen) ger den läraren hela
+ *   lektionen, precis som i schemaplaneraren.
+ * - Övriga klasser fördelas jämnt på arbetsgruppens medlemmar som kan den
+ *   dagen: tillgängliga, utan en fast lektion samtidigt och inte redan satta
+ *   på en annan klass i lektionen. Fyra lärare till tre klasser ger ¾ av
+ *   lektionen var, i genomsnitt över veckorna.
+ * - Ingen får mer än lektionens längd från samma lektion: man kan bara vara i
+ *   ett rum i taget. Klasser som blir över saknar lärare (den röda pricken).
  */
-export const teacherShareMinutes = (state: LabState, lessons: LabLesson[]): Map<string, number> => {
+export const teacherTeachingMinutes = (
+  state: LabState,
+  lessons: LabLesson[],
+  busy?: BusyMap
+): Map<string, number> => {
+  const teachers = new Map(state.teachers.map(t => [t.id, t]));
   const teams = new Map(state.teams.map(t => [t.id, t]));
-  const shares = new Map<string, number>();
+  const total = new Map<string, number>();
+
   for (const lesson of lessons) {
-    teamsInLesson(lesson, state.classes).forEach((owned, teamId) => {
-      const members = teams.get(teamId)?.memberIds ?? [];
-      if (members.length === 0) return;
-      const share = (lessonMinutes(lesson) * owned.length) / presentClasses(lesson, state.classes).length / members.length;
-      members.forEach(id => shares.set(id, (shares.get(id) ?? 0) + share));
+    const minutes = lessonMinutes(lesson);
+    const present = presentClasses(lesson, state.classes);
+    const inLesson = new Map<string, number>();
+
+    // Satta lärare: hela lektionen, en gång även om läraren står på två klasser.
+    const placed = new Set<string>();
+    present.forEach(c => { const t = lesson.classTeachers[c]; if (t) placed.add(t); });
+    placed.forEach(id => inLesson.set(id, minutes));
+
+    // Klasser utan satt lärare, per arbetsgrupp.
+    const open = new Map<string, number>();
+    present.forEach(c => {
+      if (lesson.classTeachers[c]) return;
+      const teamId = classTeamId(lesson, c);
+      if (teamId) open.set(teamId, (open.get(teamId) ?? 0) + 1);
     });
+    open.forEach((classCount, teamId) => {
+      const eligible = (teams.get(teamId)?.memberIds ?? []).filter(id => {
+        const teacher = teachers.get(id);
+        return teacher && !teacher.resource && availableOn(teacher, lesson.day)
+          && !busyDuring(busy, id, lesson) && !placed.has(id);
+      });
+      if (eligible.length === 0) return;
+      const share = minutes * Math.min(1, classCount / eligible.length);
+      eligible.forEach(id => inLesson.set(id, (inLesson.get(id) ?? 0) + share));
+    });
+
+    inLesson.forEach((value, id) => total.set(id, (total.get(id) ?? 0) + Math.min(value, minutes)));
   }
-  return shares;
+  return total;
 };
 
 /** Timmar med en decimal: "1 h", "1,5 h", "0,7 h". */

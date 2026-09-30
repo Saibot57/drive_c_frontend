@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LAB_SEED } from '@/config/lessonLabSeed';
 import type { PlannerActivity } from '@/types/schedule';
 import type { LabState } from '@/types/lessonLab';
-import { assignTeam, labWarnings, teacherShareMinutes } from '@/utils/lessonLab';
+import { assignTeam, labWarnings, teacherTeachingMinutes } from '@/utils/lessonLab';
 import {
   busyFromArchive,
   fixedHoursByTeacher,
@@ -141,10 +141,14 @@ describe('labbet med ett arkiv', () => {
     expect(labWarnings(state, [withTeacher], busy).find(w => w.kind === 'busy')?.detail).toBe('Anton har Ma 1 samtidigt.');
   });
 
-  it('delar tiden på klasserna som har lektionen', () => {
-    // Bara Oliv har tema: hela lektionen går till den gruppen.
-    const lesson = assignTeam({ ...LAB_SEED.template[0], id: 'y', absentClasses: ['Grund', 'Rosa'] }, CLASSES, 'ma', 'Oliv');
-    const shares = teacherShareMinutes(state, [lesson]);
-    expect(shares.get('t-anna')).toBe(25);
+  it('räknar bara klasserna som har lektionen, och inte lärare med fasta pass', () => {
+    // Tisdag 10:00–11:00, bara Oliv har tema. Anton och Armine har matte samtidigt.
+    const lesson = assignTeam(
+      { ...LAB_SEED.template[0], id: 'y', day: 'Tisdag', start: '10:00', end: '11:00', absentClasses: ['Grund', 'Rosa'] },
+      CLASSES, 'ma', 'Oliv'
+    );
+    const minutes = teacherTeachingMinutes(state, [lesson], busyFromArchive(ARCHIVE, state.teachers, CLASSES));
+    expect(minutes.get('t-anna')).toBe(60);
+    expect(minutes.has('t-anton')).toBe(false);
   });
 });

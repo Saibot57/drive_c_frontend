@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import type { LabDay, LabLesson, LabState, LabTeam } from '@/types/lessonLab';
 import {
   assignTeam,
+  BusyMap,
   classTeamId,
   formatHours,
   formatMinutes,
@@ -39,7 +40,7 @@ import {
   reassignTeam,
   sortLessons,
   splitLesson,
-  teacherShareMinutes,
+  teacherTeachingMinutes,
   teamsInLesson,
 } from '@/utils/lessonLab';
 import { FixedHours, lessonsFromArchive } from '@/utils/lessonLabArchive';
@@ -304,6 +305,7 @@ export default function LessonLab() {
             state={state}
             lessons={lessons}
             fixed={source.fixed}
+            busy={source.busy}
             commit={commit}
             onNewTeam={() => commit(current => newTeam(current).state)}
           />
@@ -566,21 +568,23 @@ function Teams({
   state,
   lessons,
   fixed,
+  busy,
   commit,
   onNewTeam,
 }: {
   state: LabState;
   lessons: LabLesson[];
   fixed: Map<string, FixedHours>;
+  busy?: BusyMap;
   commit: (change: (current: LabState) => LabState) => void;
   onNewTeam: () => void;
 }) {
   const plannable = state.teachers.filter(t => !t.resource);
-  const shares = useMemo(() => teacherShareMinutes(state, lessons), [state, lessons]);
+  const shares = useMemo(() => teacherTeachingMinutes(state, lessons, busy), [state, lessons, busy]);
   return (
     <section className="mt-8 grid gap-4">
       <div className="sp-card flex flex-wrap items-center gap-2 px-4 py-3">
-        <h2 className="mr-2 font-bold" title="Timmar per vecka: fasta pass i arkivet plus lärarens del av arbetsgruppernas lektioner">Lärare</h2>
+        <h2 className="mr-2 font-bold" title="Timmar per vecka: fasta pass i arkivet plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
         {plannable.map(teacher => (
           <TeacherChip
             key={teacher.id}
@@ -679,7 +683,7 @@ function HourCounter({ tema, fixed }: { tema: number; fixed?: FixedHours }) {
         'relative overflow-hidden rounded-full border px-1.5 pb-[3px] text-[11px] leading-tight tabular-nums',
         total > 0 ? 'border-black bg-white text-black' : 'border-gray-200 bg-gray-100 text-gray-500'
       )}
-      title={`${breakdown} = ${formatHours(total)} per vecka. Temat delas lika mellan arbetsgruppens medlemmar.`}
+      title={`${breakdown} = ${formatHours(total)} per vecka. Temat räknas i klasspass: en satt lärare får hela lektionen, annars delas gruppens klasser på dem som kan den dagen.`}
     >
       {formatHours(total)}
       {total > 0 && (

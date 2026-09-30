@@ -9,7 +9,7 @@ import {
   mergeLesson,
   reassignTeam,
   splitLesson,
-  teacherShareMinutes,
+  teacherTeachingMinutes,
   fillFromTeam,
   isBeforeLunch,
   labWarnings,
@@ -290,35 +290,63 @@ describe('arbetsgrupper per klass', () => {
   });
 });
 
-describe('teacherShareMinutes', () => {
+describe('teacherTeachingMinutes', () => {
   const classes = ['Grund', 'Oliv', 'Rosa'];
   const state: LabState = {
     ...LAB_SEED,
     teams: [
       { id: 'två', name: 'Två', color: '#fde68a', memberIds: ['t-tobias', 't-victor'] },
-      { id: 'en', name: 'En', color: '#bae6fd', memberIds: ['t-anna'] },
+      { id: 'tre', name: 'Tre', color: '#fde68a', memberIds: ['t-tobias', 't-victor', 't-camilla'] },
+      { id: 'fyra', name: 'Fyra', color: '#fde68a', memberIds: ['t-tobias', 't-victor', 't-camilla', 't-armine'] },
+      { id: 'en', name: 'En', color: '#bae6fd', memberIds: ['t-camilla'] },
       { id: 'tom', name: 'Tom', color: '#bae6fd', memberIds: [] },
     ],
   };
+  // Måndag 12:30–14:30: Tobias, Victor, Armine och Camilla kan, Anna och Anton inte.
+  const twoHours = lesson('l', { start: '12:30', end: '14:30' });
 
-  it('delar en lektion lika mellan gruppens medlemmar', () => {
-    const lessons = [assignTeam(lesson('l', { start: '12:30', end: '14:30' }), classes, 'två')];
-    const shares = teacherShareMinutes(state, lessons);
-    expect(shares.get('t-tobias')).toBe(60);
-    expect(shares.get('t-victor')).toBe(60);
+  it('räknar klasspass: tre lärare till tre klasser har hela lektionen var', () => {
+    const minutes = teacherTeachingMinutes(state, [assignTeam(twoHours, classes, 'tre')]);
+    expect(['t-tobias', 't-victor', 't-camilla'].map(id => minutes.get(id))).toEqual([120, 120, 120]);
   });
 
-  it('ger en grupp sin del av en delad lektion', () => {
-    // 90 min: en klass till "en", två klasser till "två".
-    const split = assignTeam(assignTeam(lesson('l', { start: '10:00', end: '11:30' }), classes, 'två'), classes, 'en', 'Grund');
-    const shares = teacherShareMinutes(state, [split]);
-    expect(shares.get('t-anna')).toBe(30);
-    expect(shares.get('t-tobias')).toBe(30);
+  it('delar tre klasser på fyra lärare, ¾ av lektionen var', () => {
+    const minutes = teacherTeachingMinutes(state, [assignTeam(twoHours, classes, 'fyra')]);
+    expect(minutes.get('t-armine')).toBe(90);
+  });
+
+  it('ger aldrig mer än lektionens längd när gruppen är för liten', () => {
+    const minutes = teacherTeachingMinutes(state, [assignTeam(twoHours, classes, 'två')]);
+    expect(minutes.get('t-tobias')).toBe(120);
+  });
+
+  it('delar bara på medlemmar som kan den dagen', () => {
+    const withAnna = { ...state, teams: [{ id: 'g', name: 'G', color: '#fde68a', memberIds: ['t-tobias', 't-anna'] }] };
+    const minutes = teacherTeachingMinutes(withAnna, [assignTeam(twoHours, classes, 'g', 'Grund')]);
+    expect(minutes.get('t-tobias')).toBe(120);
+    expect(minutes.has('t-anna')).toBe(false);
+  });
+
+  it('räknar satta lärare exakt och fördelar resten', () => {
+    // Tobias har Grund. Oliv och Rosa delas på Victor, Camilla och Armine.
+    const planned = { ...assignTeam(twoHours, classes, 'fyra'), classTeachers: { Grund: 't-tobias' } };
+    const minutes = teacherTeachingMinutes(state, [planned]);
+    expect(minutes.get('t-tobias')).toBe(120);
+    expect(minutes.get('t-victor')).toBe(80);
+  });
+
+  it('räknar en satt lärare utanför gruppen, och en klass i en delad lektion', () => {
+    const split = { ...assignTeam(assignTeam(twoHours, classes, 'två'), classes, 'en', 'Grund'), classTeachers: { Rosa: 't-armine' } };
+    const minutes = teacherTeachingMinutes(state, [split]);
+    // Grund: Camilla. Oliv: delas på Tobias och Victor. Rosa: Armine.
+    expect(minutes.get('t-camilla')).toBe(120);
+    expect(minutes.get('t-tobias')).toBe(60);
+    expect(minutes.get('t-armine')).toBe(120);
   });
 
   it('räknar inte lektioner utan grupp eller grupper utan medlemmar', () => {
     const lessons = [lesson('a'), assignTeam(lesson('b'), classes, 'tom')];
-    expect(teacherShareMinutes(state, lessons).size).toBe(0);
+    expect(teacherTeachingMinutes(state, lessons).size).toBe(0);
   });
 
   it('skriver timmar med en decimal', () => {
