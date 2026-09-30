@@ -50,7 +50,7 @@ import { getReadableTextColor } from '@/utils/readableTextColor';
 import '@/styles/schedule-theme.css';
 
 /**
- * Veckolabbet, enkla vyn: veckans fasta lektioner som röda rutor överst och
+ * Arbetslag, enkla vyn: veckans fasta lektioner som röda rutor överst och
  * arbetslagen nederst. Man drar en lektion till ett arbetslag. En ruta
  * kan delas i tre, en per klass, så att klasserna kan få olika grupper.
  *
@@ -326,7 +326,7 @@ export default function LessonLab() {
 
       {/* Dörren till detaljplanen. Liten med flit, som dörren hit från terminen. */}
       <Link
-        href="/features/termin/labb/detalj"
+        href="/features/arbetslag/detalj"
         title="Detaljplan"
         aria-label="Detaljplan"
         className="fixed bottom-4 left-4 z-20 rounded-md border-2 border-black bg-white p-1.5 opacity-60 shadow-[2px_2px_0_0_#000] transition-opacity hover:opacity-100 focus-visible:opacity-100"

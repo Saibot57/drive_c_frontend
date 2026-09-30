@@ -515,10 +515,10 @@ export default function TermPlanner() {
         )}
       </div>
 
-      {/* Den gömda dörren till Arbetslag. Liten med flit: labbet är ett
-          experiment och ska inte ta plats från terminen. */}
+      {/* Dörren till Arbetslag, som också står i menyn. Liten med flit, så
+          att den inte tar plats från terminen. */}
       <Link
-        href="/features/termin/labb"
+        href="/features/arbetslag"
         title="Arbetslag"
         aria-label="Arbetslag"
         className="fixed bottom-4 left-4 z-20 rounded-md border-2 border-black bg-white p-1.5 opacity-60 shadow-[2px_2px_0_0_#000] transition-opacity hover:opacity-100 focus-visible:opacity-100"
