@@ -26,6 +26,12 @@ const nextConfig = {
       exclude: ['error', 'warn'],
     },
   },
+  // Arbetslag låg först under terminsplaneraren. Gamla bokmärken leder rätt.
+  async redirects() {
+    return [
+      { source: '/features/termin/labb/:path*', destination: '/features/arbetslag/:path*', permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

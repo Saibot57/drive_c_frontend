@@ -27,7 +27,7 @@ import {
 import '@/styles/schedule-theme.css';
 
 /**
- * Veckolabbets detaljplan: allt som den enkla vyn lämnar därhän, som lärare
+ * Arbetslags detaljplan: allt som den enkla vyn lämnar därhän, som lärare
  * per klass, områden, tider, egna veckor, varningar och summeringar.
  *
  * Utgångsläget är arbetslagets tavla (se `lessonLabSeed`). Allt sparas i den
@@ -35,7 +35,7 @@ import '@/styles/schedule-theme.css';
  * schemaplaneraren eller terminsplaneraren.
  *
  * Sidan är olistad och nås via dörren längst ned till vänster i den enkla
- * vyn (`/features/termin/labb`), som i sin tur nås från terminsplaneraren.
+ * vyn (`/features/arbetslag`), som står i menyn.
  */
 
 const VIEW_KEY = 'lessonLab.view.v1';
@@ -166,7 +166,7 @@ export default function LessonLabDetail() {
               <RotateCcw size={16} className="mr-2" /> Tavlan
             </Button>
             <Button asChild variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200">
-              <Link href="/features/termin/labb" title="Tillbaka till den enkla vyn">
+              <Link href="/features/arbetslag" title="Tillbaka till den enkla vyn">
                 <DoorOpen size={16} className="mr-2" /> Arbetslag
               </Link>
             </Button>

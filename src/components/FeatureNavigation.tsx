@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -30,8 +30,8 @@ type Feature = {
 /**
  * Genvägssiffrorna står utskrivna i stället för att härledas ur ordningen, så
  * att en post kan läggas till eller tas bort utan att de andra numreras om.
- * 4 är ledig sedan Familjeschema togs bort. `src/config/shortcuts.ts` visar
- * samma siffror i hjälpen och måste följa med om de ändras.
+ * `src/config/shortcuts.ts` visar samma siffror i hjälpen och måste följa med
+ * om de ändras.
  */
 const features: readonly Feature[] = [
   { label: 'Bibliotek',       href: '/features/bibliotek',          icon: Library,      shortcut: '1' },
@@ -40,6 +40,7 @@ const features: readonly Feature[] = [
   { label: 'Schema',          href: '/',                            icon: Calendar,     shortcut: '2',
     aliases: ['/features/schedule'] },
   { label: 'Temakalender',    href: '/features/temakalender',       icon: PieChart,     shortcut: '3' },
+  { label: 'Arbetslag',       href: '/features/arbetslag',          icon: Users,        shortcut: '4' },
   { label: 'Kalender',        href: '/features/calendar',           icon: CalendarDays, shortcut: '5' },
   { label: 'Workspace',       href: '/workspace',                   icon: Briefcase,    shortcut: '6' },
 ];
@@ -52,14 +53,10 @@ const features: readonly Feature[] = [
  * textfält) eller Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
  * sidan läser bara scheman som den inloggade redan har tillgång till.
  *
- * Arbetslag nås via dörren längst ned till vänster i terminsplaneraren,
- * och detaljplanen via en likadan dörr i Arbetslag. De står före Termin,
- * och detaljplanen först, eftersom de längre sökvägarna också matchar de
- * kortare.
+ * Arbetslags detaljplan nås via dörren längst ned till vänster i Arbetslag.
  */
 const hiddenFeatures: readonly Feature[] = [
-  { label: 'Detaljplan',      href: '/features/termin/labb/detalj', icon: DoorOpen,     shortcut: '' },
-  { label: 'Arbetslag',       href: '/features/termin/labb',        icon: DoorOpen,     shortcut: '' },
+  { label: 'Detaljplan',      href: '/features/arbetslag/detalj',   icon: DoorOpen,     shortcut: '' },
   { label: 'Termin',          href: '/features/termin',             icon: Sigma,        shortcut: '' },
 ];
 
@@ -74,10 +71,14 @@ export function FeatureNavigation() {
     // Roten får bara matcha exakt — annars vinner den över varje annan sökväg.
     pattern === '/' ? path === '/' : path === pattern || path.startsWith(`${pattern}/`);
 
+  // Den längsta sökvägen som matchar vinner, så att detaljplanen inte visas
+  // som Arbetslag fast `/features/arbetslag` också matchar.
   const current =
-    [...features, ...hiddenFeatures].find(
-      f => matches(pathname, f.href) || f.aliases?.some(a => matches(pathname, a)),
-    ) ?? features[0];
+    [...features, ...hiddenFeatures]
+      .flatMap(f => [f.href, ...(f.aliases ?? [])]
+        .filter(path => matches(pathname, path))
+        .map(path => ({ feature: f, length: path.length })))
+      .sort((a, b) => b.length - a.length)[0]?.feature ?? features[0];
 
   const Icon = current.icon;
 

@@ -13,10 +13,11 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     label: 'Global',
     shortcuts: [
       // Siffrorna står i `features`-arrayen i FeatureNavigation.tsx.
-      // Ändras de måste den här listan följa med. 4 är ledig.
+      // Ändras de måste den här listan följa med.
       { keys: ['Ctrl', 'Shift', '1'], description: 'Bibliotek' },
       { keys: ['Ctrl', 'Shift', '2'], description: 'Schema' },
       { keys: ['Ctrl', 'Shift', '3'], description: 'Temakalender' },
+      { keys: ['Ctrl', 'Shift', '4'], description: 'Arbetslag' },
       { keys: ['Ctrl', 'Shift', '5'], description: 'Kalender' },
       { keys: ['Ctrl', 'Shift', '6'], description: 'Workspace' },
       { keys: ['?'], description: 'Visa genvägar' },
