@@ -1,9 +1,13 @@
 # Plan: Sparade upplägg i Arbetslag
 
-Status: beslutad, inte påbörjad. Skriven 2026-09-30 för nästa session.
+Status: beslutad, inte påbörjad. Skriven 2026-09-30 för nästa session och
+uppdaterad samma dag efter granskning (sparning vid sidbyte, importen,
+klientens id vid skapande).
 
-Arbetslag (`/features/termin/labb`, detaljplan på `/features/termin/labb/detalj`)
-sparar i dag allt i webbläsarens localStorage (`lessonLab.state.v1`). Den här
+Arbetslag (`/features/arbetslag`, detaljplan på `/features/arbetslag/detalj`)
+sparar i dag allt i webbläsarens localStorage (`lessonLab.state.v1`). Sidan
+har en egen post i menyn (Ctrl+Shift+4), och de gamla adresserna under
+`/features/termin/labb` skickas vidare. Den här
 planen flyttar lagringen till backend och lägger till en högerpanel, "Sparade
 upplägg", i den enkla vyn. Panelen ser ut och beter sig som "Sparade veckor" i
 schemaplaneraren.
@@ -32,7 +36,8 @@ ska inte mergas förrän backend är ute. Annars får Arbetslag-sidan 404 på
 | 6 | Panelen | Hopfällbar högerpanel i den enkla vyn, som "Sparade veckor". Varje rad visar namn, "aktiv" och senast ändrad. Detaljplanen visar bara det aktiva uppläggets namn i verktygsraden. |
 | 7 | Gränser | Högst 50 upplägg per användare. Högst 512 kB JSON per upplägg. |
 | 8 | Fil | "Spara fil" och "Öppna fil" finns kvar i detaljplanen. "Öppna fil" skapar ett **nytt** upplägg i stället för att skriva över det öppna. |
-| 9 | Första besöket | Ett befintligt `lessonLab.state.v1` i localStorage importeras automatiskt som första upplägg, med namnet "Mitt upplägg". |
+| 9 | Gammal data | Ett befintligt `lessonLab.state.v1` i localStorage importeras automatiskt som ett upplägg, en gång per webbläsare, även om det redan finns upplägg på servern (se 4.3). |
+| 10 | Detaljplanen | Behålls genom det här arbetet. Den är enda stället för lärarhantering, lektionstider, områden, veckor och fil. Se avsnitt 6. |
 
 Utanför planen: delning, lås, versionshistorik på servern, att skriva något
 till schemaplaneraren eller terminsplaneraren.
@@ -60,15 +65,16 @@ class ArbetslagPlan(db.Model):
     name = db.Column(db.String(150), nullable=False)
     # Hela LabState som JSON. Servern kontrollerar bara form och storlek;
     # klienten tvättar innehållet med parseLabState.
-    state = db.Column(db.Text(length=2**24 - 1), nullable=False)    # MEDIUMTEXT, se nedan
+    state = db.Column(db.Text().with_variant(mysql.MEDIUMTEXT(), 'mysql'), nullable=False)
     version = db.Column(db.Integer, nullable=False, default=1)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 ```
 
-- `Text` i MySQL rymmer bara 64 kB, vilket är för lite för 512 kB. Använd
-  MEDIUMTEXT, t.ex. `db.Text().with_variant(mysql.MEDIUMTEXT(), 'mysql')`. SQLite
-  i testerna bryr sig inte om längden.
+- `Text` i MySQL rymmer bara 64 kB, vilket är för lite för 512 kB. Därför
+  MEDIUMTEXT via `with_variant` (`from sqlalchemy.dialects import mysql`).
+  Samma uttryck används i migrationen, så att modell och tabell alltid är
+  lika. SQLite i testerna får vanlig `Text`.
 - `to_summary()` returnerar `{id, name, version, createdAt, updatedAt}` utan
   state.
 - `to_dict()` returnerar summary plus `state` (parsad JSON, `{}` om den är
@@ -82,8 +88,10 @@ class ArbetslagPlan(db.Model):
 - `revision = '017_arbetslag_plan'`, `down_revision = '016_planner_term'`.
 - Samma `inspector.has_table`-vakt som i 016, eftersom `app.py` kör
   `db.create_all()` vid boot.
-- Kolumnerna som i modellen: `state` som `mysql.MEDIUMTEXT()` och `version`
-  som `sa.Integer()` med `server_default='1'`. Tidsstämplar som i 016.
+- Kolumnerna som i modellen: `state` som
+  `sa.Text().with_variant(mysql.MEDIUMTEXT(), 'mysql')`, så att migrationen
+  inte faller om den någon gång körs mot SQLite, och `version` som
+  `sa.Integer()` med `server_default='1'`. Tidsstämplar som i 016.
 - Index `ix_arbetslag_plan_user_id` på `user_id`.
 - `downgrade` tar bort index och tabell bakom samma vakt.
 - Kontrollera att `alembic heads` bara ger ett huvud efter ändringen.
@@ -105,7 +113,7 @@ rör inte term_routes beteende).
 | Metod | Sökväg | Body | Svar |
 |---|---|---|---|
 | GET | `/api/arbetslag` | – | 200, lista med summaries sorterade på `updated_at` fallande |
-| POST | `/api/arbetslag` | `{name, state}` | 201, hela upplägget (`version: 1`) |
+| POST | `/api/arbetslag` | `{id?, name, state}` | 201, hela upplägget (`version: 1`), eller 200 om id:t redan finns (se nedan) |
 | GET | `/api/arbetslag/<id>` | – | 200, hela upplägget, eller 404 |
 | PUT | `/api/arbetslag/<id>` | `{version, name?, state?}` | 200, hela upplägget med `version + 1`, 404, eller 409 |
 | DELETE | `/api/arbetslag/<id>` | – | 200 `{id}`, eller 404 |
@@ -125,6 +133,23 @@ ingen egen route.
 - `name` valideras med `_text(..., 'Namn', 150)`.
 - POST ger 400 "Du kan ha högst 50 upplägg" när användaren redan har
   `MAX_PLANS_PER_USER = 50`.
+
+**POST med klientens id (idempotent)**
+
+Klienten får skicka med ett eget `id` (uuid, kontrolleras med samma
+`ID_PATTERN` som i term_routes). Det gör att samma skapande kan skickas två
+gånger utan att det blir två upplägg:
+
+- Finns inget upplägg med id:t: skapa som vanligt, 201.
+- Finns det redan för samma användare: svara 200 med det befintliga
+  upplägget, utan att ändra något och utan att räkna mot gränsen.
+- Finns id:t hos en annan användare: 409 "Id:t är upptaget". Det ska inte
+  hända med uuid, men ingen annans upplägg får läcka eller skrivas över.
+- Utan `id` skapar servern ett, som i dag.
+
+Kontrollen av id:t görs före kontrollen av gränsen på 50. Det täcker dubbla
+effekter i React strict mode, två flikar som öppnas samtidigt, och en POST
+som lyckades men vars svar försvann på vägen.
 
 **PUT och versionen**
 
@@ -170,6 +195,13 @@ Testfall:
 8. Upplägg nummer 51 ger 400.
 9. DELETE tar bort upplägget, och GET ger 404 efteråt.
 10. Anrop utan token ger 401.
+11. POST med eget `id` två gånger ger 201 och sedan 200 med samma upplägg,
+    och listan har ett upplägg. Den andra POST:en med annat namn ändrar
+    ingenting.
+12. POST med ett `id` som Alice redan har, skickad av Bob, ger 409 och
+    avslöjar inget om Alices upplägg. Ogiltigt `id` ger 400.
+13. POST med ett befintligt `id` när användaren har 50 upplägg ger 200,
+    inte 400.
 
 Kör `python -m pytest tests/test_arbetslag.py` och sedan hela sviten
 `python -m pytest`.
@@ -230,7 +262,9 @@ och en `readData` som kastar `payload.error`.
 - `listPlans(): Promise<LabPlanSummary[]>`
 - `getPlan(id): Promise<LabPlan>`. Kör `state` genom `parseLabState`. Om den
   ger `null` används `LAB_SEED` och en varning loggas.
-- `createPlan(name, state): Promise<LabPlan>`
+- `createPlan({ id?, name, state }): Promise<LabPlan>`. Klienten skickar
+  alltid med ett eget uuid, så att ett omsänt skapande inte blir ett till
+  upplägg (se 2.3).
 - `savePlan(id, { version, name?, state? }): Promise<LabPlan>`
 - `deletePlan(id): Promise<void>`
 
@@ -238,7 +272,68 @@ En 409 ska gå att känna igen. Exportera
 `class PlanConflictError extends Error { constructor(public currentVersion: number) }`
 och kasta den när `response.status === 409`, innan `readData`.
 
-### 4.3 Hook: `src/hooks/useLessonLabState.ts` blir serverbaserad
+### 4.3 Lagring och sparning
+
+Två delar:
+
+- `src/utils/labPlanStore.ts`: en modul utan React som äger sparkön. Den
+  lever på modulnivå, så att den överlever sidbyten inom appen.
+- `src/hooks/useLessonLabState.ts`: hooken som vyerna redan använder, nu
+  ovanpå kön.
+
+Logiken som går att testa utan React (kön, unika namn, importvillkoret,
+sortering) ligger i `src/utils/labPlans.ts` eller i storen.
+
+#### Varför kön ligger på modulnivå
+
+Den enkla vyn och detaljplanen länkar till varandra med `next/link`, och
+menyn byter sida med `router.push`. Inget av det laddar om sidan, så
+`beforeunload` körs aldrig. Den som ändrar något och klickar vidare inom
+800 ms skulle förlora ändringen om sparningen bara låg i hooken.
+
+Det räcker inte heller att spara när den gamla sidan avmonteras. Den nya
+sidans GET kan komma fram före den gamla sidans PUT och få en gammal version,
+och nästa sparning ger då 409 mot användaren själv.
+
+Därför ligger kön, med senaste läget och versionen, i modulen. Samma kö
+används av sidan som lämnas och sidan som öppnas.
+
+#### Storen: `labPlanStore`
+
+Per upplägg-id håller storen:
+
+- `version`: senast kända version från servern,
+- `pending`: senaste läget som inte är skickat, eller `null`,
+- `pendingName`: nytt namn som inte är skickat, eller `null`,
+- `inFlight`: löftet för anropet som pågår, eller `null`,
+- `timer`: debounce-timern,
+- `conflict`: satt efter en 409, stoppar kön.
+
+Funktioner:
+
+- `schedule(id, state)`: sätter `pending` och startar om timern (800 ms).
+- `rename(id, name)`: sätter `pendingName` och skickar direkt (ingen
+  debounce), genom samma kö.
+- `flush(id): Promise<void>`: stoppar timern och skickar det som väntar.
+  Löftet är klart först när kön är tom.
+- `settled(id): Promise<void>`: väntar in `inFlight` och en eventuell flush.
+  Används av den som ska läsa upplägget.
+- `subscribe(id, listener)`: meddelar status (`'saved' | 'pending' |
+  'saving' | 'error' | 'conflict'`) och nya `updatedAt`/`version` till
+  hooken som visar dem.
+
+Regler:
+
+- **En sparning i taget.** Servern räknar upp versionen, så två anrop i
+  flykt ger 409 mot oss själva. När ett anrop blir klart och något nytt
+  väntar skickas det direkt med den nya versionen.
+- Ett lyckat svar uppdaterar `version`.
+- Vid `PlanConflictError`: `conflict` sätts, status blir `'conflict'` och
+  inget mer skickas förrän upplägget läses om.
+- Vid andra fel: status `'error'`. `pending` ligger kvar. Nästa ändring
+  eller "Försök igen" skickar igen.
+
+#### Hooken: `useLessonLabState`
 
 Behåll signaturen som vyerna redan använder:
 `{ state, loaded, commit, undo, redo, canUndo, canRedo }`. Lägg till:
@@ -254,6 +349,7 @@ duplicatePlan(id: string): Promise<void>;
 renamePlan(id: string, name: string): Promise<void>;
 deletePlan(id: string): Promise<void>;
 reloadActive(): Promise<void>;                                // efter 409
+retrySave(): void;                                            // efter fel
 ```
 
 `readStored` och `writeStored` finns kvar och exporteras som i dag. De
@@ -261,65 +357,83 @@ används för vy-nycklar och annat.
 
 **Uppstart**
 
-1. `listPlans()`.
-2. Om listan är tom och `lessonLab.state.v1` finns och går igenom
-   `sanitizeLabState`: `createPlan('Mitt upplägg', stored)`. Skriv sedan
-   `lessonLab.state.v1.migrated = <id>` i localStorage så att importen aldrig
-   körs två gånger, till exempel om användaren tar bort alla upplägg senare.
-   **Ta inte bort** den gamla nyckeln i den här PR:en; den är reservkopian.
-3. Om listan är tom och inget finns i localStorage: `createPlan('Mitt upplägg', LAB_SEED)`.
-4. Öppna upplägget med id i `lessonLab.activePlan.v1` om det finns i listan,
+1. `listPlans()`, med samma `withRetry` som `useLabArchive` (700 ms,
+   2000 ms). Flytta `withRetry` till `src/utils/` så att båda hookarna delar
+   den.
+2. Importen av gammal data, se nedan.
+3. Om listan fortfarande är tom: skapa "Mitt upplägg" från `LAB_SEED`.
+4. Välj upplägget med id i `lessonLab.activePlan.v1` om det finns i listan,
    annars det senast ändrade.
-5. `loaded` blir `true` först när ett upplägg är öppet.
-6. Om hämtningen misslyckas: `loadError` sätts, och vyerna visar ett fel med
+5. **Vänta in `labPlanStore.settled(id)`** och hämta sedan upplägget med
+   `getPlan`. Då kommer en sparning från sidan man just lämnade alltid före
+   hämtningen.
+6. `history = initialUndoState(plan.state)`. `loaded` blir `true` först nu.
+7. Om hämtningen misslyckas: `loadError` sätts, och vyerna visar ett fel med
    "Försök igen". Visa inte `LAB_SEED` som om den vore sparad.
 
-Använd samma `withRetry` som `useLabArchive` (700 ms, 2000 ms) för den första
-listningen. Flytta gärna `withRetry` till `src/utils/` så att båda hookarna
-delar den.
+**Importen av gammal data**
 
-**Autosparning**
+Villkor: localStorage har ingen markering `lessonLab.state.v1.migrated`,
+och `parseLabState` på `lessonLab.state.v1` ger något. Använd
+`parseLabState`, inte `sanitizeLabState`: den senare faller tillbaka på
+`LAB_SEED` och misslyckas därför aldrig.
 
-Utgå från `scheduleSave` i `src/components/term-planner/TermPlanner.tsx`, med
-de här skillnaderna:
+Villkoret gäller oavsett om servern redan har upplägg. Har Tobias gammal
+data i två webbläsare, till exempel på jobbet och hemma, importeras båda.
 
-- **En sparning i taget.** Servern räknar upp versionen, så två anrop i
-  flykt ger 409 mot oss själva. Håll `inFlight` och `dirty` i refs. När ett
-  anrop blir klart och `dirty` är satt skickas senaste `history.present`
-  direkt med den nya versionen.
-- Versionen hålls i en ref som uppdateras från varje lyckat svar.
-- Debounce 800 ms. Varje `commit`, `undo` och `redo` som ändrar `present`
-  schemalägger en sparning. Det enklaste är en effekt på `history.present`
-  som hoppar över den första renderingen efter `openPlan`.
+- Ett läge som är lika med `LAB_SEED` (jämför med `JSON.stringify` efter
+  `parseLabState` på båda) importeras inte. Markeringen sätts ändå.
+- Namn: "Mitt upplägg" om namnet är ledigt, annars "Mitt upplägg (importerat
+  30 sep)" via samma hjälpare för unika namn som panelen använder.
+- Id: skapa ett uuid och skriv det i
+  `lessonLab.state.v1.importId` **före** POST. Skicka det som `id`. Ett
+  omförsök, en andra flik eller en dubbel effekt skickar då samma id, och
+  servern svarar med det befintliga upplägget (se 2.3).
+- När POST är klar: skriv `lessonLab.state.v1.migrated = <id>` och öppna det
+  importerade upplägget.
+- Importen körs genom ett löfte på modulnivå, så att två samtidiga
+  uppstarter i samma flik (strict mode i dev) delar samma anrop.
+- Den gamla nyckeln `lessonLab.state.v1` tas **inte** bort i den här PR:en.
+  Den är reservkopian.
+- Är användaren redan uppe i 50 upplägg misslyckas importen med serverns
+  meddelande. Markeringen sätts inte, så importen görs nästa gång.
+
+**Sparning från hooken**
+
+- En effekt på `history.present` anropar `labPlanStore.schedule(activeId,
+  present)`. Den hoppar över renderingen direkt efter att ett upplägg
+  laddats.
+- `renamePlan` går genom `labPlanStore.rename`, så att versionen hålls i
+  takt med autosparningen.
+- **Vid unmount är `flush` obligatorisk.** Hooken anropar
+  `labPlanStore.flush(activeId)` i effektens städfunktion. Läget finns
+  redan i storen, så inget React-state behövs efter unmount.
+- `pagehide` och `visibilitychange` (hidden) anropar också `flush`. En
+  vanlig `fetch` kan avbrytas när sidan stängs, och `keepalive` hjälper inte
+  eftersom den bara tar 64 kB medan ett upplägg får vara 512 kB. Därför
+  finns `beforeunload`-varningen kvar när status inte är `'saved'`, som i
+  terminsplaneraren. Den täcker omladdning och stängning.
 - När sparningen lyckas: uppdatera `updatedAt` och `version` för raden i
   `plans` och sortera om listan.
-- Vid `PlanConflictError`: sätt `saveStatus = 'conflict'` och sluta
-  autospara tills användaren väljer "Ladda om" (`reloadActive`), som hämtar
-  om och nollställer historiken.
-- Vid andra fel: `saveStatus = 'error'`. Nästa ändring försöker igen, och
-  det finns en "Försök igen"-knapp.
-- `beforeunload`-varning när `saveStatus` inte är `'saved'`, som i
-  terminsplaneraren.
-- **Byte av upplägg** (`openPlan`, `createPlan`, `duplicatePlan`, eller
-  `deletePlan` av det aktiva): spara väntande ändringar först (flush, vänta
-  in `inFlight`), hämta det nya upplägget, sätt
-  `history = initialUndoState(plan.state)` (historiken nollställs) och skriv
-  `lessonLab.activePlan.v1`.
-- `renamePlan` sparar bara `{ version, name }`. För det aktiva upplägget
-  används samma kö som autosparningen så att versionen hålls i takt.
-- `deletePlan` av det aktiva öppnar det senast ändrade av de andra, eller
-  skapar ett nytt från `LAB_SEED` om inget finns kvar.
 
-**Två flikar**
+**Byte av upplägg**
 
-Den enkla vyn och detaljplanen är olika sidor men samma hook. Varje sida
-laddar upplägget när den monteras, så att gå mellan dem ger färsk data så
-länge sparningen hunnit klart. Flush vid `pagehide`/unmount är bra att ha,
-men versionen skyddar mot tyst överskrivning i alla fall. Samma upplägg i två
-webbläsarflikar ger 409 i den som sparar sist. Det är avsett.
+`openPlan`, `createPlan`, `duplicatePlan`, eller `deletePlan` av det aktiva:
 
-Lägg logiken som inte behöver React (kön, vad som ska sparas, sortering) i
-`src/utils/labPlans.ts` så att den går att enhetstesta.
+1. `await labPlanStore.flush(activeId)`.
+2. Hämta eller skapa det nya upplägget. Nya upplägg skapas med ett eget
+   uuid.
+3. `history = initialUndoState(plan.state)`, så att historiken nollställs.
+4. Skriv `lessonLab.activePlan.v1`.
+
+`deletePlan` av det aktiva öppnar det senast ändrade av de andra, eller
+skapar ett nytt från `LAB_SEED` om inget finns kvar. Storen glömmer id:t.
+
+**409**
+
+`reloadActive` rensar `conflict` och `pending` för id:t, hämtar om
+upplägget och nollställer historiken. Samma upplägg i två webbläsarflikar
+ger 409 i den som sparar sist. Det är avsett.
 
 ### 4.4 Panel: `src/components/lesson-lab/LabPlansPanel.tsx`
 
@@ -364,8 +478,9 @@ Förebild: sidopanelen "Sparade Veckor" i
   byter då till det nya upplägget. Notisen blir "Läste in <fil> som ett nytt
   upplägg." Ångra-texten försvinner, eftersom historiken nollställs vid byte.
 - **"Spara fil"**: som i dag, men filnamnet blir
-  `arbetslag-<upplägg-namn>-<datum>.json`, med namnet förenklat till
-  `[a-z0-9-]`.
+  `arbetslag-${toFileSlug(namn, 'arbetslag')}-${datum}.json`. `toFileSlug` i
+  `src/utils/download.ts` behåller åäö med avsikt, så "Höstens upplägg" blir
+  `Höstens-upplägg`.
 - **"Tavlan"** (återställ till `LAB_SEED`) skriver fortfarande över det
   öppna upplägget och går att ångra. Det är oförändrat.
 - Uppdatera docstringen överst (den säger att allt sparas i webbläsaren) och
@@ -385,15 +500,29 @@ Förebild: sidopanelen "Sparade Veckor" i
   - Kön: två snabba ändringar ger ett anrop, en ändring under ett pågående
     anrop ger exakt ett anrop till efteråt med den nya versionen, och en
     konflikt stoppar kön.
-  - Unika namn: "Nytt upplägg", "Nytt upplägg 2" osv.
-  - Filnamnet vid export.
+  - Unika namn: "Nytt upplägg", "Nytt upplägg 2" osv., och "Mitt upplägg
+    (importerat 30 sep)" när "Mitt upplägg" är upptaget.
+  - Filnamnet vid export, med åäö kvar.
   - Sorteringen.
+- `src/utils/labPlanStore.test.ts` med falska timers och en mockad tjänst:
+  - `flush` skickar direkt det som väntar, och `settled` blir klart först
+    när PUT är klar. Det är fallet där man byter sida inom 800 ms.
+  - En ändring under ett pågående anrop skickas efteråt med versionen från
+    svaret, aldrig parallellt.
+  - `rename` under en väntande autosparning ger två anrop i följd med rätt
+    versioner.
+  - Efter 409 skickas inget mer förrän upplägget läses om.
 - `src/services/arbetslagService.test.ts` (om det finns ett mönster för att
   mocka `fetchWithAuth`, se befintliga service-tester): 409 ger
   `PlanConflictError`, och trasigt `state` ger `LAB_SEED`.
-- Importen från localStorage: tom lista plus gammalt läge ger ett
-  `createPlan` med rätt state. Finns markeringen `migrated` blir det ingen ny
-  import.
+- Importen från localStorage:
+  - Gammalt läge och ingen markering ger ett `createPlan` med rätt state,
+    även när servern redan har upplägg (den andra webbläsaren).
+  - Finns markeringen `migrated` blir det ingen import.
+  - Ett läge som inte går igenom `parseLabState`, eller som är lika med
+    `LAB_SEED`, ger ingen import.
+  - `importId` skrivs före anropet, och två samtidiga uppstarter ger ett
+    anrop med samma id.
 
 ### 4.8 Verifiering före push
 
@@ -409,7 +538,8 @@ Kör sedan en Playwright-kontroll mot `next start`. Chromium finns på
 och `/api/planner/*` med `page.route` och kontrollera:
 
 1. Första besöket med gammalt `lessonLab.state.v1` skapar "Mitt upplägg" med
-   samma lärare.
+   samma lärare, och bara ett. Kör kontrollen även mot `next dev`, där
+   effekterna körs två gånger.
 2. En ändring ger en PUT efter drygt 800 ms, och statusen går från "Sparar…"
    till "Sparat".
 3. "Nytt upplägg", "Duplicera", "Byt namn" och "Ta bort" (med bekräftelse)
@@ -418,6 +548,9 @@ och `/api/planner/*` med `page.route` och kontrollera:
    läget.
 5. "Öppna fil" i detaljplanen skapar ett nytt upplägg.
 6. Panelen går att fälla ihop och ligger under innehållet i mobilbredd.
+7. En ändring i den enkla vyn följd av klick på dörren till detaljplanen inom
+   800 ms: PUT går iväg före GET, detaljplanen visar ändringen och nästa
+   sparning ger ingen 409. Samma sak via menyn.
 
 Ta skärmdumpar av den enkla vyn med panelen öppen och hopfälld och visa dem
 för Tobias.
@@ -439,6 +572,17 @@ som dödar skalet i den här miljön.
 Tobias mergar själv. Merge via verktyget nekas ("Merge Without Review").
 
 ## 6. Senare (inte nu)
+
+- Ta bort detaljplanen. Först måste det som bara finns där flyttas in i den
+  enkla vyn, i den mån det används:
+  - lärare: lägga till, byta namn, ta bort, markera som resurs, hämta namn
+    från schemaplaneraren (i dag `LabSidebar`),
+  - lektioner: lägga till, ta bort, ändra tid och titel (i dag `LabBoard`),
+  - fil ut och in, lämpligen i upplägg-panelens meny.
+
+  Veckor, områden och mål, lärare per klass, varningslistan och
+  översiktstabellerna försvinner då. Deras fält i `LabState` kan ligga kvar i
+  sparad data utan att störa.
 
 - Delning av upplägg med kollegor (läsrätt eller skrivrätt), och lås som för
   arkiven (`PlannerArchive` har lås-kolumner att titta på).
