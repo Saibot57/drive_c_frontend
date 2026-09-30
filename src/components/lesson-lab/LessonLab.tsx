@@ -441,7 +441,6 @@ function DayColumn({
               days={teacher.days}
               dragId={`teacher:${teacher.id}:${day}`}
               size="sm"
-              teams={teamsOf(state, teacher.id)}
               onRemove={() => onRemoveDay(teacher.id, day)}
               removeLabel={`${teacher.name} är inte tillgänglig på ${day.toLowerCase()}`}
             />
@@ -630,7 +629,8 @@ function Teams({
 /**
  * En lärare att dra: till en dag (blir tillgänglig), till ett arbetslag
  * (blir medlem). Samma lärare kan stå på flera ställen, därför eget `dragId`.
- * Ikonerna efter namnet är lagen läraren är med i, med lagets siffra.
+ * Ikonerna efter namnet är lagen läraren är med i, med lagets siffra. De visas
+ * bara i lärarraden med timräknaren, inte i veckodagarna.
  */
 function TeacherChip({
   teacherId,
