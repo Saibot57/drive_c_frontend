@@ -766,7 +766,7 @@ function TeamCard({
             key={lesson.id}
             lesson={lesson}
             teamId={team.id}
-            classes={classes.length === state.classes.length ? null : classes}
+            classes={classes}
             onRemove={() => commit(current => ({
               ...current,
               template: current.template.map(l => (l.id === lesson.id ? reassignTeam(l, current.classes, team.id, null) : l)),
@@ -793,8 +793,8 @@ function Brick({
 }: {
   lesson: LabLesson;
   teamId: string;
-  /** Klasserna gruppen äger, eller `null` när den äger hela lektionen. */
-  classes: string[] | null;
+  /** Klasserna gruppen äger i lektionen. Visas alltid, även när det är alla. */
+  classes: string[];
   onRemove: () => void;
 }) {
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
@@ -809,13 +809,11 @@ function Brick({
       className={cn('flex cursor-grab touch-none items-center gap-2 rounded border-2 border-black bg-white px-2 py-1 text-xs active:cursor-grabbing', isDragging && 'opacity-40')}
     >
       <span className="font-mono font-bold">{lessonLabel(lesson)}</span>
-      {classes && (
-        <span className="flex gap-0.5">
-          {classes.map(c => (
-            <span key={c} className="rounded-sm border border-black/40 px-1 text-[10px] font-semibold" style={{ background: classColor(c) }}>{c}</span>
-          ))}
-        </span>
-      )}
+      <span className="flex gap-0.5">
+        {classes.map(c => (
+          <span key={c} className="rounded-sm border border-black/40 px-1 text-[10px] font-semibold" style={{ background: classColor(c) }}>{c}</span>
+        ))}
+      </span>
       <button
         type="button"
         onPointerDown={event => event.stopPropagation()}
