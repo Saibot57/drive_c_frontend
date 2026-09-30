@@ -100,14 +100,14 @@ export default function LessonLabDetail() {
 
   const exportFile = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    downloadBlob(blob, `veckolabb-${today()}.json`);
+    downloadBlob(blob, `arbetslag-${today()}.json`);
   };
 
   const importFile = async (file: File) => {
     try {
       const parsed = parseLabState(JSON.parse(await file.text()));
       if (!parsed) {
-        setNotice(`${file.name} är ingen fil från veckolabbet.`);
+        setNotice(`${file.name} är ingen fil från Arbetslag.`);
         return;
       }
       commit(() => parsed);
@@ -135,7 +135,7 @@ export default function LessonLabDetail() {
         <div className="sp-toolbar mb-6 flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
           <FeatureNavigation />
           <p className="max-w-xs text-xs text-gray-600">
-            Lärare, arbetsgrupper och fasta lektioner. Sparas bara i den här webbläsaren.
+            Lärare, arbetslag och fasta lektioner. Sparas bara i den här webbläsaren.
           </p>
 
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
@@ -148,7 +148,7 @@ export default function LessonLabDetail() {
             <Button variant="neutral" className="sp-btn" onClick={exportFile} title="Spara labbet som en fil, t.ex. för att dela">
               <Download size={16} className="mr-2" /> Spara fil
             </Button>
-            <Button variant="neutral" className="sp-btn" onClick={() => fileInput.current?.click()} title="Läs in en fil från veckolabbet">
+            <Button variant="neutral" className="sp-btn" onClick={() => fileInput.current?.click()} title="Läs in en fil från Arbetslag">
               <Upload size={16} className="mr-2" /> Öppna fil
             </Button>
             <input
@@ -167,7 +167,7 @@ export default function LessonLabDetail() {
             </Button>
             <Button asChild variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200">
               <Link href="/features/termin/labb" title="Tillbaka till den enkla vyn">
-                <DoorOpen size={16} className="mr-2" /> Veckolabbet
+                <DoorOpen size={16} className="mr-2" /> Arbetslag
               </Link>
             </Button>
           </div>

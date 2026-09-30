@@ -13,7 +13,7 @@ import {
   teamSummaries,
 } from '@/utils/lessonLab';
 import type { FixedHours } from '@/utils/lessonLabArchive';
-import { LabCard } from '@/components/lesson-lab/LabInputs';
+import { LabCard, TeamBadge } from '@/components/lesson-lab/LabInputs';
 
 type Props = {
   state: LabState;
@@ -31,7 +31,10 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
   const showFixed = (fixed?.size ?? 0) > 0;
   const teachers = useMemo(() => teacherSummaries(state, lessons), [state, lessons]);
   const classes = useMemo(() => classAreaMinutes(state, lessons), [state, lessons]);
-  const teams = useMemo(() => teamSummaries(state, lessons), [state, lessons]);
+  const teams = useMemo(
+    () => teamSummaries(state, lessons).sort((a, b) => a.team.number - b.team.number),
+    [state, lessons]
+  );
 
   // Bara områden som används eller har ett mål, plus "utan område" om det finns.
   const areaColumns = useMemo(() => {
@@ -66,7 +69,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
           {infos.length > 0 && (
             <details className="text-gray-600">
               <summary className="flex cursor-pointer items-center gap-2">
-                <Info size={14} /> {infos.length} ofullständiga lektioner (utan arbetsgrupp eller med tomma klasser)
+                <Info size={14} /> {infos.length} ofullständiga lektioner (utan arbetslag eller med tomma klasser)
               </summary>
               <ul className="mt-1 grid gap-0.5 pl-6">
                 {infos.map((w, i) => <li key={i}>{w.message}</li>)}
@@ -84,7 +87,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
                 <th className="px-2 py-1">Lärare</th>
                 {showFixed && <th className="px-2 py-1 text-right" title="Pass i arkivet som inte är tema, t.ex. matte">Fast</th>}
                 <th className="px-2 py-1 text-right">Undervisar</th>
-                <th className="px-2 py-1 text-right" title="Lektioner som ägs av lärarens arbetsgrupper">Planerar</th>
+                <th className="px-2 py-1 text-right" title="Lektioner som ägs av lärarens arbetslag">Planerar</th>
                 <th className="px-2 py-1">Områden</th>
               </tr>
             </thead>
@@ -127,7 +130,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
           </table>
           <p className="px-2 pt-2 text-xs text-gray-500">
             {showFixed && 'Fast är passen i arkivet som inte är tema, t.ex. matte. '}
-            Undervisar räknar en lektion en gång även om läraren står på två klasser. Planerar är lektionerna som lärarens arbetsgrupper äger.
+            Undervisar räknar en lektion en gång även om läraren står på två klasser. Planerar är lektionerna som lärarens arbetslag äger.
           </p>
         </div>
       </LabCard>
@@ -175,12 +178,12 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
       </LabCard>
 
       {teams.length > 0 && (
-        <LabCard title="Arbetsgrupperna" className="xl:col-span-2">
+        <LabCard title="Arbetslagen" className="xl:col-span-2">
           <div className="overflow-x-auto p-2">
             <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b-2 border-black text-left text-[11px] uppercase tracking-wide text-gray-500">
-                  <th className="px-2 py-1">Arbetsgrupp</th>
+                  <th className="px-2 py-1">Arbetslag</th>
                   <th className="px-2 py-1">Lärare</th>
                   <th className="px-2 py-1 text-right">Lektioner</th>
                   <th className="px-2 py-1 text-right" title="Lektion gånger klass. En hel lektion är tre klasspass.">Klasspass</th>
@@ -192,7 +195,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
                 {teams.map(row => (
                   <tr key={row.team.id} className="border-b border-gray-100">
                     <td className="px-2 py-1 font-semibold">
-                      <span className="mr-2 inline-block h-3 w-3 rounded-sm border border-black align-middle" style={{ background: row.team.color }} />
+                      <TeamBadge team={row.team} className="mr-2 align-middle" />
                       {row.team.name}
                     </td>
                     <td className="px-2 py-1">

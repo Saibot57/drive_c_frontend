@@ -43,7 +43,7 @@ export function useLabArchive(state: LabState, loaded: boolean) {
     withRetry(() => plannerService.listArchives())
       .then(setArchives)
       .catch(error => {
-        console.error('Veckolabbet: kunde inte hämta arkiven', error);
+        console.error('Arbetslag: kunde inte hämta arkiven', error);
         setArchives([]);
       });
   }, []);
@@ -58,7 +58,7 @@ export function useLabArchive(state: LabState, loaded: boolean) {
       setStatus('ready');
       return result.activities;
     } catch (error) {
-      console.error('Veckolabbet: kunde inte hämta arkivet', error);
+      console.error('Arbetslag: kunde inte hämta arkivet', error);
       setStatus('error');
       return null;
     }

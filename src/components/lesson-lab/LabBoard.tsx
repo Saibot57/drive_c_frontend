@@ -17,6 +17,7 @@ import {
   lessonMinutes,
   rotateClasses,
   sortLessons,
+  sortTeams,
   teacherOptions,
   teamsInLesson,
 } from '@/utils/lessonLab';
@@ -185,7 +186,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
           <span className="ml-1 font-sans font-normal text-gray-700">{lessonMinutes(lesson)} min</span>
         </span>
         <span className="flex items-center">
-          <IconButton label="Fyll tomma klasser från arbetsgruppen" disabled={lessonTeams.size === 0} onClick={() => commitLessons(current => fillFromTeam(state, current, lesson.id, busy))}>
+          <IconButton label="Fyll tomma klasser från arbetslaget" disabled={lessonTeams.size === 0} onClick={() => commitLessons(current => fillFromTeam(state, current, lesson.id, busy))}>
             <Wand2 size={13} />
           </IconButton>
           <IconButton label="Rotera lärarna ett steg mellan klasserna" onClick={() => update(rotateClasses(lesson, state.classes))}>
@@ -242,14 +243,14 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
           </select>
           <select
             value={lesson.split ? SPLIT_VALUE : lesson.teamId ?? ''}
-            aria-label="Arbetsgrupp"
-            title={lesson.split ? 'Klasserna har var sin arbetsgrupp. Välj en grupp för att ge alla klasser samma.' : undefined}
+            aria-label="Arbetslag"
+            title={lesson.split ? 'Klasserna har var sitt arbetslag. Välj ett lag för att ge alla klasser samma.' : undefined}
             onChange={e => update(assignTeam(lesson, state.classes, e.target.value || null))}
             className="min-w-0 rounded border border-gray-300 bg-white px-1 py-0.5 text-xs"
           >
-            <option value="">Arbetsgrupp…</option>
+            <option value="">Arbetslag…</option>
             {lesson.split && <option value={SPLIT_VALUE} disabled>Delad per klass</option>}
-            {state.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            {sortTeams(state.teams).map(t => <option key={t.id} value={t.id}>{t.number}. {t.name}</option>)}
           </select>
         </div>
 
@@ -268,8 +269,8 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
             const classTeam = lesson.split ? teamName(classTeamId(lesson, className)) : undefined;
             return (
               <label key={className} className="flex items-center gap-1 text-xs">
-                <span className="w-11 shrink-0 font-semibold text-gray-600" title={classTeam ? `Arbetsgrupp: ${classTeam}` : undefined}>
-                  {className}{lesson.split && <span className="block text-[9px] font-normal leading-none text-gray-500">{classTeam ?? 'ingen grupp'}</span>}
+                <span className="w-11 shrink-0 font-semibold text-gray-600" title={classTeam ? `Arbetslag: ${classTeam}` : undefined}>
+                  {className}{lesson.split && <span className="block text-[9px] font-normal leading-none text-gray-500">{classTeam ?? 'inget lag'}</span>}
                 </span>
                 <select
                   value={teacherId}
@@ -283,7 +284,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
                 >
                   <option value="">–</option>
                   {options.team.length > 0 && (
-                    <optgroup label={teamName(classTeamId(lesson, className)) ?? 'Arbetsgruppen'}>
+                    <optgroup label={teamName(classTeamId(lesson, className)) ?? 'Arbetslaget'}>
                       {options.team.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </optgroup>
                   )}

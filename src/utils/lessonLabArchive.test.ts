@@ -128,7 +128,7 @@ describe('fasta timmar', () => {
 describe('labbet med ett arkiv', () => {
   const state: LabState = {
     ...LAB_SEED,
-    teams: [{ id: 'ma', name: 'Matte', color: '#bae6fd', memberIds: ['t-anton', 't-armine', 't-anna'] }],
+    teams: [{ id: 'ma', number: 1, name: 'Matte', color: '#bae6fd', memberIds: ['t-anton', 't-armine', 't-anna'] }],
   };
 
   it('räknar inte en lärare med en fast lektion samtidigt som tillgänglig', () => {

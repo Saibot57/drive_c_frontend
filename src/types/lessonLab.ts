@@ -26,6 +26,8 @@ export interface LabTeacher {
 /** Lärare som tillsammans äger och planerar en eller flera lektioner. */
 export interface LabTeam {
   id: string;
+  /** Lagets siffra, unik bland lagen. Visas i en ruta i lagets färg. */
+  number: number;
   name: string;
   color: string;
   memberIds: string[];
