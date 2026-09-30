@@ -148,13 +148,32 @@ export const parseLabState = (raw: unknown): LabState | null => {
     return [{ id: str(a.id), name: str(a.name).trim(), color: cleanColor(a.color), goalMinutes: goal }];
   }));
 
-  const teams: LabTeam[] = uniqueById((Array.isArray(raw.teams) ? raw.teams : []).flatMap(t => {
+  const rawTeams = uniqueById((Array.isArray(raw.teams) ? raw.teams : []).flatMap(t => {
     if (!isRecord(t)) return [];
     const members = Array.isArray(t.memberIds)
       ? Array.from(new Set(t.memberIds.filter((id): id is string => typeof id === 'string' && plannable.has(id))))
       : [];
-    return [{ id: str(t.id), name: str(t.name).trim() || 'Arbetsgrupp', color: cleanColor(t.color), memberIds: members }];
+    const number = typeof t.number === 'number' && Number.isInteger(t.number) && t.number > 0 ? t.number : null;
+    return [{ id: str(t.id), number, name: str(t.name).trim() || 'Arbetslag', color: cleanColor(t.color), memberIds: members }];
   }));
+  // Lag utan giltig siffra, eller med en siffra ett tidigare lag redan har
+  // (t.ex. sparade före siffrorna), får de lägsta lediga i tur och ordning.
+  const claimed = new Set<number>();
+  const kept = rawTeams.map(t => {
+    if (t.number === null || claimed.has(t.number)) return null;
+    claimed.add(t.number);
+    return t.number;
+  });
+  let free = 1;
+  const teams: LabTeam[] = rawTeams.map((team, i) => {
+    let number = kept[i];
+    if (number === null) {
+      while (claimed.has(free)) free++;
+      number = free;
+      claimed.add(free);
+    }
+    return { ...team, number };
+  });
 
   const teamIds = new Set(teams.map(t => t.id));
   const areaIds = new Set(areas.map(a => a.id));
@@ -181,6 +200,33 @@ export const sanitizeLabState = (raw: unknown): LabState => parseLabState(raw) ?
  * blivit resurs försvinner ur arbetsgrupper och klasser.
  */
 export const pruneReferences = (state: LabState): LabState => parseLabState(state) ?? state;
+
+// ── Arbetslagens siffror ──
+
+/** Den lägsta siffran som inget lag har. */
+export const nextTeamNumber = (teams: LabTeam[]) => {
+  const used = new Set(teams.map(t => t.number));
+  let number = 1;
+  while (used.has(number)) number++;
+  return number;
+};
+
+/**
+ * Ger ett lag en ny siffra. Har ett annat lag redan siffran byter de två lagen
+ * siffra med varandra, så att siffrorna förblir unika.
+ */
+export const setTeamNumber = (teams: LabTeam[], teamId: string, number: number): LabTeam[] => {
+  const team = teams.find(t => t.id === teamId);
+  if (!team || !Number.isInteger(number) || number < 1 || team.number === number) return teams;
+  return teams.map(t => {
+    if (t.id === teamId) return { ...t, number };
+    if (t.number === number) return { ...t, number: team.number };
+    return t;
+  });
+};
+
+/** Lagen i sifferordning. */
+export const sortTeams = (teams: LabTeam[]) => [...teams].sort((a, b) => a.number - b.number);
 
 // ── Veckor ──
 
@@ -338,9 +384,9 @@ export const labWarnings = (state: LabState, lessons: LabLesson[], busy?: BusyMa
     const present = presentClasses(lesson, state.classes);
     const withoutTeam = present.filter(c => !teams.has(classTeamId(lesson, c) ?? ''));
     if (withoutTeam.length === present.length) {
-      push({ kind: 'noTeam', severity: 'info', lessonId: lesson.id }, lesson, 'Ingen arbetsgrupp.');
+      push({ kind: 'noTeam', severity: 'info', lessonId: lesson.id }, lesson, 'Inget arbetslag.');
     } else if (withoutTeam.length > 0) {
-      push({ kind: 'noTeam', severity: 'info', lessonId: lesson.id }, lesson, `Ingen arbetsgrupp för ${withoutTeam.join(', ')}.`);
+      push({ kind: 'noTeam', severity: 'info', lessonId: lesson.id }, lesson, `Inget arbetslag för ${withoutTeam.join(', ')}.`);
     }
 
     // En arbetsgrupp behöver en tillgänglig lärare per klass den äger här.

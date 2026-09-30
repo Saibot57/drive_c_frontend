@@ -7,7 +7,10 @@ import {
   classTeamId,
   formatHours,
   mergeLesson,
+  nextTeamNumber,
   reassignTeam,
+  setTeamNumber,
+  sortTeams,
   splitLesson,
   teacherTeachingMinutes,
   fillFromTeam,
@@ -40,7 +43,7 @@ const lesson = (id: string, overrides: Partial<LabLesson> = {}): LabLesson => ({
 /** Tavlan med en arbetsgrupp för skrivandet på måndagar. */
 const withTeam = (lessons: LabLesson[], memberIds = ['t-tobias', 't-victor', 't-camilla']): LabState => ({
   ...LAB_SEED,
-  teams: [{ id: 'g-skriv', name: 'Skrivlaget', color: '#fde68a', memberIds }],
+  teams: [{ id: 'g-skriv', number: 1, name: 'Skrivlaget', color: '#fde68a', memberIds }],
   template: lessons,
 });
 
@@ -73,7 +76,7 @@ describe('parseLabState', () => {
   it('nollar referenser till sådant som inte finns', () => {
     const raw = {
       ...LAB_SEED,
-      teams: [{ id: 'g', name: 'Lag', color: '#fde68a', memberIds: ['t-tobias', 't-borta', 't-tamara'] }],
+      teams: [{ id: 'g', number: 2, name: 'Lag', color: '#fde68a', memberIds: ['t-tobias', 't-borta', 't-tamara'] }],
       template: [lesson('l', { teamId: 'g-borta', areaId: 'a-borta', classTeachers: { Grund: 't-borta', Oliv: 't-anna', Blå: 't-anna' } })],
     };
     const parsed = parseLabState(raw)!;
@@ -262,8 +265,8 @@ describe('arbetsgrupper per klass', () => {
     const state: LabState = {
       ...LAB_SEED,
       teams: [
-        { id: 'g1', name: 'Ett', color: '#fde68a', memberIds: ['t-tobias'] },
-        { id: 'g2', name: 'Två', color: '#bae6fd', memberIds: ['t-camilla', 't-victor'] },
+        { id: 'g1', number: 3, name: 'Ett', color: '#fde68a', memberIds: ['t-tobias'] },
+        { id: 'g2', number: 4, name: 'Två', color: '#bae6fd', memberIds: ['t-camilla', 't-victor'] },
       ],
     };
     const split = assignTeam(assignTeam(lesson('l'), classes, 'g2'), classes, 'g1', 'Grund');
@@ -295,11 +298,11 @@ describe('teacherTeachingMinutes', () => {
   const state: LabState = {
     ...LAB_SEED,
     teams: [
-      { id: 'två', name: 'Två', color: '#fde68a', memberIds: ['t-tobias', 't-victor'] },
-      { id: 'tre', name: 'Tre', color: '#fde68a', memberIds: ['t-tobias', 't-victor', 't-camilla'] },
-      { id: 'fyra', name: 'Fyra', color: '#fde68a', memberIds: ['t-tobias', 't-victor', 't-camilla', 't-armine'] },
-      { id: 'en', name: 'En', color: '#bae6fd', memberIds: ['t-camilla'] },
-      { id: 'tom', name: 'Tom', color: '#bae6fd', memberIds: [] },
+      { id: 'två', number: 5, name: 'Två', color: '#fde68a', memberIds: ['t-tobias', 't-victor'] },
+      { id: 'tre', number: 6, name: 'Tre', color: '#fde68a', memberIds: ['t-tobias', 't-victor', 't-camilla'] },
+      { id: 'fyra', number: 7, name: 'Fyra', color: '#fde68a', memberIds: ['t-tobias', 't-victor', 't-camilla', 't-armine'] },
+      { id: 'en', number: 8, name: 'En', color: '#bae6fd', memberIds: ['t-camilla'] },
+      { id: 'tom', number: 9, name: 'Tom', color: '#bae6fd', memberIds: [] },
     ],
   };
   // Måndag 12:30–14:30: Tobias, Victor, Armine och Camilla kan, Anna och Anton inte.
@@ -321,7 +324,7 @@ describe('teacherTeachingMinutes', () => {
   });
 
   it('delar bara på medlemmar som kan den dagen', () => {
-    const withAnna = { ...state, teams: [{ id: 'g', name: 'G', color: '#fde68a', memberIds: ['t-tobias', 't-anna'] }] };
+    const withAnna = { ...state, teams: [{ id: 'g', number: 10, name: 'G', color: '#fde68a', memberIds: ['t-tobias', 't-anna'] }] };
     const minutes = teacherTeachingMinutes(withAnna, [assignTeam(twoHours, classes, 'g', 'Grund')]);
     expect(minutes.get('t-tobias')).toBe(120);
     expect(minutes.has('t-anna')).toBe(false);
@@ -351,5 +354,46 @@ describe('teacherTeachingMinutes', () => {
 
   it('skriver timmar med en decimal', () => {
     expect([60, 90, 40, 0].map(formatHours)).toEqual(['1 h', '1,5 h', '0,7 h', '0 h']);
+  });
+});
+
+describe('arbetslagens siffror', () => {
+  const team = (id: string, number: number) => ({ id, number, name: id, color: '#fde68a', memberIds: [] });
+
+  it('ger nästa lediga siffra', () => {
+    expect(nextTeamNumber([])).toBe(1);
+    expect(nextTeamNumber([team('a', 1), team('b', 3)])).toBe(2);
+  });
+
+  it('byter siffra med laget som redan har den', () => {
+    const teams = setTeamNumber([team('a', 1), team('b', 2), team('c', 3)], 'c', 1);
+    expect(teams.map(t => `${t.id}${t.number}`)).toEqual(['a3', 'b2', 'c1']);
+    expect(sortTeams(teams).map(t => t.id)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('tar en ledig siffra rakt av, och struntar i ogiltiga', () => {
+    const teams = [team('a', 1), team('b', 2)];
+    expect(setTeamNumber(teams, 'a', 7).map(t => t.number)).toEqual([7, 2]);
+    expect(setTeamNumber(teams, 'a', 0)).toBe(teams);
+    expect(setTeamNumber(teams, 'a', 1.5)).toBe(teams);
+  });
+
+  it('numrerar lag utan siffra och lag med en upptagen siffra vid inläsning', () => {
+    const parsed = parseLabState({
+      ...LAB_SEED,
+      teams: [
+        { id: 'a', name: 'A', color: '#fde68a', memberIds: [] },
+        { id: 'b', number: 1, name: 'B', color: '#fde68a', memberIds: [] },
+        { id: 'c', number: 1, name: 'C', color: '#fde68a', memberIds: [] },
+        { id: 'd', number: 'fem', name: 'D', color: '#fde68a', memberIds: [] },
+      ],
+    })!;
+    // B behåller 1, de andra får de lägsta lediga i tur och ordning.
+    expect(parsed.teams.map(t => `${t.id}${t.number}`)).toEqual(['a2', 'b1', 'c3', 'd4']);
+  });
+
+  it('kallar ett lag utan namn för Arbetslag', () => {
+    const parsed = parseLabState({ ...LAB_SEED, teams: [{ id: 'a', number: 1, name: ' ', color: '#fde68a', memberIds: [] }] })!;
+    expect(parsed.teams[0].name).toBe('Arbetslag');
   });
 });

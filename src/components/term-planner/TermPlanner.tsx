@@ -515,12 +515,12 @@ export default function TermPlanner() {
         )}
       </div>
 
-      {/* Den gömda dörren till veckolabbet. Liten med flit: labbet är ett
+      {/* Den gömda dörren till Arbetslag. Liten med flit: labbet är ett
           experiment och ska inte ta plats från terminen. */}
       <Link
         href="/features/termin/labb"
-        title="Veckolabbet"
-        aria-label="Veckolabbet"
+        title="Arbetslag"
+        aria-label="Arbetslag"
         className="fixed bottom-4 left-4 z-20 rounded-md border-2 border-black bg-white p-1.5 opacity-60 shadow-[2px_2px_0_0_#000] transition-opacity hover:opacity-100 focus-visible:opacity-100"
       >
         <DoorOpen size={18} />

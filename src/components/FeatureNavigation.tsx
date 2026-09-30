@@ -52,14 +52,14 @@ const features: readonly Feature[] = [
  * textfält) eller Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
  * sidan läser bara scheman som den inloggade redan har tillgång till.
  *
- * Veckolabbet nås via dörren längst ned till vänster i terminsplaneraren,
- * och detaljplanen via en likadan dörr i veckolabbet. De står före Termin,
+ * Arbetslag nås via dörren längst ned till vänster i terminsplaneraren,
+ * och detaljplanen via en likadan dörr i Arbetslag. De står före Termin,
  * och detaljplanen först, eftersom de längre sökvägarna också matchar de
  * kortare.
  */
 const hiddenFeatures: readonly Feature[] = [
   { label: 'Detaljplan',      href: '/features/termin/labb/detalj', icon: DoorOpen,     shortcut: '' },
-  { label: 'Veckolabbet',     href: '/features/termin/labb',        icon: DoorOpen,     shortcut: '' },
+  { label: 'Arbetslag',       href: '/features/termin/labb',        icon: DoorOpen,     shortcut: '' },
   { label: 'Termin',          href: '/features/termin',             icon: Sigma,        shortcut: '' },
 ];
 

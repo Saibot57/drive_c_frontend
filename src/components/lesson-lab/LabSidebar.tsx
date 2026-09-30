@@ -6,8 +6,8 @@ import { Plus, Trash2, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TEACHERS_KEY } from '@/config/plannerConstants';
 import type { LabDay, LabState } from '@/types/lessonLab';
-import { LAB_COLORS, LAB_DAYS, nextColor } from '@/utils/lessonLab';
-import { ColorSwatch, CommitInput, LabCard } from '@/components/lesson-lab/LabInputs';
+import { LAB_COLORS, LAB_DAYS, nextTeamNumber, setTeamNumber, sortTeams } from '@/utils/lessonLab';
+import { ColorSwatch, CommitInput, LabCard, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
 
 export type Commit = (change: (state: LabState) => LabState) => void;
 
@@ -172,7 +172,10 @@ function TeamsCard({ state, commit, focusTeacherId }: Props) {
 
   const addTeam = () => commit(s => ({
     ...s,
-    teams: [...s.teams, { id: uuidv4(), name: `Arbetsgrupp ${s.teams.length + 1}`, color: LAB_COLORS[s.teams.length % LAB_COLORS.length], memberIds: [] }],
+    teams: [...s.teams, (() => {
+      const number = nextTeamNumber(s.teams);
+      return { id: uuidv4(), number, name: `Arbetslag ${number}`, color: LAB_COLORS[s.teams.length % LAB_COLORS.length], memberIds: [] };
+    })()],
   }));
 
   const toggleMember = (teamId: string, teacherId: string) => commit(s => ({
@@ -187,30 +190,34 @@ function TeamsCard({ state, commit, focusTeacherId }: Props) {
 
   return (
     <LabCard
-      title="Arbetsgrupper"
+      title="Arbetslag"
       actions={(
         <button type="button" onClick={addTeam} className="flex items-center gap-1 text-xs font-semibold underline">
-          <Plus size={14} /> Ny
+          <Plus size={14} /> Nytt
         </button>
       )}
     >
       <div className="grid gap-3 px-3 pb-3 pt-2">
         {state.teams.length === 0 && (
           <p className="text-sm text-gray-500">
-            Ingen arbetsgrupp än. En arbetsgrupp är lärarna som äger och planerar en eller flera lektioner. Skapa en med &quot;Ny&quot;.
+            Inget arbetslag än. Ett arbetslag är lärarna som äger och planerar en eller flera lektioner. Skapa ett med &quot;Nytt&quot;.
           </p>
         )}
-        {state.teams.map(team => (
+        {sortTeams(state.teams).map(team => (
           <div key={team.id} className="rounded-md border-2 border-black p-2" style={{ background: `${team.color}55` }}>
             <div className="mb-2 flex items-center gap-2">
+              <TeamNumberInput
+                team={team}
+                onCommit={number => commit(s => ({ ...s, teams: setTeamNumber(s.teams, team.id, number) }))}
+              />
               <ColorSwatch
                 color={team.color}
                 label={team.name}
-                onNext={() => commit(s => ({ ...s, teams: s.teams.map(t => (t.id === team.id ? { ...t, color: nextColor(t.color) } : t)) }))}
+                onChange={color => commit(s => ({ ...s, teams: s.teams.map(t => (t.id === team.id ? { ...t, color } : t)) }))}
               />
               <CommitInput
                 value={team.name}
-                ariaLabel="Arbetsgruppens namn"
+                ariaLabel="Arbetslagets namn"
                 className="flex-1 font-bold"
                 onCommit={name => commit(s => ({ ...s, teams: s.teams.map(t => (t.id === team.id ? { ...t, name } : t)) }))}
               />
@@ -289,7 +296,7 @@ function AreasCard({ state, commit }: Props) {
               <ColorSwatch
                 color={area.color}
                 label={area.name}
-                onNext={() => commit(s => ({ ...s, areas: s.areas.map(a => (a.id === area.id ? { ...a, color: nextColor(a.color) } : a)) }))}
+                onChange={color => commit(s => ({ ...s, areas: s.areas.map(a => (a.id === area.id ? { ...a, color } : a)) }))}
               />
               <CommitInput
                 value={area.name}
