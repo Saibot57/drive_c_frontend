@@ -94,3 +94,18 @@ export interface LabState {
   archiveId?: string | null;
   weeks: LabWeek[];
 }
+
+/** Ett sparat upplägg i listan, utan själva läget. */
+export interface LabPlanSummary {
+  id: string;
+  name: string;
+  /** Räknas upp av servern vid varje sparning. */
+  version: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/** Ett sparat upplägg: hela labbets läge under ett namn. */
+export interface LabPlan extends LabPlanSummary {
+  state: LabState;
+}

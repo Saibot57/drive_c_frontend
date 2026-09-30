@@ -20,6 +20,7 @@ import { Columns3, DoorOpen, Loader2, Plus, Redo2, RefreshCw, Square, Trash2, Un
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ColorSwatch, CommitInput, TeamBadge, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
+import { LabPlansPanel, PlanLoading, PlanNotices, PlanSaveStatus } from '@/components/lesson-lab/LabPlans';
 import { useLabArchive } from '@/hooks/useLabArchive';
 import { useLessonLabState } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
@@ -56,7 +57,8 @@ import '@/styles/schedule-theme.css';
  *
  * Här visas bara veckomallen. Lärare per klass, områden, tider, egna veckor
  * och varningar finns i detaljplanen, bakom dörren längst ned till vänster.
- * Båda vyerna delar samma data (`useLessonLabState`).
+ * Båda vyerna visar samma upplägg (`useLessonLabState`). Uppläggen sparas på
+ * servern och väljs i panelen till höger (`LabPlans`).
  *
  * Mallen kan byggas från ett arkiv i schemaplaneraren. Då blir arkivets
  * temapass rutorna, och övriga pass (matte m.m.) lärarnas fasta timmar i
@@ -92,7 +94,8 @@ const teamsOf = (state: LabState, teacherId: string) =>
 const lessonLabel = (lesson: LabLesson) => `${lesson.day.slice(0, 3)} ${lesson.start}`;
 
 export default function LessonLab() {
-  const { state, loaded, commit, undo, redo, canUndo, canRedo } = useLessonLabState();
+  const lab = useLessonLabState();
+  const { state, loaded, commit, undo, redo, canUndo, canRedo } = lab;
   const source = useLabArchive(state, loaded);
   const [dragging, setDragging] = useState<DragData | null>(null);
 
@@ -237,6 +240,7 @@ export default function LessonLab() {
               Dra lärare till en dag för att göra dem tillgängliga, eller in i ett lag.
             </p>
             <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+              <PlanSaveStatus lab={lab} />
               <select
                 className="sp-input h-10 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
                 value={state.archiveId ?? ''}
@@ -278,45 +282,55 @@ export default function LessonLab() {
             </div>
           </div>
 
-          {source.status === 'error' && (
-            <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm" role="status">
-              <span>Kunde inte läsa arkivet{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
-              {state.archiveId && (
-                <button type="button" className="text-xs font-semibold underline" onClick={() => void source.fetchActivities(state.archiveId as string)}>
-                  Försök igen
-                </button>
-              )}
+          <PlanNotices lab={lab} />
+
+          {!loaded ? <PlanLoading lab={lab} /> : (
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+              <div className="min-w-0 flex-1">
+                {source.status === 'error' && (
+                  <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm" role="status">
+                    <span>Kunde inte läsa arkivet{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
+                    {state.archiveId && (
+                      <button type="button" className="text-xs font-semibold underline" onClick={() => void source.fetchActivities(state.archiveId as string)}>
+                        Försök igen
+                      </button>
+                    )}
+                  </div>
+                )}
+                {source.unknownNames.length > 0 && (
+                  <div className="sp-toast mb-4 flex flex-wrap items-center justify-between gap-2 bg-amber-50 px-4 py-2 text-sm" role="status">
+                    <span>I arkivet finns också {source.unknownNames.join(', ')}, som inte är med i labbet.</span>
+                    <button type="button" className="flex items-center gap-1 text-xs font-semibold underline" onClick={addUnknownTeachers}>
+                      <UserPlus size={14} /> Lägg till
+                    </button>
+                  </div>
+                )}
+
+                <Schedule
+                  state={state}
+                  lessons={lessons}
+                  shortByLesson={shortByLesson}
+                  onRemoveDay={(teacherId, day) => commit(current => ({
+                    ...current,
+                    teachers: current.teachers.map(t => (t.id === teacherId ? { ...t, days: t.days.filter(d => d !== day) } : t)),
+                  }))}
+                  onSplit={id => updateLesson(id, l => splitLesson(l, state.classes))}
+                  onMerge={id => updateLesson(id, l => mergeLesson(l, state.classes))}
+                />
+
+                <Teams
+                  state={state}
+                  lessons={lessons}
+                  fixed={source.fixed}
+                  busy={source.busy}
+                  commit={commit}
+                  onNewTeam={() => commit(current => newTeam(current).state)}
+                />
+              </div>
+
+              <LabPlansPanel lab={lab} />
             </div>
           )}
-          {source.unknownNames.length > 0 && (
-            <div className="sp-toast mb-4 flex flex-wrap items-center justify-between gap-2 bg-amber-50 px-4 py-2 text-sm" role="status">
-              <span>I arkivet finns också {source.unknownNames.join(', ')}, som inte är med i labbet.</span>
-              <button type="button" className="flex items-center gap-1 text-xs font-semibold underline" onClick={addUnknownTeachers}>
-                <UserPlus size={14} /> Lägg till
-              </button>
-            </div>
-          )}
-
-          <Schedule
-            state={state}
-            lessons={lessons}
-            shortByLesson={shortByLesson}
-            onRemoveDay={(teacherId, day) => commit(current => ({
-              ...current,
-              teachers: current.teachers.map(t => (t.id === teacherId ? { ...t, days: t.days.filter(d => d !== day) } : t)),
-            }))}
-            onSplit={id => updateLesson(id, l => splitLesson(l, state.classes))}
-            onMerge={id => updateLesson(id, l => mergeLesson(l, state.classes))}
-          />
-
-          <Teams
-            state={state}
-            lessons={lessons}
-            fixed={source.fixed}
-            busy={source.busy}
-            commit={commit}
-            onNewTeam={() => commit(current => newTeam(current).state)}
-          />
         </div>
 
         <DragOverlay dropAnimation={null}>
