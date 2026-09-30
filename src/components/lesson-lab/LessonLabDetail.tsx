@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { LabBoard } from '@/components/lesson-lab/LabBoard';
 import { CommitInput } from '@/components/lesson-lab/LabInputs';
+import { PlanLoading, PlanNotices, PlanSaveStatus } from '@/components/lesson-lab/LabPlans';
 import { LabOverview } from '@/components/lesson-lab/LabOverview';
 import { LabSidebar } from '@/components/lesson-lab/LabSidebar';
 import { LAB_SEED } from '@/config/lessonLabSeed';
@@ -16,6 +17,7 @@ import { useLabArchive } from '@/hooks/useLabArchive';
 import { readStored, useLessonLabState, writeStored } from '@/hooks/useLessonLabState';
 import type { LabLesson } from '@/types/lessonLab';
 import { downloadBlob } from '@/utils/download';
+import { planFileName } from '@/utils/labPlans';
 import {
   labWarnings,
   lessonsForView,
@@ -30,9 +32,10 @@ import '@/styles/schedule-theme.css';
  * Arbetslags detaljplan: allt som den enkla vyn lämnar därhän, som lärare
  * per klass, områden, tider, egna veckor, varningar och summeringar.
  *
- * Utgångsläget är arbetslagets tavla (se `lessonLabSeed`). Allt sparas i den
- * här webbläsaren och kan flyttas som JSON-fil. Inget skrivs till
- * schemaplaneraren eller terminsplaneraren.
+ * Utgångsläget är arbetslagets tavla (se `lessonLabSeed`). Sidan visar det
+ * upplägg som är öppet i den enkla vyn och sparar automatiskt. Ett upplägg kan
+ * också sparas som JSON-fil, och en fil öppnas som ett nytt upplägg. Inget
+ * skrivs till schemaplaneraren eller terminsplaneraren.
  *
  * Sidan är olistad och nås via dörren längst ned till vänster i den enkla
  * vyn (`/features/arbetslag`), som står i menyn.
@@ -40,10 +43,9 @@ import '@/styles/schedule-theme.css';
 
 const VIEW_KEY = 'lessonLab.view.v1';
 
-const today = () => new Date().toISOString().slice(0, 10);
-
 export default function LessonLabDetail() {
-  const { state, loaded, commit, undo, redo, canUndo, canRedo } = useLessonLabState();
+  const lab = useLessonLabState();
+  const { state, loaded, commit, undo, redo, canUndo, canRedo } = lab;
   // Arkivet som mallen byggdes från: fasta pass gör lärare upptagna.
   const source = useLabArchive(state, loaded);
   const [viewId, setViewId] = useState<string>(TEMPLATE_VIEW);
@@ -100,7 +102,7 @@ export default function LessonLabDetail() {
 
   const exportFile = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    downloadBlob(blob, `arbetslag-${today()}.json`);
+    downloadBlob(blob, planFileName(lab.activePlan?.name ?? ''));
   };
 
   const importFile = async (file: File) => {
@@ -110,9 +112,10 @@ export default function LessonLabDetail() {
         setNotice(`${file.name} är ingen fil från Arbetslag.`);
         return;
       }
-      commit(() => parsed);
+      // Filen blir ett nytt upplägg; det öppna skrivs inte över.
+      await lab.createPlan(file.name.replace(/\.json$/i, ''), parsed);
       setViewId(TEMPLATE_VIEW);
-      setNotice(`Läste in ${file.name}. Ångra med Ctrl+Z för att gå tillbaka.`);
+      setNotice(`Läste in ${file.name} som ett nytt upplägg.`);
     } catch {
       setNotice(`Kunde inte läsa ${file.name}. Är det en JSON-fil?`);
     }
@@ -135,20 +138,23 @@ export default function LessonLabDetail() {
         <div className="sp-toolbar mb-6 flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
           <FeatureNavigation />
           <p className="max-w-xs text-xs text-gray-600">
-            Lärare, arbetslag och fasta lektioner. Sparas bara i den här webbläsaren.
+            {lab.activePlan
+              ? <>Upplägg: <strong className="text-black">{lab.activePlan.name}</strong>. Byt upplägg i Arbetslag.</>
+              : 'Lärare, arbetslag och fasta lektioner.'}
           </p>
 
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+            <PlanSaveStatus lab={lab} />
             <Button variant="neutral" size="icon" className="sp-btn" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
               <Undo2 size={16} />
             </Button>
             <Button variant="neutral" size="icon" className="sp-btn" onClick={redo} disabled={!canRedo} title="Gör om (Ctrl+Shift+Z)" aria-label="Gör om">
               <Redo2 size={16} />
             </Button>
-            <Button variant="neutral" className="sp-btn" onClick={exportFile} title="Spara labbet som en fil, t.ex. för att dela">
+            <Button variant="neutral" className="sp-btn" onClick={exportFile} title="Spara upplägget som en fil, t.ex. för att dela">
               <Download size={16} className="mr-2" /> Spara fil
             </Button>
-            <Button variant="neutral" className="sp-btn" onClick={() => fileInput.current?.click()} title="Läs in en fil från Arbetslag">
+            <Button variant="neutral" className="sp-btn" onClick={() => fileInput.current?.click()} disabled={lab.busy} title="Läs in en fil från Arbetslag som ett nytt upplägg">
               <Upload size={16} className="mr-2" /> Öppna fil
             </Button>
             <input
@@ -173,6 +179,8 @@ export default function LessonLabDetail() {
           </div>
         </div>
 
+        <PlanNotices lab={lab} />
+
         {notice && (
           <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-amber-50 px-4 py-2 text-sm" role="status">
             <span>{notice}</span>
@@ -180,80 +188,82 @@ export default function LessonLabDetail() {
           </div>
         )}
 
-        <div className="flex flex-col gap-6 2xl:flex-row 2xl:items-start">
-          <div className="shrink-0 2xl:w-[380px]">
-            <LabSidebar
-              state={state}
-              commit={commit}
-              focusTeacherId={focus}
-              onFocusTeacher={setFocusTeacherId}
-              onNotice={setNotice}
-            />
-          </div>
-
-          <div className="grid min-w-0 flex-1 gap-6">
-            <div className="sp-card">
-              <div className="flex flex-wrap items-center gap-2 border-b-2 border-black px-4 py-3">
-                <div role="tablist" aria-label="Vecka" className="flex flex-wrap gap-1.5">
-                  <WeekTab active={activeView === TEMPLATE_VIEW} onClick={() => setViewId(TEMPLATE_VIEW)}>Veckomall</WeekTab>
-                  {state.weeks.map(week => (
-                    <WeekTab key={week.id} active={activeView === week.id} onClick={() => setViewId(week.id)}>{week.label}</WeekTab>
-                  ))}
-                </div>
-                <button type="button" onClick={addWeek} className="flex items-center gap-1 text-xs font-semibold underline" title="Ny vecka som kopia av mallen">
-                  <CopyPlus size={14} /> Ny vecka
-                </button>
-                {focus && (
-                  <button type="button" onClick={() => setFocusTeacherId(null)} className="ml-auto rounded-full border-2 border-black bg-amber-100 px-2 py-0.5 text-xs font-bold">
-                    Markerad: {state.teachers.find(t => t.id === focus)?.name} ✕
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-3 px-4 py-2 text-xs text-gray-600">
-                {activeWeek ? (
-                  <>
-                    <CommitInput
-                      value={activeWeek.label}
-                      ariaLabel="Veckans namn"
-                      className="w-40 text-sm font-bold text-black"
-                      onCommit={label => commit(current => ({ ...current, weeks: current.weeks.map(w => (w.id === activeWeek.id ? { ...w, label } : w)) }))}
-                    />
-                    <span>Egen vecka. Ändringar här påverkar inte mallen.</span>
-                    <button type="button" onClick={resetWeekFromTemplate} className="flex items-center gap-1 font-semibold underline">
-                      <RotateCcw size={12} /> Kopiera mallen igen
-                    </button>
-                    <button type="button" onClick={deleteWeek} className="flex items-center gap-1 font-semibold text-rose-700 underline">
-                      <Trash2 size={12} /> Ta bort veckan
-                    </button>
-                  </>
-                ) : (
-                  <span>
-                    Mallen gäller varje vecka. Gör en egen vecka med &quot;Ny vecka&quot; för att pröva något annat, till exempel en rotation.
-                  </span>
-                )}
-              </div>
+        {!loaded ? <PlanLoading lab={lab} /> : (
+          <div className="flex flex-col gap-6 2xl:flex-row 2xl:items-start">
+            <div className="shrink-0 2xl:w-[380px]">
+              <LabSidebar
+                state={state}
+                commit={commit}
+                focusTeacherId={focus}
+                onFocusTeacher={setFocusTeacherId}
+                onNotice={setNotice}
+              />
             </div>
 
-            <LabBoard
-              state={state}
-              lessons={lessons}
-              warnings={warnings}
-              busy={source.busy}
-              commitLessons={commitLessons}
-              focusTeacherId={focus}
-              onFocusTeacher={setFocusTeacherId}
-            />
+            <div className="grid min-w-0 flex-1 gap-6">
+              <div className="sp-card">
+                <div className="flex flex-wrap items-center gap-2 border-b-2 border-black px-4 py-3">
+                  <div role="tablist" aria-label="Vecka" className="flex flex-wrap gap-1.5">
+                    <WeekTab active={activeView === TEMPLATE_VIEW} onClick={() => setViewId(TEMPLATE_VIEW)}>Veckomall</WeekTab>
+                    {state.weeks.map(week => (
+                      <WeekTab key={week.id} active={activeView === week.id} onClick={() => setViewId(week.id)}>{week.label}</WeekTab>
+                    ))}
+                  </div>
+                  <button type="button" onClick={addWeek} className="flex items-center gap-1 text-xs font-semibold underline" title="Ny vecka som kopia av mallen">
+                    <CopyPlus size={14} /> Ny vecka
+                  </button>
+                  {focus && (
+                    <button type="button" onClick={() => setFocusTeacherId(null)} className="ml-auto rounded-full border-2 border-black bg-amber-100 px-2 py-0.5 text-xs font-bold">
+                      Markerad: {state.teachers.find(t => t.id === focus)?.name} ✕
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-3 px-4 py-2 text-xs text-gray-600">
+                  {activeWeek ? (
+                    <>
+                      <CommitInput
+                        value={activeWeek.label}
+                        ariaLabel="Veckans namn"
+                        className="w-40 text-sm font-bold text-black"
+                        onCommit={label => commit(current => ({ ...current, weeks: current.weeks.map(w => (w.id === activeWeek.id ? { ...w, label } : w)) }))}
+                      />
+                      <span>Egen vecka. Ändringar här påverkar inte mallen.</span>
+                      <button type="button" onClick={resetWeekFromTemplate} className="flex items-center gap-1 font-semibold underline">
+                        <RotateCcw size={12} /> Kopiera mallen igen
+                      </button>
+                      <button type="button" onClick={deleteWeek} className="flex items-center gap-1 font-semibold text-rose-700 underline">
+                        <Trash2 size={12} /> Ta bort veckan
+                      </button>
+                    </>
+                  ) : (
+                    <span>
+                      Mallen gäller varje vecka. Gör en egen vecka med &quot;Ny vecka&quot; för att pröva något annat, till exempel en rotation.
+                    </span>
+                  )}
+                </div>
+              </div>
 
-            <LabOverview
-              state={state}
-              lessons={lessons}
-              warnings={warnings}
-              fixed={source.fixed}
-              focusTeacherId={focus}
-              onFocusTeacher={setFocusTeacherId}
-            />
+              <LabBoard
+                state={state}
+                lessons={lessons}
+                warnings={warnings}
+                busy={source.busy}
+                commitLessons={commitLessons}
+                focusTeacherId={focus}
+                onFocusTeacher={setFocusTeacherId}
+              />
+
+              <LabOverview
+                state={state}
+                lessons={lessons}
+                warnings={warnings}
+                fixed={source.fixed}
+                focusTeacherId={focus}
+                onFocusTeacher={setFocusTeacherId}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

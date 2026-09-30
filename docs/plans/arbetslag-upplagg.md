@@ -1,7 +1,7 @@
 # Plan: Sparade upplägg i Arbetslag
 
-Status: beslutad, inte påbörjad. Skriven 2026-09-30 för nästa session och
-uppdaterad samma dag efter granskning (sparning vid sidbyte, importen,
+Status: genomförd 2026-09-30 (backend Saibot57/drive_c_backend#27). Planen
+uppdaterades samma dag efter granskning (sparning vid sidbyte, importen,
 klientens id vid skapande).
 
 Arbetslag (`/features/arbetslag`, detaljplan på `/features/arbetslag/detalj`)

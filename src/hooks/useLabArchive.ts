@@ -5,29 +5,13 @@ import { plannerService } from '@/services/plannerService';
 import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
 import type { LabState } from '@/types/lessonLab';
 import { busyFromArchive, FixedHours, fixedHoursByTeacher, unknownTeacherNames } from '@/utils/lessonLabArchive';
+import { withRetry } from '@/utils/withRetry';
 
 /**
- * Schemaplanerarens arkiv för veckolabbet: listan att välja ur, och passen i
+ * Schemaplanerarens arkiv för Arbetslag: listan att välja ur, och passen i
  * det valda arkivet. Passen läses om varje gång sidan öppnas, så att en
  * ändrad mattelektion syns direkt i timräknaren.
  */
-
-/**
- * Väntetider mellan försöken. Samma som terminsplaneraren: första hämtningen
- * har misslyckats tillfälligt i produktion medan nästa gick bra.
- */
-const RETRY_DELAYS_MS = [700, 2000];
-
-const withRetry = async <T,>(load: () => Promise<T>): Promise<T> => {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await load();
-    } catch (error) {
-      if (attempt >= RETRY_DELAYS_MS.length) throw error;
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
-    }
-  }
-};
 
 export type ArchiveStatus = 'idle' | 'loading' | 'ready' | 'error';
 
