@@ -55,6 +55,28 @@ const hoursBetween = (start: number, end: number) => {
   return hours;
 };
 
+/** Luften ovanför och nedanför lunchbandet, i minuter. Högst en fjärdedel av luckan. */
+const LUNCH_AIR = 8;
+
+/**
+ * Dagens lunch: luckan mellan dagens sista förmiddagspass och första
+ * eftermiddagspass, med lika mycket luft ovanför som nedanför. En dag utan
+ * pass på ena sidan använder veckans gemensamma lunch för den sidan.
+ */
+export const dayLunch = (
+  dayLessons: Pick<LabLesson, 'start' | 'end'>[],
+  timeline: Pick<Timeline, 'lunch'>
+): { start: number; end: number } | null => {
+  if (!timeline.lunch) return null;
+  const morning = dayLessons.filter(isBeforeLunch);
+  const afternoon = dayLessons.filter(l => !isBeforeLunch(l));
+  const start = morning.length ? Math.max(...morning.map(l => timeToMinutes(l.end))) : timeline.lunch.start;
+  const end = afternoon.length ? Math.min(...afternoon.map(l => timeToMinutes(l.start))) : timeline.lunch.end;
+  if (end <= start) return null;
+  const air = Math.min(LUNCH_AIR, (end - start) / 4);
+  return { start: start + air, end: end - air };
+};
+
 export type PlacedLesson = {
   lesson: LabLesson;
   /** Minuter från axelns början. */
