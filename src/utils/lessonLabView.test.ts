@@ -5,6 +5,7 @@ import { BusyMap, labWarnings } from '@/utils/lessonLab';
 import {
   canTeachLesson,
   classGroups,
+  dayLunch,
   lessonStaffing,
   placeLessons,
   planStatus,
@@ -63,6 +64,25 @@ describe('timelineFor', () => {
   it('har en standardaxel utan lektioner och ingen lunch utan eftermiddag', () => {
     expect(timelineFor([]).start).toBe(8 * 60);
     expect(timelineFor([lesson('a')]).lunch).toBeNull();
+  });
+});
+
+describe('dayLunch', () => {
+  const week = timelineFor([
+    lesson('a', { start: '09:45', end: '11:45' }),
+    lesson('b', { start: '12:30', end: '14:00' }),
+  ]);
+
+  it('lägger lunchen i dagens lucka med lika mycket luft på båda sidor', () => {
+    expect(dayLunch([lesson('m', { start: '10:00', end: '11:30' }), lesson('n', { start: '12:30', end: '14:00' })], week))
+      .toEqual({ start: 11 * 60 + 38, end: 12 * 60 + 22 });
+  });
+
+  it('tar veckans lunch för en sida utan pass, och ingen lunch utan lucka', () => {
+    expect(dayLunch([lesson('n', { start: '12:30', end: '14:00' })], week)).toEqual({ start: 11 * 60 + 53, end: 12 * 60 + 22 });
+    expect(dayLunch([lesson('x', { start: '11:00', end: '11:50' }), lesson('y', { start: '12:00', end: '13:00' })], week))
+      .toEqual({ start: 11 * 60 + 52.5, end: 11 * 60 + 57.5 });
+    expect(dayLunch([], timelineFor([lesson('a')]))).toBeNull();
   });
 });
 

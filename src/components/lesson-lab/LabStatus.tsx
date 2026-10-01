@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, Check, ChevronDown, ChevronUp, UserPlus, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Minus, UserPlus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LabState } from '@/types/lessonLab';
 import { formatHours, LabWarning } from '@/utils/lessonLab';
@@ -24,6 +24,8 @@ export function StatusBar({
   totals,
   open,
   onOpenChange,
+  quietTight,
+  onQuietTightChange,
   onShowLesson,
   onApplyFix,
 }: {
@@ -35,12 +37,16 @@ export function StatusBar({
   totals: Map<string, number>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Pass utan marginal är minimerade till en liten gul ikon. */
+  quietTight: boolean;
+  onQuietTightChange: (quiet: boolean) => void;
   onShowLesson: (lessonId: string) => void;
   onApplyFix: (fix: StaffingFix) => void;
 }) {
   const issues: LabWarning[] = [...status.errors, ...status.warnings];
   const allHaveTeam = status.withTeam === status.lessonCount;
   const tightDays = Array.from(new Set(status.tight.map(l => l.day.slice(0, 3).toLowerCase())));
+  const tightText = `${status.tight.length} pass utan marginal (${tightDays.join(', ')})`;
   const toggle = issues.length > 0 ? () => onOpenChange(!open) : undefined;
   const name = (id: string) => state.teachers.find(t => t.id === id)?.name ?? 'Okänd lärare';
   const team = (id: string) => state.teams.find(t => t.id === id);
@@ -54,15 +60,34 @@ export function StatusBar({
         </span>
         <IssueButton count={status.errors.length} singular="fel" plural="fel" tone="error" open={open} onClick={toggle} />
         <IssueButton count={status.warnings.length} singular="varning" plural="varningar" tone="warn" open={open} onClick={toggle} />
-        {status.tight.length > 0 && (
+        {status.tight.length > 0 && (quietTight ? (
+          <button
+            type="button"
+            onClick={() => onQuietTightChange(false)}
+            title={`${tightText}. Klicka för att visa.`}
+            aria-label={`${tightText}. Visa.`}
+            className="rounded-full p-0.5 hover:bg-yellow-50"
+          >
+            <QuietMark size="md" />
+          </button>
+        ) : (
           <span
-            className={cn(pill, 'border-orange-800 bg-orange-50 text-orange-900')}
+            className={cn(pill, 'border-orange-800 bg-orange-50 pr-1 text-orange-900')}
             title="Laget har precis så många lärare som klasser. Blir någon sjuk saknas en lärare."
           >
             <AlertTriangle size={14} />
-            {status.tight.length} {status.tight.length === 1 ? 'pass' : 'pass'} utan marginal ({tightDays.join(', ')})
+            {tightText}
+            <button
+              type="button"
+              onClick={() => onQuietTightChange(true)}
+              title="Minimera till en liten ikon. Tonar också ned etiketterna på lektionerna."
+              aria-label="Minimera pass utan marginal"
+              className="ml-0.5 rounded-full p-0.5 hover:bg-orange-200"
+            >
+              <Minus size={14} />
+            </button>
           </span>
-        )}
+        ))}
         {spread && (
           <span className={cn(pill, 'bg-white sm:ml-auto')} title="Lärarnas tid per vecka: fasta pass i arkivet plus temat">
             Lärartid {formatHours(spread.min)} – {formatHours(spread.max)} · snitt {formatHours(spread.avg)}
@@ -112,6 +137,23 @@ export function StatusBar({
         </div>
       )}
     </div>
+  );
+}
+
+/** Ett dämpat gult utropstecken för det som bör ses över men inte är fel. */
+export function QuietMark({ title, size = 'sm' }: { title?: string; size?: 'sm' | 'md' }) {
+  return (
+    <span
+      title={title}
+      aria-label={title}
+      role={title ? 'img' : undefined}
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center rounded-full border border-yellow-600 bg-yellow-100 font-black leading-none text-yellow-800',
+        size === 'md' ? 'h-6 w-6 text-xs' : 'h-4 w-4 text-[10px]'
+      )}
+    >
+      !
+    </span>
   );
 }
 

@@ -34,9 +34,9 @@ import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ColorSwatch, CommitInput, TeamBadge, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
 import { LabPlansPanel, PlanLoading, PlanNotices, PlanSaveStatus } from '@/components/lesson-lab/LabPlans';
-import { HelpPanel, StatusBar } from '@/components/lesson-lab/LabStatus';
+import { HelpPanel, QuietMark, StatusBar } from '@/components/lesson-lab/LabStatus';
 import { useLabArchive } from '@/hooks/useLabArchive';
-import { useLessonLabState } from '@/hooks/useLessonLabState';
+import { readStored, useLessonLabState, writeStored } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
 import { downloadBlob } from '@/utils/download';
 import { buildLabExport, labExportFileName } from '@/utils/labExport';
@@ -63,6 +63,7 @@ import { FixedHours, lessonsFromArchive } from '@/utils/lessonLabArchive';
 import {
   canTeachLesson,
   classGroups,
+  dayLunch,
   lessonStaffing,
   placeLessons,
   planStatus,
@@ -122,6 +123,9 @@ const teamDropId = (teamId: string) => `team:${teamId}`;
 const DAY_DROP_PREFIX = 'day:';
 const lessonElementId = (lessonId: string) => `lab-lesson-${lessonId}`;
 
+/** Om pass utan marginal är nedtonade, per webbläsare. */
+const QUIET_TIGHT_KEY = 'lessonLab.quietTight.v1';
+
 /** Arbetslagen en lärare är med i, i sifferordning. */
 const teamsOf = (state: LabState, teacherId: string) =>
   sortTeams(state.teams).filter(team => team.memberIds.includes(teacherId));
@@ -139,6 +143,8 @@ type ViewContext = {
   focusId: string | null;
   /** Lektionen som "Visa" i varningslistan pekar ut en stund. */
   flashId: string | null;
+  /** Pass utan marginal visas dämpat: en liten gul ikon i stället för orange. */
+  quietTight: boolean;
 };
 
 export default function LessonLab() {
@@ -151,6 +157,12 @@ export default function LessonLab() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [quietTight, setQuietTightState] = useState(false);
+  useEffect(() => { setQuietTightState(readStored(QUIET_TIGHT_KEY, raw => raw === true, false)); }, []);
+  const setQuietTight = (quiet: boolean) => {
+    setQuietTightState(quiet);
+    writeStored(QUIET_TIGHT_KEY, quiet);
+  };
   const flashTimer = useRef<number | null>(null);
   useEffect(() => () => { if (flashTimer.current) window.clearTimeout(flashTimer.current); }, []);
 
@@ -233,7 +245,7 @@ export default function LessonLab() {
 
   // En lärare som tagits bort kan inte stå i fokus.
   const focus = focusId && state.teachers.some(t => t.id === focusId) ? focusId : null;
-  const view: ViewContext = { state, busy: source.busy, focusId: focus, flashId };
+  const view: ViewContext = { state, busy: source.busy, focusId: focus, flashId, quietTight };
 
   const showLesson = (lessonId: string) => {
     document.getElementById(lessonElementId(lessonId))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -426,6 +438,8 @@ export default function LessonLab() {
                   totals={totals}
                   open={issuesOpen}
                   onOpenChange={setIssuesOpen}
+                  quietTight={quietTight}
+                  onQuietTightChange={setQuietTight}
                   onShowLesson={showLesson}
                   onApplyFix={applyFix}
                 />
@@ -572,6 +586,8 @@ function DayColumn({
   const available = plannable.filter(t => t.days.includes(day));
   const focusAway = focusId !== null && !available.some(t => t.id === focusId);
   const height = (timeline.end - timeline.start) * PX_PER_MINUTE;
+  // Dagens egen lunch, med luft både ovanför och nedanför.
+  const lunch = dayLunch(lessons, timeline);
 
   return (
     <div
@@ -621,10 +637,10 @@ function DayColumn({
               aria-hidden
             />
           ))}
-          {timeline.lunch && (
+          {lunch && (
             <div
               className="absolute -inset-x-2 flex items-center justify-center border-y-2 border-dotted border-gray-400 bg-[repeating-linear-gradient(135deg,#f3f4f6_0_6px,#fff_6px_12px)] text-[10px] font-black uppercase tracking-[0.2em] text-gray-500"
-              style={{ top: (timeline.lunch.start - timeline.start) * PX_PER_MINUTE, height: (timeline.lunch.end - timeline.lunch.start) * PX_PER_MINUTE }}
+              style={{ top: (lunch.start - timeline.start) * PX_PER_MINUTE, height: (lunch.end - lunch.start) * PX_PER_MINUTE }}
               aria-label="Lunch"
             >
               Lunch
@@ -755,15 +771,20 @@ function LessonBox({
   );
 }
 
-/** "3 klasser · 4 kan" med initialerna på dem som kan. Orange utan reserv, röd när det saknas lärare. */
+/**
+ * "3 klasser · 4 kan" med initialerna på dem som kan. Orange utan reserv, röd
+ * när det saknas lärare. Utan reserv blir det en liten gul ikon när pass utan
+ * marginal är nedtonade i statusraden.
+ */
 function StaffingLine({ staffing, view }: { staffing: TeamStaffing; view: ViewContext }) {
   const level = staffingLevel(staffing);
   const names = staffing.availableIds.map(id => view.state.teachers.find(t => t.id === id)?.name ?? '?');
   const count = staffing.classes.length;
+  const quiet = level === 'tight' && view.quietTight;
   const text = level === 'short'
     ? `${names.length} kan till ${count} ${count === 1 ? 'klass' : 'klasser'}`
     : level === 'tight'
-      ? `${names.length} av ${count} kan · 0 reserv`
+      ? `${names.length} av ${count} kan${quiet ? '' : ' · 0 reserv'}`
       : `${count} ${count === 1 ? 'klass' : 'klasser'} · ${names.length} kan`;
   return (
     <span className="flex min-w-0 items-center gap-1" title={names.length ? `Kan: ${names.join(', ')}` : 'Ingen i laget kan den här tiden'}>
@@ -771,11 +792,12 @@ function StaffingLine({ staffing, view }: { staffing: TeamStaffing; view: ViewCo
         className={cn(
           'truncate whitespace-nowrap text-[10.5px] font-bold',
           level === 'short' && 'rounded bg-rose-700 px-1 text-white',
-          level === 'tight' && 'rounded border border-orange-800 bg-orange-100 px-1 text-orange-900'
+          level === 'tight' && !quiet && 'rounded border border-orange-800 bg-orange-100 px-1 text-orange-900'
         )}
       >
         {text}
       </span>
+      {quiet && <QuietMark title="Ingen i reserv: blir någon sjuk saknas en lärare." />}
       {staffing.availableIds.length > 0 && (
         <span className="ml-auto flex shrink-0">
           {staffing.availableIds.map((id, index) => (
