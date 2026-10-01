@@ -37,8 +37,8 @@ import '@/styles/schedule-theme.css';
  * också sparas som JSON-fil, och en fil öppnas som ett nytt upplägg. Inget
  * skrivs till schemaplaneraren eller terminsplaneraren.
  *
- * Sidan är olistad och nås via dörren längst ned till vänster i den enkla
- * vyn (`/features/arbetslag`), som står i menyn.
+ * Sidan är olistad och nås bara via direktlänken. Den är inte klar för
+ * kollegorna än, så ingen knapp i den enkla vyn leder hit.
  */
 
 const VIEW_KEY = 'lessonLab.view.v1';

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DndContext,
@@ -16,7 +15,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { Columns3, DoorOpen, Loader2, Plus, Redo2, RefreshCw, Square, Trash2, Undo2, UserPlus, X } from 'lucide-react';
+import { Columns3, Loader2, Plus, Redo2, RefreshCw, Square, Trash2, Undo2, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ColorSwatch, CommitInput, TeamBadge, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
@@ -56,7 +55,8 @@ import '@/styles/schedule-theme.css';
  * kan delas i tre, en per klass, så att klasserna kan få olika grupper.
  *
  * Här visas bara veckomallen. Lärare per klass, områden, tider, egna veckor
- * och varningar finns i detaljplanen, bakom dörren längst ned till vänster.
+ * och varningar finns i detaljplanen. Den är inte klar för kollegorna än och
+ * nås bara via direktlänken /features/arbetslag/detalj.
  * Båda vyerna visar samma upplägg (`useLessonLabState`). Uppläggen sparas på
  * servern och väljs i panelen till höger (`LabPlans`).
  *
@@ -333,16 +333,6 @@ export default function LessonLab() {
           {dragging && <DragPreview data={dragging} state={state} />}
         </DragOverlay>
       </DndContext>
-
-      {/* Dörren till detaljplanen. Liten med flit, som dörren hit från terminen. */}
-      <Link
-        href="/features/arbetslag/detalj"
-        title="Detaljplan"
-        aria-label="Detaljplan"
-        className="fixed bottom-4 left-4 z-20 rounded-md border-2 border-black bg-white p-1.5 opacity-60 shadow-[2px_2px_0_0_#000] transition-opacity hover:opacity-100 focus-visible:opacity-100"
-      >
-        <DoorOpen size={18} />
-      </Link>
     </div>
   );
 }

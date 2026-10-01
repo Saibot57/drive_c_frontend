@@ -53,7 +53,8 @@ const features: readonly Feature[] = [
  * textfält) eller Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
  * sidan läser bara scheman som den inloggade redan har tillgång till.
  *
- * Arbetslags detaljplan nås via dörren längst ned till vänster i Arbetslag.
+ * Arbetslags detaljplan nås bara via direktlänken. Den är inte klar för
+ * kollegorna än, så ingen knapp leder dit.
  */
 const hiddenFeatures: readonly Feature[] = [
   { label: 'Detaljplan',      href: '/features/arbetslag/detalj',   icon: DoorOpen,     shortcut: '' },
