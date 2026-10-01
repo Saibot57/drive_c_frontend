@@ -17,11 +17,11 @@ import { useLabArchive } from '@/hooks/useLabArchive';
 import { readStored, useLessonLabState, writeStored } from '@/hooks/useLessonLabState';
 import type { LabLesson } from '@/types/lessonLab';
 import { downloadBlob } from '@/utils/download';
+import { labStateFromFile } from '@/utils/labExport';
 import { planFileName } from '@/utils/labPlans';
 import {
   labWarnings,
   lessonsForView,
-  parseLabState,
   TEMPLATE_VIEW,
   weekFromTemplate,
   withLessons,
@@ -107,7 +107,8 @@ export default function LessonLabDetail() {
 
   const importFile = async (file: File) => {
     try {
-      const parsed = parseLabState(JSON.parse(await file.text()));
+      // Ett rent läge eller en AI-export, t.ex. ett alternativ från en språkmodell.
+      const parsed = labStateFromFile(JSON.parse(await file.text()));
       if (!parsed) {
         setNotice(`${file.name} är ingen fil från Arbetslag.`);
         return;

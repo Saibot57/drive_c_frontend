@@ -15,7 +15,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { Columns3, Loader2, Plus, Redo2, RefreshCw, Square, Trash2, Undo2, UserPlus, X } from 'lucide-react';
+import { Columns3, Download, Loader2, Plus, Redo2, RefreshCw, Square, Trash2, Undo2, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ColorSwatch, CommitInput, TeamBadge, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
@@ -23,6 +23,8 @@ import { LabPlansPanel, PlanLoading, PlanNotices, PlanSaveStatus } from '@/compo
 import { useLabArchive } from '@/hooks/useLabArchive';
 import { useLessonLabState } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
+import { downloadBlob } from '@/utils/download';
+import { buildLabExport, labExportFileName } from '@/utils/labExport';
 import type { LabDay, LabLesson, LabState, LabTeam } from '@/types/lessonLab';
 import {
   assignTeam,
@@ -114,6 +116,17 @@ export default function LessonLab() {
     // Utan arkiv ligger rutorna kvar som de är, men de fasta timmarna försvinner.
     if (!archiveId) commit(current => ({ ...current, archiveId: null }));
     else void buildFromArchive(archiveId);
+  };
+
+  // Upplägget med allt en språkmodell behöver för att föreslå alternativ.
+  const downloadForAi = () => {
+    const data = buildLabExport({
+      state,
+      plan: lab.activePlan,
+      archive: { id: state.archiveId ?? null, name: source.archiveName, activities: source.activities },
+    });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, labExportFileName(lab.activePlan?.name ?? ''));
   };
 
   const addUnknownTeachers = () => commit(current => ({
@@ -275,6 +288,17 @@ export default function LessonLab() {
                 </Button>
                 <Button variant="neutral" size="icon" className="sp-btn" onClick={redo} disabled={!canRedo} title="Gör om (Ctrl+Shift+Z)" aria-label="Gör om">
                   <Redo2 size={16} />
+                </Button>
+                <Button
+                  variant="neutral"
+                  size="icon"
+                  className="sp-btn"
+                  onClick={downloadForAi}
+                  disabled={!loaded || source.status === 'loading'}
+                  title="Ladda ner upplägget som JSON, med regler, timmar och varningar, för att låta en AI föreslå alternativ"
+                  aria-label="Ladda ner upplägget som JSON"
+                >
+                  <Download size={16} />
                 </Button>
               </div>
             </div>
