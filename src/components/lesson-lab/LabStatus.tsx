@@ -73,7 +73,7 @@ export function StatusBar({
         ) : (
           <span
             className={cn(pill, 'border-orange-800 bg-orange-50 pr-1 text-orange-900')}
-            title="Laget har precis så många lärare som klasser. Blir någon sjuk saknas en lärare."
+            title="Ingen lärare i skolan är ledig att hoppa in under de passen. Blir någon sjuk saknas en lärare."
           >
             <AlertTriangle size={14} />
             {tightText}
@@ -198,7 +198,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
       <ul className="grid gap-x-8 gap-y-1.5 md:grid-cols-2">
         <li><b>Lektioner:</b> dra en lektion till ett arbetslag. Laget behöver en lärare per klass.</li>
         <li><b>Dela:</b> ger klasserna var sitt lag. Dra sedan en klass till ett lag. <b>Slå ihop</b> gör lektionen hel igen.</li>
-        <li><b>Bemanning:</b> &rdquo;3 klasser · 4 kan&rdquo; står på varje lektion. Orange: ingen i reserv. Röd: för få lärare.</li>
+        <li><b>Bemanning:</b> &rdquo;3 klasser · 4 kan&rdquo; står på varje lektion. Röd: laget har för få lärare. Orange &rdquo;0 reserv&rdquo;: ingen lärare i hela skolan är ledig att hoppa in.</li>
         <li><b>Dagarna:</b> grå lärare kan inte den dagen. Klicka på + för att lägga till, × för att ta bort.</li>
         <li><b>Lagen:</b> dra en lärare in i ett lag. Klicka på en medlem för att ta bort den.</li>
         <li><b>Fokus:</b> klicka på en lärare i lärarraden för att se lärarens lag, dagar och lektioner.</li>

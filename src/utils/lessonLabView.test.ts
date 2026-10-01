@@ -6,6 +6,7 @@ import {
   canTeachLesson,
   classGroups,
   dayLunch,
+  lessonReserve,
   lessonStaffing,
   placeLessons,
   planStatus,
@@ -116,9 +117,20 @@ describe('bemanning', () => {
     expect(canTeachLesson(state([thursday]), thursday, 't-tobias', busy)).toBe(true);
   });
 
-  it('skiljer på precis lagom och gott om', () => {
-    expect(staffingLevel({ teamId: 'x', classes: ['A', 'B'], availableIds: ['1', '2'] })).toBe('tight');
-    expect(staffingLevel({ teamId: 'x', classes: ['A'], availableIds: ['1', '2'] })).toBe('ok');
+  it('räcker när laget har lika många lärare som klasser', () => {
+    expect(staffingLevel({ teamId: 'x', classes: ['A', 'B'], availableIds: ['1', '2'] })).toBe('ok');
+  });
+
+  it('räknar reserven över hela skolan, inte bara laget', () => {
+    // Torsdag: Tobias, Victor, Camilla och Armine kan (resursen räknas inte), tre klasser behöver lärare.
+    const s = state([thursday]);
+    expect(lessonReserve(s, thursday, [thursday])).toBe(1);
+    // Ett pass samtidigt tar tre lärare till.
+    const parallel = lesson('r9', { day: 'Torsdag', start: '09:00', end: '10:00' });
+    expect(lessonReserve(s, thursday, [thursday, parallel])).toBe(-2);
+    // Ett fast pass samtidigt gör läraren upptagen.
+    const busy: BusyMap = new Map([['t-camilla', [{ day: 'Torsdag', start: '08:00', end: '09:00', title: 'Matte' }]]]);
+    expect(lessonReserve(s, thursday, [thursday], busy)).toBe(0);
   });
 });
 
@@ -152,8 +164,9 @@ describe('planStatus och staffingFixes', () => {
     expect(status.withTeam).toBe(2);
     expect(status.warnings.map(w => w.lessonId)).toEqual(['r1', 'r2']);
     expect(status.errors).toEqual([]);
-    // Historia har två lärare till två klasser på måndag.
-    expect(status.tight.map(l => l.id)).toEqual(['m1']);
+    // På måndag kan bara två lärare i hela skolan, och passen har tre klasser.
+    // Torsdag har en lärare över i skolan, så där finns marginal trots att laget är för litet.
+    expect(status.tight.map(l => l.id)).toEqual(['m1', 'm2']);
   });
 
   it('föreslår den som kan och har minst tid, aldrig en resurs', () => {

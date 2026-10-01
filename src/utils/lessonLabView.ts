@@ -10,7 +10,7 @@ import {
   sortLessons,
   teamsInLesson,
 } from '@/utils/lessonLab';
-import { timeToMinutes } from '@/utils/scheduleTime';
+import { checkOverlap, timeToMinutes } from '@/utils/scheduleTime';
 
 /**
  * Det som den enkla vyn i Arbetslag räknar fram för att visa upplägget:
@@ -143,10 +143,23 @@ export const lessonStaffing = (state: LabState, lesson: LabLesson, busy?: BusyMa
   });
 };
 
-/** `short`: för få lärare. `tight`: precis lagom, ingen i reserv. */
-export const staffingLevel = (staffing: TeamStaffing): 'short' | 'tight' | 'ok' =>
-  staffing.availableIds.length < staffing.classes.length ? 'short'
-    : staffing.availableIds.length === staffing.classes.length ? 'tight' : 'ok';
+/** `short`: laget har för få lärare som kan. */
+export const staffingLevel = (staffing: TeamStaffing): 'short' | 'ok' =>
+  staffing.availableIds.length < staffing.classes.length ? 'short' : 'ok';
+
+/**
+ * Lärare i hela skolan som blir över under lektionen: de som kan dagen och
+ * inte har ett fast pass samtidigt, minus en lärare per klass i lektionen
+ * och i lektionerna som går samtidigt. Lagen kan ta varandras pass, så det
+ * räcker att någon i skolan är ledig. Noll eller mindre: ingen kan hoppa in.
+ */
+export const lessonReserve = (state: LabState, lesson: LabLesson, lessons: LabLesson[], busy?: BusyMap): number => {
+  const free = state.teachers.filter(t => !t.resource && availableOn(t, lesson.day) && !busyDuring(busy, t.id, lesson));
+  const needed = lessons
+    .filter(l => l.day === lesson.day && checkOverlap(l.start, l.end, lesson.start, lesson.end))
+    .reduce((sum, l) => sum + presentClasses(l, state.classes).length, 0);
+  return free.length - needed;
+};
 
 /** Kan läraren undervisa lektionen: med i ett lag som äger den, och kan då? */
 export const canTeachLesson = (state: LabState, lesson: LabLesson, teacherId: string, busy?: BusyMap) =>
@@ -184,7 +197,7 @@ export type PlanStatus = {
   withTeam: number;
   errors: LabWarning[];
   warnings: LabWarning[];
-  /** Lektioner där något lag har precis så många lärare som det behöver. */
+  /** Lektioner där ingen lärare i skolan är ledig att hoppa in (och inget lag saknar lärare). */
   tight: LabLesson[];
 };
 
@@ -199,10 +212,9 @@ export const planStatus = (state: LabState, lessons: LabLesson[], allWarnings: L
     withTeam: lessons.filter(l => !noTeam.has(l.id)).length,
     errors: allWarnings.filter(w => w.severity === 'error'),
     warnings: allWarnings.filter(w => w.severity === 'warn'),
-    tight: sortLessons(lessons).filter(l => {
-      const levels = lessonStaffing(state, l, busy).map(staffingLevel);
-      return levels.includes('tight') && !levels.includes('short');
-    }),
+    tight: sortLessons(lessons).filter(l =>
+      lessonReserve(state, l, lessons, busy) <= 0
+      && !lessonStaffing(state, l, busy).some(s => staffingLevel(s) === 'short')),
   };
 };
 
