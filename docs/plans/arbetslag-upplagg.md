@@ -584,8 +584,10 @@ Tobias mergar själv. Merge via verktyget nekas ("Merge Without Review").
   översiktstabellerna försvinner då. Deras fält i `LabState` kan ligga kvar i
   sparad data utan att störa.
 
-- Delning av upplägg med kollegor (läsrätt eller skrivrätt), och lås som för
-  arkiven (`PlannerArchive` har lås-kolumner att titta på).
+- Lås som för arkiven (`PlannerArchive` har lås-kolumner att titta på), om
+  delade upplägg visar sig redigeras samtidigt. Delningen finns sedan
+  oktober 2026, utan lås: versionen ger 409 i stället för tyst överskrivning,
+  och den som får konflikten kan spara sina ändringar som en kopia.
 - Ta bort den gamla nyckeln `lessonLab.state.v1` när importen har fungerat
   ett tag.
 - Koppla ett upplägg till en termin i terminsplaneraren.

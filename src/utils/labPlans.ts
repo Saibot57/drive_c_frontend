@@ -30,8 +30,35 @@ export const sortPlans = <T extends LabPlanSummary>(plans: readonly T[]): T[] =>
   [...plans].sort((a, b) =>
     (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || a.name.localeCompare(b.name, 'sv'));
 
-export const toSummary = ({ id, name, version, createdAt, updatedAt }: LabPlanSummary): LabPlanSummary =>
-  ({ id, name, version, createdAt, updatedAt });
+export const toSummary = (
+  { id, name, version, createdAt, updatedAt, ownerUsername, isOwner, sharedWith }: LabPlanSummary,
+): LabPlanSummary => ({
+  id, name, version, createdAt, updatedAt,
+  ...(ownerUsername !== undefined && { ownerUsername }),
+  ...(isOwner !== undefined && { isOwner }),
+  ...(sharedWith !== undefined && { sharedWith }),
+});
+
+/** Sant om upplägget är ens eget. Utan uppgift (äldre backend) är det det. */
+export const isOwnPlan = (plan: Pick<LabPlanSummary, 'isOwner'>): boolean => plan.isOwner !== false;
+
+/** Gränsen på 50 gäller bara egna upplägg, som på servern. */
+export const ownPlanCount = (plans: readonly LabPlanSummary[]): number => plans.filter(isOwnPlan).length;
+
+/**
+ * De med tillgång till upplägget som inte når schemat det bygger på. För dem
+ * blir timräknaren tom. `null` när det inte går att avgöra: inget schema,
+ * eller ett schema som inte finns i ens egen lista.
+ */
+export const missingArchiveAccess = (
+  plan: Pick<LabPlanSummary, 'ownerUsername' | 'sharedWith'>,
+  archive: { ownerUsername: string | null; sharedWith: string[] } | null | undefined,
+): string[] | null => {
+  if (!archive) return null;
+  const reach = new Set([archive.ownerUsername, ...archive.sharedWith].filter(Boolean));
+  const members = [plan.ownerUsername, ...(plan.sharedWith ?? [])].filter((name): name is string => Boolean(name));
+  return members.filter((name, index) => members.indexOf(name) === index && !reach.has(name));
+};
 
 /** Lägger till eller ersätter en rad och sorterar om. */
 export const upsertPlan = (plans: readonly LabPlanSummary[], plan: LabPlanSummary): LabPlanSummary[] =>
