@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Palette } from 'lucide-react';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { COURSE_COLOR_PALETTE } from '@/config/plannerConstants';
 import { cn } from '@/lib/utils';
@@ -62,8 +63,11 @@ const MAX_RECENT_COLORS = 6;
  * En färgruta som öppnar samma färgväljare som schemats lådor: paletten, en
  * egen färg och de senast valda egna färgerna. Stängs med klick utanför eller
  * Escape.
+ *
+ * `icon` visar en palett i stället för färgen. Det passar där rutan står på
+ * en yta i samma färg, som lagkortens rubrik: där syns färgen inte.
  */
-export function ColorSwatch({ color, onChange, label }: { color: string; onChange: (color: string) => void; label: string }) {
+export function ColorSwatch({ color, onChange, label, icon = false }: { color: string; onChange: (color: string) => void; label: string; icon?: boolean }) {
   // Rutan ligger med fast position: korten klipper det som sticker ut.
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const open = position !== null;
@@ -104,9 +108,14 @@ export function ColorSwatch({ color, onChange, label }: { color: string; onChang
         title={`${label}: välj färg`}
         aria-label={`${label}: välj färg`}
         aria-expanded={open}
-        className="h-5 w-5 rounded border-2 border-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-        style={{ background: color }}
-      />
+        className={cn(
+          'shrink-0 rounded-full border-2 border-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black',
+          icon ? 'flex h-7 w-7 items-center justify-center bg-white text-black hover:bg-gray-100' : 'h-6 w-6 shadow-[inset_0_0_0_2px_#fff]'
+        )}
+        style={icon ? undefined : { background: color }}
+      >
+        {icon && <Palette size={14} aria-hidden />}
+      </button>
       {position && (
         <div
           className="fixed z-50 w-64 rounded-md border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]"

@@ -82,10 +82,13 @@ export function PlanLoading({ lab }: { lab: Pick<Lab, 'loadError' | 'retryLoad'>
   );
 }
 
-export function LabPlansPanel({ lab }: { lab: Lab }) {
-  // Som "Sparade veckor": alltid hopfälld när sidan öppnas.
-  const [collapsed, setCollapsed] = useState(true);
-  const toggle = () => setCollapsed(current => !current);
+/**
+ * Panelen styrs utifrån, så att uppläggets namn i verktygsraden kan öppna
+ * den. Som "Sparade veckor" är den alltid hopfälld när sidan öppnas.
+ */
+export function LabPlansPanel({ lab, open, onOpenChange }: { lab: Lab; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const collapsed = !open;
+  const toggle = () => onOpenChange(!open);
 
   const full = lab.plans.length >= MAX_PLANS;
   const fullTitle = `Du kan ha högst ${MAX_PLANS} upplägg. Ta bort ett först.`;
@@ -112,10 +115,16 @@ export function LabPlansPanel({ lab }: { lab: Lab }) {
             {collapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </Button>
           {collapsed && (
-            <div className="flex flex-col items-center gap-1 text-xs font-bold text-gray-600" title={`${lab.plans.length} upplägg`}>
+            <button
+              type="button"
+              onClick={toggle}
+              className="flex flex-col items-center gap-2 rounded-md px-1 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100"
+              title={`${lab.plans.length} sparade upplägg. Klicka för att visa.`}
+            >
+              <span className="text-[11px] font-black uppercase tracking-[0.18em] [writing-mode:vertical-rl]">Upplägg</span>
               <Layers size={18} />
               {lab.plans.length}
-            </div>
+            </button>
           )}
         </div>
 
