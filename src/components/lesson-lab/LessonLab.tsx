@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DndContext,
@@ -15,24 +15,36 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { Columns3, Download, Loader2, Plus, Redo2, RefreshCw, Square, Trash2, Undo2, UserPlus, X } from 'lucide-react';
+import {
+  ChevronDown,
+  Columns3,
+  Download,
+  HelpCircle,
+  Loader2,
+  Plus,
+  Redo2,
+  RefreshCw,
+  Square,
+  Trash2,
+  Undo2,
+  UserPlus,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ColorSwatch, CommitInput, TeamBadge, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
 import { LabPlansPanel, PlanLoading, PlanNotices, PlanSaveStatus } from '@/components/lesson-lab/LabPlans';
+import { HelpPanel, StatusBar } from '@/components/lesson-lab/LabStatus';
 import { useLabArchive } from '@/hooks/useLabArchive';
 import { useLessonLabState } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
 import { downloadBlob } from '@/utils/download';
 import { buildLabExport, labExportFileName } from '@/utils/labExport';
-import type { LabDay, LabLesson, LabState, LabTeam } from '@/types/lessonLab';
+import type { LabDay, LabLesson, LabState, LabTeacher, LabTeam } from '@/types/lessonLab';
 import {
   assignTeam,
   BusyMap,
-  classTeamId,
   formatHours,
-  formatMinutes,
-  isBeforeLunch,
   LAB_COLORS,
   LAB_DAYS,
   labWarnings,
@@ -48,13 +60,30 @@ import {
   teamsInLesson,
 } from '@/utils/lessonLab';
 import { FixedHours, lessonsFromArchive } from '@/utils/lessonLabArchive';
+import {
+  canTeachLesson,
+  classGroups,
+  lessonStaffing,
+  placeLessons,
+  planStatus,
+  StaffingFix,
+  staffingFixes,
+  staffingLevel,
+  TeamStaffing,
+  Timeline,
+  timelineFor,
+} from '@/utils/lessonLabView';
 import { getReadableTextColor } from '@/utils/readableTextColor';
 import '@/styles/schedule-theme.css';
 
 /**
- * Arbetslag, enkla vyn: veckans fasta lektioner som röda rutor överst och
- * arbetslagen nederst. Man drar en lektion till ett arbetslag. En ruta
- * kan delas i tre, en per klass, så att klasserna kan få olika grupper.
+ * Arbetslag, enkla vyn: veckans fasta lektioner överst, på en tidsaxel som
+ * alla dagar delar, och arbetslagen nederst. Man drar en lektion till ett
+ * arbetslag. En ruta kan delas, en per klass, så att klasserna kan få olika lag.
+ *
+ * Varje lektion visar sin bemanning: klasserna mot lagets lärare som kan.
+ * Raden under verktygsraden sammanfattar upplägget (`LabStatus`). Klickar man
+ * på en lärare i lärarraden lyses lärarens lag, dagar och lektioner upp.
  *
  * Här visas bara veckomallen. Lärare per klass, områden, tider, egna veckor
  * och varningar finns i detaljplanen. Den är inte klar för kollegorna än och
@@ -75,8 +104,11 @@ const CLASS_COLORS: Record<string, string> = {
 };
 const classColor = (className: string) => CLASS_COLORS[className] ?? '#e5e7eb';
 
-/** Höjd per minut, så att en 120-minuterslektion syns längre än en på 75. */
-const PX_PER_MINUTE = 0.75;
+/** Höjd per minut på tidsaxeln. En lektion på 75 minuter rymmer tid, lag och bemanning. */
+const PX_PER_MINUTE = 1.4;
+
+/** Avvikelse från snittet som markeras i lärarraden. */
+const DEVIATION_MINUTES = 120;
 
 type DragData =
   | { kind: 'lesson'; lessonId: string }
@@ -88,6 +120,7 @@ const SCHEDULE_DROP = 'schedule';
 const NEW_TEAM_DROP = 'new-team';
 const teamDropId = (teamId: string) => `team:${teamId}`;
 const DAY_DROP_PREFIX = 'day:';
+const lessonElementId = (lessonId: string) => `lab-lesson-${lessonId}`;
 
 /** Arbetslagen en lärare är med i, i sifferordning. */
 const teamsOf = (state: LabState, teacherId: string) =>
@@ -95,11 +128,31 @@ const teamsOf = (state: LabState, teacherId: string) =>
 
 const lessonLabel = (lesson: LabLesson) => `${lesson.day.slice(0, 3)} ${lesson.start}`;
 
+const minutesToTime = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+/** Det som fokus, bemanning och timmar behöver, samlat för komponenterna. */
+type ViewContext = {
+  state: LabState;
+  busy?: BusyMap;
+  /** Läraren i fokus, eller `null`. */
+  focusId: string | null;
+  /** Lektionen som "Visa" i varningslistan pekar ut en stund. */
+  flashId: string | null;
+};
+
 export default function LessonLab() {
   const lab = useLessonLabState();
   const { state, loaded, commit, undo, redo, canUndo, canRedo } = lab;
   const source = useLabArchive(state, loaded);
   const [dragging, setDragging] = useState<DragData | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [plansOpen, setPlansOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const flashTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (flashTimer.current) window.clearTimeout(flashTimer.current); }, []);
 
   /** Bygger mallen från ett arkiv. Lektioner vid samma tid behåller sina grupper. */
   const buildFromArchive = async (archiveId: string) => {
@@ -151,14 +204,50 @@ export default function LessonLab() {
   const updateLesson = (lessonId: string, change: (lesson: LabLesson) => LabLesson) =>
     commitLessons(current => current.map(l => (l.id === lessonId ? change(l) : l)));
 
-  // Bara det som gör en lektion omöjlig att bemanna: för få tillgängliga i laget.
-  const shortByLesson = useMemo(() => {
-    const map = new Map<string, string[]>();
-    labWarnings(state, lessons, source.busy).filter(w => w.kind === 'shortTeam').forEach(w => {
-      map.set(w.lessonId, [...(map.get(w.lessonId) ?? []), w.detail]);
-    });
-    return map;
-  }, [state, lessons, source.busy]);
+  const setDay = (teacherId: string, day: LabDay, available: boolean) => commit(current => ({
+    ...current,
+    teachers: current.teachers.map(t => {
+      if (t.id !== teacherId || t.days.includes(day) === available) return t;
+      return { ...t, days: available ? LAB_DAYS.filter(d => d === day || t.days.includes(d)) : t.days.filter(d => d !== day) };
+    }),
+  }));
+
+  // Lärarnas tid per vecka: temat räknat i klasspass plus de fasta passen i arkivet.
+  const tema = useMemo(() => teacherTeachingMinutes(state, lessons, source.busy), [state, lessons, source.busy]);
+  const totals = useMemo(() => new Map(state.teachers.filter(t => !t.resource).map(t => [
+    t.id,
+    (tema.get(t.id) ?? 0) + (source.fixed.get(t.id)?.total ?? 0),
+  ])), [state.teachers, tema, source.fixed]);
+  const spread = useMemo(() => {
+    const values = Array.from(totals.values());
+    if (values.length === 0) return null;
+    return { min: Math.min(...values), max: Math.max(...values), avg: values.reduce((a, b) => a + b, 0) / values.length };
+  }, [totals]);
+
+  const status = useMemo(
+    () => planStatus(state, lessons, labWarnings(state, lessons, source.busy), source.busy),
+    [state, lessons, source.busy]
+  );
+  const fixes = useMemo(() => staffingFixes(state, lessons, totals, source.busy), [state, lessons, totals, source.busy]);
+  const timeline = useMemo(() => timelineFor(lessons), [lessons]);
+
+  // En lärare som tagits bort kan inte stå i fokus.
+  const focus = focusId && state.teachers.some(t => t.id === focusId) ? focusId : null;
+  const view: ViewContext = { state, busy: source.busy, focusId: focus, flashId };
+
+  const showLesson = (lessonId: string) => {
+    document.getElementById(lessonElementId(lessonId))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFlashId(lessonId);
+    if (flashTimer.current) window.clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setFlashId(null), 1800);
+  };
+
+  const applyFix = (fix: StaffingFix) => commit(current => ({
+    ...current,
+    teams: current.teams.map(t => (t.id === fix.teamId && !t.memberIds.includes(fix.teacherId)
+      ? { ...t, memberIds: [...t.memberIds, fix.teacherId] }
+      : t)),
+  }));
 
   const newTeam = (current: LabState, memberIds: string[] = []): { state: LabState; teamId: string } => {
     const teamId = uuidv4();
@@ -189,12 +278,7 @@ export default function LessonLab() {
 
     // En lärare släppt på en dag blir tillgänglig den dagen.
     if (onDay && data.kind === 'teacher') {
-      commit(current => ({
-        ...current,
-        teachers: current.teachers.map(t => (t.id === data.teacherId && !t.days.includes(onDay)
-          ? { ...t, days: LAB_DAYS.filter(d => d === onDay || t.days.includes(d)) }
-          : t)),
-      }));
+      setDay(data.teacherId, onDay, true);
       return;
     }
 
@@ -237,6 +321,8 @@ export default function LessonLab() {
 
   const onDragStart = (event: DragStartEvent) => setDragging((event.active.data.current as DragData) ?? null);
 
+  const groupLabel = 'text-[11px] font-black uppercase tracking-[0.12em] text-gray-600';
+
   return (
     <div className="sp-root">
       <div className="fixed inset-0 z-0">
@@ -248,16 +334,30 @@ export default function LessonLab() {
         {/* Panelen står bredvid allt annat, verktygsraden också, som i schemaplaneraren. */}
         <div className="relative z-10 flex flex-col gap-6 pb-24 lg:flex-row">
           <div className="min-w-0 flex-1">
-            <div className="sp-toolbar mb-6 flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
+            <div className="sp-toolbar mb-4 flex flex-col items-start gap-3 p-4 lg:flex-row lg:flex-wrap lg:items-center">
               <FeatureNavigation />
-              <p className="max-w-md text-xs text-gray-600">
-                Dra en lektion till ett arbetslag. Dela en ruta för att ge klasserna olika lag.
-                Dra lärare till en dag för att göra dem tillgängliga, eller in i ett lag.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+
+              {/* Upplägget är det som sparas. Namnet öppnar panelen med de andra. */}
+              <div className="flex items-center gap-2 rounded-lg border-2 border-black bg-amber-50 py-1 pl-3 pr-3">
+                <span className={groupLabel}>Upplägg</span>
+                <button
+                  type="button"
+                  onClick={() => setPlansOpen(open => !open)}
+                  aria-expanded={plansOpen}
+                  title={plansOpen ? 'Dölj sparade upplägg' : 'Visa sparade upplägg'}
+                  className="sp-input flex h-9 max-w-[14rem] items-center gap-2 rounded-md bg-white px-3 text-sm font-bold"
+                >
+                  <span className="truncate">{lab.activePlan?.name ?? 'Inget upplägg'}</span>
+                  <ChevronDown size={14} className="shrink-0" />
+                </button>
                 <PlanSaveStatus lab={lab} />
+              </div>
+
+              {/* Arkivet är schemat upplägget bygger på: tiderna och de fasta passen. */}
+              <div className="flex items-center gap-2">
+                <span className={groupLabel}>Arkiv</span>
                 <select
-                  className="sp-input h-10 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
+                  className="sp-input h-9 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
                   value={state.archiveId ?? ''}
                   onChange={event => chooseArchive(event.target.value)}
                   disabled={source.status === 'loading'}
@@ -273,40 +373,62 @@ export default function LessonLab() {
                 {state.archiveId && (
                   <Button
                     variant="neutral"
-                    size="icon"
-                    className="sp-btn"
+                    className="sp-btn h-9 gap-1.5 px-3"
                     onClick={() => void buildFromArchive(state.archiveId as string)}
                     disabled={source.status === 'loading'}
                     title="Läs om arkivet. Lektioner vid samma tid behåller sina arbetslag."
-                    aria-label="Läs om arkivet"
                   >
-                    {source.status === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                    {source.status === 'loading' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                    Läs om
                   </Button>
                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
                 <Button variant="neutral" size="icon" className="sp-btn" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
                   <Undo2 size={16} />
                 </Button>
                 <Button variant="neutral" size="icon" className="sp-btn" onClick={redo} disabled={!canRedo} title="Gör om (Ctrl+Shift+Z)" aria-label="Gör om">
                   <Redo2 size={16} />
                 </Button>
+                <span className="mx-1 h-7 w-0.5 bg-gray-300" aria-hidden />
                 <Button
                   variant="neutral"
-                  size="icon"
-                  className="sp-btn"
+                  className="sp-btn gap-1.5 px-3"
                   onClick={downloadForAi}
                   disabled={!loaded || source.status === 'loading'}
                   title="Ladda ner upplägget som JSON, med regler, timmar och varningar, för att låta en AI föreslå alternativ"
-                  aria-label="Ladda ner upplägget som JSON"
                 >
-                  <Download size={16} />
+                  <Download size={15} /> JSON
+                </Button>
+                <Button
+                  variant="neutral"
+                  className="sp-btn gap-1.5 bg-sky-100 px-3 hover:bg-sky-200"
+                  onClick={() => setHelpOpen(open => !open)}
+                  aria-expanded={helpOpen}
+                >
+                  <HelpCircle size={16} /> Så funkar det
                 </Button>
               </div>
             </div>
+
+            {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
 
             <PlanNotices lab={lab} />
 
             {!loaded ? <PlanLoading lab={lab} /> : (
               <div>
+                <StatusBar
+                  state={state}
+                  status={status}
+                  spread={spread}
+                  fixes={fixes}
+                  totals={totals}
+                  open={issuesOpen}
+                  onOpenChange={setIssuesOpen}
+                  onShowLesson={showLesson}
+                  onApplyFix={applyFix}
+                />
                 {source.status === 'error' && (
                   <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm" role="status">
                     <span>Kunde inte läsa arkivet{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
@@ -327,30 +449,29 @@ export default function LessonLab() {
                 )}
 
                 <Schedule
-                  state={state}
+                  view={view}
                   lessons={lessons}
-                  shortByLesson={shortByLesson}
-                  onRemoveDay={(teacherId, day) => commit(current => ({
-                    ...current,
-                    teachers: current.teachers.map(t => (t.id === teacherId ? { ...t, days: t.days.filter(d => d !== day) } : t)),
-                  }))}
+                  timeline={timeline}
+                  onSetDay={setDay}
                   onSplit={id => updateLesson(id, l => splitLesson(l, state.classes))}
                   onMerge={id => updateLesson(id, l => mergeLesson(l, state.classes))}
                 />
 
                 <Teams
-                  state={state}
+                  view={view}
                   lessons={lessons}
                   fixed={source.fixed}
-                  busy={source.busy}
+                  tema={tema}
+                  avg={spread?.avg ?? 0}
                   commit={commit}
+                  onFocus={id => setFocusId(current => (current === id ? null : id))}
                   onNewTeam={() => commit(current => newTeam(current).state)}
                 />
               </div>
             )}
           </div>
 
-          {loaded && <LabPlansPanel lab={lab} />}
+          {loaded && <LabPlansPanel lab={lab} open={plansOpen} onOpenChange={setPlansOpen} />}
         </div>
 
         <DragOverlay dropAnimation={null}>
@@ -364,38 +485,57 @@ export default function LessonLab() {
 // ── Schemat ──
 
 function Schedule({
-  state,
+  view,
   lessons,
-  shortByLesson,
-  onRemoveDay,
+  timeline,
+  onSetDay,
   onSplit,
   onMerge,
 }: {
-  state: LabState;
+  view: ViewContext;
   lessons: LabLesson[];
-  shortByLesson: Map<string, string[]>;
-  onRemoveDay: (teacherId: string, day: LabDay) => void;
+  timeline: Timeline;
+  onSetDay: (teacherId: string, day: LabDay, available: boolean) => void;
   onSplit: (lessonId: string) => void;
   onMerge: (lessonId: string) => void;
 }) {
   // Hela schemat tar emot brickor från arbetslagen: släppt här = inget lag.
   const { setNodeRef, isOver, active } = useDroppable({ id: SCHEDULE_DROP });
   const returning = (active?.data.current as DragData | undefined)?.kind === 'brick';
+  const height = (timeline.end - timeline.start) * PX_PER_MINUTE;
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto pb-2">
+      {/* Två rader: dagarnas rubriker och dagarna. Axeln står i andra raden, så att den linjerar med dagarna. */}
       <div
         ref={setNodeRef}
-        className={cn('grid min-w-[900px] grid-cols-5 gap-3 rounded-xl', returning && isOver && 'outline-dashed outline-2 outline-offset-4 outline-rose-600')}
+        className={cn(
+          'grid min-w-[960px] grid-cols-[36px_repeat(5,minmax(0,1fr))] grid-rows-[auto_auto] gap-x-3 rounded-xl',
+          returning && isOver && 'outline-dashed outline-2 outline-offset-4 outline-rose-600'
+        )}
       >
-        {LAB_DAYS.map(day => (
+        <div className="relative col-start-1 row-start-2 pt-2" aria-hidden>
+          <div className="relative" style={{ height }}>
+            {timeline.hours.map(minutes => (
+              <span
+                key={minutes}
+                className="absolute right-0 font-mono text-[11px] font-bold text-gray-700"
+                style={{ top: (minutes - timeline.start) * PX_PER_MINUTE - 8 }}
+              >
+                {minutesToTime(minutes)}
+              </span>
+            ))}
+          </div>
+        </div>
+        {LAB_DAYS.map((day, index) => (
           <DayColumn
             key={day}
             day={day}
-            state={state}
-            lessons={sortLessons(lessons.filter(l => l.day === day))}
-            shortByLesson={shortByLesson}
-            onRemoveDay={onRemoveDay}
+            column={index + 2}
+            view={view}
+            lessons={lessons.filter(l => l.day === day)}
+            timeline={timeline}
+            onSetDay={onSetDay}
             onSplit={onSplit}
             onMerge={onMerge}
           />
@@ -407,121 +547,178 @@ function Schedule({
 
 function DayColumn({
   day,
-  state,
+  column,
+  view,
   lessons,
-  shortByLesson,
-  onRemoveDay,
+  timeline,
+  onSetDay,
   onSplit,
   onMerge,
 }: {
   day: LabDay;
-  state: LabState;
+  column: number;
+  view: ViewContext;
   lessons: LabLesson[];
-  shortByLesson: Map<string, string[]>;
-  onRemoveDay: (teacherId: string, day: LabDay) => void;
+  timeline: Timeline;
+  onSetDay: (teacherId: string, day: LabDay, available: boolean) => void;
   onSplit: (lessonId: string) => void;
   onMerge: (lessonId: string) => void;
 }) {
-  const box = (lesson: LabLesson) => (
-    <LessonBox
-      key={lesson.id}
-      lesson={lesson}
-      state={state}
-      problems={shortByLesson.get(lesson.id) ?? []}
-      onSplit={() => onSplit(lesson.id)}
-      onMerge={() => onMerge(lesson.id)}
-    />
-  );
+  const { state, focusId } = view;
   // Hela dagen tar emot lärare, så att man inte behöver pricka rubriken.
   const { setNodeRef, isOver, active } = useDroppable({ id: `${DAY_DROP_PREFIX}${day}` });
   const teacherOver = isOver && (active?.data.current as DragData | undefined)?.kind === 'teacher';
-  const available = state.teachers.filter(t => !t.resource && t.days.includes(day));
+  const plannable = state.teachers.filter(t => !t.resource);
+  const available = plannable.filter(t => t.days.includes(day));
+  const focusAway = focusId !== null && !available.some(t => t.id === focusId);
+  const height = (timeline.end - timeline.start) * PX_PER_MINUTE;
 
   return (
-    <div ref={setNodeRef} className={cn('sp-card flex flex-col', teacherOver && 'outline outline-4 outline-offset-2 outline-black')}>
-      <div className={cn('border-b-2 border-black px-3 py-2', teacherOver && 'bg-amber-50')}>
-        <h2 className="text-lg font-black uppercase tracking-wide">{day.slice(0, 3)}</h2>
-        <div className="mt-1 flex min-h-[26px] flex-wrap gap-1">
-          {available.length === 0 && <span className="text-xs text-gray-400">Dra lärare hit.</span>}
-          {available.map(teacher => (
+    <div
+      ref={setNodeRef}
+      className={cn('sp-card row-span-2 row-start-1 grid grid-rows-subgrid', teacherOver && 'outline outline-4 outline-offset-2 outline-black')}
+      style={{ gridColumn: column }}
+    >
+      <div className={cn('border-b-2 border-black px-3 py-2 transition-opacity', teacherOver && 'bg-amber-50', focusAway && 'opacity-40')}>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-lg font-black uppercase tracking-wide">{day.slice(0, 3)}</h2>
+          <span className="text-[11px] font-semibold text-gray-600">{available.length} av {plannable.length} kan</span>
+        </div>
+        {/* Alla lärare står här. De som inte kan är gråa och läggs till med ett klick. */}
+        <div className="mt-1 flex flex-wrap gap-1">
+          {plannable.length === 0 && <span className="text-xs text-gray-400">Inga lärare än.</span>}
+          {plannable.map(teacher => (teacher.days.includes(day) ? (
             <TeacherChip
               key={teacher.id}
-              teacherId={teacher.id}
-              name={teacher.name}
-              days={teacher.days}
+              teacher={teacher}
               dragId={`teacher:${teacher.id}:${day}`}
               size="sm"
-              onRemove={() => onRemoveDay(teacher.id, day)}
+              active={focusId === teacher.id}
+              onRemove={() => onSetDay(teacher.id, day, false)}
               removeLabel={`${teacher.name} är inte tillgänglig på ${day.toLowerCase()}`}
+            />
+          ) : (
+            <button
+              key={teacher.id}
+              type="button"
+              onClick={() => onSetDay(teacher.id, day, true)}
+              title={`${teacher.name} kan inte på ${day.toLowerCase()}. Klicka för att lägga till.`}
+              aria-label={`Gör ${teacher.name} tillgänglig på ${day.toLowerCase()}`}
+              className="flex items-center gap-0.5 rounded-full border-2 border-dashed border-gray-400 px-2 py-0.5 text-xs font-bold text-gray-500 hover:border-black hover:text-black"
+            >
+              {teacher.name} <Plus size={10} strokeWidth={3} />
+            </button>
+          )))}
+        </div>
+      </div>
+      <div className="p-2">
+        <div className="relative" style={{ height }}>
+          {timeline.hours.map(minutes => (
+            <div
+              key={minutes}
+              className="absolute inset-x-0 border-t border-gray-200"
+              style={{ top: (minutes - timeline.start) * PX_PER_MINUTE }}
+              aria-hidden
+            />
+          ))}
+          {timeline.lunch && (
+            <div
+              className="absolute -inset-x-2 flex items-center justify-center border-y-2 border-dotted border-gray-400 bg-[repeating-linear-gradient(135deg,#f3f4f6_0_6px,#fff_6px_12px)] text-[10px] font-black uppercase tracking-[0.2em] text-gray-500"
+              style={{ top: (timeline.lunch.start - timeline.start) * PX_PER_MINUTE, height: (timeline.lunch.end - timeline.lunch.start) * PX_PER_MINUTE }}
+              aria-label="Lunch"
+            >
+              Lunch
+            </div>
+          )}
+          {placeLessons(lessons, timeline).map(placed => (
+            <LessonBox
+              key={placed.lesson.id}
+              lesson={placed.lesson}
+              view={view}
+              style={{
+                top: placed.offset * PX_PER_MINUTE,
+                height: Math.max(28, placed.minutes * PX_PER_MINUTE - 4),
+                left: `calc(${(placed.column / placed.columns) * 100}% + ${placed.column > 0 ? 2 : 0}px)`,
+                width: `calc(${100 / placed.columns}% - ${placed.columns > 1 ? 2 : 0}px)`,
+              }}
+              onSplit={() => onSplit(placed.lesson.id)}
+              onMerge={() => onMerge(placed.lesson.id)}
             />
           ))}
         </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-2">
-        {lessons.filter(isBeforeLunch).map(box)}
-        <div className="my-2 border-t-[3px] border-dotted border-gray-400" aria-label="Lunch" />
-        {lessons.filter(l => !isBeforeLunch(l)).map(box)}
       </div>
     </div>
   );
 }
 
+/** Fokus tonar ned lektioner läraren inte kan ta och lyser upp dem läraren kan ta. */
+const focusClasses = (view: ViewContext, lesson: LabLesson) => {
+  const flash = view.flashId === lesson.id && 'outline outline-4 outline-offset-2 outline-orange-500';
+  if (!view.focusId) return flash;
+  return canTeachLesson(view.state, lesson, view.focusId, view.busy)
+    ? cn('outline outline-[3px] outline-offset-2 outline-amber-400', flash)
+    : cn('opacity-25', flash);
+};
+
 function LessonBox({
   lesson,
-  state,
-  problems,
+  view,
+  style,
   onSplit,
   onMerge,
 }: {
   lesson: LabLesson;
-  state: LabState;
-  problems: string[];
+  view: ViewContext;
+  style: React.CSSProperties;
   onSplit: () => void;
   onMerge: () => void;
 }) {
-  const height = Math.max(48, lessonMinutes(lesson) * PX_PER_MINUTE);
+  const { state } = view;
   const team = state.teams.find(t => t.id === lesson.teamId);
+  const staffing = lessonStaffing(state, lesson, view.busy);
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: `lesson:${lesson.id}`,
     data: { kind: 'lesson', lessonId: lesson.id } satisfies DragData,
     disabled: lesson.split,
   });
 
-  const warning = problems.length > 0 && (
-    <span
-      className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full border border-white bg-rose-600"
-      title={problems.join('\n')}
-      aria-label={problems.join(' ')}
-    />
-  );
-
   const partial = (lesson.absentClasses?.length ?? 0) > 0;
   const toggle = partial ? null : (
     <button
       type="button"
       onClick={lesson.split ? onMerge : onSplit}
-      title={lesson.split ? 'Slå ihop till en ruta' : 'Dela i tre, en per klass'}
-      aria-label={lesson.split ? 'Slå ihop till en ruta' : 'Dela i tre, en per klass'}
-      className="rounded p-0.5 text-gray-600 hover:bg-black/10 hover:text-black"
+      title={lesson.split ? 'Gör lektionen hel igen, med ett lag för alla klasser' : 'Dela per klass, så att klasserna kan få olika lag'}
+      className="flex shrink-0 items-center gap-1 rounded border border-black/50 bg-white/80 px-1.5 py-0.5 text-[10px] font-bold text-gray-900 hover:bg-white"
     >
-      {lesson.split ? <Square size={13} /> : <Columns3 size={13} />}
+      {lesson.split ? <Square size={11} /> : <Columns3 size={11} />}
+      {lesson.split ? 'Slå ihop' : 'Dela'}
     </button>
   );
 
   // En lektion där någon klass saknas visas alltid per klass.
   if (lesson.split || partial) {
     return (
-      <div className="relative" style={{ minHeight: height }}>
-        <div className="mb-0.5 flex items-center justify-between px-0.5">
+      <div
+        id={lessonElementId(lesson.id)}
+        className={cn('absolute flex flex-col gap-1 overflow-hidden rounded-md border-2 border-black bg-white p-1 shadow-[2px_2px_0_0_#000] transition-opacity', focusClasses(view, lesson))}
+        style={style}
+      >
+        <div className="flex items-center justify-between gap-1 px-0.5">
           <span className="font-mono text-[11px] font-bold">{lesson.start}–{lesson.end}</span>
           {toggle}
         </div>
-        <div className="grid grid-cols-3 gap-1" style={{ minHeight: height - 20 }}>
-          {state.classes.map(className => (
-            <ClassPart key={className} lesson={lesson} className={className} state={state} />
+        <div className="flex min-h-0 flex-1 gap-1">
+          {classGroups(lesson, state.classes).map(group => (
+            <ClassGroupBox
+              key={group.classes.join('|')}
+              lesson={lesson}
+              classes={group.classes}
+              absent={group.absent}
+              team={state.teams.find(t => t.id === group.teamId)}
+              staffing={staffing.find(s => s.teamId === group.teamId)}
+            />
           ))}
         </div>
-        {warning}
       </div>
     );
   }
@@ -529,48 +726,156 @@ function LessonBox({
   return (
     <div
       ref={setNodeRef}
+      id={lessonElementId(lesson.id)}
       {...attributes}
       {...listeners}
       className={cn(
-        'relative flex cursor-grab touch-none flex-col justify-between rounded-md border-2 px-2 py-1 active:cursor-grabbing',
+        'absolute flex cursor-grab touch-none flex-col justify-between gap-0.5 overflow-hidden rounded-md border-2 px-2 py-1 shadow-[2px_2px_0_0_#000] transition-opacity active:cursor-grabbing',
         team ? 'border-black' : 'border-rose-600 bg-white',
-        isDragging && 'opacity-40'
+        isDragging && 'opacity-40',
+        focusClasses(view, lesson)
       )}
-      style={{ minHeight: height, background: team?.color, color: team ? getReadableTextColor(team.color) : undefined }}
+      style={{ ...style, background: team?.color, color: team ? getReadableTextColor(team.color) : undefined }}
       aria-label={`${lessonLabel(lesson)}${team ? `, ${team.name}` : ', inget arbetslag'}`}
     >
-      <div className="flex items-start justify-between gap-1">
+      <div className="flex items-center justify-between gap-1">
         <span className={cn('font-mono text-xs font-bold', !team && 'text-rose-700')}>{lesson.start}–{lesson.end}</span>
         {toggle}
       </div>
-      {team && (
+      {team ? (
         <span className="flex min-w-0 items-center gap-1.5">
           <TeamBadge team={team} />
           <span className="truncate text-sm font-black">{team.name}</span>
         </span>
+      ) : (
+        <span className="text-xs font-bold text-rose-700">Inget lag. Dra till ett arbetslag.</span>
       )}
-      {warning}
+      {staffing[0] && <StaffingLine staffing={staffing[0]} view={view} />}
     </div>
   );
 }
 
-function ClassPart({ lesson, className, state }: { lesson: LabLesson; className: string; state: LabState }) {
-  const team = state.teams.find(t => t.id === classTeamId(lesson, className));
-  const absent = lesson.absentClasses?.includes(className) ?? false;
+/** "3 klasser · 4 kan" med initialerna på dem som kan. Orange utan reserv, röd när det saknas lärare. */
+function StaffingLine({ staffing, view }: { staffing: TeamStaffing; view: ViewContext }) {
+  const level = staffingLevel(staffing);
+  const names = staffing.availableIds.map(id => view.state.teachers.find(t => t.id === id)?.name ?? '?');
+  const count = staffing.classes.length;
+  const text = level === 'short'
+    ? `${names.length} kan till ${count} ${count === 1 ? 'klass' : 'klasser'}`
+    : level === 'tight'
+      ? `${names.length} av ${count} kan · 0 reserv`
+      : `${count} ${count === 1 ? 'klass' : 'klasser'} · ${names.length} kan`;
+  return (
+    <span className="flex min-w-0 items-center gap-1" title={names.length ? `Kan: ${names.join(', ')}` : 'Ingen i laget kan den här tiden'}>
+      <span
+        className={cn(
+          'truncate whitespace-nowrap text-[10.5px] font-bold',
+          level === 'short' && 'rounded bg-rose-700 px-1 text-white',
+          level === 'tight' && 'rounded border border-orange-800 bg-orange-100 px-1 text-orange-900'
+        )}
+      >
+        {text}
+      </span>
+      {staffing.availableIds.length > 0 && (
+        <span className="ml-auto flex shrink-0">
+          {staffing.availableIds.map((id, index) => (
+            <span
+              key={id}
+              className={cn(
+                'flex h-5 w-5 items-center justify-center rounded-full border-[1.5px] border-black text-[8.5px] font-black',
+                index > 0 && '-ml-1.5',
+                id === view.focusId ? 'bg-black text-white' : 'bg-white text-black'
+              )}
+            >
+              {names[index].slice(0, 2)}
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Klasser med samma lag i en delad lektion: en ruta i lagets färg med
+ * klassernas namn överst. Varje klass går att dra för sig.
+ */
+function ClassGroupBox({
+  lesson,
+  classes,
+  absent,
+  team,
+  staffing,
+}: {
+  lesson: LabLesson;
+  classes: string[];
+  absent: boolean;
+  team?: LabTeam;
+  staffing?: TeamStaffing;
+}) {
+  const textColor = team ? getReadableTextColor(team.color) : undefined;
+  return (
+    <div
+      className={cn('relative flex min-w-0 overflow-hidden rounded border-2', absent ? 'border-dashed border-black/30 opacity-60' : 'border-black')}
+      style={{ flex: `${classes.length} 1 0`, background: team?.color ?? '#fff' }}
+    >
+      {classes.map((className, index) => (
+        <ClassPart key={className} lesson={lesson} className={className} absent={absent} team={team} first={index === 0} />
+      ))}
+      {!absent && (
+        // Lagets namn och bemanning ligger över klasserna utan att ta emot klick: dragen går till klassen under.
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex min-w-0 flex-col gap-0.5 px-1 pb-0.5" style={{ color: textColor }}>
+          {team ? (
+            <>
+              <span className="flex min-w-0 items-center gap-1">
+                <TeamBadge team={team} size="sm" />
+                <span className="truncate text-[10px] font-black uppercase">{team.name}</span>
+              </span>
+              {staffing && (
+                <span className={cn('self-start truncate text-[9.5px] font-bold', staffingLevel(staffing) === 'short' && 'rounded bg-rose-700 px-1 text-white')}>
+                  {classes.length} {classes.length === 1 ? 'klass' : 'klasser'} · {staffing.availableIds.length} kan
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[10px] font-bold text-rose-700">Inget lag</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClassPart({ lesson, className, absent, team, first }: {
+  lesson: LabLesson;
+  className: string;
+  absent: boolean;
+  team?: LabTeam;
+  first: boolean;
+}) {
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: `part:${lesson.id}:${className}`,
     data: { kind: 'part', lessonId: lesson.id, className } satisfies DragData,
     disabled: absent,
   });
+  const strip = (
+    <span
+      className="block truncate border-b-[1.5px] border-black px-0.5 text-center text-[10px] font-black text-black"
+      style={{ background: absent ? `repeating-linear-gradient(135deg, ${classColor(className)} 0 4px, #fff 4px 9px)` : classColor(className) }}
+    >
+      {className}
+    </span>
+  );
   if (absent) {
     // Klassen har inte tema den här tiden i arkivet.
     return (
       <div
         title={`${className} har inte tema den här tiden`}
         aria-label={`${lessonLabel(lesson)} ${className}, ingen lektion`}
-        className="rounded border-2 border-dashed border-black/20 opacity-50"
-        style={{ background: `repeating-linear-gradient(135deg, ${classColor(className)} 0 4px, transparent 4px 9px)` }}
-      />
+        className={cn('flex min-w-0 flex-1 flex-col', !first && 'border-l border-black/20')}
+      >
+        {strip}
+      </div>
     );
   }
   return (
@@ -578,17 +883,15 @@ function ClassPart({ lesson, className, state }: { lesson: LabLesson; className:
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      title={`${className}${team ? `: ${team.name}` : ''}`}
+      title={`${className}${team ? `: ${team.name}` : ''}. Dra till ett lag.`}
       aria-label={`${lessonLabel(lesson)} ${className}${team ? `, ${team.name}` : ', inget arbetslag'}`}
       className={cn(
-        'flex min-w-0 cursor-grab touch-none flex-col justify-end rounded border-2 p-1 active:cursor-grabbing',
-        team ? 'border-black' : 'border-black/30',
+        'flex min-w-0 flex-1 cursor-grab touch-none flex-col active:cursor-grabbing',
+        !first && 'border-l border-dashed border-black/40',
         isDragging && 'opacity-40'
       )}
-      style={{ background: classColor(className) }}
     >
-      {/* De smala klassrutorna visar bara lagets siffra; namnet står i verktygstipset. */}
-      {team && <TeamBadge team={team} className="self-start" />}
+      {strip}
     </div>
   );
 }
@@ -596,40 +899,78 @@ function ClassPart({ lesson, className, state }: { lesson: LabLesson; className:
 // ── Arbetslagen ──
 
 function Teams({
-  state,
+  view,
   lessons,
   fixed,
-  busy,
+  tema,
+  avg,
   commit,
+  onFocus,
   onNewTeam,
 }: {
-  state: LabState;
+  view: ViewContext;
   lessons: LabLesson[];
   fixed: Map<string, FixedHours>;
-  busy?: BusyMap;
+  tema: Map<string, number>;
+  /** Snittet av lärarnas tid per vecka, i minuter. */
+  avg: number;
   commit: (change: (current: LabState) => LabState) => void;
+  onFocus: (teacherId: string) => void;
   onNewTeam: () => void;
 }) {
-  const plannable = state.teachers.filter(t => !t.resource);
-  const shares = useMemo(() => teacherTeachingMinutes(state, lessons, busy), [state, lessons, busy]);
+  const { state, focusId } = view;
+  const focusName = state.teachers.find(t => t.id === focusId)?.name;
+  // Mest tid först, så att det syns vem som har mycket och vem som har lite.
+  const rows = state.teachers
+    .filter(t => !t.resource)
+    .map(teacher => {
+      const fixedMinutes = fixed.get(teacher.id)?.total ?? 0;
+      const temaMinutes = tema.get(teacher.id) ?? 0;
+      return { teacher, fixedMinutes, temaMinutes, total: fixedMinutes + temaMinutes };
+    })
+    .sort((a, b) => b.total - a.total || a.teacher.name.localeCompare(b.teacher.name, 'sv'));
+  const max = Math.max(1, ...rows.map(r => r.total));
+
   return (
-    <section className="mt-8 grid gap-4">
-      <div className="sp-card flex flex-wrap items-center gap-2 px-4 py-3">
-        <h2 className="mr-2 font-bold" title="Timmar per vecka: fasta pass i arkivet plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
-        {plannable.map(teacher => (
-          <TeacherChip
-            key={teacher.id}
-            teacherId={teacher.id}
-            name={teacher.name}
-            days={teacher.days}
-            hours={shares.get(teacher.id) ?? 0}
-            fixed={fixed.get(teacher.id)}
-            teams={teamsOf(state, teacher.id)}
-          />
-        ))}
+    <section className="mt-6 grid gap-4">
+      <div className="sp-card px-4 py-3">
+        <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <h2 className="font-bold" title="Timmar per vecka: fasta pass i arkivet plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
+          <span className="flex items-center gap-1.5 text-xs text-gray-700">
+            <span className="h-2.5 w-3.5 rounded-sm border border-black bg-gray-400" aria-hidden /> fasta pass i arkivet
+            <span className="ml-2 h-2.5 w-3.5 rounded-sm border border-black bg-black" aria-hidden /> tema
+          </span>
+          {rows.length > 0 && <span className="text-xs font-bold">Snitt {formatHours(avg)}</span>}
+          <span className="text-xs text-gray-600 sm:ml-auto">
+            {focusName
+              ? <>Visar <b>{focusName}</b>: lag, dagar och lektioner. Klicka igen för att släppa.</>
+              : 'Klicka på en lärare för att se lärarens lag och lektioner.'}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {rows.map(row => (
+            <TeacherChip
+              key={row.teacher.id}
+              teacher={row.teacher}
+              teams={teamsOf(state, row.teacher.id)}
+              active={focusId === row.teacher.id}
+              onClick={() => onFocus(row.teacher.id)}
+              hours={(
+                <HourBar
+                  fixedMinutes={row.fixedMinutes}
+                  temaMinutes={row.temaMinutes}
+                  max={max}
+                  avg={avg}
+                  fixed={fixed.get(row.teacher.id)}
+                  inverted={focusId === row.teacher.id}
+                />
+              )}
+            />
+          ))}
+        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {sortTeams(state.teams).map(team => <TeamCard key={team.id} team={team} state={state} lessons={lessons} commit={commit} />)}
+        {sortTeams(state.teams).map(team => <TeamCard key={team.id} team={team} view={view} lessons={lessons} commit={commit} />)}
         <NewTeamCard onClick={onNewTeam} />
       </div>
     </section>
@@ -640,57 +981,59 @@ function Teams({
  * En lärare att dra: till en dag (blir tillgänglig), till ett arbetslag
  * (blir medlem). Samma lärare kan stå på flera ställen, därför eget `dragId`.
  * Ikonerna efter namnet är lagen läraren är med i, med lagets siffra. De visas
- * bara i lärarraden med timräknaren, inte i veckodagarna.
+ * bara i lärarraden med timmarna, inte i veckodagarna. Där går läraren
+ * också att klicka på för fokus.
  */
 function TeacherChip({
-  teacherId,
-  name,
-  days,
-  dragId = `teacher:${teacherId}`,
+  teacher,
+  dragId = `teacher:${teacher.id}`,
   size = 'md',
-  hours,
-  fixed,
   teams = [],
+  active = false,
+  hours,
+  onClick,
   onRemove,
   removeLabel,
 }: {
-  teacherId: string;
-  name: string;
-  days: LabDay[];
+  teacher: LabTeacher;
   dragId?: string;
+  size?: 'sm' | 'md';
   /** Arbetslagen läraren är med i, i sifferordning. */
   teams?: LabTeam[];
-  /** Lärarens del av gruppernas lektioner, i minuter. Visas som en räknare. */
-  hours?: number;
-  /** Fasta pass i arkivet, t.ex. matte. Läggs till räknaren. */
-  fixed?: FixedHours;
-  size?: 'sm' | 'md';
+  /** Läraren står i fokus. */
+  active?: boolean;
+  hours?: React.ReactNode;
+  onClick?: () => void;
   onRemove?: () => void;
   removeLabel?: string;
 }) {
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: dragId,
-    data: { kind: 'teacher', teacherId } satisfies DragData,
+    data: { kind: 'teacher', teacherId: teacher.id } satisfies DragData,
   });
   return (
     <span
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      title={`Tillgänglig: ${days.map(d => d.slice(0, 3).toLowerCase()).join(', ') || 'inga dagar'}`}
+      onClick={onClick}
+      aria-pressed={onClick ? active : undefined}
+      title={`Tillgänglig: ${teacher.days.map(d => d.slice(0, 3).toLowerCase()).join(', ') || 'inga dagar'}${onClick ? '. Klicka för fokus, dra till en dag eller ett lag.' : ''}`}
       className={cn(
-        'flex cursor-grab touch-none items-center gap-1 rounded-full border-2 border-black bg-white font-bold active:cursor-grabbing',
-        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm',
+        'flex cursor-grab touch-none items-center gap-1 rounded-full border-2 border-black font-bold active:cursor-grabbing',
+        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'gap-2 px-3 py-1 text-sm shadow-[2px_2px_0_0_#000]',
+        active ? 'bg-black text-white' : 'bg-white',
+        active && size === 'md' && 'shadow-[2px_2px_0_0_#facc15]',
         isDragging && 'opacity-40'
       )}
     >
-      {name}
+      {teacher.name}
       {teams.length > 0 && (
         <span className="flex gap-0.5">
           {teams.map(team => <TeamBadge key={team.id} team={team} size="sm" />)}
         </span>
       )}
-      {hours !== undefined && <HourCounter tema={hours} fixed={fixed} />}
+      {hours}
       {onRemove && (
         <button
           type="button"
@@ -699,7 +1042,7 @@ function TeacherChip({
           onClick={onRemove}
           title={removeLabel}
           aria-label={removeLabel}
-          className="-mr-1 rounded-full p-0.5 text-gray-500 hover:bg-rose-50 hover:text-rose-700"
+          className={cn('-mr-1 rounded-full p-0.5 hover:bg-rose-50 hover:text-rose-700', active ? 'text-gray-300' : 'text-gray-500')}
         >
           <X size={10} />
         </button>
@@ -709,29 +1052,43 @@ function TeacherChip({
 }
 
 /**
- * Lärarens timmar per vecka: summan, med en stapel där den grå delen är fasta
- * pass ur arkivet och den svarta temat. Uppdelningen står i verktygstipset.
+ * Lärarens timmar per vecka som en stapel: grått för fasta pass i arkivet och
+ * svart för temat, skalad mot den som har mest. Avviker läraren mycket från
+ * snittet står skillnaden efter. Uppdelningen står i verktygstipset.
  */
-function HourCounter({ tema, fixed }: { tema: number; fixed?: FixedHours }) {
-  const fixedMinutes = fixed?.total ?? 0;
-  const total = tema + fixedMinutes;
+function HourBar({ fixedMinutes, temaMinutes, max, avg, fixed, inverted }: {
+  fixedMinutes: number;
+  temaMinutes: number;
+  max: number;
+  avg: number;
+  fixed?: FixedHours;
+  inverted: boolean;
+}) {
+  const total = fixedMinutes + temaMinutes;
+  const diff = total - avg;
   const breakdown = [
     ...(fixed?.parts ?? []).map(part => `${part.label} ${formatHours(part.minutes)}`),
-    `tema ${formatHours(tema)}`,
+    `tema ${formatHours(temaMinutes)}`,
   ].join(' + ');
   return (
     <span
-      className={cn(
-        'relative overflow-hidden rounded-full border px-1.5 pb-[3px] text-[11px] leading-tight tabular-nums',
-        total > 0 ? 'border-black bg-white text-black' : 'border-gray-200 bg-gray-100 text-gray-500'
-      )}
+      className="flex items-center gap-1.5"
       title={`${breakdown} = ${formatHours(total)} per vecka. Temat räknas i klasspass: en satt lärare får hela lektionen, annars delas lagets klasser på dem som kan den dagen.`}
     >
-      {formatHours(total)}
-      {total > 0 && (
-        <span className="absolute inset-x-0 bottom-0 flex h-[3px]" aria-hidden>
-          <span className="bg-gray-400" style={{ width: `${(fixedMinutes / total) * 100}%` }} />
-          <span className="flex-1 bg-black" />
+      <span className={cn('flex h-2.5 w-24 overflow-hidden rounded-sm border-[1.5px]', inverted ? 'border-white' : 'border-black')} aria-hidden>
+        <span className="h-full bg-gray-400" style={{ width: `${(fixedMinutes / max) * 100}%` }} />
+        <span className={cn('h-full', inverted ? 'bg-white' : 'bg-black')} style={{ width: `${(temaMinutes / max) * 100}%` }} />
+      </span>
+      <span className="w-11 text-right font-mono text-xs tabular-nums">{formatHours(total)}</span>
+      {Math.abs(diff) >= DEVIATION_MINUTES && (
+        <span
+          className={cn(
+            'rounded border-[1.5px] px-1 text-[11px] font-bold',
+            diff > 0 ? 'border-blue-900 bg-blue-100 text-blue-950' : 'border-orange-800 bg-orange-100 text-orange-900'
+          )}
+          title={`${formatHours(Math.abs(diff))} ${diff > 0 ? 'över' : 'under'} snittet`}
+        >
+          {diff > 0 ? '+' : '−'}{formatHours(Math.abs(diff))}
         </span>
       )}
     </span>
@@ -740,15 +1097,16 @@ function HourCounter({ tema, fixed }: { tema: number; fixed?: FixedHours }) {
 
 function TeamCard({
   team,
-  state,
+  view,
   lessons,
   commit,
 }: {
   team: LabTeam;
-  state: LabState;
+  view: ViewContext;
   lessons: LabLesson[];
   commit: (change: (current: LabState) => LabState) => void;
 }) {
+  const { state, focusId } = view;
   const { setNodeRef, isOver, active } = useDroppable({ id: teamDropId(team.id) });
   const accepts = active && (active.data.current as DragData | undefined)?.kind !== undefined;
 
@@ -756,8 +1114,11 @@ function TeamCard({
     const classes = teamsInLesson(lesson, state.classes).get(team.id);
     return classes ? [{ lesson, classes }] : [];
   });
-  const minutes = owned.reduce((sum, { lesson }) => sum + lessonMinutes(lesson), 0);
+  const passes = owned.reduce((sum, { classes }) => sum + classes.length, 0);
+  // Lagets klasspass i minuter, delat på medlemmarna: ungefär det var och en undervisar.
+  const passMinutes = owned.reduce((sum, { lesson, classes }) => sum + lessonMinutes(lesson) * classes.length, 0);
   const members = team.memberIds.map(id => state.teachers.find(t => t.id === id)).filter(Boolean) as LabState['teachers'];
+  const focusHit = focusId === null || team.memberIds.includes(focusId);
 
   const updateTeam = (change: (t: LabTeam) => LabTeam) =>
     commit(current => ({ ...current, teams: current.teams.map(t => (t.id === team.id ? change(t) : t)) }));
@@ -765,7 +1126,12 @@ function TeamCard({
   return (
     <div
       ref={setNodeRef}
-      className={cn('sp-card flex flex-col', accepts && isOver && 'outline outline-4 outline-offset-2 outline-black')}
+      className={cn(
+        'sp-card flex flex-col transition-opacity',
+        accepts && isOver && 'outline outline-4 outline-offset-2 outline-black',
+        !focusHit && 'opacity-30',
+        focusId !== null && focusHit && 'outline outline-[3px] outline-offset-2 outline-amber-400'
+      )}
     >
       <div
         className="flex items-center gap-2 border-b-2 border-black px-3 py-2"
@@ -775,7 +1141,7 @@ function TeamCard({
           team={team}
           onCommit={number => commit(current => ({ ...current, teams: setTeamNumber(current.teams, team.id, number) }))}
         />
-        <ColorSwatch color={team.color} label={team.name} onChange={color => updateTeam(t => ({ ...t, color }))} />
+        <ColorSwatch icon color={team.color} label={team.name} onChange={color => updateTeam(t => ({ ...t, color }))} />
         <CommitInput
           value={team.name}
           ariaLabel="Arbetslagets namn"
@@ -801,7 +1167,10 @@ function TeamCard({
             type="button"
             onClick={() => updateTeam(t => ({ ...t, memberIds: t.memberIds.filter(id => id !== teacher.id) }))}
             title={`Ta bort ${teacher.name} ur laget`}
-            className="flex items-center gap-1 rounded-full border-2 border-black bg-black px-2 py-0.5 text-xs font-bold text-white hover:bg-gray-700"
+            className={cn(
+              'flex items-center gap-1 rounded-full border-2 px-2 py-0.5 text-xs font-bold hover:bg-gray-700',
+              teacher.id === focusId ? 'border-amber-400 bg-black text-amber-300' : 'border-black bg-black text-white'
+            )}
           >
             {teacher.name} <X size={11} />
           </button>
@@ -829,8 +1198,12 @@ function TeamCard({
       </div>
 
       {owned.length > 0 && (
-        <div className="border-t border-gray-200 px-3 py-1.5 text-xs text-gray-600">
-          {owned.length} {owned.length === 1 ? 'lektion' : 'lektioner'} · {formatMinutes(minutes)}
+        <div
+          className="border-t border-gray-200 px-3 py-1.5 text-xs text-gray-700"
+          title="Klasspass: en klass i en lektion. Tiden per lärare är lagets klasspass delade på medlemmarna, ungefär."
+        >
+          {owned.length} {owned.length === 1 ? 'lektion' : 'lektioner'} · {passes} klasspass
+          {members.length > 0 ? ` · ≈ ${formatHours(passMinutes / members.length)} per lärare` : ' · inga lärare än'}
         </div>
       )}
     </div>
