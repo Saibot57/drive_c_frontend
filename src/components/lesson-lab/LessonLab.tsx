@@ -64,6 +64,7 @@ import {
   canTeachLesson,
   classGroups,
   dayLunch,
+  lessonReserve,
   lessonStaffing,
   placeLessons,
   planStatus,
@@ -692,6 +693,9 @@ function LessonBox({
   const { state } = view;
   const team = state.teams.find(t => t.id === lesson.teamId);
   const staffing = lessonStaffing(state, lesson, view.busy);
+  // Ingen lärare i hela skolan är ledig att hoppa in. Visas inte när ett lag redan saknar lärare.
+  const noReserve = lessonReserve(state, lesson, state.template, view.busy) <= 0
+    && !staffing.some(s => staffingLevel(s) === 'short');
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: `lesson:${lesson.id}`,
     data: { kind: 'lesson', lessonId: lesson.id } satisfies DragData,
@@ -720,7 +724,10 @@ function LessonBox({
         style={style}
       >
         <div className="flex items-center justify-between gap-1 px-0.5">
-          <span className="font-mono text-[11px] font-bold">{lesson.start}–{lesson.end}</span>
+          <span className="flex items-center gap-1">
+            <span className="font-mono text-[11px] font-bold">{lesson.start}–{lesson.end}</span>
+            {noReserve && <ReserveMark quiet={view.quietTight} />}
+          </span>
           {toggle}
         </div>
         <div className="flex min-h-0 flex-1 gap-1">
@@ -766,38 +773,45 @@ function LessonBox({
       ) : (
         <span className="text-xs font-bold text-rose-700">Inget lag. Dra till ett arbetslag.</span>
       )}
-      {staffing[0] && <StaffingLine staffing={staffing[0]} view={view} />}
+      {staffing[0] && <StaffingLine staffing={staffing[0]} view={view} noReserve={noReserve} />}
     </div>
   );
 }
 
+const NO_RESERVE_TEXT = 'Ingen lärare i skolan är ledig att hoppa in under passet.';
+
+/** "0 reserv" i orange, eller en liten gul ikon när pass utan marginal är nedtonade. */
+function ReserveMark({ quiet }: { quiet: boolean }) {
+  if (quiet) return <QuietMark title={NO_RESERVE_TEXT} />;
+  return (
+    <span className="shrink-0 whitespace-nowrap rounded border border-orange-800 bg-orange-100 px-1 text-[10px] font-bold text-orange-900" title={NO_RESERVE_TEXT}>
+      0 reserv
+    </span>
+  );
+}
+
 /**
- * "3 klasser · 4 kan" med initialerna på dem som kan. Orange utan reserv, röd
- * när det saknas lärare. Utan reserv blir det en liten gul ikon när pass utan
- * marginal är nedtonade i statusraden.
+ * "3 klasser · 4 kan" med initialerna på lagets lärare som kan. Röd när laget
+ * har för få. Saknas reserv i hela skolan står det efter (`ReserveMark`).
  */
-function StaffingLine({ staffing, view }: { staffing: TeamStaffing; view: ViewContext }) {
+function StaffingLine({ staffing, view, noReserve }: { staffing: TeamStaffing; view: ViewContext; noReserve: boolean }) {
   const level = staffingLevel(staffing);
   const names = staffing.availableIds.map(id => view.state.teachers.find(t => t.id === id)?.name ?? '?');
   const count = staffing.classes.length;
-  const quiet = level === 'tight' && view.quietTight;
   const text = level === 'short'
     ? `${names.length} kan till ${count} ${count === 1 ? 'klass' : 'klasser'}`
-    : level === 'tight'
-      ? `${names.length} av ${count} kan${quiet ? '' : ' · 0 reserv'}`
-      : `${count} ${count === 1 ? 'klass' : 'klasser'} · ${names.length} kan`;
+    : `${count} ${count === 1 ? 'klass' : 'klasser'} · ${names.length} kan`;
   return (
     <span className="flex min-w-0 items-center gap-1" title={names.length ? `Kan: ${names.join(', ')}` : 'Ingen i laget kan den här tiden'}>
       <span
         className={cn(
           'truncate whitespace-nowrap text-[10.5px] font-bold',
-          level === 'short' && 'rounded bg-rose-700 px-1 text-white',
-          level === 'tight' && !quiet && 'rounded border border-orange-800 bg-orange-100 px-1 text-orange-900'
+          level === 'short' && 'rounded bg-rose-700 px-1 text-white'
         )}
       >
         {text}
       </span>
-      {quiet && <QuietMark title="Ingen i reserv: blir någon sjuk saknas en lärare." />}
+      {noReserve && <ReserveMark quiet={view.quietTight} />}
       {staffing.availableIds.length > 0 && (
         <span className="ml-auto flex shrink-0">
           {staffing.availableIds.map((id, index) => (
