@@ -40,6 +40,7 @@ import { readStored, useLessonLabState, writeStored } from '@/hooks/useLessonLab
 import { cn } from '@/lib/utils';
 import { downloadBlob } from '@/utils/download';
 import { buildLabExport, labExportFileName } from '@/utils/labExport';
+import { isOwnPlan } from '@/utils/labPlans';
 import type { LabDay, LabLesson, LabState, LabTeacher, LabTeam } from '@/types/lessonLab';
 import {
   assignTeam,
@@ -152,6 +153,12 @@ export default function LessonLab() {
   const lab = useLessonLabState();
   const { state, loaded, commit, undo, redo, canUndo, canRedo } = lab;
   const source = useLabArchive(state, loaded);
+  // Ett delat upplägg kan bygga på ett arkiv som bara ägaren når. Då saknas
+  // de fasta timmarna, och det ska sägas som det är i stället för "finns inte".
+  const sharedPlan = lab.activePlan ? !isOwnPlan(lab.activePlan) : false;
+  const archiveUnreachable = Boolean(
+    sharedPlan && state.archiveId && source.archives && !source.archives.some(a => a.id === state.archiveId)
+  );
   const [dragging, setDragging] = useState<DragData | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [plansOpen, setPlansOpen] = useState(false);
@@ -379,7 +386,9 @@ export default function LessonLab() {
                 >
                   <option value="">Tavlan (inget arkiv)</option>
                   {state.archiveId && !source.archives?.some(a => a.id === state.archiveId) && (
-                    <option value={state.archiveId}>{source.archives ? 'Arkivet finns inte längre' : 'Laddar arkiv…'}</option>
+                    <option value={state.archiveId}>
+                      {!source.archives ? 'Laddar arkiv…' : archiveUnreachable ? 'Inte delat med dig' : 'Arkivet finns inte längre'}
+                    </option>
                   )}
                   {(source.archives ?? []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
@@ -444,7 +453,13 @@ export default function LessonLab() {
                   onShowLesson={showLesson}
                   onApplyFix={applyFix}
                 />
-                {source.status === 'error' && (
+                {archiveUnreachable && (
+                  <div className="sp-toast mb-4 bg-amber-50 px-4 py-2 text-sm" role="status">
+                    Upplägget bygger på ett arkiv i schemaplaneraren som inte är delat med dig, så lärarnas fasta
+                    timmar saknas. Be {lab.activePlan?.ownerUsername ?? 'den som äger upplägget'} dela arkivet med dig.
+                  </div>
+                )}
+                {source.status === 'error' && !archiveUnreachable && (
                   <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm" role="status">
                     <span>Kunde inte läsa arkivet{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
                     {state.archiveId && (
@@ -486,7 +501,16 @@ export default function LessonLab() {
             )}
           </div>
 
-          {loaded && <LabPlansPanel lab={lab} open={plansOpen} onOpenChange={setPlansOpen} />}
+          {loaded && (
+            <LabPlansPanel
+              lab={lab}
+              open={plansOpen}
+              onOpenChange={setPlansOpen}
+              activeArchiveId={state.archiveId ?? null}
+              archives={source.archives}
+              onArchiveShared={source.upsertArchive}
+            />
+          )}
         </div>
 
         <DragOverlay dropAnimation={null}>

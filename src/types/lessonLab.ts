@@ -103,6 +103,14 @@ export interface LabPlanSummary {
   version: number;
   createdAt: string | null;
   updatedAt: string | null;
+  /**
+   * Delning. Saknas när backend är äldre än delningen; då är alla upplägg
+   * ens egna (se `isOwnPlan`).
+   */
+  ownerUsername?: string | null;
+  isOwner?: boolean;
+  /** Användarnamnen som upplägget delats med. */
+  sharedWith?: string[];
 }
 
 /** Ett sparat upplägg: hela labbets läge under ett namn. */

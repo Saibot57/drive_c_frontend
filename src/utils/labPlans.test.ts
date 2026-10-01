@@ -4,10 +4,13 @@ import type { LabPlan, LabPlanSummary, LabState } from '@/types/lessonLab';
 import {
   changedLabel,
   importLegacyState,
+  isOwnPlan,
   isSeedState,
   LEGACY_IMPORT_ID_KEY,
   LEGACY_MIGRATED_KEY,
   LEGACY_STATE_KEY,
+  missingArchiveAccess,
+  ownPlanCount,
   planFileName,
   sortPlans,
   uniquePlanName,
@@ -59,6 +62,31 @@ describe('ordning och rader', () => {
     const next = upsertPlan(plans, { ...summary('a', 'A2', '2026-09-30T12:00:00'), state: LAB_SEED } as LabPlan);
     expect(next.map(p => p.name)).toEqual(['A2', 'B']);
     expect(next[0]).not.toHaveProperty('state');
+  });
+});
+
+describe('delning', () => {
+  it('upsert behåller ägare och delning', () => {
+    const shared = { ...summary('a', 'A'), ownerUsername: 'anna', isOwner: false, sharedWith: ['bo'] };
+    expect(upsertPlan([], shared)[0]).toEqual(shared);
+  });
+
+  it('upplägg utan uppgift om ägare räknas som egna', () => {
+    const plans = [
+      summary('a', 'A'),
+      { ...summary('b', 'B'), isOwner: true },
+      { ...summary('c', 'C'), isOwner: false, ownerUsername: 'anna' },
+    ];
+    expect(plans.map(isOwnPlan)).toEqual([true, true, false]);
+    expect(ownPlanCount(plans)).toBe(2);
+  });
+
+  it('säger vilka med tillgång till upplägget som inte når arkivet', () => {
+    const plan = { ownerUsername: 'tobias', sharedWith: ['hanna', 'gustav'] };
+    expect(missingArchiveAccess(plan, { ownerUsername: 'tobias', sharedWith: ['hanna'] })).toEqual(['gustav']);
+    expect(missingArchiveAccess(plan, { ownerUsername: 'hanna', sharedWith: [] })).toEqual(['tobias', 'gustav']);
+    expect(missingArchiveAccess({ ownerUsername: 'tobias', sharedWith: [] }, { ownerUsername: 'tobias', sharedWith: [] })).toEqual([]);
+    expect(missingArchiveAccess(plan, null)).toBeNull();
   });
 });
 

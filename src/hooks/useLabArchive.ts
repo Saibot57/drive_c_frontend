@@ -75,5 +75,10 @@ export function useLabArchive(state: LabState, loaded: boolean) {
   );
   const archiveName = archives?.find(a => a.id === archiveId)?.name ?? null;
 
-  return { archives, archiveName, activities, status, fetchActivities, fixed, busy, unknownNames };
+  /** Ett arkiv som just ändrats, t.ex. delats från delningsrutan för upplägg. */
+  const upsertArchive = useCallback((archive: PlannerArchiveSummary) => {
+    setArchives(current => current?.map(a => (a.id === archive.id ? archive : a)) ?? current);
+  }, []);
+
+  return { archives, archiveName, activities, status, fetchActivities, fixed, busy, unknownNames, upsertArchive };
 }

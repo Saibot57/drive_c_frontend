@@ -77,4 +77,19 @@ export const arbetslagService = {
     const response = await fetchWithAuth(planUrl(id), { method: 'DELETE' });
     await readData(response, 'Kunde inte ta bort upplägget.');
   },
+
+  /** Ger en kollega tillgång. Svarar med upplägget utan läget. */
+  async addShare(id: string, username: string): Promise<LabPlanSummary> {
+    const response = await fetchWithAuth(`${planUrl(id)}/shares`, {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    });
+    return readData<LabPlanSummary>(response, 'Kunde inte dela upplägget.');
+  },
+
+  /** Tar bort någons tillgång, eller lämnar delningen med sitt eget namn. */
+  async removeShare(id: string, username: string): Promise<void> {
+    const response = await fetchWithAuth(`${planUrl(id)}/shares/${encodeURIComponent(username)}`, { method: 'DELETE' });
+    await readData(response, 'Kunde inte ta bort delningen.');
+  },
 };

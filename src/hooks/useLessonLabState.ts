@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { LAB_SEED } from '@/config/lessonLabSeed';
+import { useAuth } from '@/contexts/AuthContext';
 import { arbetslagService, PlanConflictError } from '@/services/arbetslagService';
 import type { LabPlan, LabPlanSummary, LabState } from '@/types/lessonLab';
 import { isEditableElement } from '@/utils/dom';
@@ -13,6 +14,7 @@ import {
   importLegacyState,
   MAX_PLANS,
   NEW_PLAN_NAME,
+  ownPlanCount,
   sortPlans,
   toSummary,
   uniquePlanName,
@@ -69,8 +71,9 @@ const storedId = (key: string): string => {
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
 
+/** Gränsen gäller egna upplägg; de som delats med en räknas inte. */
 const assertRoom = (plans: readonly LabPlanSummary[]) => {
-  if (plans.length >= MAX_PLANS) throw new Error(`Du kan ha högst ${MAX_PLANS} upplägg.`);
+  if (ownPlanCount(plans) >= MAX_PLANS) throw new Error(`Du kan ha högst ${MAX_PLANS} upplägg.`);
 };
 
 /** Kön lever på modulnivå, så att den överlever sidbyten inom appen. */
@@ -108,6 +111,8 @@ const loadStartup = (): Promise<Startup> => {
 };
 
 export function useLessonLabState() {
+  const { user } = useAuth();
+  const username = user?.username ?? null;
   const [history, setHistory] = useState<UndoState<LabState>>(() => initialUndoState(LAB_SEED));
   const [plans, setPlans] = useState<LabPlanSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -290,13 +295,9 @@ export function useLessonLabState() {
     }
   }, 'Kunde inte byta namn.'), [run]);
 
-  const deletePlan = useCallback((id: string) => run(async () => {
-    // Osparat i ett upplägg som tas bort ska inte skickas.
-    labPlanStore.reset(id);
-    await labPlanStore.settle(id);
-    await arbetslagService.deletePlan(id);
+  /** Stryker ett upplägg ur listan och öppnar ett annat om det var det öppna. */
+  const dropPlan = useCallback(async (id: string) => {
     labPlanStore.forget(id);
-
     const rest = plansRef.current.filter(p => p.id !== id);
     setPlans(rest);
     if (id !== activeIdRef.current) return;
@@ -305,7 +306,44 @@ export function useLessonLabState() {
     } else {
       show(await arbetslagService.createPlan({ id: uuidv4(), name: DEFAULT_PLAN_NAME, state: LAB_SEED }));
     }
-  }, 'Kunde inte ta bort upplägget.'), [run, show, fetchAndShow]);
+  }, [show, fetchAndShow]);
+
+  /** Bara för egna upplägg. Ett delat lämnar man med `leavePlan`. */
+  const deletePlan = useCallback((id: string) => run(async () => {
+    // Osparat i ett upplägg som tas bort ska inte skickas.
+    labPlanStore.reset(id);
+    await labPlanStore.settle(id);
+    await arbetslagService.deletePlan(id);
+    await dropPlan(id);
+  }, 'Kunde inte ta bort upplägget.'), [run, dropPlan]);
+
+  /**
+   * Lämnar ett upplägg som någon annan delat. Upplägget finns kvar för de
+   * andra, så det som inte hunnit sparas skickas först, som vid byte av upplägg.
+   */
+  const leavePlan = useCallback((id: string) => run(async () => {
+    if (!username) throw new Error('Kunde inte avgöra vem du är. Logga in igen.');
+    await labPlanStore.flush(id);
+    labPlanStore.reset(id);
+    await labPlanStore.settle(id);
+    await arbetslagService.removeShare(id, username);
+    await dropPlan(id);
+  }, 'Kunde inte lämna upplägget.'), [run, dropPlan, username]);
+
+  /** Ger en kollega tillgång. Kastar vidare, så att delningsrutan kan visa felet. */
+  const sharePlan = useCallback(async (id: string, recipient: string) => {
+    const summary = await arbetslagService.addShare(id, recipient.trim());
+    setPlans(current => upsertPlan(current, summary));
+    return summary;
+  }, []);
+
+  /** Tar bort en kollegas tillgång. Kastar vidare, som `sharePlan`. */
+  const unsharePlan = useCallback(async (id: string, member: string) => {
+    await arbetslagService.removeShare(id, member);
+    setPlans(current => current.map(p => (
+      p.id === id ? { ...p, sharedWith: (p.sharedWith ?? []).filter(name => name !== member) } : p
+    )));
+  }, []);
 
   /** Efter en konflikt: glömmer det osparade och läser upplägget som det är på servern. */
   const reloadActive = useCallback(() => run(async () => {
@@ -315,6 +353,25 @@ export function useLessonLabState() {
     await labPlanStore.settle(id);
     await fetchAndShow(id);
   }, 'Kunde inte läsa om upplägget.'), [run, fetchAndShow]);
+
+  /**
+   * Efter en konflikt: sparar det som står på skärmen som ett nytt upplägg i
+   * stället för att kasta det, och lämnar originalet som det är på servern.
+   */
+  const saveConflictAsCopy = useCallback(() => run(async () => {
+    const id = activeIdRef.current;
+    if (!id) return;
+    assertRoom(plansRef.current);
+    const summary = plansRef.current.find(p => p.id === id);
+    const plan = await arbetslagService.createPlan({
+      id: uuidv4(),
+      name: uniquePlanName(`${summary?.name ?? NEW_PLAN_NAME} (mina ändringar)`, plansRef.current.map(p => p.name)),
+      state: presentRef.current,
+    });
+    // Först när kopian finns glöms det osparade i originalet.
+    labPlanStore.reset(id);
+    show(plan);
+  }, 'Kunde inte spara en kopia.'), [run, show]);
 
   const retrySave = useCallback(() => {
     if (activeIdRef.current) labPlanStore.retry(activeIdRef.current);
@@ -361,6 +418,7 @@ export function useLessonLabState() {
 
     plans,
     activePlan: plans.find(p => p.id === activeId) ?? null,
+    username,
     busy,
     loadError,
     retryLoad,
@@ -370,11 +428,15 @@ export function useLessonLabState() {
     saveError,
     retrySave,
     reloadActive,
+    saveConflictAsCopy,
     openPlan,
     createPlan,
     duplicatePlan,
     renamePlan,
     deletePlan,
+    leavePlan,
+    sharePlan,
+    unsharePlan,
   };
 }
 

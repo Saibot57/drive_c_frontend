@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Cloud, CloudOff, Copy, Layers, Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Cloud, CloudOff, Copy, Layers, Loader2, LogOut, Pencil, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { LessonLabState } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
 import type { LabPlanSummary } from '@/types/lessonLab';
-import { changedLabel, MAX_PLANS } from '@/utils/labPlans';
+import type { PlannerArchiveSummary } from '@/types/schedule';
+import { changedLabel, isOwnPlan, MAX_PLANS, ownPlanCount } from '@/utils/labPlans';
+import { LabShareDialog } from '@/components/lesson-lab/LabShareDialog';
 
 /**
  * Arbetslags sparade upplägg: panelen till höger i den enkla vyn, sparstatusen
@@ -16,6 +18,7 @@ import { changedLabel, MAX_PLANS } from '@/utils/labPlans';
 
 type Lab = Pick<LessonLabState,
   | 'plans' | 'activePlan' | 'busy' | 'openPlan' | 'createPlan' | 'duplicatePlan' | 'renamePlan' | 'deletePlan'
+  | 'leavePlan' | 'sharePlan' | 'unsharePlan' | 'saveConflictAsCopy'
   | 'saveStatus' | 'saveError' | 'retrySave' | 'reloadActive' | 'planError' | 'dismissPlanError' | 'loadError' | 'retryLoad'>;
 
 /** "Sparat", "Ändrat", "Sparar…" eller "Ej sparat", som i terminsplaneraren. */
@@ -40,10 +43,15 @@ export function PlanNotices({ lab }: { lab: Lab }) {
     <>
       {lab.saveStatus === 'conflict' && (
         <div className="sp-toast mb-4 flex flex-wrap items-center justify-between gap-2 bg-rose-50 px-4 py-2 text-sm" role="alert">
-          <span>Upplägget har ändrats någon annanstans. Ladda om? Det som ändrats här sedan dess sparas inte.</span>
-          <button type="button" className="flex items-center gap-1 text-xs font-semibold underline" onClick={() => void lab.reloadActive()} disabled={lab.busy}>
-            <RefreshCw size={12} /> Ladda om
-          </button>
+          <span>Upplägget har ändrats någon annanstans. Ladda om, eller spara det du ändrat här som ett eget upplägg.</span>
+          <span className="flex flex-wrap gap-3">
+            <button type="button" className="flex items-center gap-1 text-xs font-semibold underline" onClick={() => void lab.saveConflictAsCopy()} disabled={lab.busy}>
+              <Copy size={12} /> Spara mina ändringar som kopia
+            </button>
+            <button type="button" className="flex items-center gap-1 text-xs font-semibold underline" onClick={() => void lab.reloadActive()} disabled={lab.busy}>
+              <RefreshCw size={12} /> Ladda om
+            </button>
+          </span>
         </div>
       )}
       {lab.saveStatus === 'error' && (
@@ -86,11 +94,22 @@ export function PlanLoading({ lab }: { lab: Pick<Lab, 'loadError' | 'retryLoad'>
  * Panelen styrs utifrån, så att uppläggets namn i verktygsraden kan öppna
  * den. Som "Sparade veckor" är den alltid hopfälld när sidan öppnas.
  */
-export function LabPlansPanel({ lab, open, onOpenChange }: { lab: Lab; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function LabPlansPanel({ lab, open, onOpenChange, activeArchiveId, archives, onArchiveShared }: {
+  lab: Lab;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Det öppna uppläggets arkiv och arkivlistan, för delningsrutans varning. */
+  activeArchiveId: string | null;
+  archives: PlannerArchiveSummary[] | null;
+  onArchiveShared: (archive: PlannerArchiveSummary) => void;
+}) {
   const collapsed = !open;
   const toggle = () => onOpenChange(!open);
+  const [shareId, setShareId] = useState<string | null>(null);
+  // Läses ur listan, så att rutan visar vilka som har tillgång just nu.
+  const sharePlan = shareId ? lab.plans.find(p => p.id === shareId) ?? null : null;
 
-  const full = lab.plans.length >= MAX_PLANS;
+  const full = ownPlanCount(lab.plans) >= MAX_PLANS;
   const fullTitle = `Du kan ha högst ${MAX_PLANS} upplägg. Ta bort ett först.`;
 
   return (
@@ -152,6 +171,7 @@ export function LabPlansPanel({ lab, open, onOpenChange }: { lab: Lab; open: boo
                     full={full}
                     fullTitle={fullTitle}
                     lab={lab}
+                    onShare={() => setShareId(plan.id)}
                   />
                 ))}
               </ul>
@@ -159,19 +179,39 @@ export function LabPlansPanel({ lab, open, onOpenChange }: { lab: Lab; open: boo
           </div>
         )}
       </div>
+      <LabShareDialog
+        plan={sharePlan}
+        activePlanId={lab.activePlan?.id ?? null}
+        activeArchiveId={activeArchiveId}
+        archives={archives}
+        onArchiveShared={onArchiveShared}
+        onShare={lab.sharePlan}
+        onUnshare={lab.unsharePlan}
+        onClose={() => setShareId(null)}
+      />
     </aside>
   );
 }
 
-function PlanRow({ plan, active, busy, full, fullTitle, lab }: {
+/** "Delat av anna" för andras upplägg, "Delat med 2" för egna som delats. */
+const shareLabel = (plan: LabPlanSummary): string | null => {
+  if (!isOwnPlan(plan)) return plan.ownerUsername ? `Delat av ${plan.ownerUsername}` : 'Delat med dig';
+  const count = plan.sharedWith?.length ?? 0;
+  return count > 0 ? `Delat med ${count}` : null;
+};
+
+function PlanRow({ plan, active, busy, full, fullTitle, lab, onShare }: {
   plan: LabPlanSummary;
   active: boolean;
   busy: boolean;
   full: boolean;
   fullTitle: string;
   lab: Lab;
+  onShare: () => void;
 }) {
   const [mode, setMode] = useState<'view' | 'rename' | 'confirmDelete'>('view');
+  const own = isOwnPlan(plan);
+  const shared = shareLabel(plan);
   const [draft, setDraft] = useState(plan.name);
 
   // Sant när namnrutan redan är stängd, så att en blur efteråt inte sparar igen.
@@ -214,7 +254,9 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab }: {
             <span className="break-words text-sm font-bold leading-tight">
               {plan.name}{active ? ' • aktiv' : ''}
             </span>
-            <span className="text-[11px] text-gray-500">{changedLabel(plan.updatedAt)}</span>
+            <span className="text-[11px] text-gray-500">
+              {changedLabel(plan.updatedAt)}{shared ? ` · ${shared}` : ''}
+            </span>
           </button>
         )}
 
@@ -245,13 +287,24 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab }: {
             <Button
               size="sm"
               variant="neutral"
+              onClick={onShare}
+              disabled={busy}
+              className="sp-btn h-8 w-8 bg-sky-100 p-0 hover:bg-sky-200"
+              aria-label={`Dela ${plan.name}`}
+              title="Dela"
+            >
+              <Users size={14} />
+            </Button>
+            <Button
+              size="sm"
+              variant="neutral"
               onClick={() => setMode('confirmDelete')}
               disabled={busy}
               className="sp-btn h-8 w-8 bg-rose-100 p-0 text-rose-800 hover:bg-rose-200"
-              aria-label={`Ta bort ${plan.name}`}
-              title="Ta bort"
+              aria-label={own ? `Ta bort ${plan.name}` : `Lämna ${plan.name}`}
+              title={own ? 'Ta bort' : 'Lämna'}
             >
-              <Trash2 size={14} />
+              {own ? <Trash2 size={14} /> : <LogOut size={14} />}
             </Button>
           </div>
         )}
@@ -259,14 +312,18 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab }: {
 
       {mode === 'confirmDelete' && (
         <div className="flex items-center justify-between gap-2 rounded border-2 border-rose-300 bg-rose-50 px-2 py-1 text-xs">
-          <span className="font-semibold text-rose-800">Ta bort {plan.name}?</span>
+          <span className="font-semibold text-rose-800">
+            {own
+              ? `Ta bort ${plan.name}?${plan.sharedWith?.length ? ' Det försvinner för alla.' : ''}`
+              : `Lämna ${plan.name}? Det finns kvar för de andra.`}
+          </span>
           <span className="flex gap-2">
             <button
               type="button"
               className="font-bold text-rose-800 underline"
-              onClick={() => { setMode('view'); void lab.deletePlan(plan.id); }}
+              onClick={() => { setMode('view'); void (own ? lab.deletePlan(plan.id) : lab.leavePlan(plan.id)); }}
             >
-              Ja, ta bort
+              {own ? 'Ja, ta bort' : 'Ja, lämna'}
             </button>
             <button type="button" className="font-semibold underline" onClick={() => setMode('view')} autoFocus>Nej</button>
           </span>

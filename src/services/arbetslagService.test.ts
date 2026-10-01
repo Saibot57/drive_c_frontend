@@ -45,4 +45,26 @@ describe('arbetslagService', () => {
     expect(url).toMatch(/\/arbetslag$/);
     expect(JSON.parse(init.body)).toMatchObject({ id: 'p1', name: 'Mitt upplägg' });
   });
+
+  it('delar med ett användarnamn och läser svaret som en rad i listan', async () => {
+    const fetch = respond(201, { success: true, data: { id: 'p1', name: 'Mitt upplägg', version: 3, createdAt: null, updatedAt: null, sharedWith: ['hanna'] } });
+    vi.stubGlobal('fetch', fetch);
+    const shared = await arbetslagService.addShare('p1', 'hanna');
+    expect(shared.sharedWith).toEqual(['hanna']);
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toMatch(/\/arbetslag\/p1\/shares$/);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ username: 'hanna' });
+  });
+
+  it('tar bort en delning med kodat namn och visar serverns fel', async () => {
+    const fetch = respond(200, { success: true, data: { id: 'p1' } });
+    vi.stubGlobal('fetch', fetch);
+    await arbetslagService.removeShare('p1', 'å b');
+    expect(fetch.mock.calls[0][0]).toMatch(/\/arbetslag\/p1\/shares\/%C3%A5%20b$/);
+    expect(fetch.mock.calls[0][1].method).toBe('DELETE');
+
+    vi.stubGlobal('fetch', respond(403, { success: false, error: 'Bara ägaren kan ta bort andras tillgång' }));
+    await expect(arbetslagService.removeShare('p1', 'bo')).rejects.toThrow('Bara ägaren');
+  });
 });
