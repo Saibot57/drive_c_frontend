@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Cloud, CloudOff, Copy, Layers, Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { LessonLabState } from '@/hooks/useLessonLabState';
-import { readStored, writeStored } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
 import type { LabPlanSummary } from '@/types/lessonLab';
 import { changedLabel, MAX_PLANS } from '@/utils/labPlans';
@@ -14,8 +13,6 @@ import { changedLabel, MAX_PLANS } from '@/utils/labPlans';
  * i verktygsraden och meddelandena om fel och konflikter. Förebilden är
  * "Sparade veckor" i schemaplaneraren.
  */
-
-const PANEL_KEY = 'lessonLab.plansPanel.v1';
 
 type Lab = Pick<LessonLabState,
   | 'plans' | 'activePlan' | 'busy' | 'openPlan' | 'createPlan' | 'duplicatePlan' | 'renamePlan' | 'deletePlan'
@@ -86,22 +83,20 @@ export function PlanLoading({ lab }: { lab: Pick<Lab, 'loadError' | 'retryLoad'>
 }
 
 export function LabPlansPanel({ lab }: { lab: Lab }) {
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => { setCollapsed(readStored(PANEL_KEY, raw => raw === true, false)); }, []);
-  const toggle = () => setCollapsed(current => {
-    writeStored(PANEL_KEY, !current);
-    return !current;
-  });
+  // Som "Sparade veckor": alltid hopfälld när sidan öppnas.
+  const [collapsed, setCollapsed] = useState(true);
+  const toggle = () => setCollapsed(current => !current);
 
   const full = lab.plans.length >= MAX_PLANS;
   const fullTitle = `Du kan ha högst ${MAX_PLANS} upplägg. Ta bort ett först.`;
 
   return (
     <aside
-      className={cn('shrink-0 transition-all duration-300', collapsed ? 'lg:w-[72px]' : 'lg:w-[320px]')}
+      className={cn('flex shrink-0 flex-col transition-all duration-300', collapsed ? 'lg:w-[72px]' : 'lg:w-[320px]')}
       aria-label="Sparade upplägg"
     >
-      <div className={cn('sp-card flex flex-col lg:sticky lg:top-4', collapsed ? 'p-2' : 'p-4')}>
+      {/* Lika hög som sidan bredvid, från verktygsraden och nedåt. */}
+      <div className={cn('sp-card flex flex-1 flex-col', collapsed ? 'p-2' : 'p-4')}>
         <div className={cn('flex', collapsed ? 'flex-col items-center gap-3' : 'mb-4 items-center justify-between')}>
           <h2 className={cn('flex items-center gap-2 font-bold', collapsed && 'sr-only')}>
             <Layers size={18} /> Sparade upplägg
@@ -125,7 +120,7 @@ export function LabPlansPanel({ lab }: { lab: Lab }) {
         </div>
 
         {!collapsed && (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
             <Button
               variant="neutral"
               onClick={() => void lab.createPlan()}
@@ -136,19 +131,22 @@ export function LabPlansPanel({ lab }: { lab: Lab }) {
               <Plus size={14} className="mr-2" /> Nytt upplägg
             </Button>
 
-            <ul className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto pr-1">
-              {lab.plans.map(plan => (
-                <PlanRow
-                  key={plan.id}
-                  plan={plan}
-                  active={plan.id === lab.activePlan?.id}
-                  busy={lab.busy}
-                  full={full}
-                  fullTitle={fullTitle}
-                  lab={lab}
-                />
-              ))}
-            </ul>
+            {/* Listan scrollar inuti panelen och gör aldrig sidan högre. */}
+            <div className="lg:relative lg:flex-1">
+              <ul className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto pr-1 lg:absolute lg:inset-0 lg:max-h-none">
+                {lab.plans.map(plan => (
+                  <PlanRow
+                    key={plan.id}
+                    plan={plan}
+                    active={plan.id === lab.activePlan?.id}
+                    busy={lab.busy}
+                    full={full}
+                    fullTitle={fullTitle}
+                    lab={lab}
+                  />
+                ))}
+              </ul>
+            </div>
           </div>
         )}
       </div>

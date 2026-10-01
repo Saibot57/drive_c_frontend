@@ -232,61 +232,57 @@ export default function LessonLab() {
       </div>
 
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
-        <div className="relative z-10 pb-24">
-          <div className="sp-toolbar mb-6 flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
-            <FeatureNavigation />
-            <p className="max-w-md text-xs text-gray-600">
-              Dra en lektion till ett arbetslag. Dela en ruta för att ge klasserna olika lag.
-              Dra lärare till en dag för att göra dem tillgängliga, eller in i ett lag.
-            </p>
-            <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-              <PlanSaveStatus lab={lab} />
-              <select
-                className="sp-input h-10 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
-                value={state.archiveId ?? ''}
-                onChange={event => chooseArchive(event.target.value)}
-                disabled={source.status === 'loading'}
-                aria-label="Arkiv som grund"
-                title="Arkivets temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
-              >
-                <option value="">Tavlan (inget arkiv)</option>
-                {state.archiveId && !source.archives?.some(a => a.id === state.archiveId) && (
-                  <option value={state.archiveId}>{source.archives ? 'Arkivet finns inte längre' : 'Laddar arkiv…'}</option>
-                )}
-                {(source.archives ?? []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-              {state.archiveId && (
-                <Button
-                  variant="neutral"
-                  size="icon"
-                  className="sp-btn"
-                  onClick={() => void buildFromArchive(state.archiveId as string)}
+        {/* Panelen står bredvid allt annat, verktygsraden också, som i schemaplaneraren. */}
+        <div className="relative z-10 flex flex-col gap-6 pb-24 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <div className="sp-toolbar mb-6 flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
+              <FeatureNavigation />
+              <p className="max-w-md text-xs text-gray-600">
+                Dra en lektion till ett arbetslag. Dela en ruta för att ge klasserna olika lag.
+                Dra lärare till en dag för att göra dem tillgängliga, eller in i ett lag.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+                <PlanSaveStatus lab={lab} />
+                <select
+                  className="sp-input h-10 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
+                  value={state.archiveId ?? ''}
+                  onChange={event => chooseArchive(event.target.value)}
                   disabled={source.status === 'loading'}
-                  title="Läs om arkivet. Lektioner vid samma tid behåller sina arbetslag."
-                  aria-label="Läs om arkivet"
+                  aria-label="Arkiv som grund"
+                  title="Arkivets temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
                 >
-                  {source.status === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                  <option value="">Tavlan (inget arkiv)</option>
+                  {state.archiveId && !source.archives?.some(a => a.id === state.archiveId) && (
+                    <option value={state.archiveId}>{source.archives ? 'Arkivet finns inte längre' : 'Laddar arkiv…'}</option>
+                  )}
+                  {(source.archives ?? []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                {state.archiveId && (
+                  <Button
+                    variant="neutral"
+                    size="icon"
+                    className="sp-btn"
+                    onClick={() => void buildFromArchive(state.archiveId as string)}
+                    disabled={source.status === 'loading'}
+                    title="Läs om arkivet. Lektioner vid samma tid behåller sina arbetslag."
+                    aria-label="Läs om arkivet"
+                  >
+                    {source.status === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                  </Button>
+                )}
+                <Button variant="neutral" size="icon" className="sp-btn" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
+                  <Undo2 size={16} />
                 </Button>
-              )}
-              <Button variant="neutral" size="icon" className="sp-btn" onClick={undo} disabled={!canUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
-                <Undo2 size={16} />
-              </Button>
-              <Button variant="neutral" size="icon" className="sp-btn" onClick={redo} disabled={!canRedo} title="Gör om (Ctrl+Shift+Z)" aria-label="Gör om">
-                <Redo2 size={16} />
-              </Button>
-              <Button asChild variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200">
-                <Link href="/features/termin" title="Tillbaka till terminsplaneraren">
-                  <DoorOpen size={16} className="mr-2" /> Terminen
-                </Link>
-              </Button>
+                <Button variant="neutral" size="icon" className="sp-btn" onClick={redo} disabled={!canRedo} title="Gör om (Ctrl+Shift+Z)" aria-label="Gör om">
+                  <Redo2 size={16} />
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <PlanNotices lab={lab} />
+            <PlanNotices lab={lab} />
 
-          {!loaded ? <PlanLoading lab={lab} /> : (
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-              <div className="min-w-0 flex-1">
+            {!loaded ? <PlanLoading lab={lab} /> : (
+              <div>
                 {source.status === 'error' && (
                   <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm" role="status">
                     <span>Kunde inte läsa arkivet{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
@@ -327,10 +323,10 @@ export default function LessonLab() {
                   onNewTeam={() => commit(current => newTeam(current).state)}
                 />
               </div>
+            )}
+          </div>
 
-              <LabPlansPanel lab={lab} />
-            </div>
-          )}
+          {loaded && <LabPlansPanel lab={lab} />}
         </div>
 
         <DragOverlay dropAnimation={null}>
