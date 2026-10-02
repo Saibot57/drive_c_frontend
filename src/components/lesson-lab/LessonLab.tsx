@@ -354,18 +354,18 @@ export default function LessonLab() {
         {/* Panelen står bredvid allt annat, verktygsraden också, som i schemaplaneraren. */}
         <div className="relative z-10 flex flex-col gap-6 pb-24 lg:flex-row">
           <div className="min-w-0 flex-1">
-            <div className="sp-toolbar mb-4 flex flex-col items-start gap-3 p-4 lg:flex-row lg:flex-wrap lg:items-center">
+            <div className="sp-toolbar mb-6 flex flex-col items-start gap-3 p-4 lg:flex-row lg:flex-wrap lg:items-center">
               <FeatureNavigation />
 
               {/* Upplägget är det som sparas. Namnet öppnar panelen med de andra. */}
-              <div className="flex items-center gap-2 rounded-lg border-2 border-black bg-amber-50 py-1 pl-3 pr-3">
+              <div className="flex items-center gap-2 rounded-lg border-2 border-black bg-amber-50 py-0.5 pl-3 pr-3">
                 <span className={groupLabel}>Upplägg</span>
                 <button
                   type="button"
                   onClick={() => setPlansOpen(open => !open)}
                   aria-expanded={plansOpen}
                   title={plansOpen ? 'Dölj sparade upplägg' : 'Visa sparade upplägg'}
-                  className="sp-input flex h-9 max-w-[14rem] items-center gap-2 rounded-md bg-white px-3 text-sm font-bold"
+                  className="sp-input flex h-8 max-w-[14rem] items-center gap-2 rounded-md bg-white px-3 text-sm font-bold"
                 >
                   <span className="truncate">{lab.activePlan?.name ?? 'Inget upplägg'}</span>
                   <ChevronDown size={14} className="shrink-0" />
@@ -377,7 +377,7 @@ export default function LessonLab() {
               <div className="flex items-center gap-2">
                 <span className={groupLabel}>Arkiv</span>
                 <select
-                  className="sp-input h-9 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
+                  className="sp-input h-8 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
                   value={state.archiveId ?? ''}
                   onChange={event => chooseArchive(event.target.value)}
                   disabled={source.status === 'loading'}
@@ -395,7 +395,7 @@ export default function LessonLab() {
                 {state.archiveId && (
                   <Button
                     variant="neutral"
-                    className="sp-btn h-9 gap-1.5 px-3"
+                    className="sp-btn h-8 gap-1.5 px-3"
                     onClick={() => void buildFromArchive(state.archiveId as string)}
                     disabled={source.status === 'loading'}
                     title="Läs om arkivet. Lektioner vid samma tid behåller sina arbetslag."
