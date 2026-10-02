@@ -377,7 +377,7 @@ export default function LessonLab() {
               <div className="flex items-center gap-2">
                 <span className={groupLabel}>Schema</span>
                 <select
-                  className="sp-input h-8 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
+                  className="sp-input h-8 max-w-[10rem] rounded-md bg-white px-3 text-sm font-semibold"
                   value={state.archiveId ?? ''}
                   onChange={event => chooseArchive(event.target.value)}
                   disabled={source.status === 'loading'}
@@ -426,11 +426,14 @@ export default function LessonLab() {
                 </Button>
                 <Button
                   variant="neutral"
-                  className="sp-btn gap-1.5 bg-sky-100 px-3 hover:bg-sky-200"
+                  size="icon"
+                  className="sp-btn bg-sky-100 hover:bg-sky-200"
                   onClick={() => setHelpOpen(open => !open)}
                   aria-expanded={helpOpen}
+                  title="Så funkar det"
+                  aria-label="Så funkar det"
                 >
-                  <HelpCircle size={16} /> Så funkar det
+                  <HelpCircle size={16} />
                 </Button>
               </div>
             </div>
