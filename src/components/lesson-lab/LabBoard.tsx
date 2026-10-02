@@ -79,7 +79,7 @@ export function LabBoard(props: Props) {
               <div className="flex flex-1 flex-col gap-2 p-2">
                 {before.map(lesson => <LessonCard key={lesson.id} {...props} lesson={lesson} />)}
                 <AddButton onClick={() => addLesson(day, true)} label="Lektion före lunch" />
-                <div className="my-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400" aria-label="Lunch">
+                <div className="my-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500" aria-label="Lunch">
                   <span className="flex-1 border-t-2 border-dotted border-gray-400" />
                   Lunch
                   <span className="flex-1 border-t-2 border-dotted border-gray-400" />

@@ -1319,7 +1319,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const planningStatsContent = planningByDay && (
     <div className="mb-3 shrink-0 border-b-2 border-gray-100 pb-3">
-      <p className="mb-1 text-[10px] font-bold uppercase text-gray-400">
+      <p className="mb-1 text-2xs font-bold uppercase text-gray-500">
         Planering – {planningLabel}
       </p>
       <div className="space-y-1 text-xs">
@@ -1355,7 +1355,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onClick={() => toggleSection('subjects')}
         aria-expanded={sections.subjects}
         title={sections.subjects ? 'Fäll ihop ämnen' : 'Fäll ut ämnen'}
-        className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase text-gray-400 mb-1 hover:text-gray-600 transition-colors"
+        className="shrink-0 flex items-center gap-1 text-2xs font-bold uppercase text-gray-500 mb-1 hover:text-gray-700 transition-colors"
       >
         Ämnen
         {sections.subjects ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -1378,7 +1378,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onClick={() => toggleSection('teachers')}
         aria-expanded={sections.teachers}
         title={sections.teachers ? 'Fäll ihop lärare' : 'Fäll ut lärare'}
-        className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase text-gray-400 mt-3 mb-1 hover:text-gray-600 transition-colors"
+        className="shrink-0 flex items-center gap-1 text-2xs font-bold uppercase text-gray-500 mt-3 mb-1 hover:text-gray-700 transition-colors"
       >
         Lärare
         {sections.teachers ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -2028,7 +2028,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   </Button>
 
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-gray-500">Spara vecka</Label>
+                    <Label className="text-2xs font-bold uppercase text-gray-500">Spara vecka</Label>
                     <div className="flex gap-2">
                       <Input
                         value={weekName}
@@ -2069,7 +2069,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
                         {sharedArchives.length > 0 && (
                           <>
-                            <Label className="block pt-3 text-xs font-bold uppercase text-gray-500">
+                            <Label className="block pt-3 text-2xs font-bold uppercase text-gray-500">
                               Delade med mig
                             </Label>
                             {sharedArchives.map((archive) => (
