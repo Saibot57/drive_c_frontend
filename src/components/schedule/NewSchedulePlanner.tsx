@@ -1426,8 +1426,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
            <div className="lg:hidden">
              <FeatureNavigation />
            </div>
-           {/* Desktop title wrapper – matches left sidebar width */}
-           <div className={`flex-shrink-0 transition-all duration-300 hidden lg:flex items-center overflow-hidden lg:-ml-4 ${isSidebarCollapsed ? 'w-auto pl-[122px] justify-start' : 'w-[360px] justify-center'}`}>
+           {/* Lika bred som vänsterpanelen, så att sökfältet linjerar med schemat.
+               Namnet står vänsterställt, på samma plats som på de andra sidorna,
+               och flyttar sig inte när panelen fälls ihop. */}
+           <div className="hidden w-[360px] flex-shrink-0 items-center justify-start lg:-ml-4 lg:flex lg:pl-4">
               <FeatureNavigation />
            </div>
            
