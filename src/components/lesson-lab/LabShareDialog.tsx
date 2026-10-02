@@ -101,8 +101,8 @@ export function LabShareDialog({
     for (const name of missing) {
       onArchiveShared(await plannerService.addArchiveShare(archive.id, name));
     }
-    setNotice(`Arkivet "${archive.name}" är delat.`);
-  }, 'Kunde inte dela arkivet.');
+    setNotice(`Schemat "${archive.name}" är delat.`);
+  }, 'Kunde inte dela schemat.');
 
   const own = plan ? isOwnPlan(plan) : false;
   const sharedWith = plan?.sharedWith ?? [];
@@ -142,18 +142,18 @@ export function LabShareDialog({
           {missing.length > 0 && archive && (
             <div className="space-y-2 rounded bg-amber-50 px-3 py-2 text-sm" role="status">
               <p>
-                Upplägget bygger på arkivet <strong>{archive.name}</strong> i schemaplaneraren.{' '}
+                Upplägget bygger på schemat <strong>{archive.name}</strong> i schemaplaneraren.{' '}
                 {missing.join(', ')} når inte det och ser därför inte lärarnas fasta timmar.
               </p>
               <Button type="button" variant="neutral" className="sp-btn h-8" disabled={working} onClick={() => void shareArchive()}>
-                Dela arkivet med {missing.length === 1 ? missing[0] : 'dem'} också
+                Dela schemat med {missing.length === 1 ? missing[0] : 'dem'} också
               </Button>
             </div>
           )}
           {archiveOutOfReach && (
             <p className="rounded bg-amber-50 px-3 py-2 text-sm" role="status">
-              Upplägget bygger på ett arkiv i schemaplaneraren som du själv inte når. De som saknar det ser inte
-              lärarnas fasta timmar förrän arkivets ägare delar det med dem.
+              Upplägget bygger på ett schema i schemaplaneraren som du själv inte når. De som saknar det ser inte
+              lärarnas fasta timmar förrän schemats ägare delar det med dem.
             </p>
           )}
 

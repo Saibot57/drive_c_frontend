@@ -375,19 +375,19 @@ export default function LessonLab() {
 
               {/* Arkivet är schemat upplägget bygger på: tiderna och de fasta passen. */}
               <div className="flex items-center gap-2">
-                <span className={groupLabel}>Arkiv</span>
+                <span className={groupLabel}>Schema</span>
                 <select
-                  className="sp-input h-8 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
+                  className="sp-input h-8 max-w-[10rem] rounded-md bg-white px-3 text-sm font-semibold"
                   value={state.archiveId ?? ''}
                   onChange={event => chooseArchive(event.target.value)}
                   disabled={source.status === 'loading'}
-                  aria-label="Arkiv som grund"
-                  title="Arkivets temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
+                  aria-label="Schema som grund"
+                  title="Schemats temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
                 >
-                  <option value="">Tavlan (inget arkiv)</option>
+                  <option value="">Tavlan (inget schema)</option>
                   {state.archiveId && !source.archives?.some(a => a.id === state.archiveId) && (
                     <option value={state.archiveId}>
-                      {!source.archives ? 'Laddar arkiv…' : archiveUnreachable ? 'Inte delat med dig' : 'Arkivet finns inte längre'}
+                      {!source.archives ? 'Laddar scheman…' : archiveUnreachable ? 'Inte delat med dig' : 'Schemat finns inte längre'}
                     </option>
                   )}
                   {(source.archives ?? []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -395,13 +395,14 @@ export default function LessonLab() {
                 {state.archiveId && (
                   <Button
                     variant="neutral"
-                    className="sp-btn h-8 gap-1.5 px-3"
+                    size="icon"
+                    className="sp-btn h-8 w-8"
                     onClick={() => void buildFromArchive(state.archiveId as string)}
                     disabled={source.status === 'loading'}
-                    title="Läs om arkivet. Lektioner vid samma tid behåller sina arbetslag."
+                    title="Läs om schemat. Lektioner vid samma tid behåller sina arbetslag."
+                    aria-label="Läs om schemat. Lektioner vid samma tid behåller sina arbetslag."
                   >
                     {source.status === 'loading' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                    Läs om
                   </Button>
                 )}
               </div>
@@ -425,11 +426,14 @@ export default function LessonLab() {
                 </Button>
                 <Button
                   variant="neutral"
-                  className="sp-btn gap-1.5 bg-sky-100 px-3 hover:bg-sky-200"
+                  size="icon"
+                  className="sp-btn bg-sky-100 hover:bg-sky-200"
                   onClick={() => setHelpOpen(open => !open)}
                   aria-expanded={helpOpen}
+                  title="Så funkar det"
+                  aria-label="Så funkar det"
                 >
-                  <HelpCircle size={16} /> Så funkar det
+                  <HelpCircle size={16} />
                 </Button>
               </div>
             </div>
@@ -455,13 +459,13 @@ export default function LessonLab() {
                 />
                 {archiveUnreachable && (
                   <div className="sp-toast mb-4 bg-amber-50 px-4 py-2 text-sm" role="status">
-                    Upplägget bygger på ett arkiv i schemaplaneraren som inte är delat med dig, så lärarnas fasta
-                    timmar saknas. Be {lab.activePlan?.ownerUsername ?? 'den som äger upplägget'} dela arkivet med dig.
+                    Upplägget bygger på ett schema i schemaplaneraren som inte är delat med dig, så lärarnas fasta
+                    timmar saknas. Be {lab.activePlan?.ownerUsername ?? 'den som äger upplägget'} dela schemat med dig.
                   </div>
                 )}
                 {source.status === 'error' && !archiveUnreachable && (
                   <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm" role="status">
-                    <span>Kunde inte läsa arkivet{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
+                    <span>Kunde inte läsa schemat{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
                     {state.archiveId && (
                       <button type="button" className="text-xs font-semibold underline" onClick={() => void source.fetchActivities(state.archiveId as string)}>
                         Försök igen
@@ -471,7 +475,7 @@ export default function LessonLab() {
                 )}
                 {source.unknownNames.length > 0 && (
                   <div className="sp-toast mb-4 flex flex-wrap items-center justify-between gap-2 bg-amber-50 px-4 py-2 text-sm" role="status">
-                    <span>I arkivet finns också {source.unknownNames.join(', ')}, som inte är med i labbet.</span>
+                    <span>I schemat finns också {source.unknownNames.join(', ')}, som inte är med i labbet.</span>
                     <button type="button" className="flex items-center gap-1 text-xs font-semibold underline" onClick={addUnknownTeachers}>
                       <UserPlus size={14} /> Lägg till
                     </button>
@@ -995,9 +999,9 @@ function Teams({
     <section className="mt-6 grid gap-4">
       <div className="sp-card px-4 py-3">
         <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <h2 className="font-bold" title="Timmar per vecka: fasta pass i arkivet plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
+          <h2 className="font-bold" title="Timmar per vecka: fasta pass i schemat plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
           <span className="flex items-center gap-1.5 text-xs text-gray-700">
-            <span className="h-2.5 w-3.5 rounded-sm border border-black bg-gray-400" aria-hidden /> fasta pass i arkivet
+            <span className="h-2.5 w-3.5 rounded-sm border border-black bg-gray-400" aria-hidden /> fasta pass i schemat
             <span className="ml-2 h-2.5 w-3.5 rounded-sm border border-black bg-black" aria-hidden /> tema
           </span>
           {rows.length > 0 && <span className="text-xs font-bold">Snitt {formatHours(avg)}</span>}
