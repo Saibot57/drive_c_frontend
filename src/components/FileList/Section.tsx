@@ -28,7 +28,7 @@ export const Section: React.FC<SectionProps> = ({ section, showTags }) => {
         {section.name}
       </h2>
       <div
-        className="rounded-2xl border-2 border-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+        className="rounded-xl border-2 border-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
         style={{ backgroundColor: sectionColor }}
       >
         <div className="bg-white">

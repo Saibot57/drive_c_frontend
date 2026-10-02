@@ -32,10 +32,10 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
             href={file.notebooklm}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#fcd7d7] font-bold hover:underline cursor-pointer ml-1 flex-shrink-0"
-            title="Open in NotebookLM"
+            className="ml-1 flex-shrink-0 rounded border border-black bg-[#fcd7d7] px-1 text-2xs font-bold text-black transition-colors hover:bg-[#f9b4b4]"
+            title="Öppna i NotebookLM"
           >
-            *
+            NB
           </a>
         )}
       </div>

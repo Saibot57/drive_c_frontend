@@ -22,6 +22,9 @@ const config: Config = {
         overlay: 'rgba(0,0,0,0.8)',
         bg: '#E0E7F1',
         text: '#000',
+        // Button och Input skriver bg-bw och text-mtext.
+        bw: '#fff',
+        mtext: '#000',
         border: 'hsl(var(--border))',
         darkBg: '#2c312b',
         darkText: '#eeefe9',
@@ -67,9 +70,9 @@ const config: Config = {
       },
       translate: {
         boxShadowX: '2px',
-        boxShadowY: '3px',
+        boxShadowY: '2px',
         reverseBoxShadowX: '-2px',
-        reverseBoxShadowY: '-3px'
+        reverseBoxShadowY: '-2px'
       },
       fontWeight: {
         base: '500',

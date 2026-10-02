@@ -37,7 +37,7 @@ export function AreaLibraryCard({
     <div
       onPointerDown={event => onPointerDown(area, event)}
       style={{ backgroundColor: area.color, color: textColor }}
-      className={`group relative mb-2 cursor-grab touch-none select-none rounded sp-source-card transition-all hover:shadow-md active:cursor-grabbing ${
+      className={`group relative mb-2 cursor-grab touch-none select-none rounded sp-source-card transition-all hover:shadow-[2px_2px_0_0_#000] active:cursor-grabbing ${
         isSub ? 'ml-5 px-2 py-1' : 'p-2'
       }`}
       title="Dra ut i hjulet för att placera"

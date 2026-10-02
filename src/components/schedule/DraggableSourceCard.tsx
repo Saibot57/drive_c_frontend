@@ -41,7 +41,7 @@ export function DraggableSourceCard({
       {...listeners}
       {...attributes}
       style={{ backgroundColor: color ?? course.color }}
-      className={`relative group p-2 mb-2 rounded sp-source-card transition-all ${dragDisabled ? 'cursor-default' : 'cursor-grab hover:shadow-md'} ${isDragging ? 'opacity-50' : ''} ${isSelected ? 'sp-ring' : ''}`}
+      className={`relative group p-2 mb-2 rounded sp-source-card transition-all ${dragDisabled ? 'cursor-default' : 'cursor-grab hover:shadow-[2px_2px_0_0_#000]'} ${isDragging ? 'opacity-50' : ''} ${isSelected ? 'sp-ring' : ''}`}
     >
       <div className="flex justify-between items-start">
         <div>
