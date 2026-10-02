@@ -19,6 +19,15 @@
   .font-monument {
     font-family: var(--font-monument);
   }
+
+  /* Gemensam fokusmarkering. Webbläsarens egen ring är 1 px och försvinner
+     mot de svarta 2 px-kanterna. :where() håller specificiteten låg, så
+     komponenternas egna fokusstilar (focus-visible:ring-*, outline-none,
+     .mc-cell) vinner fortfarande. */
+  :where(a, button, [role="button"], summary, input, select, textarea):focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 2px;
+  }
 }
 
 /* Tailwind Components Layer */
