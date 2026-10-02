@@ -85,7 +85,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
             <thead>
               <tr className="border-b-2 border-black text-left text-[11px] uppercase tracking-wide text-gray-500">
                 <th className="px-2 py-1">Lärare</th>
-                {showFixed && <th className="px-2 py-1 text-right" title="Pass i arkivet som inte är tema, t.ex. matte">Fast</th>}
+                {showFixed && <th className="px-2 py-1 text-right" title="Pass i schemat som inte är tema, t.ex. matte">Fast</th>}
                 <th className="px-2 py-1 text-right">Undervisar</th>
                 <th className="px-2 py-1 text-right" title="Lektioner som ägs av lärarens arbetslag">Planerar</th>
                 <th className="px-2 py-1">Områden</th>
@@ -129,7 +129,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
             </tbody>
           </table>
           <p className="px-2 pt-2 text-xs text-gray-500">
-            {showFixed && 'Fast är passen i arkivet som inte är tema, t.ex. matte. '}
+            {showFixed && 'Fast är passen i schemat som inte är tema, t.ex. matte. '}
             Undervisar räknar en lektion en gång även om läraren står på två klasser. Planerar är lektionerna som lärarens arbetslag äger.
           </p>
         </div>

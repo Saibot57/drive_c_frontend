@@ -456,13 +456,13 @@ export default function LessonLab() {
                 />
                 {archiveUnreachable && (
                   <div className="sp-toast mb-4 bg-amber-50 px-4 py-2 text-sm" role="status">
-                    Upplägget bygger på ett arkiv i schemaplaneraren som inte är delat med dig, så lärarnas fasta
-                    timmar saknas. Be {lab.activePlan?.ownerUsername ?? 'den som äger upplägget'} dela arkivet med dig.
+                    Upplägget bygger på ett schema i schemaplaneraren som inte är delat med dig, så lärarnas fasta
+                    timmar saknas. Be {lab.activePlan?.ownerUsername ?? 'den som äger upplägget'} dela schemat med dig.
                   </div>
                 )}
                 {source.status === 'error' && !archiveUnreachable && (
                   <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm" role="status">
-                    <span>Kunde inte läsa arkivet{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
+                    <span>Kunde inte läsa schemat{source.archiveName ? ` ${source.archiveName}` : ''}. Rutorna är som förut, men de fasta timmarna saknas.</span>
                     {state.archiveId && (
                       <button type="button" className="text-xs font-semibold underline" onClick={() => void source.fetchActivities(state.archiveId as string)}>
                         Försök igen
@@ -472,7 +472,7 @@ export default function LessonLab() {
                 )}
                 {source.unknownNames.length > 0 && (
                   <div className="sp-toast mb-4 flex flex-wrap items-center justify-between gap-2 bg-amber-50 px-4 py-2 text-sm" role="status">
-                    <span>I arkivet finns också {source.unknownNames.join(', ')}, som inte är med i labbet.</span>
+                    <span>I schemat finns också {source.unknownNames.join(', ')}, som inte är med i labbet.</span>
                     <button type="button" className="flex items-center gap-1 text-xs font-semibold underline" onClick={addUnknownTeachers}>
                       <UserPlus size={14} /> Lägg till
                     </button>
@@ -996,9 +996,9 @@ function Teams({
     <section className="mt-6 grid gap-4">
       <div className="sp-card px-4 py-3">
         <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <h2 className="font-bold" title="Timmar per vecka: fasta pass i arkivet plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
+          <h2 className="font-bold" title="Timmar per vecka: fasta pass i schemat plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
           <span className="flex items-center gap-1.5 text-xs text-gray-700">
-            <span className="h-2.5 w-3.5 rounded-sm border border-black bg-gray-400" aria-hidden /> fasta pass i arkivet
+            <span className="h-2.5 w-3.5 rounded-sm border border-black bg-gray-400" aria-hidden /> fasta pass i schemat
             <span className="ml-2 h-2.5 w-3.5 rounded-sm border border-black bg-black" aria-hidden /> tema
           </span>
           {rows.length > 0 && <span className="text-xs font-bold">Snitt {formatHours(avg)}</span>}

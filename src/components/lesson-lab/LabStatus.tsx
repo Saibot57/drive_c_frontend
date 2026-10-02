@@ -89,7 +89,7 @@ export function StatusBar({
           </span>
         ))}
         {spread && (
-          <span className={cn(pill, 'bg-white sm:ml-auto')} title="Lärarnas tid per vecka: fasta pass i arkivet plus temat">
+          <span className={cn(pill, 'bg-white sm:ml-auto')} title="Lärarnas tid per vecka: fasta pass i schemat plus temat">
             Lärartid {formatHours(spread.min)} – {formatHours(spread.max)} · snitt {formatHours(spread.avg)}
           </span>
         )}
@@ -202,8 +202,8 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
         <li><b>Dagarna:</b> grå lärare kan inte den dagen. Klicka på + för att lägga till, × för att ta bort.</li>
         <li><b>Lagen:</b> dra en lärare in i ett lag. Klicka på en medlem för att ta bort den.</li>
         <li><b>Fokus:</b> klicka på en lärare i lärarraden för att se lärarens lag, dagar och lektioner.</li>
-        <li><b>Timmar:</b> grått är fasta pass i arkivet (matte m.m.), svart är temat.</li>
-        <li><b>Upplägg</b> sparas av sig själva. <b>Arkivet</b> ger lektionernas tider och lärarnas fasta pass.</li>
+        <li><b>Timmar:</b> grått är fasta pass i schemat (matte m.m.), svart är temat.</li>
+        <li><b>Upplägg</b> sparas av sig själva. <b>Schemat</b> ger lektionernas tider och lärarnas fasta pass.</li>
         <li><b>Ångra</b> med Ctrl+Z, gör om med Ctrl+Shift+Z.</li>
         <li><b>JSON</b> laddar ner upplägget med regler och timmar, för att låta en AI föreslå alternativ.</li>
       </ul>
