@@ -20,10 +20,8 @@ import {
   Columns3,
   Download,
   HelpCircle,
-  Loader2,
   Plus,
   Redo2,
-  RefreshCw,
   Square,
   Trash2,
   Undo2,
@@ -375,35 +373,23 @@ export default function LessonLab() {
 
               {/* Arkivet är schemat upplägget bygger på: tiderna och de fasta passen. */}
               <div className="flex items-center gap-2">
-                <span className={groupLabel}>Arkiv</span>
+                <span className={groupLabel}>Schema</span>
                 <select
                   className="sp-input h-8 max-w-[14rem] rounded-md bg-white px-3 text-sm font-semibold"
                   value={state.archiveId ?? ''}
                   onChange={event => chooseArchive(event.target.value)}
                   disabled={source.status === 'loading'}
-                  aria-label="Arkiv som grund"
-                  title="Arkivets temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
+                  aria-label="Schema som grund"
+                  title="Schemats temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
                 >
-                  <option value="">Tavlan (inget arkiv)</option>
+                  <option value="">Tavlan (inget schema)</option>
                   {state.archiveId && !source.archives?.some(a => a.id === state.archiveId) && (
                     <option value={state.archiveId}>
-                      {!source.archives ? 'Laddar arkiv…' : archiveUnreachable ? 'Inte delat med dig' : 'Arkivet finns inte längre'}
+                      {!source.archives ? 'Laddar scheman…' : archiveUnreachable ? 'Inte delat med dig' : 'Schemat finns inte längre'}
                     </option>
                   )}
                   {(source.archives ?? []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
-                {state.archiveId && (
-                  <Button
-                    variant="neutral"
-                    className="sp-btn h-8 gap-1.5 px-3"
-                    onClick={() => void buildFromArchive(state.archiveId as string)}
-                    disabled={source.status === 'loading'}
-                    title="Läs om arkivet. Lektioner vid samma tid behåller sina arbetslag."
-                  >
-                    {source.status === 'loading' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                    Läs om
-                  </Button>
-                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
