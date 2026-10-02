@@ -20,8 +20,10 @@ import {
   Columns3,
   Download,
   HelpCircle,
+  Loader2,
   Plus,
   Redo2,
+  RefreshCw,
   Square,
   Trash2,
   Undo2,
@@ -390,6 +392,19 @@ export default function LessonLab() {
                   )}
                   {(source.archives ?? []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
+                {state.archiveId && (
+                  <Button
+                    variant="neutral"
+                    size="icon"
+                    className="sp-btn h-8 w-8"
+                    onClick={() => void buildFromArchive(state.archiveId as string)}
+                    disabled={source.status === 'loading'}
+                    title="Läs om schemat. Lektioner vid samma tid behåller sina arbetslag."
+                    aria-label="Läs om schemat. Lektioner vid samma tid behåller sina arbetslag."
+                  >
+                    {source.status === 'loading' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                  </Button>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
