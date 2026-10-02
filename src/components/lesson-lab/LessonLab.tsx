@@ -134,9 +134,6 @@ const teamsOf = (state: LabState, teacherId: string) =>
 
 const lessonLabel = (lesson: LabLesson) => `${lesson.day.slice(0, 3)} ${lesson.start}`;
 
-const minutesToTime = (minutes: number) =>
-  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-
 /** Det som fokus, bemanning och timmar behöver, samlat för komponenterna. */
 type ViewContext = {
   state: LabState;
@@ -545,36 +542,25 @@ function Schedule({
   // Hela schemat tar emot brickor från arbetslagen: släppt här = inget lag.
   const { setNodeRef, isOver, active } = useDroppable({ id: SCHEDULE_DROP });
   const returning = (active?.data.current as DragData | undefined)?.kind === 'brick';
-  const height = (timeline.end - timeline.start) * PX_PER_MINUTE;
 
   return (
-    <div className="overflow-x-auto pb-2">
-      {/* Två rader: dagarnas rubriker och dagarna. Axeln står i andra raden, så att den linjerar med dagarna. */}
+    // Luft runt om, utan att något flyttas: annars kapar skrollningen fredagens
+    // skugga och släppramarna, som ligger utanför dagarna.
+    <div className="-mx-2 -mt-2 overflow-x-auto p-2">
+      {/* Två rader, dagarnas rubriker och dagarna, så att rubrikerna blir lika höga. Ingen tidsaxel:
+          lektionerna visar sina tider, och dagarna linjerar med boxarna ovanför och nedanför. */}
       <div
         ref={setNodeRef}
         className={cn(
-          'grid min-w-[960px] grid-cols-[36px_repeat(5,minmax(0,1fr))] grid-rows-[auto_auto] gap-x-3 rounded-xl',
+          'grid min-w-[960px] grid-cols-5 grid-rows-[auto_auto] gap-x-3 rounded-xl',
           returning && isOver && 'outline-dashed outline-2 outline-offset-4 outline-rose-600'
         )}
       >
-        <div className="relative col-start-1 row-start-2 pt-2" aria-hidden>
-          <div className="relative" style={{ height }}>
-            {timeline.hours.map(minutes => (
-              <span
-                key={minutes}
-                className="absolute right-0 font-mono text-[11px] font-bold text-gray-700"
-                style={{ top: (minutes - timeline.start) * PX_PER_MINUTE - 8 }}
-              >
-                {minutesToTime(minutes)}
-              </span>
-            ))}
-          </div>
-        </div>
         {LAB_DAYS.map((day, index) => (
           <DayColumn
             key={day}
             day={day}
-            column={index + 2}
+            column={index + 1}
             view={view}
             lessons={lessons.filter(l => l.day === day)}
             timeline={timeline}
