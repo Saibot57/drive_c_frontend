@@ -1,6 +1,11 @@
 /* ── Schedule Planner Theme System ── */
 
 /* ── Neo — neobrutalist (only theme) ── */
+/* Variablerna står även på :root. Dialoger portas ut ur .sp-root, och
+   planerarens DragOverlay, högerklicksmeny och instruktionsrutor ligger
+   utanför den; utan variablerna där tappar sp-input, sp-btn och menyerna
+   sin ram och skugga. */
+:root,
 .sp-root {
   --sp-border: 2px solid #000;
   --sp-border-light: 1px solid rgba(0,0,0,0.2);
@@ -174,11 +179,9 @@
   box-shadow: var(--sp-shadow);
 }
 
-/* Planerarens DragOverlay ritas utanför .sp-root och når inte variablerna
-   där, därav reservvärdena. Utan dem blev det dragna kortet ramlöst. */
 .sp-drag-overlay {
-  border: var(--sp-drag-border, 2px solid #000);
-  box-shadow: var(--sp-drag-shadow, 4px 4px 0px rgba(0,0,0,1));
+  border: var(--sp-drag-border);
+  box-shadow: var(--sp-drag-shadow);
 }
 
 .sp-archive-card {

@@ -21,8 +21,6 @@ export type TermMeta = {
   weekCount: number;
 };
 
-// Dialogen portas ut ur .sp-root och når inte dess CSS-variabler, så
-// sp-input skulle nolla ramen. Fälten får sin ram direkt i stället.
 const selectClassName = 'h-10 w-full rounded-base border-2 border-border bg-white px-3 text-sm';
 
 const isValidMeta = (meta: TermMeta) => (
