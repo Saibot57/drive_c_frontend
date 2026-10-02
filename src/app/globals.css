@@ -9,6 +9,9 @@
   --bg: #ffffff;
   --text: #000;
   --border: #000;
+  /* Knappens skugga (shadow-shadow). Samma som --sp-shadow-sm och .ws-btn:
+     2 px, och knappen trycks in lika långt vid hover. */
+  --shadow: 2px 2px 0px 0px #000;
 }
 
 /* Tailwind Base Layer */
