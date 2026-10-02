@@ -31,7 +31,7 @@
   --sp-event-shadow: 0 1px 2px rgba(0,0,0,0.05);
   --sp-event-ring: 2px solid #000;
   --sp-drag-border: 2px solid #000;
-  --sp-drag-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+  --sp-drag-shadow: 4px 4px 0px rgba(0,0,0,1);
 }
 
 /* ── Utility classes ── */
@@ -174,9 +174,11 @@
   box-shadow: var(--sp-shadow);
 }
 
+/* Planerarens DragOverlay ritas utanför .sp-root och når inte variablerna
+   där, därav reservvärdena. Utan dem blev det dragna kortet ramlöst. */
 .sp-drag-overlay {
-  border: var(--sp-drag-border);
-  box-shadow: var(--sp-drag-shadow);
+  border: var(--sp-drag-border, 2px solid #000);
+  box-shadow: var(--sp-drag-shadow, 4px 4px 0px rgba(0,0,0,1));
 }
 
 .sp-archive-card {
