@@ -133,9 +133,16 @@ export default function Home() {
       }).filter((section): section is SectionData => section !== null);
   }, [data, searchTerm, showTags, showHidden]);
 
+  const notice = 'rounded-xl border-2 border-black bg-white px-4 py-3 text-sm shadow-[4px_4px_0px_rgba(0,0,0,1)]';
+
   return (
     <ProtectedRoute>
-      <div className="space-y-6">
+      {/* Samma bakgrund som planerarna. Allt som står på den ligger i vita boxar. */}
+      <div className="fixed inset-0 z-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/bakgrund59.png" alt="" className="h-full w-full object-cover" />
+      </div>
+      <div className="relative z-10 space-y-6">
         {/* ── Toolbar ─────────────────────────────────────────────────── */}
         <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center gap-4 flex-wrap">
           <FeatureNavigation />
@@ -163,11 +170,11 @@ export default function Home() {
 
         {/* ── Content ─────────────────────────────────────────────────── */}
         {loading && !isRefreshing ? (
-          <p className="text-sm text-gray-500">Laddar filer…</p>
+          <p className={`${notice} text-gray-600`}>Laddar filer…</p>
         ) : error ? (
-          <p className="text-sm text-red-500">{error}</p>
+          <p className={`${notice} text-red-600`}>{error}</p>
         ) : filteredData.length === 0 ? (
-          <p className="text-sm text-gray-500">Inget att visa. Prova att bredda din sökning.</p>
+          <p className={`${notice} text-gray-600`}>Inget att visa. Prova att bredda din sökning.</p>
         ) : (
           <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
             {filteredData.map((section) => (
