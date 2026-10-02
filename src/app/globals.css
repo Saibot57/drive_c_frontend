@@ -12,6 +12,8 @@
   /* Knappens skugga (shadow-shadow). Samma som --sp-shadow-sm och .ws-btn:
      2 px, och knappen trycks in lika långt vid hover. */
   --shadow: 2px 2px 0px 0px #000;
+  /* Grund för rounded-lg/md/sm: 6, 4 och 2 px. Utan den blev de 0 px. */
+  --radius: 0.375rem;
 }
 
 /* Tailwind Base Layer */
