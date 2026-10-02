@@ -2257,14 +2257,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       )}
 
       {isMarqueeActive && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none rounded-xl border-2 border-black bg-amber-50 px-4 py-2 text-sm font-semibold text-black shadow-[4px_4px_0_0_#000]">
           Markera posterna som ska få anteckningarna: dra en ram, eller stega med
           ←→ ↑↓ (Shift = dag / 15 min). Enter klistrar in, Esc avbryter.
         </div>
       )}
 
       {isKbPlacementActive && kbPlacementGhost && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none rounded-xl border-2 border-black bg-amber-50 px-4 py-2 text-sm font-semibold text-black shadow-[4px_4px_0_0_#000]">
           Placera <strong>&quot;{kbPlacementGhost.title}&quot;</strong>: ←→ dag, ↑↓ tid, Enter bekräftar, Esc avbryter
         </div>
       )}
