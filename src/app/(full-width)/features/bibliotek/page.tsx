@@ -155,9 +155,9 @@ export default function Home() {
               id="showTags"
               checked={showTags}
               onCheckedChange={(checked) => setShowTags(checked === true)}
-              className="border border-black/60 data-[state=checked]:bg-[#8ecc93] data-[state=checked]:border-black"
+              className="data-[state=checked]:bg-[#8ecc93]"
             />
-            Visa Taggar
+            Visa taggar
           </label>
         </div>
 
