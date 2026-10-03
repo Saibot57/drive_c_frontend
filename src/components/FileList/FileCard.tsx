@@ -1,14 +1,5 @@
 import React from 'react';
-
-interface FileData {
-  id: string;
-  name: string;
-  url: string;
-  file_path: string;
-  tags: string[];
-  notebooklm?: string;
-  created_time?: string;
-}
+import type { FileData } from '@/types/fileSections';
 
 interface FileCardProps {
   file: FileData;
@@ -23,7 +14,7 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
           href={file.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-black font-semibold hover:underline block leading-tight flex-grow"
+          className="min-w-0 break-words text-sm text-black font-semibold hover:underline block leading-tight flex-grow"
         >
           {file.name}
         </a>
@@ -39,7 +30,7 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
           </a>
         )}
       </div>
-      
+
       {showTags && file.tags && file.tags.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-1">
           {file.tags.map((tag, idx) => (

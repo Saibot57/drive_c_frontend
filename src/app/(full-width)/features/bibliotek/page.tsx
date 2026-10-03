@@ -8,9 +8,20 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
-import type { SubSection, SectionData } from '@/types/fileSections';
+import type { FolderNode, SectionData } from '@/types/fileSections';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { API_URL } from '@/config/api';
+import { usePersistentState } from '@/hooks/usePersistentState';
+import {
+  LIBRARY_FOLDERS_KEY,
+  buildLibraryTree,
+  filterLibraryTree,
+  isFolderOpen,
+  sanitizeFolderOpenState,
+  toggleFolder,
+} from '@/utils/libraryTree';
+
+const NO_SAVED_FOLDERS = {};
 
 export default function Home() {
   const [data, setData] = useState<{ data: SectionData[] } | null>(null);
@@ -21,6 +32,12 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const dotTimestamps = React.useRef<number[]>([]);
+  // Utfällt och hopfällt sparas i webbläsaren. Under en sökning gäller ett
+  // eget läge, som släpps när sökordet ändras.
+  const [savedFolders, saveFolders] = usePersistentState(
+    LIBRARY_FOLDERS_KEY, sanitizeFolderOpenState, NO_SAVED_FOLDERS,
+  );
+  const [searchToggles, setSearchToggles] = useState<Record<string, boolean>>({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -87,51 +104,31 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const filteredData = useMemo(() => {
-    if (!data?.data) return [];
+  const tree = useMemo(() => buildLibraryTree(data?.data ?? []), [data]);
 
-    const term = searchTerm.toLowerCase().trim();
+  const searching = searchTerm.trim() !== '';
+  const { folders: visibleSections, searchOpen } = useMemo(
+    () => filterLibraryTree(tree, { term: searchTerm, showTags, showHidden }),
+    [tree, searchTerm, showTags, showHidden],
+  );
 
-    return data.data
-      .filter(section => showHidden || !section.name.startsWith('_'))
-      .map(section => {
-        const filteredFiles = section.files.filter(file =>
-          file.url && file.url.trim() !== '' &&
-          (!term ||
-            file.name.toLowerCase().includes(term) ||
-            (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term))))
-        );
+  useEffect(() => {
+    setSearchToggles({});
+  }, [searchTerm]);
 
-        const filteredSubsections = Object.entries(section.subsections || {}).reduce((acc, [key, subsection]) => {
-          if (!showHidden && subsection.name.startsWith('_')) return acc;
+  const isOpen = (folder: FolderNode) => (
+    searching
+      ? searchToggles[folder.path] ?? searchOpen.has(folder.path)
+      : isFolderOpen(savedFolders, folder)
+  );
 
-          const filteredSubFiles = subsection.files.filter(file =>
-            file.url && file.url.trim() !== '' &&
-            (!term ||
-              file.name.toLowerCase().includes(term) ||
-              (showTags && file.tags?.some(tag => tag.toLowerCase().includes(term))))
-          );
-
-          if (filteredSubFiles.length > 0) {
-            acc[key] = {
-              ...subsection,
-              files: filteredSubFiles
-            };
-          }
-
-          return acc;
-        }, {} as Record<string, SubSection>);
-
-        if (filteredFiles.length > 0 || Object.keys(filteredSubsections).length > 0) {
-          return {
-            ...section,
-            files: filteredFiles,
-            subsections: filteredSubsections
-          };
-        }
-        return null;
-      }).filter((section): section is SectionData => section !== null);
-  }, [data, searchTerm, showTags, showHidden]);
+  const toggle = (folder: FolderNode) => {
+    if (searching) {
+      setSearchToggles(prev => ({ ...prev, [folder.path]: !isOpen(folder) }));
+    } else {
+      saveFolders(toggleFolder(savedFolders, folder));
+    }
+  };
 
   return (
     <ProtectedRoute>
@@ -166,12 +163,18 @@ export default function Home() {
           <p className="text-sm text-gray-500">Laddar filer…</p>
         ) : error ? (
           <p className="text-sm text-red-500">{error}</p>
-        ) : filteredData.length === 0 ? (
+        ) : visibleSections.length === 0 ? (
           <p className="text-sm text-gray-500">Inget att visa. Prova att bredda din sökning.</p>
         ) : (
-          <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
-            {filteredData.map((section) => (
-              <Section key={section.name} section={section} showTags={showTags} />
+          <div className="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {visibleSections.map((section) => (
+              <Section
+                key={section.path}
+                section={section}
+                showTags={showTags}
+                isOpen={isOpen}
+                onToggle={toggle}
+              />
             ))}
           </div>
         )}
