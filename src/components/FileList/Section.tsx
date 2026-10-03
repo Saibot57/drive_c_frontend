@@ -84,6 +84,34 @@ const Folder: React.FC<FolderControls & { folder: FolderNode }> = ({ folder, ...
   );
 };
 
+/** Bladet som ligger närmast framsidan är vitt, de bakom i en varmare ton. */
+const SHEET_TONES = ['#fbf8ef', '#ffffff'];
+
+/**
+ * Bunten mellan mappens baksida och framsida: fler filer ger fler blad,
+ * tre filer per blad och högst sex. En tom mapp har inga blad.
+ */
+export const sheetCount = (fileCount: number) =>
+  fileCount === 0 ? 0 : Math.min(6, Math.max(2, Math.round(fileCount / 3)));
+
+const PaperStack: React.FC<{ fileCount: number }> = ({ fileCount }) => (
+  <div aria-hidden className="pointer-events-none absolute inset-x-0 top-[7px] h-[58px]">
+    {Array.from({ length: sheetCount(fileCount) }, (_, k) => (
+      <span
+        key={k}
+        className="absolute h-full rounded-t-[3px] border-[1.5px] border-b-0 border-black"
+        style={{
+          top: 1 + k * 4,
+          left: 10 + (k % 2 ? 7 : 2) + k,
+          right: 10 + ((k * 7) % 5) * 3,
+          backgroundColor: SHEET_TONES[k % 2],
+          transform: `rotate(${k % 2 ? 0.45 : -0.4}deg)`,
+        }}
+      />
+    ))}
+  </div>
+);
+
 export const Section: React.FC<SectionProps> = ({ section, ...controls }) => {
   // Generate a consistent color index based on the section name
   const colorIndex = section.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % sectionColors.length;
@@ -91,27 +119,40 @@ export const Section: React.FC<SectionProps> = ({ section, ...controls }) => {
 
   return (
     <div className="mb-5 min-w-0">
-      {/* Rubriken är en flik som sitter ihop med kortet, så att den står på vitt
-          mot sidans bakgrund. Den täcker kortets övre kant med -mb-[2px]. */}
+      {/* Fliken sitter på mappens baksida och har dess färg. Namnet står på en
+          vit etikett. Fliken täcker kortets övre kant med -mb-[2px]. */}
       <h2
-        className="relative z-10 -mb-[2px] inline-block max-w-[85%] truncate rounded-t-xl border-2 border-b-0 border-black bg-white px-4 pb-1 pt-2 align-bottom font-monument text-2xl shadow-[4px_0_0_0_#000]"
+        className="relative z-10 -mb-[2px] inline-block max-w-[85%] rounded-t-xl border-2 border-b-0 border-black px-[9px] pb-[6px] pt-[7px] align-bottom shadow-[4px_0_0_0_#000]"
+        style={{ backgroundColor: sectionColor }}
         title={section.name}
       >
-        {section.name}
+        <span className="block truncate rounded-[5px] border-2 border-black bg-white px-2.5 pb-0.5 pt-1 font-monument text-[19px] leading-tight">
+          {section.name}
+        </span>
       </h2>
+      {/* Kortet är mappens baksida. Bunten sticker upp ovanför framsidan,
+          som är vit och har ett tumgrepp mitt på överkanten. */}
       <div
-        className="rounded-xl rounded-tl-none border-2 border-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+        className="relative rounded-xl rounded-tl-none border-2 border-black pt-[34px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
         style={{ backgroundColor: sectionColor }}
       >
-        <div className="bg-white">
-          {/* Radix lägger innehållet i en display: table, som låter långa namn
-              tränga ut till höger i stället för att radbrytas. */}
-          <ScrollArea className="h-[350px] [&_[data-radix-scroll-area-viewport]>div]:!block">
-            {/* Extra luft till höger: rullningslisten ligger ovanpå innehållet. */}
-            <div className="p-3 pr-5">
-              <FolderContents folder={section} {...controls} />
-            </div>
-          </ScrollArea>
+        <PaperStack fileCount={section.fileCount} />
+        <div className="relative z-[1] rounded-b-[10px] border-t-2 border-black bg-white">
+          <span
+            aria-hidden
+            className="absolute -top-[2px] left-1/2 z-[1] h-5 w-[58px] -translate-x-1/2 rounded-b-full border-2 border-t-0 border-black bg-white"
+          />
+          <div className="overflow-hidden rounded-b-[10px]">
+            {/* Radix lägger innehållet i en display: table, som låter långa namn
+                tränga ut till höger i stället för att radbrytas. */}
+            <ScrollArea className="h-[350px] [&_[data-radix-scroll-area-viewport]>div]:!block">
+              {/* Extra luft till höger: rullningslisten ligger ovanpå innehållet.
+                  Luften ovanför håller första raden fri från tumgreppet. */}
+              <div className="p-3 pr-5 pt-6">
+                <FolderContents folder={section} {...controls} />
+              </div>
+            </ScrollArea>
+          </div>
         </div>
       </div>
     </div>
