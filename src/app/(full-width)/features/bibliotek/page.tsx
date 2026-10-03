@@ -5,7 +5,7 @@ import { Section } from "@/components/FileList/Section";
 import { Search } from "@/components/search";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { fetchWithAuth } from '@/services/authService';
 import type { FolderNode, SectionData } from '@/types/fileSections';
@@ -20,6 +20,7 @@ import {
   sanitizeFolderOpenState,
   toggleFolder,
 } from '@/utils/libraryTree';
+import { describeSync, type SyncResult } from '@/utils/librarySync';
 
 const NO_SAVED_FOLDERS = {};
 
@@ -38,6 +39,7 @@ export default function Home() {
     LIBRARY_FOLDERS_KEY, sanitizeFolderOpenState, NO_SAVED_FOLDERS,
   );
   const [searchToggles, setSearchToggles] = useState<Record<string, boolean>>({});
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -60,6 +62,7 @@ export default function Home() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setError(null);
+    setSyncResult(null);
 
     try {
       const updateResponse = await fetchWithAuth(`${API_URL}/update`, {
@@ -72,9 +75,13 @@ export default function Home() {
       const updateData = await updateResponse.json();
 
       if (!updateResponse.ok) {
-        throw new Error(updateData.message || 'Kunde inte uppdatera data.');
+        // API:t lägger felet i `error`, på engelska.
+        throw new Error(
+          updateData.error ? `Kunde inte uppdatera: ${updateData.error}` : 'Kunde inte uppdatera data.',
+        );
       }
 
+      setSyncResult(updateData.data ?? null);
       await fetchData();
     } catch (err) {
       console.error('Update error:', err);
@@ -122,6 +129,8 @@ export default function Home() {
       : isFolderOpen(savedFolders, folder)
   );
 
+  const syncSummary = describeSync(syncResult);
+
   const toggle = (folder: FolderNode) => {
     if (searching) {
       setSearchToggles(prev => ({ ...prev, [folder.path]: !isOpen(folder) }));
@@ -164,6 +173,24 @@ export default function Home() {
             Visa taggar
           </label>
         </div>
+
+        {syncSummary && (
+          <div className={`${notice} flex items-center justify-between gap-3`} role="status">
+            <span
+              title={syncResult?.skipped?.map(item => item.path).join('\n') || undefined}
+            >
+              Uppdaterat från Drive: {syncSummary}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSyncResult(null)}
+              aria-label="Stäng"
+              className="flex-shrink-0 rounded p-0.5 hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* ── Content ─────────────────────────────────────────────────── */}
         {loading && !isRefreshing ? (
