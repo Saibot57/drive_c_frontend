@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, GripVertical } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileCard } from "@/components/FileList/FileCard";
 import type { FolderNode } from "@/types/fileSections";
@@ -10,9 +10,16 @@ type FolderControls = {
   onToggle: (folder: FolderNode) => void;
 };
 
+/** Gör fliken till ett grepp som mappen kan dras i, se `useDragSort`. */
+export type SectionDrag = {
+  handleProps: React.HTMLAttributes<HTMLElement> & { draggable: boolean };
+  onKeyDown: (event: React.KeyboardEvent) => void;
+};
+
 interface SectionProps extends FolderControls {
   /** Toppmappen. Namnet blir rubrik och innehållet hamnar i rutan. */
   section: FolderNode;
+  drag?: SectionDrag;
 }
 
 // Color palette for rotating section colors
@@ -112,23 +119,37 @@ const PaperStack: React.FC<{ fileCount: number }> = ({ fileCount }) => (
   </div>
 );
 
-export const Section: React.FC<SectionProps> = ({ section, ...controls }) => {
+export const Section: React.FC<SectionProps> = ({ section, drag, ...controls }) => {
   // Generate a consistent color index based on the section name
   const colorIndex = section.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % sectionColors.length;
   const sectionColor = sectionColors[colorIndex];
 
   return (
-    <div className="mb-5 min-w-0">
+    <div className="group/section mb-5 min-w-0">
       {/* Fliken sitter på mappens baksida och har dess färg. Namnet står på en
-          vit etikett. Fliken täcker kortets övre kant med -mb-[2px]. */}
+          vit etikett. Fliken täcker kortets övre kant med -mb-[2px]. Går
+          mappen att flytta är fliken greppet. */}
       <h2
-        className="relative z-10 -mb-[2px] inline-block max-w-[85%] rounded-t-xl border-2 border-b-0 border-black px-[9px] pb-[6px] pt-[7px] align-bottom shadow-[4px_0_0_0_#000]"
+        {...drag?.handleProps}
+        className={`relative z-10 -mb-[2px] inline-block max-w-[85%] rounded-t-xl border-2 border-b-0 border-black px-[9px] pb-[6px] pt-[7px] align-bottom shadow-[4px_0_0_0_#000] ${
+          drag ? 'cursor-grab select-none active:cursor-grabbing' : ''
+        }`}
         style={{ backgroundColor: sectionColor }}
-        title={section.name}
+        title={drag ? `${section.name} – dra för att flytta` : section.name}
       >
         <span className="block truncate rounded-[5px] border-2 border-black bg-white px-2.5 pb-0.5 pt-1 font-monument text-[19px] leading-tight">
           {section.name}
         </span>
+        {drag && (
+          <button
+            type="button"
+            className="absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded border-2 border-black bg-white p-0.5 opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black group-hover/section:opacity-100"
+            aria-label={`Flytta ${section.name} (piltangenter)`}
+            onKeyDown={drag.onKeyDown}
+          >
+            <GripVertical aria-hidden size={14} />
+          </button>
+        )}
       </h2>
       {/* Kortet är mappens baksida. Bunten sticker upp ovanför framsidan,
           som är vit och har ett tumgrepp mitt på överkanten. */}

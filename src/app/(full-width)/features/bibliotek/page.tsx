@@ -12,8 +12,11 @@ import type { FolderNode, SectionData } from '@/types/fileSections';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { API_URL } from '@/config/api';
 import { usePersistentState } from '@/hooks/usePersistentState';
+import { useDragSort } from '@/hooks/useDragSort';
+import { cn } from '@/lib/utils';
 import {
   LIBRARY_FOLDERS_KEY,
+  LIBRARY_ORDER_KEY,
   buildLibraryTree,
   filterLibraryTree,
   isFolderOpen,
@@ -123,6 +126,11 @@ export default function Home() {
     setSearchToggles({});
   }, [searchTerm]);
 
+  // Toppmapparna i användarens ordning. Mappar som döljs av en sökning eller
+  // av `_` behåller sin plats, och nya hamnar sist.
+  const byPath = new Map(visibleSections.map(section => [section.path, section]));
+  const sort = useDragSort(LIBRARY_ORDER_KEY, visibleSections.map(section => section.path));
+
   const isOpen = (folder: FolderNode) => (
     searching
       ? searchToggles[folder.path] ?? searchOpen.has(folder.path)
@@ -201,15 +209,39 @@ export default function Home() {
           <p className={`${notice} text-gray-600`}>Inget att visa. Prova att bredda din sökning.</p>
         ) : (
           <div className="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {visibleSections.map((section) => (
-              <Section
-                key={section.path}
-                section={section}
-                showTags={showTags}
-                isOpen={isOpen}
-                onToggle={toggle}
-              />
-            ))}
+            {sort.order.map((path) => {
+              const target = sort.target?.id === path ? sort.target : null;
+              return (
+                <div
+                  key={path}
+                  ref={sort.previewRef(path)}
+                  {...sort.dropProps(path)}
+                  className={cn('relative min-w-0', sort.dragId === path && 'opacity-40')}
+                >
+                  {target && (
+                    <div
+                      aria-hidden
+                      className={cn(
+                        'pointer-events-none absolute z-20 rounded bg-black',
+                        target.vertical
+                          ? cn('inset-x-0 h-1', target.after ? '-bottom-3' : '-top-3')
+                          : cn('inset-y-0 w-1', target.after ? '-right-3' : '-left-3'),
+                      )}
+                    />
+                  )}
+                  <Section
+                    section={byPath.get(path)!}
+                    showTags={showTags}
+                    isOpen={isOpen}
+                    onToggle={toggle}
+                    drag={{
+                      handleProps: sort.handleProps(path),
+                      onKeyDown: event => sort.onKeyDown(event, path),
+                    }}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
