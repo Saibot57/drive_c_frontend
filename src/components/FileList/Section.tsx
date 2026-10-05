@@ -125,14 +125,15 @@ export const Section: React.FC<SectionProps> = ({ section, drag, ...controls }) 
   const sectionColor = sectionColors[colorIndex];
 
   return (
-    <div className="group/section mb-5 min-w-0">
+    <div className="mb-5 min-w-0">
       {/* Fliken sitter på mappens baksida och har dess färg. Namnet står på en
           vit etikett. Fliken täcker kortets övre kant med -mb-[2px]. Går
-          mappen att flytta är fliken greppet. */}
+          mappen att flytta är fliken greppet; knappen för tangentbordet syns
+          bara när pekaren är över fliken eller knappen har fokus. */}
       <h2
         {...drag?.handleProps}
         className={`relative z-10 -mb-[2px] inline-block max-w-[85%] rounded-t-xl border-2 border-b-0 border-black px-[9px] pb-[6px] pt-[7px] align-bottom shadow-[4px_0_0_0_#000] ${
-          drag ? 'cursor-grab select-none active:cursor-grabbing' : ''
+          drag ? 'group/tab cursor-grab select-none active:cursor-grabbing' : ''
         }`}
         style={{ backgroundColor: sectionColor }}
         title={drag ? `${section.name} – dra för att flytta` : section.name}
@@ -143,7 +144,7 @@ export const Section: React.FC<SectionProps> = ({ section, drag, ...controls }) 
         {drag && (
           <button
             type="button"
-            className="absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded border-2 border-black bg-white p-0.5 opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black group-hover/section:opacity-100"
+            className="absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded border-2 border-black bg-white p-0.5 opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black group-hover/tab:opacity-100"
             aria-label={`Flytta ${section.name} (piltangenter)`}
             onKeyDown={drag.onKeyDown}
           >
