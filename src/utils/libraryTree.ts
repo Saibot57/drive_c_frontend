@@ -17,6 +17,9 @@ export const DEFAULT_OPEN_LEVEL = 3;
 /** Var användarens utfällda och hopfällda mappar sparas i localStorage. */
 export const LIBRARY_FOLDERS_KEY = 'bibliotek.folders.v1';
 
+/** Var användarens ordning på toppmapparna sparas i localStorage. */
+export const LIBRARY_ORDER_KEY = 'bibliotek.order.v1';
+
 const MAX_STORED_FOLDERS = 2000;
 
 // Siffror jämförs som tal, så att "Material v 9" kommer före "Material v 18".
