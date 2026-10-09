@@ -1,0 +1,108 @@
+/*
+ * Temats grund. Varje variabel har ett värde för Neo (standard) och ett för
+ * Kronberg, som slås på med data-theme="kronberg" på <html>. Väljaren är
+ * :root[data-theme] och inte bara [data-theme], så att den vinner över
+ * :root-reglerna i globals.css, som läses senare. Alla andra
+ * variabler (--sp-*, --ws-*, --mc-*) och komponenter läser härifrån.
+ * Se docs/plans/kronberg-tema.md, avsnitt 2.
+ *
+ * Neo-värdena är exakt det appen hade före temat. Ändras ett av dem ändras
+ * Neo, och det ska stå i PR:en.
+ */
+
+:root {
+  --ui-bg: #ffffff;
+  --ui-surface: #ffffff;
+  --ui-surface-2: #f9fafb;
+  --ui-surface-3: #f3f4f6;
+  --ui-paper: #ffffff;
+
+  --ui-ink: #000000;
+  --ui-ink-2: #374151;
+  --ui-muted: #6b7280;
+  --ui-subtle: #9ca3af;
+
+  --ui-line: #000000;
+  --ui-frame-w: 2px;
+  --ui-hair: #e5e7eb;
+  --ui-hour: #f3f4f6;
+  --ui-control-line: #000000;
+
+  --ui-frame-shadow: 4px 4px 0 0 #000;
+  --ui-frame-shadow-sm: 2px 2px 0 0 #000;
+  --ui-float-shadow: 4px 4px 0 0 #000;
+
+  --ui-radius: 0.75rem;
+  --ui-radius-sm: 5px;
+  --ui-btn-h: 40px;
+  /* --ui-btn-hover finns bara i Kronberg. Neo-knappen byter inte botten vid
+     hovring, den trycks in (--ui-press-*). */
+  --ui-press-x: 2px;
+  --ui-press-y: 2px;
+
+  --ui-accent: #ff6b6b;
+  --ui-accent-fg: #000000;
+  --ui-lamp: #000000;
+  --ui-danger: #be123c;
+  --ui-danger-bg: #fecdd3;
+  --ui-danger-bg-hover: #fda4af;
+  --ui-danger-fg: #000000;
+  --ui-warning-bg: #fde68a;
+  --ui-scrim: rgba(0, 0, 0, 0.8);
+  --ui-focus: #000000;
+
+  --ui-course-mix: 100%;
+  /* Tailwinds egen stack. Planens kortare lista hade bytt typsnitt i Neo på
+     Windows och Linux, där varken ui-monospace eller Menlo finns. */
+  --ui-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+:root[data-theme="kronberg"] {
+  --ui-bg: #E3E2DE;
+  --ui-surface: #F6F5F2;
+  --ui-surface-2: #F6F5F2;
+  --ui-surface-3: #EEEDE9;
+  --ui-paper: #FCFBF9;
+
+  --ui-ink: #1F2022;
+  --ui-ink-2: #3A3B3E;
+  /* 4,6:1 mot --ui-bg. Prototypens #6A6B6E räckte inte. */
+  --ui-muted: #626366;
+  /* Bara ikoner och platshållare, aldrig text man behöver läsa. */
+  --ui-subtle: #727275;
+
+  --ui-line: #CFCDC7;
+  --ui-frame-w: 1px;
+  --ui-hair: #E4E2DD;
+  --ui-hour: #ECEAE5;
+  /* Textfält måste synas som fält: 3,3:1 mot --ui-paper. */
+  --ui-control-line: #8A8882;
+
+  --ui-frame-shadow: none;
+  --ui-frame-shadow-sm: none;
+  --ui-float-shadow: 0 10px 28px rgba(31, 32, 34, 0.12);
+
+  --ui-radius: 6px;
+  --ui-radius-sm: 4px;
+  --ui-btn-h: 34px;
+  --ui-btn-hover: #EEEDE9;
+  --ui-press-x: 0px;
+  --ui-press-y: 0px;
+
+  --ui-accent: #B84A16;
+  --ui-accent-fg: #FFFFFF;
+  --ui-lamp: #D9581C;
+  --ui-danger: #A8321C;
+  --ui-danger-bg: #A8321C;
+  --ui-danger-bg-hover: #922A17;
+  --ui-danger-fg: #FFFFFF;
+  --ui-warning-bg: #EFE3C8;
+  --ui-scrim: rgba(31, 32, 34, 0.28);
+  --ui-focus: #1F2022;
+
+  --ui-course-mix: 72%;
+  --ui-font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  /* shadcn-variablerna som Button, Card och Input läser. */
+  --radius: 4px;
+}

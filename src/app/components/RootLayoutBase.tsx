@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Red_Hat_Text, Bangers, Archivo_Black } from 'next/font/google';
+import { Red_Hat_Text, Bangers, Archivo_Black, Archivo, IBM_Plex_Mono } from 'next/font/google';
 import localFont from 'next/font/local';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { THEME_INIT_SCRIPT } from '@/config/uiTheme';
 
 const redHat = Red_Hat_Text({
   subsets: ['latin'],
@@ -48,12 +49,35 @@ const monument = localFont({
   variable: '--font-monument',
 });
 
+/*
+ * Temat Kronberg (docs/plans/kronberg-tema.md). Laddas i båda temana, eftersom
+ * next/font inte kan laddas villkorligt. Variablerna sitter på <html> och inte
+ * på <body>: tokens.css läser dem på :root, och där hade en variabel från
+ * <body> inte funnits.
+ */
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-plex-mono',
+});
+
+const archivo = Archivo({
+  subsets: ['latin'],
+  axes: ['wdth'],
+  variable: '--font-archivo-var',
+});
+
 export default function RootLayoutBase({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    // Temat sätts av skriptet nedan innan React tar över, så attributet
+    // finns i DOM:en men inte i det React renderar.
+    <html lang="en" className={`${plexMono.variable} ${archivo.variable}`} suppressHydrationWarning>
       <head>
+        {/* Före första ritningen, annars blinkar sidan i Neo innan Kronberg
+            slår till. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <meta charSet="UTF-8" />
         {/* Ingen <title> här. En hårdkodad titel hamnade före den som varje
             sida sätter via `metadata`, och länkförhandsvisningar tar den
@@ -61,7 +85,7 @@ export default function RootLayoutBase({
             Appens standardtitel står i `layout.tsx`. */}
       </head>
       <body
-        className={`${redHat.className} ${redHat.variable} ${monument.variable} ${bangers.variable} ${archivoBlack.variable} min-h-screen bg-white`}
+        className={`${redHat.className} ${redHat.variable} ${monument.variable} ${bangers.variable} ${archivoBlack.variable} min-h-screen bg-ui-bg`}
       >
         <AuthProvider>
           <main className="pt-8 px-8">{children}</main>
