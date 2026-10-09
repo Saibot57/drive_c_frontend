@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { uiTint } from '@/components/ui/tints';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,7 +53,7 @@ export function ShareArchiveDialog({
                 autoComplete="off"
               />
             </div>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-600 kron:text-ui-muted">
               Ni arbetar i <strong>samma</strong> schema. Ändringar syns för alla nästa gång
               de öppnar det. En i taget — den som har schemat öppet håller det låst.
             </p>
@@ -62,14 +63,14 @@ export function ShareArchiveDialog({
           </form>
 
           {archive && (
-            <div className="space-y-2 border-t-2 border-black pt-3">
-              <Label className="text-xs font-bold uppercase text-gray-500">Har tillgång</Label>
+            <div className="space-y-2 border-t-frame border-ui-line pt-3">
+              <Label className="text-xs font-bold uppercase text-ui-muted">Har tillgång</Label>
               <p className="text-sm">
                 {archive.ownerUsername ?? 'Okänd'}
-                <span className="text-gray-500"> — äger schemat</span>
+                <span className="text-ui-muted"> — äger schemat</span>
               </p>
               {archive.sharedWith.length === 0 ? (
-                <p className="text-sm italic text-gray-500">Ingen annan än du ännu.</p>
+                <p className="text-sm italic text-ui-muted">Ingen annan än du ännu.</p>
               ) : (
                 archive.sharedWith.map((username) => (
                   <div key={username} className="flex items-center justify-between gap-2">
@@ -78,7 +79,7 @@ export function ShareArchiveDialog({
                       <Button
                         size="sm"
                         variant="neutral"
-                        className="h-7 bg-rose-100 hover:bg-rose-200 text-rose-800"
+                        className={`h-7 ${uiTint.danger}`}
                         disabled={isSharing}
                         onClick={() => onRemoveShare(username)}
                       >
@@ -92,11 +93,11 @@ export function ShareArchiveDialog({
           )}
 
           {archive && !archive.isOwner && currentUsername && (
-            <div className="border-t-2 border-black pt-3">
+            <div className="border-t-frame border-ui-line pt-3">
               <Button
                 type="button"
                 variant="neutral"
-                className="w-full bg-rose-100 hover:bg-rose-200 text-rose-800"
+                className={`w-full ${uiTint.danger}`}
                 disabled={isSharing}
                 onClick={() => onLeave(archive, currentUsername)}
               >

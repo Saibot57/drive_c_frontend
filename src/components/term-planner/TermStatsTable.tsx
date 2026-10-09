@@ -20,7 +20,7 @@ function MinuteCells({ minutes, strong = false }: { minutes: TeacherMinutes; str
       {STAT_COLUMNS.map(column => (
         <td key={column.key} className={numberCell}>{formatHours(minutes.byColumn[column.key])}</td>
       ))}
-      <td className={`${numberCell} border-l-2 border-black ${strong ? 'font-bold' : 'font-semibold'}`}>
+      <td className={`${numberCell} border-l-frame border-ui-line ${strong ? 'font-bold' : 'font-semibold'}`}>
         {formatHours(minutes.total) || '0'}
       </td>
     </>
@@ -37,19 +37,19 @@ export function TermStatsTable({ stats, calendarWeeks, teacherColors }: Props) {
   });
 
   if (stats.rows.length === 0) {
-    return <p className="p-4 text-sm italic text-gray-500">Inga lärartimmar att räkna ännu.</p>;
+    return <p className="p-4 text-sm italic text-ui-muted">Inga lärartimmar att räkna ännu.</p>;
   }
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b-2 border-black text-xs uppercase tracking-wide text-gray-500">
+          <tr className="border-b-frame border-ui-line text-xs uppercase tracking-wide text-ui-muted">
             <th className="px-2 py-2 text-left font-semibold">Lärare</th>
             {STAT_COLUMNS.map(column => (
               <th key={column.key} className="px-2 py-2 text-right font-semibold">{column.label}</th>
             ))}
-            <th className="border-l-2 border-black px-2 py-2 text-right font-semibold">Totalt</th>
+            <th className="border-l-frame border-ui-line px-2 py-2 text-right font-semibold">Totalt</th>
           </tr>
         </thead>
         <tbody>
@@ -58,7 +58,7 @@ export function TermStatsTable({ stats, calendarWeeks, teacherColors }: Props) {
             return (
               <React.Fragment key={row.key}>
                 <tr
-                  className="cursor-pointer border-b border-gray-100 hover:bg-gray-50"
+                  className="cursor-pointer border-b border-gray-100 kron:border-ui-hair hover:bg-gray-50 kron:hover:bg-ui-surface-3"
                   onClick={() => toggle(row.key)}
                 >
                   <td className="whitespace-nowrap px-2 py-1.5 font-semibold">
@@ -75,10 +75,10 @@ export function TermStatsTable({ stats, calendarWeeks, teacherColors }: Props) {
                   <MinuteCells minutes={row.minutes} />
                 </tr>
                 {isOpen && row.weeks.map(week => (
-                  <tr key={week.index} className="border-b border-gray-100 bg-gray-50 text-xs text-gray-600">
+                  <tr key={week.index} className="border-b border-gray-100 kron:border-ui-hair bg-gray-50 kron:bg-ui-surface-3 text-xs text-gray-600 kron:text-ui-muted">
                     <td className="whitespace-nowrap py-1 pl-7 pr-2">
                       {calendarWeeks[week.index]?.label}
-                      <span className="ml-2 text-gray-400">{calendarWeeks[week.index]?.dateLabel}</span>
+                      <span className="ml-2 text-ui-subtle">{calendarWeeks[week.index]?.dateLabel}</span>
                     </td>
                     <MinuteCells minutes={week.minutes} />
                   </tr>
@@ -88,7 +88,7 @@ export function TermStatsTable({ stats, calendarWeeks, teacherColors }: Props) {
           })}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-black">
+          <tr className="border-t-frame border-ui-line">
             <td className="px-2 py-2 font-bold">Summa</td>
             <MinuteCells minutes={stats.totals} strong />
           </tr>

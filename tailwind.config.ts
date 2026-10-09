@@ -1,5 +1,13 @@
 import type { Config } from 'tailwindcss';
 import tailwindAnimate from 'tailwindcss-animate';
+import plugin from 'tailwindcss/plugin';
+
+/**
+ * En färg ur temats variabler (src/styles/tokens.css). Opacitetsmodifierare
+ * (`bg-ui-ink/50`) fungerar inte på dem, eftersom Tailwind inte kan dela upp
+ * en `var()` i kanaler. Behövs genomskinlighet får det bli en egen variabel.
+ */
+const uiColor = (name: string) => `var(--ui-${name})`;
 
 const config: Config = {
   darkMode: ["class"],
@@ -17,15 +25,35 @@ const config: Config = {
         container: '1300px'
       },
       colors: {
+        ui: {
+          bg: uiColor('bg'),
+          surface: uiColor('surface'),
+          'surface-2': uiColor('surface-2'),
+          'surface-3': uiColor('surface-3'),
+          paper: uiColor('paper'),
+          ink: uiColor('ink'),
+          'ink-2': uiColor('ink-2'),
+          muted: uiColor('muted'),
+          subtle: uiColor('subtle'),
+          line: uiColor('line'),
+          hair: uiColor('hair'),
+          control: uiColor('control-line'),
+          accent: uiColor('accent'),
+          'accent-fg': uiColor('accent-fg'),
+          danger: uiColor('danger'),
+          lamp: uiColor('lamp'),
+        },
         main: 'var(--main)',
         mainAccent: '#88cc19',
         overlay: 'rgba(0,0,0,0.8)',
         bg: '#E0E7F1',
-        text: '#000',
+        text: uiColor('ink'),
         // Button och Input skriver bg-bw och text-mtext.
-        bw: '#fff',
-        mtext: '#000',
-        border: 'hsl(var(--border))',
+        bw: uiColor('paper'),
+        mtext: uiColor('ink'),
+        // Var `hsl(var(--border))` med `--border: #000`. Det är ogiltigt, och
+        // ramen fick då textens färg (currentColor), inte svart.
+        border: uiColor('line'),
         darkBg: '#2c312b',
         darkText: '#eeefe9',
         darkBorder: '#000',
@@ -53,7 +81,15 @@ const config: Config = {
           foreground: 'hsl(var(--accent-foreground))'
         }
       },
+      borderWidth: {
+        frame: 'var(--ui-frame-w)',
+      },
+      fontFamily: {
+        mono: ['var(--ui-font-mono)'],
+      },
       borderRadius: {
+        ui: 'var(--ui-radius)',
+        'ui-sm': 'var(--ui-radius-sm)',
         base: '5px',
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
@@ -61,6 +97,9 @@ const config: Config = {
         xl: '12px'
       },
       boxShadow: {
+        frame: 'var(--ui-frame-shadow)',
+        'frame-sm': 'var(--ui-frame-shadow-sm)',
+        float: 'var(--ui-float-shadow)',
         shadow: 'var(--shadow)',
         light: '4px 4px 0px 0px #000',
         dark: '4px 4px 0px 0px #000',
@@ -69,10 +108,12 @@ const config: Config = {
         neo: '4px 4px 0px 0px rgba(0,0,0,1)'
       },
       translate: {
-        boxShadowX: '2px',
-        boxShadowY: '2px',
-        reverseBoxShadowX: '-2px',
-        reverseBoxShadowY: '-2px'
+        // Knappen trycks in när skuggan försvinner. 0 i Kronberg, som inte
+        // har någon skugga att trycka in i.
+        boxShadowX: 'var(--ui-press-x)',
+        boxShadowY: 'var(--ui-press-y)',
+        reverseBoxShadowX: 'calc(var(--ui-press-x) * -1)',
+        reverseBoxShadowY: 'calc(var(--ui-press-y) * -1)'
       },
       fontWeight: {
         base: '500',
@@ -98,7 +139,16 @@ const config: Config = {
       }
     },
   },
-  plugins: [tailwindAnimate],
+  plugins: [
+    tailwindAnimate,
+    /**
+     * `kron:` gäller bara i Kronberg (`kron:text-ui-muted`). Används där Neo
+     * har ett värde som ingen variabel delar, så att Neo kan stå orört bredvid.
+     */
+    plugin(({ addVariant }) => {
+      addVariant('kron', ':root[data-theme="kronberg"] &');
+    }),
+  ],
 };
 
 export default config;

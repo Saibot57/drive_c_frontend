@@ -127,7 +127,7 @@ export function LabShareDialog({
                 autoComplete="off"
               />
             </div>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-600 kron:text-ui-muted">
               Ni arbetar i <strong>samma</strong> upplägg och ser varandras ändringar nästa gång ni öppnar det.
               Sparar två samtidigt får den som kommer sist välja mellan att ladda om och att spara sina ändringar som en kopia.
             </p>
@@ -136,7 +136,7 @@ export function LabShareDialog({
             </Button>
           </form>
 
-          {error && <p className="rounded bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">{error}</p>}
+          {error && <p className="rounded bg-rose-50 px-3 py-2 text-sm text-rose-800 kron:text-ui-danger" role="alert">{error}</p>}
           {notice && <p className="rounded bg-emerald-50 px-3 py-2 text-sm" role="status">{notice}</p>}
 
           {missing.length > 0 && archive && (
@@ -158,14 +158,14 @@ export function LabShareDialog({
           )}
 
           {plan && (
-            <div className="space-y-2 border-t-2 border-black pt-3">
-              <Label className="text-xs font-bold uppercase text-gray-500">Har tillgång</Label>
+            <div className="space-y-2 border-t-frame border-ui-line pt-3">
+              <Label className="text-xs font-bold uppercase text-ui-muted">Har tillgång</Label>
               <p className="text-sm">
                 {plan.ownerUsername ?? 'Du'}
-                <span className="text-gray-500"> — äger upplägget</span>
+                <span className="text-ui-muted"> — äger upplägget</span>
               </p>
               {sharedWith.length === 0 ? (
-                <p className="text-sm italic text-gray-500">Ingen annan ännu.</p>
+                <p className="text-sm italic text-ui-muted">Ingen annan ännu.</p>
               ) : (
                 sharedWith.map(name => (
                   <div key={name} className="flex items-center justify-between gap-2">
@@ -174,7 +174,7 @@ export function LabShareDialog({
                       <Button
                         size="sm"
                         variant="neutral"
-                        className="h-7 bg-rose-100 text-rose-800 hover:bg-rose-200"
+                        className="h-7 bg-rose-100 text-rose-800 kron:text-ui-danger hover:bg-rose-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
                         disabled={working}
                         onClick={() => void unshare(name)}
                       >

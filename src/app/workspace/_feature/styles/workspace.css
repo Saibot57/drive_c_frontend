@@ -21,7 +21,7 @@
    */
 
   /* Ytor */
-  --ws-bg: var(--sp-bg, #ffffff);
+  --ws-bg: var(--sp-bg, var(--ui-surface));
   --ws-bg-muted: var(--sp-bg-grid, #f9fafb);
   --ws-bg-hover: var(--sp-menu-hover, #f3f4f6);
   --ws-bg-subtle: #f9fafb;
@@ -30,10 +30,10 @@
   --ws-overlay: rgba(0, 0, 0, 0.3);
 
   /* Ram */
-  --ws-frame-border: var(--sp-border, 2px solid #000);
+  --ws-frame-border: var(--sp-border, var(--ui-frame-w) solid var(--ui-line));
   --ws-frame-width: 2px;
-  --ws-frame-shadow: var(--sp-shadow, 4px 4px 0px rgba(0, 0, 0, 1));
-  --ws-frame-shadow-sm: var(--sp-shadow-sm, 2px 2px 0px rgba(0, 0, 0, 1));
+  --ws-frame-shadow: var(--sp-shadow, var(--ui-frame-shadow));
+  --ws-frame-shadow-sm: var(--sp-shadow-sm, var(--ui-frame-shadow-sm));
 
   /* Detalj */
   --ws-border-color: #e5e7eb;
@@ -46,11 +46,11 @@
   /* Mjuka skuggor, kvar där de inte konkurrerar med ramen */
   --ws-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --ws-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --ws-shadow-pop: var(--sp-shadow, 4px 4px 0px rgba(0, 0, 0, 1));
-  --ws-shadow-modal: var(--sp-shadow, 4px 4px 0px rgba(0, 0, 0, 1));
+  --ws-shadow-pop: var(--sp-shadow, var(--ui-frame-shadow));
+  --ws-shadow-modal: var(--sp-shadow, var(--ui-frame-shadow));
 
   /* Text */
-  --ws-text: var(--sp-text, #000);
+  --ws-text: var(--sp-text, var(--ui-ink));
   --ws-text-muted: #374151;
   --ws-text-subtle: var(--sp-text-muted, #6b7280);
   --ws-text-faint: var(--sp-text-subtle, #9ca3af);
@@ -1964,4 +1964,104 @@ div:hover > .kanban-card-delete {
 
 .ws-exporting .ws-element--grouped {
   outline: none;
+}
+
+/* ── Kronberg ──────────────────────────────────────────────────────────────
+ * RAM blir 1 px grått utan hård skugga, DETALJ följer temats hårlinjer.
+ * Neo-värdena ovan står kvar; de läser samma variabler och är oförändrade.
+ * Färger som användaren valt för sitt innehåll (rubriker, kort, pennor)
+ * rörs inte. Exporten ritas alltid i Neo (useWorkspaceExport).
+ */
+:root[data-theme="kronberg"] .ws-root {
+  --ws-bg: var(--ui-surface);
+  --ws-bg-muted: var(--ui-surface-2);
+  --ws-bg-hover: var(--ui-surface-3);
+  --ws-bg-subtle: var(--ui-surface-2);
+  --ws-canvas-bg: var(--ui-bg);
+  --ws-canvas-dot: #C9C7C1;
+  --ws-overlay: var(--ui-scrim);
+
+  --ws-frame-border: 1px solid var(--ui-line);
+  --ws-frame-width: 1px;
+  --ws-frame-shadow: none;
+  --ws-frame-shadow-sm: none;
+
+  --ws-border-color: var(--ui-hair);
+  --ws-divider-color: var(--ui-hair);
+  --ws-radius-sm: var(--ui-radius-sm);
+  --ws-radius: var(--ui-radius);
+  --ws-radius-lg: var(--ui-radius);
+
+  --ws-shadow-sm: none;
+  --ws-shadow: none;
+  --ws-shadow-pop: var(--ui-float-shadow);
+  --ws-shadow-modal: var(--ui-float-shadow);
+
+  --ws-text: var(--ui-ink);
+  --ws-text-muted: var(--ui-ink-2);
+  --ws-text-subtle: var(--ui-muted);
+  --ws-text-faint: var(--ui-subtle);
+
+  --ws-accent: var(--ui-ink);
+  --ws-accent-soft: var(--ui-ink-2);
+  --ws-accent-bg: #EFEDE7;
+  --ws-danger: var(--ui-danger);
+  --ws-danger-bg: #F6E9E5;
+}
+
+:root[data-theme="kronberg"] .ws-type-chip {
+  border-color: var(--ui-line);
+}
+:root[data-theme="kronberg"] .ws-create-btn .ws-type-chip svg,
+:root[data-theme="kronberg"] .ws-element-card .ws-type-chip svg {
+  color: var(--ui-ink-2);
+}
+
+/* Korten på canvasen: grå hårlinje, ingen skugga; den markerade får en
+   tydlig ram i bläck i stället för en större skugga. */
+:root[data-theme="kronberg"] .ws-element {
+  border-color: var(--ui-line);
+}
+:root[data-theme="kronberg"] .ws-element:hover {
+  box-shadow: none;
+  border-color: #B5B3AD;
+}
+:root[data-theme="kronberg"] .ws-element--selected,
+:root[data-theme="kronberg"] .ws-element--selected:hover {
+  box-shadow: 0 0 0 calc(1px / var(--ws-zoom)) var(--ui-ink);
+  border-color: var(--ui-ink);
+}
+:root[data-theme="kronberg"] .ws-element--bare .ws-wheel-part__svg {
+  filter: none;
+}
+
+:root[data-theme="kronberg"] .ws-resize-handle,
+:root[data-theme="kronberg"] .ws-resize-handle--se::after {
+  background: var(--ui-ink-2);
+}
+
+:root[data-theme="kronberg"] .ws-provenance-dot {
+  border-color: var(--ui-ink-2);
+}
+
+:root[data-theme="kronberg"] .ws-heading-bar__btn--active {
+  box-shadow: inset 0 0 0 1px var(--ui-ink);
+}
+:root[data-theme="kronberg"] .ws-heading-bar__swatch,
+:root[data-theme="kronberg"] .ws-heading-palette__custom input {
+  border-color: var(--ui-control-line);
+}
+:root[data-theme="kronberg"] .ws-heading-palette__dot--active {
+  box-shadow: 0 0 0 2px var(--ui-ink);
+}
+:root[data-theme="kronberg"] .ws-marquee {
+  border-color: var(--ui-ink-2);
+}
+
+:root[data-theme="kronberg"] .ws-sidebar-header,
+:root[data-theme="kronberg"] .ws-menu-header,
+:root[data-theme="kronberg"] .ws-heading-palette__label {
+  font-family: var(--ui-font-mono);
+  font-weight: 500;
+  letter-spacing: 0.08em;
 }

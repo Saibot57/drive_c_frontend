@@ -49,7 +49,7 @@ export default function CalendarToolbar({
           <button type="button" className="mc-btn mc-btn--icon" onClick={onPrev} aria-label="Föregående månad">
             <ChevronLeft size={16} />
           </button>
-          <h1 className="font-monument min-w-[10.5rem] px-1 text-center text-lg leading-none tracking-wide">
+          <h1 className="ui-heading min-w-[10.5rem] px-1 text-center text-lg leading-none tracking-wide">
             {formatMonthTitle(year, month)}
           </h1>
           <button type="button" className="mc-btn mc-btn--icon" onClick={onNext} aria-label="Nästa månad">
@@ -72,7 +72,7 @@ export default function CalendarToolbar({
         </button>
 
         {/* Sparstatus bor bara här, inte också i sidebaren. */}
-        <div className="ml-auto flex items-center gap-1.5 text-xs text-gray-500" aria-live="polite">
+        <div className="ml-auto flex items-center gap-1.5 text-xs text-ui-muted" aria-live="polite">
           {saveStatus === 'saving' && (
             <>
               <Loader2 size={13} className="animate-spin" aria-hidden="true" />
@@ -86,7 +86,7 @@ export default function CalendarToolbar({
             </>
           )}
           {saveStatus === 'error' && (
-            <span className="flex items-center gap-1.5 font-semibold text-red-600">
+            <span className="flex items-center gap-1.5 font-semibold text-red-600 kron:text-ui-danger">
               <CloudOff size={13} aria-hidden="true" />
               Ej sparat
             </span>
@@ -95,7 +95,7 @@ export default function CalendarToolbar({
       </div>
 
       {mode !== 'off' && (
-        <div className="border-t border-black/10 bg-white px-4 py-2">
+        <div className="border-t border-black/10 bg-ui-paper px-4 py-2">
           <HighlighterPalette
             mode={mode}
             activeColor={activeColor}

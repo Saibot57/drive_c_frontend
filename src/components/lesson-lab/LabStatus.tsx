@@ -14,7 +14,7 @@ import type { PlanStatus, StaffingFix } from '@/utils/lessonLabView';
  * hoppa in när ett lag har för få lärare.
  */
 
-const pill = 'inline-flex h-8 items-center gap-1.5 rounded-full border-2 border-black px-3 text-xs font-bold';
+const pill = 'inline-flex h-8 items-center gap-1.5 rounded-full border-frame border-ui-line px-3 text-xs font-bold';
 
 export function StatusBar({
   state,
@@ -54,7 +54,7 @@ export function StatusBar({
   return (
     <div className="mb-4">
       <div className="sp-card flex flex-wrap items-center gap-2 px-3 py-2" role="status">
-        <span className={cn(pill, allHaveTeam ? 'bg-emerald-50' : 'border-rose-700 bg-rose-50 text-rose-800')}>
+        <span className={cn(pill, allHaveTeam ? 'bg-emerald-50' : 'border-rose-700 bg-rose-50 text-rose-800 kron:text-ui-danger')}>
           {allHaveTeam ? <Check size={14} strokeWidth={3} /> : <AlertTriangle size={14} />}
           {status.withTeam} av {status.lessonCount} lektioner har lag
         </span>
@@ -89,7 +89,7 @@ export function StatusBar({
           </span>
         ))}
         {spread && (
-          <span className={cn(pill, 'bg-white sm:ml-auto')} title="Lärarnas tid per vecka: fasta pass i schemat plus temat">
+          <span className={cn(pill, 'bg-ui-paper sm:ml-auto')} title="Lärarnas tid per vecka: fasta pass i schemat plus temat">
             Lärartid {formatHours(spread.min)} – {formatHours(spread.max)} · snitt {formatHours(spread.avg)}
           </span>
         )}
@@ -97,7 +97,7 @@ export function StatusBar({
 
       {open && issues.length > 0 && (
         <div className="sp-card mt-2 overflow-hidden">
-          <div className="flex items-center justify-between gap-2 border-b-2 border-black bg-orange-50 px-4 py-2">
+          <div className="flex items-center justify-between gap-2 border-b-frame border-ui-line bg-orange-50 px-4 py-2">
             <span className="text-sm font-bold">
               {[
                 status.errors.length > 0 && `${status.errors.length} fel`,
@@ -110,17 +110,17 @@ export function StatusBar({
           </div>
           <ul>
             {issues.map((issue, index) => (
-              <li key={`${issue.lessonId}-${issue.kind}-${index}`} className="flex items-center gap-3 border-b border-gray-200 px-4 py-2 text-sm last:border-b-0">
+              <li key={`${issue.lessonId}-${issue.kind}-${index}`} className="flex items-center gap-3 border-b border-ui-hair px-4 py-2 text-sm last:border-b-0">
                 <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', issue.severity === 'error' ? 'bg-rose-600' : 'bg-orange-500')} aria-hidden />
                 <span className="flex-1">{issue.message}</span>
-                <button type="button" onClick={() => onShowLesson(issue.lessonId)} className="sp-btn rounded-md bg-white px-3 py-1 text-xs font-bold">
+                <button type="button" onClick={() => onShowLesson(issue.lessonId)} className="sp-btn rounded-md bg-ui-paper px-3 py-1 text-xs font-bold">
                   Visa
                 </button>
               </li>
             ))}
           </ul>
           {fixes.map(fix => (
-            <div key={`${fix.teamId}-${fix.day}`} className="flex flex-wrap items-center gap-3 border-t-2 border-black bg-sky-50 px-4 py-3 text-sm text-sky-950">
+            <div key={`${fix.teamId}-${fix.day}`} className="flex flex-wrap items-center gap-3 border-t-frame border-ui-line bg-sky-50 px-4 py-3 text-sm text-sky-950">
               <span className="flex-1">
                 <b>{team(fix.teamId)?.name ?? 'Laget'}</b> har för få lärare på {fix.day.toLowerCase()} ({fix.lessonIds.length} {fix.lessonIds.length === 1 ? 'pass' : 'pass'}).{' '}
                 {name(fix.teacherId)} kan då och har {formatHours(totals.get(fix.teacherId) ?? 0)} i veckan.
@@ -128,7 +128,7 @@ export function StatusBar({
               <button
                 type="button"
                 onClick={() => onApplyFix(fix)}
-                className="sp-btn flex items-center gap-1.5 rounded-md bg-sky-100 px-3 py-1.5 text-xs font-bold hover:bg-sky-200"
+                className="sp-btn flex items-center gap-1.5 rounded-md bg-sky-100 px-3 py-1.5 text-xs font-bold hover:bg-sky-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
               >
                 <UserPlus size={14} /> Lägg till {name(fix.teacherId)} i laget
               </button>
@@ -175,7 +175,7 @@ function IssueButton({ count, singular, plural, tone, open, onClick }: {
       className={cn(
         pill,
         'shadow-[2px_2px_0_0_currentColor]',
-        tone === 'error' ? 'border-rose-700 bg-rose-50 text-rose-800 hover:bg-rose-100' : 'border-orange-800 bg-orange-100 text-orange-900 hover:bg-orange-200'
+        tone === 'error' ? 'border-rose-700 bg-rose-50 text-rose-800 kron:text-ui-danger hover:bg-rose-100 kron:bg-ui-paper kron:hover:bg-ui-surface-3' : 'border-orange-800 bg-orange-100 text-orange-900 hover:bg-orange-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3'
       )}
     >
       <AlertTriangle size={14} />

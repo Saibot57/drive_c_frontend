@@ -78,6 +78,13 @@ export function useWorkspaceExport({
         backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
+        // Exporten är ett dokument som delas med andra och ritas därför alltid
+        // i standardutseendet, oavsett vilket tema den som exporterar valt
+        // (docs/plans/kronberg-tema.md, 10.1). Kopian html2canvas ritar från
+        // är ett eget dokument, så sidan själv byter aldrig tema.
+        onclone: (clonedDocument) => {
+          clonedDocument.documentElement.removeAttribute('data-theme');
+        },
       });
     } finally {
       viewport.classList.remove('ws-exporting');

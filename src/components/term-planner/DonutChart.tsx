@@ -77,7 +77,7 @@ export function DonutChart({ title, slices, size = 136 }: Props) {
 
       {total <= 0 ? (
         <div
-          className="flex items-center justify-center rounded-full border-2 border-dashed border-gray-200 text-xs text-gray-400"
+          className="flex items-center justify-center rounded-full border-2 border-dashed border-ui-hair text-xs text-ui-subtle"
           style={{ width: size, height: size }}
         >
           Ingen tid
@@ -117,14 +117,14 @@ export function DonutChart({ title, slices, size = 136 }: Props) {
           {slices.map(slice => (
             <li
               key={slice.key}
-              className={`flex items-center gap-2 rounded px-1 py-0.5 ${active === slice.key ? 'bg-gray-100' : ''}`}
+              className={`flex items-center gap-2 rounded px-1 py-0.5 ${active === slice.key ? 'bg-gray-100 kron:bg-ui-surface-3' : ''}`}
               onPointerEnter={() => setActive(slice.key)}
               onPointerLeave={() => setActive(null)}
             >
               <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: slice.color }} />
               <span className="min-w-0 flex-1 truncate" title={slice.label}>{slice.label}</span>
               <span className="tabular-nums">{formatHours(slice.minutes)} h</span>
-              <span className="w-9 text-right tabular-nums text-gray-500">{formatPercent(slice.minutes / total)}</span>
+              <span className="w-9 text-right tabular-nums text-ui-muted">{formatPercent(slice.minutes / total)}</span>
             </li>
           ))}
         </ul>

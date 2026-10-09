@@ -72,12 +72,12 @@ function TeachersCard({ state, commit, focusTeacherId, onFocusTeacher, onNotice 
       )}
     >
       <div className="px-3 pb-3 pt-2">
-        <p className="mb-2 text-xs text-gray-500">
+        <p className="mb-2 text-xs text-ui-muted">
           Dagarna läraren kan undervisa, som på tavlan. En resurs planerar inga lektioner. Klicka på ett namn för att markera läraren i veckan.
         </p>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-[11px] uppercase tracking-wide text-gray-500">
+            <tr className="text-[11px] uppercase tracking-wide text-ui-muted">
               <th className="pb-1 text-left font-semibold">Namn</th>
               {LAB_DAYS.map(day => <th key={day} className="pb-1 font-semibold">{dayLetter(day)}</th>)}
               <th className="pb-1 font-semibold" title="Resurs, planerar inga lektioner">Res.</th>
@@ -86,7 +86,7 @@ function TeachersCard({ state, commit, focusTeacherId, onFocusTeacher, onNotice 
           </thead>
           <tbody>
             {state.teachers.map(teacher => (
-              <tr key={teacher.id} className={cn('border-t border-gray-100', teacher.resource && 'text-gray-500')}>
+              <tr key={teacher.id} className={cn('border-t border-gray-100 kron:border-ui-hair', teacher.resource && 'text-ui-muted')}>
                 <td className="py-1 pr-1">
                   <div className="flex items-center gap-1">
                     <button
@@ -95,8 +95,8 @@ function TeachersCard({ state, commit, focusTeacherId, onFocusTeacher, onNotice 
                       aria-pressed={focusTeacherId === teacher.id}
                       title="Markera i veckan"
                       className={cn(
-                        'h-3 w-3 shrink-0 rounded-full border-2 border-black',
-                        focusTeacherId === teacher.id ? 'bg-black' : 'bg-white'
+                        'h-3 w-3 shrink-0 rounded-full border-frame border-ui-line',
+                        focusTeacherId === teacher.id ? 'bg-black' : 'bg-ui-paper'
                       )}
                     />
                     <CommitInput
@@ -117,7 +117,7 @@ function TeachersCard({ state, commit, focusTeacherId, onFocusTeacher, onNotice 
                         aria-pressed={on}
                         aria-label={`${teacher.name} ${day}`}
                         title={`${teacher.name}: ${on ? 'tillgänglig' : 'inte tillgänglig'} på ${day.toLowerCase()}`}
-                        className={cn('h-6 w-6 rounded border-2 border-black text-[11px] font-bold', on ? 'bg-black text-white' : 'bg-white text-gray-400')}
+                        className={cn('h-6 w-6 rounded border-frame border-ui-line text-[11px] font-bold', on ? 'bg-black text-white' : 'bg-ui-paper text-ui-subtle')}
                       >
                         {dayLetter(day)}
                       </button>
@@ -137,7 +137,7 @@ function TeachersCard({ state, commit, focusTeacherId, onFocusTeacher, onNotice 
                     type="button"
                     aria-label={`Ta bort ${teacher.name}`}
                     title="Ta bort (går att ångra)"
-                    className="rounded p-1 text-gray-400 hover:bg-rose-50 hover:text-rose-700"
+                    className="rounded p-1 text-ui-subtle hover:bg-rose-50 hover:text-rose-700"
                     onClick={() => commit(s => ({ ...s, teachers: s.teachers.filter(t => t.id !== teacher.id) }))}
                   >
                     <Trash2 size={14} />
@@ -158,7 +158,7 @@ function TeachersCard({ state, commit, focusTeacherId, onFocusTeacher, onNotice 
             aria-label="Ny lärare"
             className="sp-input min-w-0 flex-1 rounded-md px-2 py-1 text-sm"
           />
-          <button type="submit" className="sp-btn flex items-center gap-1 rounded-md bg-white px-2 text-sm font-semibold" disabled={!newName.trim()}>
+          <button type="submit" className="sp-btn flex items-center gap-1 rounded-md bg-ui-paper px-2 text-sm font-semibold" disabled={!newName.trim()}>
             <Plus size={14} /> Lägg till
           </button>
         </form>
@@ -199,12 +199,12 @@ function TeamsCard({ state, commit, focusTeacherId }: Props) {
     >
       <div className="grid gap-3 px-3 pb-3 pt-2">
         {state.teams.length === 0 && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ui-muted">
             Inget arbetslag än. Ett arbetslag är lärarna som äger och planerar en eller flera lektioner. Skapa ett med &quot;Nytt&quot;.
           </p>
         )}
         {sortTeams(state.teams).map(team => (
-          <div key={team.id} className="rounded-md border-2 border-black p-2" style={{ background: `${team.color}55` }}>
+          <div key={team.id} className="rounded-md border-frame border-ui-line p-2" style={{ background: `${team.color}55` }}>
             <div className="mb-2 flex items-center gap-2">
               <TeamNumberInput
                 team={team}
@@ -225,7 +225,7 @@ function TeamsCard({ state, commit, focusTeacherId }: Props) {
                 type="button"
                 aria-label={`Ta bort ${team.name}`}
                 title="Ta bort (går att ångra)"
-                className="rounded p-1 text-gray-500 hover:bg-rose-50 hover:text-rose-700"
+                className="rounded p-1 text-ui-muted hover:bg-rose-50 hover:text-rose-700"
                 onClick={() => commit(s => ({ ...s, teams: s.teams.filter(t => t.id !== team.id) }))}
               >
                 <Trash2 size={14} />
@@ -241,8 +241,8 @@ function TeamsCard({ state, commit, focusTeacherId }: Props) {
                     aria-pressed={member}
                     onClick={() => toggleMember(team.id, teacher.id)}
                     className={cn(
-                      'rounded-full border-2 border-black px-2 py-0.5 text-xs font-semibold',
-                      member ? 'bg-black text-white' : 'bg-white text-gray-500',
+                      'rounded-full border-frame border-ui-line px-2 py-0.5 text-xs font-semibold',
+                      member ? 'bg-black text-white' : 'bg-ui-paper text-ui-muted',
                       focusTeacherId === teacher.id && 'ring-2 ring-amber-400 ring-offset-1'
                     )}
                   >
@@ -251,7 +251,7 @@ function TeamsCard({ state, commit, focusTeacherId }: Props) {
                 );
               })}
             </div>
-            <div className="mt-2 flex gap-1 text-[11px] text-gray-700">
+            <div className="mt-2 flex gap-1 text-[11px] text-gray-700 kron:text-ui-ink-2">
               {LAB_DAYS.map(day => {
                 const available = team.memberIds.filter(id => state.teachers.find(t => t.id === id)?.days.includes(day)).length;
                 const short = team.memberIds.length > 0 && available < state.classes.length;
@@ -289,7 +289,7 @@ function AreasCard({ state, commit }: Props) {
       )}
     >
       <div className="px-3 pb-3 pt-2">
-        <p className="mb-2 text-xs text-gray-500">Målet är minuter per klass och vecka. Lämna tomt för inget mål.</p>
+        <p className="mb-2 text-xs text-ui-muted">Målet är minuter per klass och vecka. Lämna tomt för inget mål.</p>
         <div className="grid gap-1">
           {state.areas.map(area => (
             <div key={area.id} className="flex items-center gap-2">
@@ -304,7 +304,7 @@ function AreasCard({ state, commit }: Props) {
                 className="flex-1 font-semibold"
                 onCommit={name => commit(s => ({ ...s, areas: s.areas.map(a => (a.id === area.id ? { ...a, name } : a)) }))}
               />
-              <label className="flex items-center gap-1 text-xs text-gray-500">
+              <label className="flex items-center gap-1 text-xs text-ui-muted">
                 mål
                 <input
                   type="number"
@@ -323,7 +323,7 @@ function AreasCard({ state, commit }: Props) {
                 type="button"
                 aria-label={`Ta bort ${area.name}`}
                 title="Ta bort (går att ångra)"
-                className="rounded p-1 text-gray-400 hover:bg-rose-50 hover:text-rose-700"
+                className="rounded p-1 text-ui-subtle hover:bg-rose-50 hover:text-rose-700"
                 onClick={() => commit(s => ({ ...s, areas: s.areas.filter(a => a.id !== area.id) }))}
               >
                 <Trash2 size={14} />

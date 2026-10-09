@@ -147,36 +147,36 @@ export default function Home() {
     }
   };
 
-  const notice = 'rounded-xl border-2 border-black bg-white px-4 py-3 text-sm shadow-[4px_4px_0px_rgba(0,0,0,1)]';
+  const notice = 'rounded-ui border-frame border-ui-line bg-ui-paper px-4 py-3 text-sm shadow-[4px_4px_0px_rgba(0,0,0,1)] kron:shadow-none';
 
   return (
     <ProtectedRoute>
       {/* Samma bakgrund som planerarna. Allt som står på den ligger i vita boxar. */}
-      <div className="fixed inset-0 z-0">
+      <div className="ui-backdrop fixed inset-0 z-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bakgrund59.png" alt="" className="h-full w-full object-cover" />
       </div>
       <div className="relative z-10 space-y-6">
         {/* ── Toolbar ─────────────────────────────────────────────────── */}
-        <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center gap-4 flex-wrap">
+        <div className="rounded-ui border-frame border-ui-line bg-ui-paper p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] kron:shadow-none flex items-center gap-4 flex-wrap">
           <FeatureNavigation />
           <div className="flex items-center gap-3 flex-1">
             <Search onSearch={setSearchTerm} />
             <Button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="h-10 px-3 flex items-center gap-2 border-2 border-black bg-[#aee8fe] hover:bg-[#59cffd] transition-colors"
+              className="h-10 px-3 flex items-center gap-2 border-frame border-ui-line bg-[#aee8fe] hover:bg-[#59cffd] kron:bg-ui-paper kron:hover:bg-ui-surface-3 transition-colors"
             >
               <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
               {isRefreshing ? '...' : 'Uppdatera'}
             </Button>
           </div>
-          <label htmlFor="showTags" className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <label htmlFor="showTags" className="flex items-center gap-2 text-sm text-gray-600 kron:text-ui-muted cursor-pointer select-none">
             <Checkbox
               id="showTags"
               checked={showTags}
               onCheckedChange={(checked) => setShowTags(checked === true)}
-              className="data-[state=checked]:bg-[#8ecc93]"
+              className="data-[state=checked]:bg-[#8ecc93] kron:data-[state=checked]:bg-ui-paper"
             />
             Visa taggar
           </label>
@@ -193,7 +193,7 @@ export default function Home() {
               type="button"
               onClick={() => setSyncResult(null)}
               aria-label="Stäng"
-              className="flex-shrink-0 rounded p-0.5 hover:bg-gray-100"
+              className="flex-shrink-0 rounded p-0.5 hover:bg-gray-100 kron:hover:bg-ui-surface-3"
             >
               <X className="h-4 w-4" />
             </button>
@@ -202,11 +202,11 @@ export default function Home() {
 
         {/* ── Content ─────────────────────────────────────────────────── */}
         {loading && !isRefreshing ? (
-          <p className={`${notice} text-gray-600`}>Laddar filer…</p>
+          <p className={`${notice} text-gray-600 kron:text-ui-muted`}>Laddar filer…</p>
         ) : error ? (
-          <p className={`${notice} text-red-600`}>{error}</p>
+          <p className={`${notice} text-red-600 kron:text-ui-danger`}>{error}</p>
         ) : visibleSections.length === 0 ? (
-          <p className={`${notice} text-gray-600`}>Inget att visa. Prova att bredda din sökning.</p>
+          <p className={`${notice} text-gray-600 kron:text-ui-muted`}>Inget att visa. Prova att bredda din sökning.</p>
         ) : (
           <div className="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {sort.order.map((path) => {

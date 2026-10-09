@@ -221,8 +221,8 @@ export default function PublicTimeGrid({ entries, resolveColor, resolveRoom }: P
                 role="tab"
                 aria-selected={isShown}
                 onClick={() => setFocus(index)}
-                className={`rounded border-2 border-black py-2 text-sm font-bold ${
-                  isShown ? 'bg-black text-white' : 'bg-white text-black'
+                className={`rounded border-frame border-ui-line py-2 text-sm font-bold ${
+                  isShown ? 'bg-black text-white' : 'bg-ui-paper text-black'
                 }`}
               >
                 {day.slice(0, 3)}
@@ -232,11 +232,11 @@ export default function PublicTimeGrid({ entries, resolveColor, resolveRoom }: P
         </div>
       )}
 
-      <div className="rounded border-2 border-black bg-white">
+      <div className="rounded border-frame border-ui-line bg-ui-paper">
         {/* Dagraden följer med när man skrollar: rutnätet är högre än skärmen,
             och på eftermiddagen syns annars inte vilken kolumn som är vilken. */}
         <div
-          className="sticky top-0 z-10 grid rounded-t bg-white"
+          className="sticky top-0 z-10 grid rounded-t bg-ui-paper"
           style={{
             gridTemplateColumns: columns,
             height: T.HEADER_H_PX,

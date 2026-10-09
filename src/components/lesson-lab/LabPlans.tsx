@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Cloud, CloudOff, Copy, Layers, Loader2, LogOut, Pencil, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ActiveLamp } from '@/components/ui/ActiveLamp';
 import type { LessonLabState } from '@/hooks/useLessonLabState';
 import { cn } from '@/lib/utils';
 import type { LabPlanSummary } from '@/types/lessonLab';
@@ -26,9 +27,9 @@ export function PlanSaveStatus({ lab }: { lab: Pick<Lab, 'saveStatus' | 'saveErr
   const { saveStatus, saveError } = lab;
   if (!lab.activePlan) return null;
   return (
-    <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title={saveError ?? undefined} role="status">
+    <span className="flex items-center gap-1.5 text-xs font-semibold text-ui-muted" title={saveError ?? undefined} role="status">
       {saveStatus === 'saving' && <Loader2 size={14} className="animate-spin" />}
-      {(saveStatus === 'error' || saveStatus === 'conflict') && <CloudOff size={14} className="text-rose-600" />}
+      {(saveStatus === 'error' || saveStatus === 'conflict') && <CloudOff size={14} className="text-rose-600 kron:text-ui-danger" />}
       {(saveStatus === 'saved' || saveStatus === 'pending') && <Cloud size={14} />}
       {saveStatus === 'saving' ? 'Sparar…'
         : saveStatus === 'error' || saveStatus === 'conflict' ? 'Ej sparat'
@@ -76,7 +77,7 @@ export function PlanLoading({ lab }: { lab: Pick<Lab, 'loadError' | 'retryLoad'>
     <div className="sp-card mx-auto mt-10 flex max-w-md flex-col items-center gap-3 p-6 text-center text-sm">
       {lab.loadError ? (
         <>
-          <CloudOff size={20} className="text-rose-600" />
+          <CloudOff size={20} className="text-rose-600 kron:text-ui-danger" />
           <p>{lab.loadError}</p>
           <Button variant="neutral" className="sp-btn" onClick={lab.retryLoad}>Försök igen</Button>
         </>
@@ -120,7 +121,7 @@ export function LabPlansPanel({ lab, open, onOpenChange, activeArchiveId, archiv
       {/* Lika hög som sidan bredvid, från verktygsraden och nedåt. */}
       <div className={cn('sp-card flex flex-1 flex-col', collapsed ? 'p-2' : 'p-4')}>
         <div className={cn('flex', collapsed ? 'flex-col items-center gap-3' : 'mb-4 items-center justify-between')}>
-          <h2 className={cn('flex items-center gap-2 font-bold', collapsed && 'sr-only')}>
+          <h2 className={cn('ui-panel-title flex items-center gap-2 font-bold', collapsed && 'sr-only')}>
             <Layers size={18} /> Sparade upplägg
           </h2>
           <Button
@@ -137,7 +138,7 @@ export function LabPlansPanel({ lab, open, onOpenChange, activeArchiveId, archiv
             <button
               type="button"
               onClick={toggle}
-              className="flex flex-col items-center gap-2 rounded-md px-1 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100"
+              className="flex flex-col items-center gap-2 rounded-md px-1 py-2 text-xs font-bold text-gray-700 kron:text-ui-ink-2 hover:bg-gray-100 kron:hover:bg-ui-surface-3"
               title={`${lab.plans.length} sparade upplägg. Klicka för att visa.`}
             >
               <span className="text-[11px] font-black uppercase tracking-[0.18em] [writing-mode:vertical-rl]">Upplägg</span>
@@ -154,7 +155,7 @@ export function LabPlansPanel({ lab, open, onOpenChange, activeArchiveId, archiv
               onClick={() => void lab.createPlan()}
               disabled={lab.busy || full}
               title={full ? fullTitle : 'Nytt upplägg från tavlan'}
-              className="sp-btn w-full bg-emerald-100 hover:bg-emerald-200"
+              className="sp-btn w-full bg-emerald-100 hover:bg-emerald-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
             >
               <Plus size={14} className="mr-2" /> Nytt upplägg
             </Button>
@@ -251,10 +252,14 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab, onShare }: {
             aria-current={active ? 'true' : undefined}
             className="flex min-w-0 flex-1 flex-col items-start text-left disabled:cursor-wait"
           >
-            <span className="break-words text-sm font-bold leading-tight">
-              {plan.name}{active ? ' • aktiv' : ''}
+            <span className="flex min-w-0 items-center gap-2">
+              <ActiveLamp on={active} />
+              <span className="break-words text-sm font-bold leading-tight kron:font-medium">
+                {plan.name}{active && <span className="kron:hidden"> • aktiv</span>}
+              </span>
+              {active && <span className="ui-label hidden text-[10px] kron:inline">Öppet</span>}
             </span>
-            <span className="text-[11px] text-gray-500">
+            <span className="text-[11px] text-ui-muted">
               {changedLabel(plan.updatedAt)}{shared ? ` · ${shared}` : ''}
             </span>
           </button>
@@ -278,7 +283,7 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab, onShare }: {
               variant="neutral"
               onClick={() => void lab.duplicatePlan(plan.id)}
               disabled={busy || full}
-              className="sp-btn h-8 w-8 bg-indigo-100 p-0 hover:bg-indigo-200"
+              className="sp-btn h-8 w-8 bg-indigo-100 p-0 hover:bg-indigo-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
               aria-label={`Duplicera ${plan.name}`}
               title={full ? fullTitle : 'Duplicera'}
             >
@@ -289,7 +294,7 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab, onShare }: {
               variant="neutral"
               onClick={onShare}
               disabled={busy}
-              className="sp-btn h-8 w-8 bg-sky-100 p-0 hover:bg-sky-200"
+              className="sp-btn h-8 w-8 bg-sky-100 p-0 hover:bg-sky-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
               aria-label={`Dela ${plan.name}`}
               title="Dela"
             >
@@ -300,7 +305,7 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab, onShare }: {
               variant="neutral"
               onClick={() => setMode('confirmDelete')}
               disabled={busy}
-              className="sp-btn h-8 w-8 bg-rose-100 p-0 text-rose-800 hover:bg-rose-200"
+              className="sp-btn h-8 w-8 bg-rose-100 p-0 text-rose-800 kron:text-ui-danger hover:bg-rose-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
               aria-label={own ? `Ta bort ${plan.name}` : `Lämna ${plan.name}`}
               title={own ? 'Ta bort' : 'Lämna'}
             >
@@ -312,7 +317,7 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab, onShare }: {
 
       {mode === 'confirmDelete' && (
         <div className="flex items-center justify-between gap-2 rounded border-2 border-rose-300 bg-rose-50 px-2 py-1 text-xs">
-          <span className="font-semibold text-rose-800">
+          <span className="font-semibold text-rose-800 kron:text-ui-danger">
             {own
               ? `Ta bort ${plan.name}?${plan.sharedWith?.length ? ' Det försvinner för alla.' : ''}`
               : `Lämna ${plan.name}? Det finns kvar för de andra.`}
@@ -320,7 +325,7 @@ function PlanRow({ plan, active, busy, full, fullTitle, lab, onShare }: {
           <span className="flex gap-2">
             <button
               type="button"
-              className="font-bold text-rose-800 underline"
+              className="font-bold text-rose-800 kron:text-ui-danger underline"
               onClick={() => { setMode('view'); void (own ? lab.deletePlan(plan.id) : lab.leavePlan(plan.id)); }}
             >
               {own ? 'Ja, ta bort' : 'Ja, lämna'}

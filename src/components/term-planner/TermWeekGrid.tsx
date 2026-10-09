@@ -25,7 +25,7 @@ type Props = {
   onChangeWeek: (index: number, changes: Partial<TermWeek>) => void;
 };
 
-const inputClassName = 'sp-input h-8 w-full rounded-md bg-white px-2 text-sm';
+const inputClassName = 'sp-input h-8 w-full rounded-md bg-ui-paper px-2 text-sm';
 
 /** Arkiven i veckoordning, så att "v.35" står före "v.36" och inte efter "v.3". */
 const sortArchives = (archives: PlannerArchiveSummary[]) =>
@@ -42,7 +42,7 @@ const archiveLabel = (archive: PlannerArchiveSummary) => (
 function StateCell({ state }: { state: WeekState }) {
   switch (state.kind) {
     case 'holiday':
-      return <span className="text-gray-400">Lov</span>;
+      return <span className="text-ui-subtle">Lov</span>;
     case 'empty':
       return (
         <span className="inline-flex items-center gap-1 text-amber-700">
@@ -51,16 +51,16 @@ function StateCell({ state }: { state: WeekState }) {
       );
     case 'missing':
       return (
-        <span className="inline-flex items-center gap-1 text-rose-700">
+        <span className="inline-flex items-center gap-1 text-rose-700 kron:text-ui-danger">
           <AlertTriangle size={13} /> Finns inte
         </span>
       );
     case 'loading':
-      return <Loader2 size={14} className="animate-spin text-gray-400" />;
+      return <Loader2 size={14} className="animate-spin text-ui-subtle" />;
     case 'error':
-      return <span className="text-rose-700">Kunde inte läsas</span>;
+      return <span className="text-rose-700 kron:text-ui-danger">Kunde inte läsas</span>;
     case 'ready':
-      return <span className="text-gray-600">{state.passCount} pass</span>;
+      return <span className="text-gray-600 kron:text-ui-muted">{state.passCount} pass</span>;
   }
 }
 
@@ -71,7 +71,7 @@ export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeW
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b-2 border-black text-left text-xs uppercase tracking-wide text-gray-500">
+          <tr className="border-b-frame border-ui-line text-left text-xs uppercase tracking-wide text-ui-muted">
             <th className="px-2 py-2 font-semibold">Vecka</th>
             <th className="px-2 py-2 text-center font-semibold">Lov</th>
             <th className="px-2 py-2 font-semibold">Schema</th>
@@ -91,11 +91,11 @@ export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeW
             return (
               <tr
                 key={index}
-                className={week.holiday ? 'border-b border-gray-100 bg-gray-50' : 'border-b border-gray-100'}
+                className={week.holiday ? 'border-b border-gray-100 kron:border-ui-hair bg-gray-50 kron:bg-ui-surface-3' : 'border-b border-gray-100 kron:border-ui-hair'}
               >
                 <td className="whitespace-nowrap px-2 py-1.5">
                   <div className="font-semibold">{calendarWeek?.label}</div>
-                  <div className="text-2xs text-gray-500">{calendarWeek?.dateLabel}</div>
+                  <div className="text-2xs text-ui-muted">{calendarWeek?.dateLabel}</div>
                 </td>
                 <td className="px-2 py-1.5 text-center">
                   <input

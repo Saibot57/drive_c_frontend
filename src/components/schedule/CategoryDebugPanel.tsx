@@ -38,7 +38,7 @@ export function CategoryDebugPanel({
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500">Inga kategorier hittades.</p>
+              <p className="text-ui-muted">Inga kategorier hittades.</p>
             )}
           </div>
           <div>
@@ -46,14 +46,14 @@ export function CategoryDebugPanel({
             <p>{missingCount} av {totalCount}</p>
           </div>
           {!hasActivities && (
-            <p className="text-gray-500">Inga aktiviteter laddade ännu.</p>
+            <p className="text-ui-muted">Inga aktiviteter laddade ännu.</p>
           )}
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ui-muted">
             Öppna via Ctrl + Shift + C.
           </p>
         </div>
         <DialogFooter>
-          <Button variant="neutral" onClick={() => onOpenChange(false)} className="border-2 border-black">
+          <Button variant="neutral" onClick={() => onOpenChange(false)} className="border-frame border-ui-line">
             Stäng
           </Button>
         </DialogFooter>

@@ -21,7 +21,7 @@ export type TermMeta = {
   weekCount: number;
 };
 
-const selectClassName = 'h-10 w-full rounded-base border-2 border-border bg-white px-3 text-sm';
+const selectClassName = 'h-10 w-full rounded-base border-2 border-border bg-ui-paper px-3 text-sm';
 
 const isValidMeta = (meta: TermMeta) => (
   meta.name.trim().length > 0
@@ -154,16 +154,16 @@ export function NewTermDialog({ open, onClose, onCreate }: NewTermDialogProps) {
               ))}
             </select>
             {wheelWeeks && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ui-muted">
                 Veckor och lov hämtas från hjulet. Allt går att ändra efteråt.
               </p>
             )}
           </div>
           <MetaFields meta={meta} onChange={setMeta} />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ui-muted">
             Scheman som heter t.ex. &quot;v.35&quot; läggs in automatiskt på rätt vecka.
           </p>
-          {error && <p className="text-sm text-rose-700">{error}</p>}
+          {error && <p className="text-sm text-rose-700 kron:text-ui-danger">{error}</p>}
           <DialogFooter>
             <Button type="submit" disabled={busy || !isValidMeta(meta)}>Skapa</Button>
           </DialogFooter>
@@ -203,7 +203,7 @@ export function TermSettingsDialog({ initial, onClose, onSave, onDelete }: Setti
         {meta && (
           <form onSubmit={submit} className="space-y-3">
             <MetaFields meta={meta} onChange={setMeta} />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ui-muted">
               Färre veckor kapar slutet av terminen. Ändrad startvecka flyttar alla rader.
             </p>
             <DialogFooter className="gap-2 sm:justify-between">

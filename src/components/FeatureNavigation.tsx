@@ -9,9 +9,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useUiTheme } from '@/hooks/useUiTheme';
+import { isUiTheme } from '@/config/uiTheme';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { isEditableElement } from '@/utils/dom';
 import { ShortcutHelpOverlay } from '@/components/ShortcutHelpOverlay';
@@ -67,6 +72,7 @@ export function FeatureNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuth();
+  const { theme, setTheme } = useUiTheme();
 
   const matches = (path: string, pattern: string) =>
     // Roten får bara matcha exakt — annars vinner den över varje annan sökväg.
@@ -134,10 +140,10 @@ export function FeatureNavigation() {
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              'inline-flex items-center gap-2 font-monument text-xl leading-none tracking-[0.2em] select-none',
-              'bg-white border-none cursor-pointer rounded-md px-2 py-1.5',
+              'ui-wordmark inline-flex items-center gap-2 text-xl leading-none tracking-[0.2em] select-none',
+              'bg-white kron:bg-transparent border-none cursor-pointer rounded-md px-2 py-1.5',
               'hover:bg-black/5 transition-colors outline-none',
-              'focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2',
+              'focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)] focus-visible:ring-offset-2',
             )}
             aria-label="Switch feature"
           >
@@ -147,7 +153,7 @@ export function FeatureNavigation() {
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="start" className="w-52 bg-white">
+        <DropdownMenuContent align="start" className="w-52 bg-white kron:bg-ui-paper">
           {features.map(feature => {
             const FeatureIcon = feature.icon;
             const isActive = feature.href === current.href;
@@ -169,6 +175,16 @@ export function FeatureNavigation() {
             );
           })}
           <DropdownMenuSeparator />
+          {/* Utseendet gäller den här webbläsaren. Neo är standard. */}
+          <DropdownMenuLabel className="ui-label px-2 pb-1 pt-1.5 text-xs font-semibold text-ui-muted">Utseende</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={theme}
+            onValueChange={value => { if (isUiTheme(value)) setTheme(value); }}
+          >
+            <DropdownMenuRadioItem value="neo" className="cursor-pointer">Neo</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="kronberg" className="cursor-pointer">Kronberg</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
           {isAuthenticated ? (
             <DropdownMenuItem
               className="flex items-center gap-2 cursor-pointer"
@@ -177,7 +193,7 @@ export function FeatureNavigation() {
               <LogOut size={15} />
               <span>Logga ut</span>
               {user && (
-                <span className="ml-auto text-xs text-gray-400 truncate max-w-[80px]">
+                <span className="ml-auto text-xs text-ui-subtle truncate max-w-[80px]">
                   {user.username}
                 </span>
               )}

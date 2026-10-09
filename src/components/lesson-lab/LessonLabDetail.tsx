@@ -130,7 +130,7 @@ export default function LessonLabDetail() {
 
   return (
     <div className="sp-root">
-      <div className="fixed inset-0 z-0">
+      <div className="ui-backdrop fixed inset-0 z-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bakgrund59.png" alt="" className="h-full w-full object-cover" />
       </div>
@@ -138,7 +138,7 @@ export default function LessonLabDetail() {
       <div className="relative z-10 pb-20">
         <div className="sp-toolbar mb-6 flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
           <FeatureNavigation />
-          <p className="max-w-xs text-xs text-gray-600">
+          <p className="max-w-xs text-xs text-gray-600 kron:text-ui-muted">
             {lab.activePlan
               ? <>Upplägg: <strong className="text-black">{lab.activePlan.name}</strong>. Byt upplägg i Arbetslag.</>
               : 'Lärare, arbetslag och fasta lektioner.'}
@@ -172,7 +172,7 @@ export default function LessonLabDetail() {
             <Button variant="neutral" className="sp-btn" onClick={resetToBoard} title="Börja om från tavlan (går att ångra)">
               <RotateCcw size={16} className="mr-2" /> Tavlan
             </Button>
-            <Button asChild variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200">
+            <Button asChild variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3">
               <Link href="/features/arbetslag" title="Tillbaka till den enkla vyn">
                 <DoorOpen size={16} className="mr-2" /> Arbetslag
               </Link>
@@ -203,7 +203,7 @@ export default function LessonLabDetail() {
 
             <div className="grid min-w-0 flex-1 gap-6">
               <div className="sp-card">
-                <div className="flex flex-wrap items-center gap-2 border-b-2 border-black px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2 border-b-frame border-ui-line px-4 py-3">
                   <div role="tablist" aria-label="Vecka" className="flex flex-wrap gap-1.5">
                     <WeekTab active={activeView === TEMPLATE_VIEW} onClick={() => setViewId(TEMPLATE_VIEW)}>Veckomall</WeekTab>
                     {state.weeks.map(week => (
@@ -214,12 +214,12 @@ export default function LessonLabDetail() {
                     <CopyPlus size={14} /> Ny vecka
                   </button>
                   {focus && (
-                    <button type="button" onClick={() => setFocusTeacherId(null)} className="ml-auto rounded-full border-2 border-black bg-amber-100 px-2 py-0.5 text-xs font-bold">
+                    <button type="button" onClick={() => setFocusTeacherId(null)} className="ml-auto rounded-full border-frame border-ui-line bg-amber-100 px-2 py-0.5 text-xs font-bold">
                       Markerad: {state.teachers.find(t => t.id === focus)?.name} ✕
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 px-4 py-2 text-xs text-gray-600">
+                <div className="flex flex-wrap items-center gap-3 px-4 py-2 text-xs text-gray-600 kron:text-ui-muted">
                   {activeWeek ? (
                     <>
                       <CommitInput
@@ -232,7 +232,7 @@ export default function LessonLabDetail() {
                       <button type="button" onClick={resetWeekFromTemplate} className="flex items-center gap-1 font-semibold underline">
                         <RotateCcw size={12} /> Kopiera mallen igen
                       </button>
-                      <button type="button" onClick={deleteWeek} className="flex items-center gap-1 font-semibold text-rose-700 underline">
+                      <button type="button" onClick={deleteWeek} className="flex items-center gap-1 font-semibold text-rose-700 kron:text-ui-danger underline">
                         <Trash2 size={12} /> Ta bort veckan
                       </button>
                     </>
@@ -277,7 +277,7 @@ function WeekTab({ active, onClick, children }: { active: boolean; onClick: () =
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={cn('rounded border-2 border-black px-3 py-1 text-sm font-bold', active ? 'bg-black text-white' : 'bg-white text-black')}
+      className={cn('rounded border-frame border-ui-line px-3 py-1 text-sm font-bold', active ? 'bg-black text-white' : 'bg-ui-paper text-black')}
     >
       {children}
     </button>

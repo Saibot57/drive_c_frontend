@@ -156,8 +156,9 @@ export function WheelAxis({
             <line
               x1={from.x} y1={from.y} x2={to.x} y2={to.y}
               stroke={TODAY_STROKE} strokeWidth={1.6} strokeLinecap="round"
+              className="tw-today"
             />
-            <circle cx={to.x} cy={to.y} r={4} fill={TODAY_STROKE} stroke="#ffffff" strokeWidth={1.4}>
+            <circle cx={to.x} cy={to.y} r={4} fill={TODAY_STROKE} stroke="#ffffff" strokeWidth={1.4} className="tw-today">
               <title>I dag</title>
             </circle>
           </g>

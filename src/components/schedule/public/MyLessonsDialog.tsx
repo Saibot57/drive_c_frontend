@@ -88,7 +88,7 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
                 />
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-gray-600">
+            <p className="mt-1.5 text-xs text-gray-600 kron:text-ui-muted">
               Läser du ingen matte går du till Studieverkstad när de andra har matte.
             </p>
           </fieldset>
@@ -97,14 +97,14 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="rounded border-2 border-black bg-white px-4 py-2 text-sm font-bold"
+              className="rounded border-frame border-ui-line bg-ui-paper px-4 py-2 text-sm font-bold"
             >
               Avbryt
             </button>
             <button
               type="submit"
               disabled={!canSubmit}
-              className="rounded border-2 border-black bg-black px-4 py-2 text-sm font-bold text-white shadow-[3px_3px_0px_rgba(0,0,0,0.25)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded border-frame border-ui-line bg-black px-4 py-2 text-sm font-bold text-white shadow-[3px_3px_0px_rgba(0,0,0,0.25)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Visa mina lektioner
             </button>
@@ -131,8 +131,8 @@ type OptionTileProps = {
 function OptionTile({ type, name, label, checked, onToggle }: OptionTileProps) {
   return (
     <label
-      className={`flex cursor-pointer items-center gap-2 rounded border-2 border-black px-3 py-2.5 text-sm font-bold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-black has-[:focus-visible]:ring-offset-2 ${
-        checked ? 'bg-black text-white' : 'bg-white text-black'
+      className={`flex cursor-pointer items-center gap-2 rounded border-frame border-ui-line px-3 py-2.5 text-sm font-bold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-black has-[:focus-visible]:ring-offset-2 ${
+        checked ? 'bg-black text-white' : 'bg-ui-paper text-black'
       }`}
     >
       <input

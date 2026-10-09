@@ -338,11 +338,11 @@ export default function LessonLab() {
 
   const onDragStart = (event: DragStartEvent) => setDragging((event.active.data.current as DragData) ?? null);
 
-  const groupLabel = 'text-[11px] font-black uppercase tracking-[0.12em] text-gray-600';
+  const groupLabel = 'text-[11px] font-black uppercase tracking-[0.12em] text-gray-600 kron:text-ui-muted';
 
   return (
     <div className="sp-root">
-      <div className="fixed inset-0 z-0">
+      <div className="ui-backdrop fixed inset-0 z-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bakgrund59.png" alt="" className="h-full w-full object-cover" />
       </div>
@@ -355,14 +355,14 @@ export default function LessonLab() {
               <FeatureNavigation />
 
               {/* Upplägget är det som sparas. Namnet öppnar panelen med de andra. */}
-              <div className="flex items-center gap-2 rounded-lg border-2 border-black bg-amber-50 py-0.5 pl-3 pr-3">
+              <div className="flex items-center gap-2 rounded-lg border-frame border-ui-line bg-amber-50 py-0.5 pl-3 pr-3">
                 <span className={groupLabel}>Upplägg</span>
                 <button
                   type="button"
                   onClick={() => setPlansOpen(open => !open)}
                   aria-expanded={plansOpen}
                   title={plansOpen ? 'Dölj sparade upplägg' : 'Visa sparade upplägg'}
-                  className="sp-input flex h-8 max-w-[14rem] items-center gap-2 rounded-md bg-white px-3 text-sm font-bold"
+                  className="sp-input flex h-8 max-w-[14rem] items-center gap-2 rounded-md bg-ui-paper px-3 text-sm font-bold"
                 >
                   <span className="truncate">{lab.activePlan?.name ?? 'Inget upplägg'}</span>
                   <ChevronDown size={14} className="shrink-0" />
@@ -374,7 +374,7 @@ export default function LessonLab() {
               <div className="flex items-center gap-2">
                 <span className={groupLabel}>Schema</span>
                 <select
-                  className="sp-input h-8 max-w-[10rem] rounded-md bg-white px-3 text-sm font-semibold"
+                  className="sp-input h-8 max-w-[10rem] rounded-md bg-ui-paper px-3 text-sm font-semibold"
                   value={state.archiveId ?? ''}
                   onChange={event => chooseArchive(event.target.value)}
                   disabled={source.status === 'loading'}
@@ -424,7 +424,7 @@ export default function LessonLab() {
                 <Button
                   variant="neutral"
                   size="icon"
-                  className="sp-btn bg-sky-100 hover:bg-sky-200"
+                  className="sp-btn bg-sky-100 hover:bg-sky-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
                   onClick={() => setHelpOpen(open => !open)}
                   aria-expanded={helpOpen}
                   title="Så funkar det"
@@ -552,7 +552,7 @@ function Schedule({
       <div
         ref={setNodeRef}
         className={cn(
-          'grid min-w-[960px] grid-cols-5 grid-rows-[auto_auto] gap-x-3 rounded-xl',
+          'grid min-w-[960px] grid-cols-5 grid-rows-[auto_auto] gap-x-3 rounded-ui',
           returning && isOver && 'outline-dashed outline-2 outline-offset-4 outline-rose-600'
         )}
       >
@@ -610,14 +610,14 @@ function DayColumn({
       className={cn('sp-card row-span-2 row-start-1 grid grid-rows-subgrid', teacherOver && 'outline outline-4 outline-offset-2 outline-black')}
       style={{ gridColumn: column }}
     >
-      <div className={cn('border-b-2 border-black px-3 py-2 transition-opacity', teacherOver && 'bg-amber-50', focusAway && 'opacity-40')}>
+      <div className={cn('border-b-frame border-ui-line px-3 py-2 transition-opacity', teacherOver && 'bg-amber-50', focusAway && 'opacity-40')}>
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-lg font-black uppercase tracking-wide">{day.slice(0, 3)}</h2>
-          <span className="text-[11px] font-semibold text-gray-600">{available.length} av {plannable.length} kan</span>
+          <h2 className="text-lg font-black uppercase tracking-wide kron:font-mono kron:text-sm kron:font-medium kron:tracking-[0.08em]">{day.slice(0, 3)}</h2>
+          <span className="text-[11px] font-semibold text-gray-600 kron:text-ui-muted">{available.length} av {plannable.length} kan</span>
         </div>
         {/* Alla lärare står här. De som inte kan är gråa och läggs till med ett klick. */}
         <div className="mt-1 flex flex-wrap gap-1">
-          {plannable.length === 0 && <span className="text-xs text-gray-400">Inga lärare än.</span>}
+          {plannable.length === 0 && <span className="text-xs text-ui-subtle">Inga lärare än.</span>}
           {plannable.map(teacher => (teacher.days.includes(day) ? (
             <TeacherChip
               key={teacher.id}
@@ -635,7 +635,7 @@ function DayColumn({
               onClick={() => onSetDay(teacher.id, day, true)}
               title={`${teacher.name} kan inte på ${day.toLowerCase()}. Klicka för att lägga till.`}
               aria-label={`Gör ${teacher.name} tillgänglig på ${day.toLowerCase()}`}
-              className="flex items-center gap-0.5 rounded-full border-2 border-dashed border-gray-400 px-2 py-0.5 text-xs font-bold text-gray-500 hover:border-black hover:text-black"
+              className="flex items-center gap-0.5 rounded-full border-2 border-dashed border-gray-400 px-2 py-0.5 text-xs font-bold text-ui-muted hover:border-black hover:text-black"
             >
               {teacher.name} <Plus size={10} strokeWidth={3} />
             </button>
@@ -647,14 +647,14 @@ function DayColumn({
           {timeline.hours.map(minutes => (
             <div
               key={minutes}
-              className="absolute inset-x-0 border-t border-gray-200"
+              className="absolute inset-x-0 border-t border-ui-hair"
               style={{ top: (minutes - timeline.start) * PX_PER_MINUTE }}
               aria-hidden
             />
           ))}
           {lunch && (
             <div
-              className="absolute -inset-x-2 flex items-center justify-center border-y-2 border-dotted border-gray-400 bg-[repeating-linear-gradient(135deg,#f3f4f6_0_6px,#fff_6px_12px)] text-[10px] font-black uppercase tracking-[0.2em] text-gray-500"
+              className="absolute -inset-x-2 flex items-center justify-center border-y-2 border-dotted border-gray-400 bg-[repeating-linear-gradient(135deg,#f3f4f6_0_6px,#fff_6px_12px)] text-[10px] font-black uppercase tracking-[0.2em] text-ui-muted"
               style={{ top: (lunch.start - timeline.start) * PX_PER_MINUTE, height: (lunch.end - lunch.start) * PX_PER_MINUTE }}
               aria-label="Lunch"
             >
@@ -722,7 +722,7 @@ function LessonBox({
       type="button"
       onClick={lesson.split ? onMerge : onSplit}
       title={lesson.split ? 'Gör lektionen hel igen, med ett lag för alla klasser' : 'Dela per klass, så att klasserna kan få olika lag'}
-      className="flex shrink-0 items-center gap-1 rounded border border-black/50 bg-white/80 px-1.5 py-0.5 text-[10px] font-bold text-gray-900 hover:bg-white"
+      className="flex shrink-0 items-center gap-1 rounded border border-black/50 bg-white/80 px-1.5 py-0.5 text-[10px] font-bold text-gray-900 kron:text-ui-ink hover:bg-white"
     >
       {lesson.split ? <Square size={11} /> : <Columns3 size={11} />}
       {lesson.split ? 'Slå ihop' : 'Dela'}
@@ -734,7 +734,7 @@ function LessonBox({
     return (
       <div
         id={lessonElementId(lesson.id)}
-        className={cn('absolute flex flex-col gap-1 overflow-hidden rounded-md border-2 border-black bg-white p-1 shadow-[2px_2px_0_0_#000] transition-opacity', focusClasses(view, lesson))}
+        className={cn('absolute flex flex-col gap-1 overflow-hidden rounded-md border-frame border-ui-line bg-ui-paper p-1 shadow-frame-sm transition-opacity', focusClasses(view, lesson))}
         style={style}
       >
         <div className="flex items-center justify-between gap-1 px-0.5">
@@ -767,8 +767,8 @@ function LessonBox({
       {...attributes}
       {...listeners}
       className={cn(
-        'absolute flex cursor-grab touch-none flex-col justify-between gap-0.5 overflow-hidden rounded-md border-2 px-2 py-1 shadow-[2px_2px_0_0_#000] transition-opacity active:cursor-grabbing',
-        team ? 'border-black' : 'border-rose-600 bg-white',
+        'absolute flex cursor-grab touch-none flex-col justify-between gap-0.5 overflow-hidden rounded-md border-2 kron:border px-2 py-1 shadow-frame-sm transition-opacity active:cursor-grabbing',
+        team ? 'border-black kron:border-ui-line' : 'border-rose-600 bg-ui-paper',
         isDragging && 'opacity-40',
         focusClasses(view, lesson)
       )}
@@ -776,7 +776,7 @@ function LessonBox({
       aria-label={`${lessonLabel(lesson)}${team ? `, ${team.name}` : ', inget arbetslag'}`}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className={cn('font-mono text-xs font-bold', !team && 'text-rose-700')}>{lesson.start}–{lesson.end}</span>
+        <span className={cn('font-mono text-xs font-bold', !team && 'text-rose-700 kron:text-ui-danger')}>{lesson.start}–{lesson.end}</span>
         {toggle}
       </div>
       {team ? (
@@ -785,7 +785,7 @@ function LessonBox({
           <span className="truncate text-sm font-black">{team.name}</span>
         </span>
       ) : (
-        <span className="text-xs font-bold text-rose-700">Inget lag. Dra till ett arbetslag.</span>
+        <span className="text-xs font-bold text-rose-700 kron:text-ui-danger">Inget lag. Dra till ett arbetslag.</span>
       )}
       {staffing[0] && <StaffingLine staffing={staffing[0]} view={view} noReserve={noReserve} />}
     </div>
@@ -834,7 +834,7 @@ function StaffingLine({ staffing, view, noReserve }: { staffing: TeamStaffing; v
               className={cn(
                 'flex h-5 w-5 items-center justify-center rounded-full border-[1.5px] border-black text-[8.5px] font-black',
                 index > 0 && '-ml-1.5',
-                id === view.focusId ? 'bg-black text-white' : 'bg-white text-black'
+                id === view.focusId ? 'bg-black text-white' : 'bg-ui-paper text-black'
               )}
             >
               {names[index].slice(0, 2)}
@@ -866,7 +866,7 @@ function ClassGroupBox({
   const textColor = team ? getReadableTextColor(team.color) : undefined;
   return (
     <div
-      className={cn('relative flex min-w-0 overflow-hidden rounded border-2', absent ? 'border-dashed border-black/30 opacity-60' : 'border-black')}
+      className={cn('relative flex min-w-0 overflow-hidden rounded border-2 kron:border', absent ? 'border-dashed border-black/30 opacity-60' : 'border-black kron:border-ui-line')}
       style={{ flex: `${classes.length} 1 0`, background: team?.color ?? '#fff' }}
     >
       {classes.map((className, index) => (
@@ -888,7 +888,7 @@ function ClassGroupBox({
               )}
             </>
           ) : (
-            <span className="text-[10px] font-bold text-rose-700">Inget lag</span>
+            <span className="text-[10px] font-bold text-rose-700 kron:text-ui-danger">Inget lag</span>
           )}
         </div>
       )}
@@ -910,7 +910,7 @@ function ClassPart({ lesson, className, absent, team, first }: {
   });
   const strip = (
     <span
-      className="block truncate border-b-[1.5px] border-black px-0.5 text-center text-[10px] font-black text-black"
+      className="block truncate border-b-[1.5px] border-black kron:border-b kron:border-ui-line px-0.5 text-center text-[10px] font-black text-black kron:text-ui-ink"
       style={{ background: absent ? `repeating-linear-gradient(135deg, ${classColor(className)} 0 4px, #fff 4px 9px)` : classColor(className) }}
     >
       {className}
@@ -985,13 +985,13 @@ function Teams({
     <section className="mt-6 grid gap-4">
       <div className="sp-card px-4 py-3">
         <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-          <h2 className="font-bold" title="Timmar per vecka: fasta pass i schemat plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
-          <span className="flex items-center gap-1.5 text-xs text-gray-700">
+          <h2 className="ui-panel-title font-bold" title="Timmar per vecka: fasta pass i schemat plus temat, räknat i klasspass (en lärare per klass och lektion)">Lärare</h2>
+          <span className="flex items-center gap-1.5 text-xs text-gray-700 kron:text-ui-ink-2">
             <span className="h-2.5 w-3.5 rounded-sm border border-black bg-gray-400" aria-hidden /> fasta pass i schemat
             <span className="ml-2 h-2.5 w-3.5 rounded-sm border border-black bg-black" aria-hidden /> tema
           </span>
           {rows.length > 0 && <span className="text-xs font-bold">Snitt {formatHours(avg)}</span>}
-          <span className="text-xs text-gray-600 sm:ml-auto">
+          <span className="text-xs text-gray-600 kron:text-ui-muted sm:ml-auto">
             {focusName
               ? <>Visar <b>{focusName}</b>: lag, dagar och lektioner. Klicka igen för att släppa.</>
               : 'Klicka på en lärare för att se lärarens lag och lektioner.'}
@@ -1070,9 +1070,9 @@ function TeacherChip({
       aria-pressed={onClick ? active : undefined}
       title={`Tillgänglig: ${teacher.days.map(d => d.slice(0, 3).toLowerCase()).join(', ') || 'inga dagar'}${onClick ? '. Klicka för fokus, dra till en dag eller ett lag.' : ''}`}
       className={cn(
-        'flex cursor-grab touch-none items-center gap-1 rounded-full border-2 border-black font-bold active:cursor-grabbing',
-        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'gap-2 px-3 py-1 text-sm shadow-[2px_2px_0_0_#000]',
-        active ? 'bg-black text-white' : 'bg-white',
+        'flex cursor-grab touch-none items-center gap-1 rounded-full border-frame border-ui-line font-bold active:cursor-grabbing',
+        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'gap-2 px-3 py-1 text-sm shadow-frame-sm',
+        active ? 'bg-black text-white' : 'bg-ui-paper',
         active && size === 'md' && 'shadow-[2px_2px_0_0_#facc15]',
         isDragging && 'opacity-40'
       )}
@@ -1092,7 +1092,7 @@ function TeacherChip({
           onClick={onRemove}
           title={removeLabel}
           aria-label={removeLabel}
-          className={cn('-mr-1 rounded-full p-0.5 hover:bg-rose-50 hover:text-rose-700', active ? 'text-gray-300' : 'text-gray-500')}
+          className={cn('-mr-1 rounded-full p-0.5 hover:bg-rose-50 hover:text-rose-700', active ? 'text-gray-300' : 'text-ui-muted')}
         >
           <X size={10} />
         </button>
@@ -1127,7 +1127,7 @@ function HourBar({ fixedMinutes, temaMinutes, max, avg, fixed, inverted }: {
     >
       <span className={cn('flex h-2.5 w-24 overflow-hidden rounded-sm border-[1.5px]', inverted ? 'border-white' : 'border-black')} aria-hidden>
         <span className="h-full bg-gray-400" style={{ width: `${(fixedMinutes / max) * 100}%` }} />
-        <span className={cn('h-full', inverted ? 'bg-white' : 'bg-black')} style={{ width: `${(temaMinutes / max) * 100}%` }} />
+        <span className={cn('h-full', inverted ? 'bg-ui-paper' : 'bg-black')} style={{ width: `${(temaMinutes / max) * 100}%` }} />
       </span>
       <span className="w-11 text-right font-mono text-xs tabular-nums">{formatHours(total)}</span>
       {Math.abs(diff) >= DEVIATION_MINUTES && (
@@ -1184,7 +1184,7 @@ function TeamCard({
       )}
     >
       <div
-        className="flex items-center gap-2 border-b-2 border-black px-3 py-2"
+        className="flex items-center gap-2 border-b-frame border-ui-line px-3 py-2"
         style={{ background: team.color, color: getReadableTextColor(team.color) }}
       >
         <TeamNumberInput
@@ -1210,7 +1210,7 @@ function TeamCard({
       </div>
 
       <div className="flex flex-wrap gap-1 px-3 pt-2">
-        {members.length === 0 && <span className="text-xs text-gray-500">Dra lärare hit.</span>}
+        {members.length === 0 && <span className="text-xs text-ui-muted">Dra lärare hit.</span>}
         {members.map(teacher => (
           <button
             key={teacher.id}
@@ -1229,7 +1229,7 @@ function TeamCard({
 
       <div className="flex flex-1 flex-col gap-1 p-3">
         {owned.length === 0 && (
-          <div className="flex flex-1 items-center justify-center rounded-md border-2 border-dashed border-gray-300 p-3 text-center text-xs text-gray-500">
+          <div className="flex flex-1 items-center justify-center rounded-md border-2 border-dashed border-gray-300 kron:border-ui-line p-3 text-center text-xs text-ui-muted">
             Dra lektioner hit.
           </div>
         )}
@@ -1249,7 +1249,7 @@ function TeamCard({
 
       {owned.length > 0 && (
         <div
-          className="border-t border-gray-200 px-3 py-1.5 text-xs text-gray-700"
+          className="border-t border-ui-hair px-3 py-1.5 text-xs text-gray-700 kron:text-ui-ink-2"
           title="Klasspass: en klass i en lektion. Tiden per lärare är lagets klasspass delade på medlemmarna, ungefär."
         >
           {owned.length} {owned.length === 1 ? 'lektion' : 'lektioner'} · {passes} klasspass
@@ -1282,7 +1282,7 @@ function Brick({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={cn('flex cursor-grab touch-none items-center gap-2 rounded border-2 border-black bg-white px-2 py-1 text-xs active:cursor-grabbing', isDragging && 'opacity-40')}
+      className={cn('flex cursor-grab touch-none items-center gap-2 rounded border-frame border-ui-line bg-ui-paper px-2 py-1 text-xs active:cursor-grabbing', isDragging && 'opacity-40')}
     >
       <span className="font-mono font-bold">{lessonLabel(lesson)}</span>
       <span className="flex gap-0.5">
@@ -1296,7 +1296,7 @@ function Brick({
         onClick={onRemove}
         title="Ta bort ur laget"
         aria-label={`Ta bort ${lessonLabel(lesson)} ur laget`}
-        className="ml-auto rounded p-0.5 text-gray-500 hover:bg-rose-50 hover:text-rose-700"
+        className="ml-auto rounded p-0.5 text-ui-muted hover:bg-rose-50 hover:text-rose-700"
       >
         <X size={12} />
       </button>
@@ -1312,13 +1312,13 @@ function NewTeamCard({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       className={cn(
-        'flex min-h-[140px] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-black/40 bg-white/70 p-4 text-sm font-semibold text-gray-600 hover:border-black hover:text-black',
-        active && isOver && 'border-black bg-white text-black'
+        'flex min-h-[140px] flex-col items-center justify-center gap-1 rounded-ui border-2 border-dashed border-black/40 bg-white/70 p-4 text-sm font-semibold text-gray-600 kron:text-ui-muted hover:border-black hover:text-black',
+        active && isOver && 'border-black bg-ui-paper text-black'
       )}
     >
       <Plus size={18} />
       Nytt arbetslag
-      <span className="text-xs font-normal text-gray-500">Klicka, eller släpp en lektion eller lärare här</span>
+      <span className="text-xs font-normal text-ui-muted">Klicka, eller släpp en lektion eller lärare här</span>
     </button>
   );
 }
@@ -1329,13 +1329,13 @@ function DragPreview({ data, state }: { data: DragData; state: LabState }) {
   const lesson = 'lessonId' in data ? state.template.find(l => l.id === data.lessonId) : undefined;
   if (data.kind === 'teacher') {
     const teacher = state.teachers.find(t => t.id === data.teacherId);
-    return <span className="rounded-full border-2 border-black bg-white px-3 py-1 text-sm font-bold shadow-[2px_2px_0_0_#000]">{teacher?.name}</span>;
+    return <span className="rounded-full border-frame border-ui-line bg-ui-paper px-3 py-1 text-sm font-bold shadow-frame-sm">{teacher?.name}</span>;
   }
   if (!lesson) return null;
   const background = data.kind === 'part' ? classColor(data.className) : '#fff';
   return (
     <span
-      className="inline-block rounded-md border-2 border-black px-2 py-1 font-mono text-xs font-bold shadow-[2px_2px_0_0_#000]"
+      className="inline-block rounded-md border-frame border-ui-line px-2 py-1 font-mono text-xs font-bold shadow-frame-sm"
       style={{ background }}
     >
       {lessonLabel(lesson)}{data.kind === 'part' && ` · ${data.className}`}

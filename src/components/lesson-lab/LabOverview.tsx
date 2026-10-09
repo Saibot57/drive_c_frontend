@@ -60,14 +60,14 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
           ) : (
             <ul className="grid gap-1">
               {[...errors, ...warns].map((w, i) => (
-                <li key={i} className={cn('flex gap-2', w.severity === 'error' ? 'text-rose-700' : 'text-amber-800')}>
+                <li key={i} className={cn('flex gap-2', w.severity === 'error' ? 'text-rose-700 kron:text-ui-danger' : 'text-amber-800')}>
                   <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {w.message}
                 </li>
               ))}
             </ul>
           )}
           {infos.length > 0 && (
-            <details className="text-gray-600">
+            <details className="text-gray-600 kron:text-ui-muted">
               <summary className="flex cursor-pointer items-center gap-2">
                 <Info size={14} /> {infos.length} ofullständiga lektioner (utan arbetslag eller med tomma klasser)
               </summary>
@@ -83,7 +83,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
         <div className="overflow-x-auto p-2">
           <table className="w-full text-sm tabular-nums">
             <thead>
-              <tr className="border-b-2 border-black text-left text-[11px] uppercase tracking-wide text-gray-500">
+              <tr className="border-b-frame border-ui-line text-left text-[11px] uppercase tracking-wide text-ui-muted">
                 <th className="px-2 py-1">Lärare</th>
                 {showFixed && <th className="px-2 py-1 text-right" title="Pass i schemat som inte är tema, t.ex. matte">Fast</th>}
                 <th className="px-2 py-1 text-right">Undervisar</th>
@@ -95,13 +95,13 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
               {teachers.map(row => (
                 <tr
                   key={row.teacher.id}
-                  className={cn('cursor-pointer border-b border-gray-100 hover:bg-gray-50', focusTeacherId === row.teacher.id && 'bg-amber-50')}
+                  className={cn('cursor-pointer border-b border-gray-100 kron:border-ui-hair hover:bg-gray-50 kron:hover:bg-ui-surface-3', focusTeacherId === row.teacher.id && 'bg-amber-50')}
                   onClick={() => onFocusTeacher(focusTeacherId === row.teacher.id ? null : row.teacher.id)}
                 >
                   <td className="px-2 py-1 font-semibold">{row.teacher.name}</td>
                   {showFixed && (
                     <td
-                      className="px-2 py-1 text-right text-gray-600"
+                      className="px-2 py-1 text-right text-gray-600 kron:text-ui-muted"
                       title={fixed?.get(row.teacher.id)?.parts.map(p => `${p.label} ${formatMinutes(p.minutes)}`).join(', ')}
                     >
                       {fixed?.get(row.teacher.id) ? formatMinutes(fixed.get(row.teacher.id)!.total) : '–'}
@@ -109,7 +109,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
                   )}
                   <td className="px-2 py-1 text-right">
                     {row.minutes > 0 ? formatMinutes(row.minutes) : '–'}
-                    <span className="ml-1 text-xs text-gray-500">{row.lessonCount > 0 && `(${row.lessonCount})`}</span>
+                    <span className="ml-1 text-xs text-ui-muted">{row.lessonCount > 0 && `(${row.lessonCount})`}</span>
                   </td>
                   <td className="px-2 py-1 text-right">{row.ownedLessons > 0 ? `${row.ownedLessons} lekt.` : '–'}</td>
                   <td className="px-2 py-1">
@@ -128,7 +128,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
               ))}
             </tbody>
           </table>
-          <p className="px-2 pt-2 text-xs text-gray-500">
+          <p className="px-2 pt-2 text-xs text-ui-muted">
             {showFixed && 'Fast är passen i schemat som inte är tema, t.ex. matte. '}
             Undervisar räknar en lektion en gång även om läraren står på två klasser. Planerar är lektionerna som lärarens arbetslag äger.
           </p>
@@ -138,11 +138,11 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
       <LabCard title="Klasserna: minuter per område">
         <div className="overflow-x-auto p-2">
           {areaColumns.length === 0 ? (
-            <p className="px-2 py-1 text-sm text-gray-500">Inga lektioner än.</p>
+            <p className="px-2 py-1 text-sm text-ui-muted">Inga lektioner än.</p>
           ) : (
             <table className="w-full text-sm tabular-nums">
               <thead>
-                <tr className="border-b-2 border-black text-[11px] uppercase tracking-wide text-gray-500">
+                <tr className="border-b-frame border-ui-line text-[11px] uppercase tracking-wide text-ui-muted">
                   <th className="px-2 py-1 text-left">Klass</th>
                   {areaColumns.map(a => (
                     <th key={a.id} className="px-2 py-1 text-right">
@@ -154,7 +154,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
               </thead>
               <tbody>
                 {state.classes.map(className => (
-                  <tr key={className} className="border-b border-gray-100">
+                  <tr key={className} className="border-b border-gray-100 kron:border-ui-hair">
                     <td className="px-2 py-1 font-semibold">{className}</td>
                     {areaColumns.map(a => {
                       const minutes = classes[className]?.[a.id] ?? 0;
@@ -162,7 +162,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
                       return (
                         <td key={a.id} className={cn('px-2 py-1 text-right', off && (minutes < (a.goal ?? 0) ? 'text-amber-800' : 'text-sky-800'))}>
                           {minutes || '–'}
-                          {a.goal !== null && <span className="ml-1 text-xs text-gray-500">/ {a.goal}</span>}
+                          {a.goal !== null && <span className="ml-1 text-xs text-ui-muted">/ {a.goal}</span>}
                         </td>
                       );
                     })}
@@ -171,7 +171,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
               </tbody>
             </table>
           )}
-          <p className="px-2 pt-2 text-xs text-gray-500">
+          <p className="px-2 pt-2 text-xs text-ui-muted">
             Alla lektioner går för alla klasser samtidigt, så klasserna får samma minuter. Siffran efter snedstrecket är målet.
           </p>
         </div>
@@ -182,7 +182,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
           <div className="overflow-x-auto p-2">
             <table className="w-full text-sm tabular-nums">
               <thead>
-                <tr className="border-b-2 border-black text-left text-[11px] uppercase tracking-wide text-gray-500">
+                <tr className="border-b-frame border-ui-line text-left text-[11px] uppercase tracking-wide text-ui-muted">
                   <th className="px-2 py-1">Arbetslag</th>
                   <th className="px-2 py-1">Lärare</th>
                   <th className="px-2 py-1 text-right">Lektioner</th>
@@ -193,7 +193,7 @@ export function LabOverview({ state, lessons, warnings, fixed, focusTeacherId, o
               </thead>
               <tbody>
                 {teams.map(row => (
-                  <tr key={row.team.id} className="border-b border-gray-100">
+                  <tr key={row.team.id} className="border-b border-gray-100 kron:border-ui-hair">
                     <td className="px-2 py-1 font-semibold">
                       <TeamBadge team={row.team} className="mr-2 align-middle" />
                       {row.team.name}

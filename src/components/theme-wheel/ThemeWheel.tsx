@@ -199,7 +199,9 @@ export const ThemeWheel = forwardRef<SVGSVGElement, ThemeWheelProps>(function Th
       id="theme-wheel-canvas"
       viewBox={`0 0 ${metrics.size} ${metrics.size}`}
       fontFamily={WHEEL_FONT_STACK}
-      className={`w-full h-auto touch-none select-none ${className}`}
+      // tw-wheel låter Kronberg byta linjernas färg på skärmen (theme-wheel.css).
+      // Exporten tar bort klassen och har ingen stilmall, så den ritas som förut.
+      className={`tw-wheel w-full h-auto touch-none select-none ${className}`}
       role="img"
       aria-label={`Temakalender ${wheel.name}, ${spanLabel}`}
       onClick={event => {

@@ -6,25 +6,25 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-base text-sm font-base ring-offset-white transition-all gap-2 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-ui-sm text-sm font-base ring-offset-white transition-all gap-2 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none",
   {
     variants: {
       variant: {
         default:
-          "text-mtext bg-main border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none",
-        noShadow: "text-mtext bg-main border-2 border-border",
+          "ui-press ui-press-accent text-ui-accent-fg bg-main border-frame border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none",
+        noShadow: "text-ui-accent-fg bg-main border-frame border-border",
         neutral:
-          "bg-bw text-text border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none",
+          "ui-press bg-bw text-text border-frame border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none",
         secondary:
-          "bg-white text-text border border-border/60 hover:bg-gray-50 hover:border-border",
+          "bg-ui-paper text-text border border-border hover:bg-ui-surface-3",
         reverse:
-          "text-mtext bg-main border-2 border-border hover:translate-x-reverseBoxShadowX hover:translate-y-reverseBoxShadowY hover:shadow-shadow",
+          "ui-press ui-press-accent text-ui-accent-fg bg-main border-frame border-border hover:translate-x-reverseBoxShadowX hover:translate-y-reverseBoxShadowY hover:shadow-shadow",
       },
       size: {
-        default: "h-10 px-4 py-2",
+        default: "h-[var(--ui-btn-h)] px-4 py-2",
         sm: "h-9 px-3",
         lg: "h-11 px-8",
-        icon: "h-10 w-10",
+        icon: "h-[var(--ui-btn-h)] w-[var(--ui-btn-h)]",
       },
     },
     defaultVariants: {
@@ -40,12 +40,25 @@ export interface ButtonProps
   asChild?: boolean
 }
 
+/**
+ * Sätter anroparen en egen botten (`bg-emerald-100`, `bg-transparent`) är
+ * knappen inte längre en primärknapp. Då ska texten följa sidans bläck och
+ * inte primärknappens textfärg, som i Kronberg är vit. I Neo är båda svarta.
+ */
+const hasOwnBackground = (className?: string) => /(^|\s)bg-/.test(className ?? "")
+
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    const isAccent = variant === undefined || variant === null || variant === "default"
+      || variant === "noShadow" || variant === "reverse"
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(
+          buttonVariants({ variant, size }),
+          isAccent && hasOwnBackground(className) && "text-mtext ui-press-plain",
+          className,
+        )}
         ref={ref}
         {...props}
       />

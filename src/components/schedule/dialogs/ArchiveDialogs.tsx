@@ -11,36 +11,31 @@ type ArchiveDialogsProps = {
   archive: ReturnType<typeof useArchiveManager>;
   /** Inloggat användarnamn — behövs för att kunna lämna en delning. */
   currentUsername: string | null;
+  /** Autosparningen står på fel, så det öppna schemat på servern är inaktuellt. */
+  saveFailed: boolean;
 };
 
-/** Dialogerna för sparade scheman: skriv över, radera, dela och skapa nytt. */
-export function ArchiveDialogs({ archive, currentUsername }: ArchiveDialogsProps) {
-  const { overwriteArchive, deleteArchive } = archive;
+/** Dialogerna för sparade scheman: ta bort, dela och skapa nytt. */
+export function ArchiveDialogs({ archive, currentUsername, saveFailed }: ArchiveDialogsProps) {
+  const { deleteArchive, newScheduleSource, activeArchiveId } = archive;
+  const sourceIsOpenSchedule = newScheduleSource.kind === 'archive'
+    ? newScheduleSource.id === activeArchiveId
+    : newScheduleSource.kind === 'main' && activeArchiveId === null;
 
   return (
     <>
       <ConfirmDialog
-        open={Boolean(overwriteArchive)}
-        onOpenChange={(open) => { if (!open) archive.setOverwriteArchive(null); }}
-        title="Ersätta befintlig vecka?"
-        confirmLabel="Skriv över"
-        onConfirm={archive.handleConfirmOverwriteWeek}
-      >
-        <p className="text-sm text-gray-700">Vecka &quot;{overwriteArchive?.name}&quot; finns redan. Vill du skriva över den?</p>
-      </ConfirmDialog>
-
-      <ConfirmDialog
         open={Boolean(deleteArchive)}
         onOpenChange={(open) => { if (!open) archive.setDeleteArchive(null); }}
-        title="Radera vecka?"
-        confirmLabel="Radera"
+        title="Ta bort schema?"
+        confirmLabel="Ta bort"
         destructive
         onConfirm={archive.handleConfirmDeleteWeek}
       >
-        <p className="text-sm text-gray-700">Radera vecka &quot;{deleteArchive?.name}&quot;?</p>
+        <p className="text-sm text-gray-700 kron:text-ui-ink-2">Ta bort schemat &quot;{deleteArchive?.name}&quot;?</p>
         {/* Radering av ett delat schema drabbar fler än en. */}
         {deleteArchive && deleteArchive.sharedWith.length > 0 && (
-          <p className="text-sm font-bold text-rose-800">
+          <p className="text-sm font-bold text-rose-800 kron:text-ui-danger">
             Schemat är delat med {deleteArchive.sharedWith.join(', ')}. Det försvinner för dem också.
           </p>
         )}
@@ -63,7 +58,14 @@ export function ArchiveDialogs({ archive, currentUsername }: ArchiveDialogsProps
         onOpenChange={archive.setIsNewScheduleDialogOpen}
         name={archive.newScheduleName}
         onNameChange={archive.setNewScheduleName}
+        source={newScheduleSource}
+        onSourceChange={archive.setNewScheduleSource}
+        ownArchives={archive.ownArchives}
+        sharedArchives={archive.sharedArchives}
+        canUseMainSchedule={activeArchiveId === null}
+        sourceHasUnsavedChanges={saveFailed && sourceIsOpenSchedule}
         onCreate={archive.handleCreateNewSchedule}
+        isCreating={archive.isCreatingSchedule}
         nameExists={archive.ownArchiveNames.includes(archive.newScheduleName.trim())}
       />
     </>

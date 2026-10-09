@@ -107,17 +107,25 @@ export function ScheduledEventCard({
         if ((event.target as HTMLElement).closest('a, button')) return;
         onToggleBulk(entry.instanceId);
       }}
+      /* Det man oftast gör med en post. Klick med Shift, Ctrl eller Cmd
+         markerar som förut, och länken och ikonerna sköter sina egna klick. */
+      onDoubleClick={(event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if ((event.target as HTMLElement).closest('a, button')) return;
+        onEdit(entry);
+      }}
       style={{
         position: 'absolute',
         top: `${adjustedTop}px`,
         height: `${adjustedHeight}px`,
         left: `calc(${leftPercentage}% + 4px)`,
         width: `calc(${widthPercentage}% - 8px)`,
-        backgroundColor: color ?? entry.color,
+        // Kursfärgen. ui-course-fill målar den, och dämpar den i Kronberg.
+        '--course': color ?? entry.color,
         zIndex: isDragging ? 50 : 10
-      }}
+      } as React.CSSProperties}
       data-instance-id={entry.instanceId}
-      className={`scheduled-event-card sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''} ${isNotesTarget ? 'ring-4 ring-sky-600 ring-offset-1' : ''} ${isNotesProtected ? 'sp-notes-protected' : ''} ${isBulkSelected ? 'sp-bulk-selected' : ''}`}
+      className={`scheduled-event-card ui-course-fill sp-event-card rounded overflow-hidden p-1 group ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-60 sp-ring' : ''} ${isSelected ? 'sp-ring' : ''} ${isHighlighted ? 'ring-4 ring-orange-500 ring-offset-1' : ''} ${isNotesTarget ? 'ring-4 ring-sky-600 ring-offset-1' : ''} ${isNotesProtected ? 'sp-notes-protected' : ''} ${isBulkSelected ? 'sp-bulk-selected' : ''}`}
       title={`${entry.duration} min • ${entry.startTime} – ${entry.endTime}`}
     >
       <div className="sp-event-card-body flex flex-col h-full">
@@ -132,7 +140,7 @@ export function ScheduledEventCard({
             )}
           </span>
           {showLayoutDebug && (
-            <span className="rounded bg-white/70 px-1 text-2xs font-mono font-bold text-gray-700">
+            <span className="rounded bg-white/70 px-1 text-2xs font-mono font-bold text-gray-700 kron:text-ui-ink-2">
               {columnIndex}/{columnCount}
             </span>
           )}
@@ -144,7 +152,7 @@ export function ScheduledEventCard({
                 rel="noreferrer"
                 onPointerDown={e => e.stopPropagation()}
                 onClick={e => e.stopPropagation()}
-                className="p-1 bg-white/70 hover:bg-white rounded text-gray-700"
+                className="p-1 bg-white/70 hover:bg-white rounded text-gray-700 kron:text-ui-ink-2"
                 aria-label="Öppna uppgift"
                 title="Öppna uppgift"
               >
@@ -152,8 +160,26 @@ export function ScheduledEventCard({
               </a>
             )}
             <div className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-1 bg-white/60 rounded`}>
-              <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-1 hover:bg-white rounded"><Edit2 size={8} /></button>
-              <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-1 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8} /></button>
+              <button
+                type="button"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => onEdit(entry)}
+                className="grid h-5 w-5 place-items-center rounded hover:bg-white"
+                aria-label="Redigera"
+                title="Redigera"
+              >
+                <Edit2 size={12} />
+              </button>
+              <button
+                type="button"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => onRemove(entry.instanceId)}
+                className="grid h-5 w-5 place-items-center rounded text-rose-600 kron:text-ui-danger hover:bg-rose-200"
+                aria-label="Ta bort"
+                title="Ta bort"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           </div>
         </div>
@@ -163,19 +189,19 @@ export function ScheduledEventCard({
         {adjustedHeight > TEACHER_ROOM_MIN_HEIGHT_PX && teacherNames.length > 0 && (
           /* Lärarnamn kortas aldrig av med "…" – varje namn får en egen rad och
              bryts vid behov över flera rader. */
-          <div className={`shrink-0 text-gray-700 leading-tight font-semibold ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
+          <div className={`shrink-0 text-gray-700 kron:text-ui-ink-2 leading-tight font-semibold ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
             {teacherNames.map((name, index) => (
               <p key={`${name}-${index}`} className="break-words">{name}</p>
             ))}
           </div>
         )}
         {adjustedHeight > TEACHER_ROOM_MIN_HEIGHT_PX && shownRoom && (
-          <p className={`text-gray-700 truncate leading-tight ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
+          <p className={`text-gray-700 kron:text-ui-ink-2 truncate leading-tight ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>
             {shownRoom}
           </p>
         )}
         {entry.notes && adjustedHeight > NOTES_MIN_HEIGHT_PX && (
-          <p className={`text-gray-600 whitespace-pre-line line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
+          <p className={`text-gray-600 kron:text-ui-muted whitespace-pre-line line-clamp-4 ${isCompactHeight ? 'text-2xs' : 'text-xs'}`}>{entry.notes}</p>
         )}
       </div>
     </div>

@@ -38,7 +38,7 @@ export function ConfirmDialog({
         {children}
         <DialogFooter>
           <Button variant="neutral" onClick={onCancel ?? (() => onOpenChange(false))}>Avbryt</Button>
-          <Button className={destructive ? 'bg-rose-200 hover:bg-rose-300' : undefined} onClick={onConfirm}>
+          <Button className={destructive ? 'bg-[var(--ui-danger-bg)] text-[var(--ui-danger-fg)] hover:bg-[var(--ui-danger-bg-hover)]' : undefined} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </DialogFooter>

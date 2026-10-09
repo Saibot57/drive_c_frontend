@@ -26,6 +26,8 @@ type CourseEditorDialogProps = {
   rooms: string[];
   colorTriggers: ColorTriggerRule[];
   roomTriggers: RoomTriggerRule[];
+  /** Byggstenen finns inte än. Styr bara rubriken. */
+  isNew: boolean;
 };
 
 /** Skapa eller ändra en byggsten i sidopanelen. */
@@ -41,11 +43,12 @@ export function CourseEditorDialog({
   rooms,
   colorTriggers,
   roomTriggers,
+  isNew,
 }: CourseEditorDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Hantera ämne</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isNew ? 'Ny byggsten' : 'Redigera byggsten'}</DialogTitle></DialogHeader>
         {course && (
           <form onSubmit={onSave} onKeyDown={submitOnCtrlEnter(onSave)} className="space-y-3">
             <Label>Titel</Label>
@@ -84,7 +87,10 @@ export function CourseEditorDialog({
               recentStorageKey={RECENT_CUSTOM_COLORS_KEY}
               maxRecent={MAX_RECENT_CUSTOM_COLORS}
             />
-            <DialogFooter><Button type="submit">Spara</Button></DialogFooter>
+            <DialogFooter>
+              <Button variant="neutral" type="button" onClick={() => onOpenChange(false)}>Avbryt</Button>
+              <Button type="submit">Spara</Button>
+            </DialogFooter>
           </form>
         )}
       </DialogContent>

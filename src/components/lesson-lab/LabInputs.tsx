@@ -109,8 +109,8 @@ export function ColorSwatch({ color, onChange, label, icon = false }: { color: s
         aria-label={`${label}: välj färg`}
         aria-expanded={open}
         className={cn(
-          'shrink-0 rounded-full border-2 border-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black',
-          icon ? 'flex h-7 w-7 items-center justify-center bg-white text-black hover:bg-gray-100' : 'h-6 w-6 shadow-[inset_0_0_0_2px_#fff]'
+          'shrink-0 rounded-full border-frame border-ui-line focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black',
+          icon ? 'flex h-7 w-7 items-center justify-center bg-ui-paper text-black hover:bg-gray-100 kron:hover:bg-ui-surface-3' : 'h-6 w-6 shadow-[inset_0_0_0_2px_#fff]'
         )}
         style={icon ? undefined : { background: color }}
       >
@@ -118,7 +118,7 @@ export function ColorSwatch({ color, onChange, label, icon = false }: { color: s
       </button>
       {position && (
         <div
-          className="fixed z-50 w-64 rounded-md border-2 border-black bg-white p-3 shadow-[4px_4px_0_0_#000]"
+          className="fixed z-50 w-64 rounded-md border-frame border-ui-line bg-ui-paper p-3 shadow-frame"
           style={{ top: position.top, left: position.left }}
           onPointerDown={event => event.stopPropagation()}
         >
@@ -181,7 +181,7 @@ export function TeamNumberInput({ team, onCommit }: { team: LabTeam; onCommit: (
         if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
         if (event.key === 'Escape') { setDraft(String(team.number)); (event.target as HTMLInputElement).blur(); }
       }}
-      className="h-7 w-8 shrink-0 rounded border-2 border-black text-center text-sm font-black tabular-nums focus:outline-none focus:ring-2 focus:ring-black"
+      className="h-7 w-8 shrink-0 rounded border-frame border-ui-line text-center text-sm font-black tabular-nums focus:outline-none focus:ring-2 focus:ring-black"
       style={{ background: team.color, color: getReadableTextColor(team.color) }}
     />
   );
@@ -201,7 +201,7 @@ export function LabCard({
 }) {
   return (
     <section className={cn('sp-card', className)}>
-      <div className="flex items-center justify-between gap-2 border-b-2 border-black px-4 py-3">
+      <div className="flex items-center justify-between gap-2 border-b-frame border-ui-line px-4 py-3">
         <h2 className="font-bold">{title}</h2>
         {actions}
       </div>

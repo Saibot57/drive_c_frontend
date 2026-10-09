@@ -45,7 +45,7 @@ export function EntryEditorDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Redigera</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Redigera post</DialogTitle></DialogHeader>
         {entry && (
           <form onSubmit={onSave} onKeyDown={submitOnCtrlEnter(onSave)} className="space-y-3">
             <div>
@@ -74,7 +74,7 @@ export function EntryEditorDialog({
             </div>
             <RoomTriggerHint title={entry.title} room={entry.room} roomTriggers={roomTriggers} />
             <div className="space-y-1">
-              <Label htmlFor="entry-notes">Anteckningar:</Label>
+              <Label htmlFor="entry-notes">Anteckningar</Label>
               <Textarea
                 id="entry-notes"
                 placeholder="Anteckningar/övrigt"
@@ -84,7 +84,7 @@ export function EntryEditorDialog({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="entry-category">Uppgift:</Label>
+              <Label htmlFor="entry-category">Uppgift</Label>
               <Input
                 id="entry-category"
                 placeholder="Klistra in uppgiftslänk eller skriv en kort markering"
@@ -100,7 +100,10 @@ export function EntryEditorDialog({
               recentStorageKey={RECENT_CUSTOM_COLORS_KEY}
               maxRecent={MAX_RECENT_CUSTOM_COLORS}
             />
-            <DialogFooter><Button type="submit">Uppdatera</Button></DialogFooter>
+            <DialogFooter>
+              <Button variant="neutral" type="button" onClick={() => onOpenChange(false)}>Avbryt</Button>
+              <Button type="submit">Spara</Button>
+            </DialogFooter>
           </form>
         )}
       </DialogContent>

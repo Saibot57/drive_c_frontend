@@ -205,7 +205,7 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
   }, [exportInput]);
 
   if (state === 'loading') {
-    return <Shell><p className="text-gray-500">Hämtar schemat…</p></Shell>;
+    return <Shell><p className="text-ui-muted">Hämtar schemat…</p></Shell>;
   }
   if (state === 'not-found') {
     return (
@@ -234,10 +234,10 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
       <header className="mb-4">
         <h1 className="text-2xl font-bold leading-tight">{heading}</h1>
         {subheading && (
-          <p className="text-sm font-bold uppercase tracking-wide text-gray-500">{subheading}</p>
+          <p className="text-sm font-bold uppercase tracking-wide text-ui-muted">{subheading}</p>
         )}
         {updated && (
-          <p className="mt-0.5 text-sm text-gray-600" role="status">
+          <p className="mt-0.5 text-sm text-gray-600 kron:text-ui-muted" role="status">
             Uppdaterad {updated}
             {isStale && (
               <span className="ml-2 inline-flex items-center gap-1 text-amber-700">
@@ -251,7 +251,7 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
           choice ? (
             <div
               role="status"
-              className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded border-2 border-black bg-amber-50 px-3 py-2 text-sm"
+              className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded border-frame border-ui-line bg-amber-50 px-3 py-2 text-sm"
             >
               <span className="inline-flex items-center gap-1.5 font-bold">
                 <Filter size={14} aria-hidden /> Visar dina lektioner: {describeChoice(choice)}
@@ -269,7 +269,7 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
             <button
               type="button"
               onClick={() => setIsChoiceOpen(true)}
-              className="mt-3 inline-flex items-center gap-2 rounded border-2 border-black bg-amber-100 px-3 py-2 text-left text-sm font-bold shadow-[3px_3px_0px_black] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_black]"
+              className="mt-3 inline-flex items-center gap-2 rounded border-frame border-ui-line bg-amber-100 px-3 py-2 text-left text-sm font-bold shadow-[3px_3px_0px_black] kron:shadow-none active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_black]"
             >
               <Filter size={16} className="shrink-0" aria-hidden />
               Vill du bara se de lektioner du ska gå på?
@@ -311,7 +311,7 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
           type="button"
           onClick={handleDownload}
           disabled={isDownloading}
-          className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-gray-600 underline underline-offset-2 disabled:opacity-60"
+          className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-gray-600 kron:text-ui-muted underline underline-offset-2 disabled:opacity-60"
         >
           <Download size={14} /> {isDownloading ? 'Skapar bild…' : 'Ladda ner som bild'}
         </button>
@@ -326,9 +326,9 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded border-2 border-black bg-amber-50 p-5 shadow-[4px_4px_0px_black]">
+    <div className="rounded border-frame border-ui-line bg-amber-50 p-5 shadow-[4px_4px_0px_black] kron:shadow-none">
       <h2 className="text-lg font-bold">{title}</h2>
-      <p className="mt-1 text-gray-700">{children}</p>
+      <p className="mt-1 text-gray-700 kron:text-ui-ink-2">{children}</p>
     </div>
   );
 }

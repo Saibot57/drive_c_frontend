@@ -79,7 +79,7 @@ export function LabBoard(props: Props) {
               <div className="flex flex-1 flex-col gap-2 p-2">
                 {before.map(lesson => <LessonCard key={lesson.id} {...props} lesson={lesson} />)}
                 <AddButton onClick={() => addLesson(day, true)} label="Lektion före lunch" />
-                <div className="my-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500" aria-label="Lunch">
+                <div className="my-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-ui-muted" aria-label="Lunch">
                   <span className="flex-1 border-t-2 border-dotted border-gray-400" />
                   Lunch
                   <span className="flex-1 border-t-2 border-dotted border-gray-400" />
@@ -92,7 +92,7 @@ export function LabBoard(props: Props) {
         })}
       </div>
       {state.classes.length > 0 && lessons.length === 0 && (
-        <p className="mt-3 text-sm text-gray-600">Veckan har inga lektioner. Lägg till med plusknapparna i dagarna.</p>
+        <p className="mt-3 text-sm text-gray-600 kron:text-ui-muted">Veckan har inga lektioner. Lägg till med plusknapparna i dagarna.</p>
       )}
     </div>
   );
@@ -103,7 +103,7 @@ function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-gray-300 py-1 text-xs font-semibold text-gray-500 hover:border-black hover:text-black"
+      className="flex items-center justify-center gap-1 rounded-md border-2 border-dashed border-gray-300 kron:border-ui-line py-1 text-xs font-semibold text-ui-muted hover:border-black hover:text-black"
     >
       <Plus size={12} /> {label}
     </button>
@@ -116,10 +116,10 @@ function DayHeader({ state, day, dayLessons, focusTeacherId, onFocusTeacher }: P
   const teaching = new Set(dayLessons.flatMap(l => state.classes.map(c => l.classTeachers[c]).filter(Boolean) as string[]));
 
   return (
-    <div className="border-b-2 border-black px-3 py-2">
+    <div className="border-b-frame border-ui-line px-3 py-2">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-lg font-black uppercase tracking-wide">{day.slice(0, 3)}</h3>
-        <span className="text-xs text-gray-500">{available.length} lärare</span>
+        <span className="text-xs text-ui-muted">{available.length} lärare</span>
       </div>
       <div className="mt-1 flex flex-wrap gap-1">
         {available.map(teacher => (
@@ -130,8 +130,8 @@ function DayHeader({ state, day, dayLessons, focusTeacherId, onFocusTeacher }: P
             aria-pressed={focusTeacherId === teacher.id}
             title={teaching.has(teacher.id) ? `${teacher.name} har lektion` : `${teacher.name} är tillgänglig men har ingen lektion`}
             className={cn(
-              'rounded-full border-2 px-2 py-0.5 text-xs font-bold',
-              teaching.has(teacher.id) ? 'border-black bg-black text-white' : 'border-black bg-white text-black',
+              'rounded-full border-2 kron:border px-2 py-0.5 text-xs font-bold',
+              teaching.has(teacher.id) ? 'border-black bg-black text-white kron:border-ui-ink kron:bg-ui-ink' : 'border-black bg-ui-paper text-black kron:border-ui-control kron:text-ui-ink',
               focusTeacherId === teacher.id && 'ring-2 ring-amber-400 ring-offset-1'
             )}
           >
@@ -139,7 +139,7 @@ function DayHeader({ state, day, dayLessons, focusTeacherId, onFocusTeacher }: P
           </button>
         ))}
         {resources.map(teacher => (
-          <span key={teacher.id} className="rounded-full border border-dashed border-gray-400 px-2 py-0.5 text-xs text-gray-500" title="Resurs">
+          <span key={teacher.id} className="rounded-full border border-dashed border-gray-400 px-2 py-0.5 text-xs text-ui-muted" title="Resurs">
             {teacher.name}
           </span>
         ))}
@@ -174,7 +174,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
   return (
     <article
       className={cn(
-        'rounded-md border-2 border-black bg-white transition-opacity',
+        'rounded-md border-frame border-ui-line bg-ui-paper transition-opacity',
         focusTeacherId && !involved && 'opacity-30',
         focusTeacherId && involved && 'ring-2 ring-amber-400 ring-offset-1'
       )}
@@ -183,7 +183,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
       <div className="flex items-center justify-between gap-1 rounded-t px-2 py-1" style={{ background: area?.color ?? '#f3f4f6' }}>
         <span className="font-mono text-xs font-bold">
           {lesson.start}–{lesson.end}
-          <span className="ml-1 font-sans font-normal text-gray-700">{lessonMinutes(lesson)} min</span>
+          <span className="ml-1 font-sans font-normal text-gray-700 kron:text-ui-ink-2">{lessonMinutes(lesson)} min</span>
         </span>
         <span className="flex items-center">
           <IconButton label="Fyll tomma klasser från arbetslaget" disabled={lessonTeams.size === 0} onClick={() => commitLessons(current => fillFromTeam(state, current, lesson.id, busy))}>
@@ -199,7 +199,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
       </div>
 
       {editing && (
-        <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
+        <div className="flex flex-wrap items-center gap-1 border-b border-ui-hair bg-gray-50 kron:bg-ui-surface-3 px-2 py-1.5 text-xs">
           <input type="time" value={draft.start} aria-label="Starttid" onChange={e => setDraft(d => ({ ...d, start: e.target.value }))} className="rounded border border-gray-400 px-1" />
           –
           <input type="time" value={draft.end} aria-label="Sluttid" onChange={e => setDraft(d => ({ ...d, end: e.target.value }))} className="rounded border border-gray-400 px-1" />
@@ -207,18 +207,18 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
             type="button"
             disabled={!draftValid}
             onClick={() => { update(draft); setEditing(false); }}
-            className="rounded border-2 border-black bg-white px-1.5 font-semibold disabled:opacity-40"
+            className="rounded border-frame border-ui-line bg-ui-paper px-1.5 font-semibold disabled:opacity-40"
           >
             Spara
           </button>
           <button
             type="button"
             onClick={() => commitLessons(current => current.filter(l => l.id !== lesson.id))}
-            className="ml-auto flex items-center gap-1 rounded px-1 text-rose-700 hover:bg-rose-50"
+            className="ml-auto flex items-center gap-1 rounded px-1 text-rose-700 kron:text-ui-danger hover:bg-rose-50"
           >
             <Trash2 size={12} /> Ta bort
           </button>
-          {!draftValid && <span className="w-full text-rose-700">Sluttiden måste vara efter starttiden.</span>}
+          {!draftValid && <span className="w-full text-rose-700 kron:text-ui-danger">Sluttiden måste vara efter starttiden.</span>}
         </div>
       )}
 
@@ -236,7 +236,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
             value={lesson.areaId ?? ''}
             aria-label="Område"
             onChange={e => update({ areaId: e.target.value || null })}
-            className="min-w-0 rounded border border-gray-300 bg-white px-1 py-0.5 text-xs"
+            className="min-w-0 rounded border border-gray-300 kron:border-ui-line bg-ui-paper px-1 py-0.5 text-xs"
           >
             <option value="">Område…</option>
             {state.areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -246,7 +246,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
             aria-label="Arbetslag"
             title={lesson.split ? 'Klasserna har var sitt arbetslag. Välj ett lag för att ge alla klasser samma.' : undefined}
             onChange={e => update(assignTeam(lesson, state.classes, e.target.value || null))}
-            className="min-w-0 rounded border border-gray-300 bg-white px-1 py-0.5 text-xs"
+            className="min-w-0 rounded border border-gray-300 kron:border-ui-line bg-ui-paper px-1 py-0.5 text-xs"
           >
             <option value="">Arbetslag…</option>
             {lesson.split && <option value={SPLIT_VALUE} disabled>Delad per klass</option>}
@@ -258,7 +258,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
           {state.classes.map(className => {
             if (lesson.absentClasses?.includes(className)) {
               return (
-                <div key={className} className="flex items-center gap-1 text-xs text-gray-400">
+                <div key={className} className="flex items-center gap-1 text-xs text-ui-subtle">
                   <span className="w-11 shrink-0 font-semibold line-through">{className}</span>
                   <span>har inte tema den här tiden</span>
                 </div>
@@ -269,16 +269,16 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
             const classTeam = lesson.split ? teamName(classTeamId(lesson, className)) : undefined;
             return (
               <label key={className} className="flex items-center gap-1 text-xs">
-                <span className="w-11 shrink-0 font-semibold text-gray-600" title={classTeam ? `Arbetslag: ${classTeam}` : undefined}>
-                  {className}{lesson.split && <span className="block text-[9px] font-normal leading-none text-gray-500">{classTeam ?? 'inget lag'}</span>}
+                <span className="w-11 shrink-0 font-semibold text-gray-600 kron:text-ui-muted" title={classTeam ? `Arbetslag: ${classTeam}` : undefined}>
+                  {className}{lesson.split && <span className="block text-[9px] font-normal leading-none text-ui-muted">{classTeam ?? 'inget lag'}</span>}
                 </span>
                 <select
                   value={teacherId}
                   aria-label={`Lärare för ${className}`}
                   onChange={e => update({ classTeachers: { ...lesson.classTeachers, [className]: e.target.value || null } })}
                   className={cn(
-                    'min-w-0 flex-1 rounded border bg-white px-1 py-0.5',
-                    teacherId && badTeachers.has(teacherId) ? 'border-rose-600 bg-rose-50 text-rose-800' : 'border-gray-300',
+                    'min-w-0 flex-1 rounded border bg-ui-paper px-1 py-0.5',
+                    teacherId && badTeachers.has(teacherId) ? 'border-rose-600 bg-rose-50 text-rose-800 kron:text-ui-danger' : 'border-gray-300 kron:border-ui-line',
                     teacherId && focusTeacherId === teacherId && 'font-bold'
                   )}
                 >
@@ -307,7 +307,7 @@ function LessonCard({ state, lessons, warnings, busy, commitLessons, focusTeache
         {problems.length > 0 && (
           <ul className="mt-1 grid gap-0.5">
             {problems.map((w, i) => (
-              <li key={i} className={cn('flex gap-1 text-[11px] leading-snug', w.severity === 'error' ? 'text-rose-700' : 'text-amber-800')}>
+              <li key={i} className={cn('flex gap-1 text-[11px] leading-snug', w.severity === 'error' ? 'text-rose-700 kron:text-ui-danger' : 'text-amber-800')}>
                 <AlertTriangle size={11} className="mt-0.5 shrink-0" />
                 {w.detail}
               </li>
