@@ -59,7 +59,7 @@ export default function DayNotesSidebar({
         {saveError && (
           <div
             role="alert"
-            className="mt-2 flex items-center justify-between gap-2 rounded border-2 border-black bg-red-50 px-2 py-1 text-xs"
+            className="mt-2 flex items-center justify-between gap-2 rounded border-frame border-ui-line bg-red-50 px-2 py-1 text-xs"
           >
             <span>{saveError}</span>
             <button type="button" className="mc-btn" onClick={onRetry}>

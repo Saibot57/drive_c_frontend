@@ -491,3 +491,72 @@
     transition: none;
   }
 }
+
+/* ── Kronberg ──────────────────────────────────────────────────────────────
+ * Ytan inuti är redan lugn. Kronberg byter papperets ton till temats, gör
+ * ramen och kontrollerna lika lugna och markerar dagens datum med lampan.
+ * Neo-reglerna ovan står orörda.
+ */
+:root[data-theme="kronberg"] .mc-root {
+  --mc-paper: var(--ui-paper);
+  --mc-paper-muted: var(--ui-surface);
+  --mc-rule: rgba(31, 32, 34, 0.05);
+  --mc-grid-line: var(--ui-hair);
+  --mc-outside: #9C9A94;
+  --mc-today-ring: var(--ui-lamp);
+  --mc-selected-bg: #F1EFEA;
+  --mc-selected-ring: var(--ui-ink);
+  background: var(--ui-bg);
+}
+
+:root[data-theme="kronberg"] .mc-toolbar,
+:root[data-theme="kronberg"] .mc-sidebar {
+  background: var(--ui-surface);
+}
+
+:root[data-theme="kronberg"] .mc-weekday,
+:root[data-theme="kronberg"] .mc-weeknum,
+:root[data-theme="kronberg"] .mc-marker {
+  font-family: var(--ui-font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-theme="kronberg"] .mc-cell--outside {
+  background: rgba(31, 32, 34, 0.02);
+}
+
+:root[data-theme="kronberg"] .mc-daynum:hover {
+  background: var(--ui-surface-3);
+}
+
+:root[data-theme="kronberg"] .mc-cell--today .mc-daynum {
+  background: var(--ui-lamp);
+  color: #fff;
+}
+
+:root[data-theme="kronberg"] .mc-btn {
+  background: var(--ui-paper);
+  font-weight: 500;
+}
+
+:root[data-theme="kronberg"] .mc-btn:hover {
+  background: var(--ui-btn-hover);
+}
+
+:root[data-theme="kronberg"] .mc-btn--active {
+  background: var(--ui-ink);
+  color: var(--ui-paper);
+}
+
+:root[data-theme="kronberg"] .mc-swatch {
+  border: 1px solid var(--ui-control-line);
+}
+
+:root[data-theme="kronberg"] .mc-swatch--active {
+  box-shadow: 0 0 0 2px var(--ui-paper), 0 0 0 3px var(--ui-ink);
+}
+
+:root[data-theme="kronberg"] .mc-root--painting .mc-band:focus-visible {
+  outline-color: var(--ui-focus);
+}

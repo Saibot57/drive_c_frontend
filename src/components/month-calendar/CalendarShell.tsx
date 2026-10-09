@@ -134,12 +134,12 @@ export default function CalendarShell() {
       <div className="mc-body">
         <main className="mc-main">
           {loadError && (
-            <div role="alert" className="mb-2 rounded border-2 border-black bg-red-50 px-3 py-1.5 text-sm">
+            <div role="alert" className="mb-2 rounded border-frame border-ui-line bg-red-50 px-3 py-1.5 text-sm">
               {loadError}
             </div>
           )}
           {loading && !loadError && (
-            <p className="px-1 pb-1 text-xs text-gray-500" aria-live="polite">
+            <p className="px-1 pb-1 text-xs text-ui-muted" aria-live="polite">
               Hämtar…
             </p>
           )}
