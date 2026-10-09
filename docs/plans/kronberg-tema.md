@@ -238,7 +238,8 @@ Kronberg rader med en hårlinje emellan. Det görs i CSS under
 - `src/hooks/useUiTheme.ts` läser och byter tema. Den sätter attributet och
   localStorage.
 - I steg 8 får Schema-menyn (`FeatureNavigation.tsx`) en grupp "Utseende" med
-  `DropdownMenuRadioGroup`: Neo och Kronberg.
+  `DropdownMenuRadioGroup`: Neo och Kronberg. Valet flyttades sedan ut ur
+  menyn, se avsnitt 11.
 
 ---
 
@@ -468,6 +469,13 @@ Där genomförandet avviker från planen:
   som den exporterade bilden i båda temana. Bara sidans ram följer temat.
 - **`secondary`-varianten** av Button används inte någonstans, så 10.3:s
   ändring av den syns inte.
+- **Växlaren står utanför menyn.** Gruppen "Utseende" i menyn bakom sidnamnet
+  är borttagen. I stället står en halvcirkel (`ThemeToggle.tsx`) direkt efter
+  sidnamnet och byter till det andra temat med ett klick. Den renderas av
+  `FeatureNavigation` och syns därför på alla vyer utan att någon vy ändrats.
+  Halvcirkeln vrids ett halvt varv i Kronberg, med `kron:` i CSS. Varianterna
+  som jämfördes finns i prototypen
+  https://claude.ai/artifact/L9X5AkdYyDohFDbi8UFUzA (variant 3).
 
 Regel för ny kod: använd `--ui-*`, klasserna i avsnitt 3 och `kron:` från
 början. Regeln bör flyttas till CLAUDE.md. Den filen finns inte i repot, men
