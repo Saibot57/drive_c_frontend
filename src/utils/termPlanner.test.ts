@@ -160,6 +160,16 @@ describe('suggestArchiveForWeek', () => {
     expect(suggestArchiveForWeek(37, archives)).toBeNull();
   });
 
+  it('föreslår aldrig ett basschema', () => {
+    const archives = [
+      archive('bas', 'Bas v.35', { kind: 'base', updatedAt: '2026-09-20T00:00:00' }),
+      archive('vecka', 'v.35', { kind: 'week' }),
+      archive('bara-bas', 'Bas v.36', { kind: 'base' }),
+    ];
+    expect(suggestArchiveForWeek(35, archives)).toEqual({ archiveId: 'vecka', ambiguous: false });
+    expect(suggestArchiveForWeek(36, archives)).toBeNull();
+  });
+
   it('fyller bara tomma veckor som inte är lov', () => {
     const weeks = [
       { theme: '', holiday: false, archiveId: null },

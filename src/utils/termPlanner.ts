@@ -9,6 +9,7 @@ import {
   TimeInterval,
 } from '@/utils/scheduleStats';
 import { timeToMinutes } from '@/utils/scheduleTime';
+import { isBaseSchedule } from '@/utils/scheduleKind';
 
 /**
  * Terminsplaneraren: veckor, schemaförslag och terminsstatistik.
@@ -212,13 +213,16 @@ export interface ArchiveSuggestion {
   ambiguous: boolean;
 }
 
-/** Arkivet vars namn anger veckan. Egna arkiv före delade, sedan senast ändrat. */
+/**
+ * Veckoschemat vars namn anger veckan. Egna före delade, sedan senast ändrat.
+ * Basscheman föreslås aldrig, även om de heter något med ett veckonummer.
+ */
 export const suggestArchiveForWeek = (
   week: number,
   archives: PlannerArchiveSummary[]
 ): ArchiveSuggestion | null => {
   const matches = archives
-    .filter(archive => weekNumberFromName(archive.name) === week)
+    .filter(archive => !isBaseSchedule(archive) && weekNumberFromName(archive.name) === week)
     .sort((a, b) => (
       Number(b.isOwner) - Number(a.isOwner)
       || (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')

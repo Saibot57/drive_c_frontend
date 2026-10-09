@@ -33,6 +33,12 @@ export interface ArchiveLock {
 }
 
 /**
+ * Ett basschema är hur en vanlig vecka brukar se ut, och veckoscheman skapas
+ * som kopior av det. Se docs/plans/basscheman.md.
+ */
+export type ScheduleKind = 'week' | 'base';
+
+/**
  * Ett namngivet schema så som listan visar det. Till skillnad från förr är
  * namnet inte nyckeln — två personer kan ha varsin "v.35", och en delad "v.35"
  * kan ligga bredvid din egen.
@@ -47,6 +53,11 @@ export interface PlannerArchiveSummary {
   sharedWith: string[];
   lock: ArchiveLock | null;
   updatedAt: string | null;
+  /**
+   * Saknas från en backend som är äldre än basschemana. Läs den med
+   * `isBaseSchedule` i `utils/scheduleKind`, som räknar det som veckoschema.
+   */
+  kind?: ScheduleKind;
 }
 
 // --- Nya typer för Schema-planeraren (Timeline Version) ---

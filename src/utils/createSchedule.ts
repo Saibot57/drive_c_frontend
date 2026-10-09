@@ -1,9 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
+import type { PlannerActivity, PlannerArchiveSummary, ScheduleKind } from '@/types/schedule';
+import { isBaseSchedule } from '@/utils/scheduleKind';
 
 /**
- * Vad ett nytt schema utgår från. Huvudschemat är det man står i när inget
- * sparat schema är öppet; det finns bara som val just då.
+ * Vad ett nytt schema utgår från. `main` är det gamla huvudschemat, som inte
+ * längre syns i planeraren. Det finns kvar som källa för den som har poster
+ * där, men förväljs och minns aldrig (docs/plans/basscheman.md, 5.2).
  */
 export type NewScheduleSource =
   | { kind: 'empty' }
@@ -24,25 +26,24 @@ export const decodeScheduleSource = (value: string | null | undefined): NewSched
 };
 
 /**
- * Ett sparat val gäller bara om det fortfarande går att välja: schemat finns
- * kvar, och huvudschemat bara när inget schema är öppet. Annars Tomt schema.
+ * Förvalet i Nytt veckoschema, ur det som sparats i localStorage. Ett sparat
+ * val gäller om det är Tomt schema eller ett basschema man fortfarande når.
+ * Annars, och första gången, den första basen i listan. Finns ingen bas
+ * börjar veckan tom. Huvudschemat förväljs aldrig.
  */
-export const resolveScheduleSource = (
-  source: NewScheduleSource,
-  archives: Pick<PlannerArchiveSummary, 'id'>[],
-  activeArchiveId: string | null
+export const resolveWeekSource = (
+  stored: string | null,
+  archives: Pick<PlannerArchiveSummary, 'id' | 'kind'>[]
 ): NewScheduleSource => {
-  if (source.kind === 'archive') {
-    return archives.some(archive => archive.id === source.id) ? source : { kind: 'empty' };
-  }
-  if (source.kind === 'main') {
-    return activeArchiveId === null ? source : { kind: 'empty' };
-  }
-  return source;
+  const bases = archives.filter(isBaseSchedule);
+  const source = stored === null ? null : decodeScheduleSource(stored);
+  if (source?.kind === 'empty' && stored === 'empty') return source;
+  if (source?.kind === 'archive' && bases.some(base => base.id === source.id)) return source;
+  return bases.length > 0 ? { kind: 'archive', id: bases[0].id } : { kind: 'empty' };
 };
 
 export type CreateScheduleService = {
-  createArchive: (name: string) => Promise<PlannerArchiveSummary>;
+  createArchive: (name: string, kind: ScheduleKind) => Promise<PlannerArchiveSummary>;
   getArchiveActivities: (archiveId: string) => Promise<{ archive?: PlannerArchiveSummary; activities: PlannerActivity[] }>;
   getPlannerActivities: () => Promise<PlannerActivity[]>;
   saveArchiveActivities: (
@@ -61,8 +62,8 @@ export type CreateScheduleResult = {
 };
 
 /**
- * Den enda vägen till ett nytt schema: Nytt schema, Duplicera och Utgå från
- * går alla hit.
+ * Den enda vägen till ett nytt schema: Nytt veckoschema, Nytt basschema och
+ * Duplicera går alla hit.
  *
  * Källan läses före skapandet. Misslyckas läsningen finns inget halvfärdigt
  * schema kvar i listan.
@@ -74,11 +75,13 @@ export type CreateScheduleResult = {
  */
 export const createScheduleFrom = async ({
   name,
+  kind,
   source,
   previousArchiveId,
   service,
 }: {
   name: string;
+  kind: ScheduleKind;
   source: NewScheduleSource;
   previousArchiveId: string | null;
   service: CreateScheduleService;
@@ -91,7 +94,7 @@ export const createScheduleFrom = async ({
   }
 
   const activities = sourceActivities.map(activity => ({ ...activity, id: uuidv4() }));
-  const created = await service.createArchive(name);
+  const created = await service.createArchive(name, kind);
 
   let archive = created;
   if (activities.length > 0) {

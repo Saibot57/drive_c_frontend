@@ -1,20 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ACTIVE_ARCHIVE_ID_KEY,
   ACTIVE_ARCHIVE_NAME_KEY,
   NEW_SCHEDULE_SOURCE_KEY
 } from '@/config/plannerConstants';
-import { plannerService } from '@/services/plannerService';
-import { PlannerActivity, PlannerArchiveSummary, ScheduledEntry } from '@/types/schedule';
+import { ArchiveLockedError, plannerService } from '@/services/plannerService';
+import { PlannerActivity, PlannerArchiveSummary, ScheduledEntry, ScheduleKind } from '@/types/schedule';
 import {
   createScheduleFrom,
-  decodeScheduleSource,
   encodeScheduleSource,
   NewScheduleSource,
-  resolveScheduleSource
+  resolveWeekSource
 } from '@/utils/createSchedule';
+import { isBaseSchedule, partitionSchedules, scheduleKindLabel, scheduleKindOf } from '@/utils/scheduleKind';
+
+/**
+ * Varför schemat inte går att ändra just nu, eller null när det går.
+ * `load-error` räknas fram i planeraren, ur usePlannerSync — se
+ * docs/plans/basscheman.md, avsnitt 6.
+ */
+export type ReadOnlyReason = 'no-schedule' | 'load-error' | 'base' | 'locked' | null;
 
 type UseArchiveManagerParams = {
   commitSchedule: (
@@ -23,6 +30,11 @@ type UseArchiveManagerParams = {
   ) => void;
   mapPlannerActivitiesToSchedule: (activities: PlannerActivity[]) => ScheduledEntry[];
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
+  /**
+   * usePlannerSync:s saveNow. Sync-hooken behöver det arkivhanteraren räknar
+   * fram, så den skapas efteråt och hakas på här genom en ref.
+   */
+  saveNowRef: MutableRefObject<(() => Promise<boolean>) | null>;
 };
 
 const weekPattern = /^v\.?\s*(\d+)$/i;
@@ -71,7 +83,8 @@ const resolveStoredArchiveId = (archives: PlannerArchiveSummary[]): string | nul
 export const useArchiveManager = ({
   commitSchedule,
   mapPlannerActivitiesToSchedule,
-  showNotice
+  showNotice,
+  saveNowRef
 }: UseArchiveManagerParams) => {
   const [archives, setArchives] = useState<PlannerArchiveSummary[]>([]);
   const [activeArchiveId, setActiveArchiveId] = useState<string | null>(null);
@@ -86,6 +99,12 @@ export const useArchiveManager = ({
    */
   const [serverSyncToken, setServerSyncToken] = useState(0);
   const [deleteArchive, setDeleteArchive] = useState<PlannerArchiveSummary | null>(null);
+  /**
+   * Sant när det öppna basschemat redigeras. Ett basschema öppnas
+   * skrivskyddat och utan lås, och blir det igen så snart ett annat schema
+   * öppnas eller sidan laddas om.
+   */
+  const [isEditingBase, setIsEditingBase] = useState(false);
 
   // Låset behöver släppas när fliken stängs, och då finns ingen render kvar.
   const activeArchiveIdRef = useRef<string | null>(null);
@@ -110,6 +129,25 @@ export const useArchiveManager = ({
     }
   }, []);
 
+  /** Släpper låset och nollar det i listan. Ett fel stoppar ingenting. */
+  const releaseQuietly = useCallback(async (archiveId: string) => {
+    try {
+      await plannerService.releaseArchiveLock(archiveId);
+      setArchives(prev => prev.map(existing => (
+        existing.id === archiveId ? { ...existing, lock: null } : existing
+      )));
+    } catch (error) {
+      console.error('Releasing lock failed', error);
+    }
+  }, []);
+
+  /** Sparar det som inte hunnit sparas. Varnar men stoppar inte om det misslyckas. */
+  const saveBeforeSwitching = useCallback(async () => {
+    if (!activeArchiveIdRef.current) return;
+    const saved = await (saveNowRef.current?.() ?? Promise.resolve(true));
+    if (!saved) showNotice('Den senaste ändringen sparades inte.', 'warning');
+  }, [saveNowRef, showNotice]);
+
   // --- Uppstart ---
 
   useEffect(() => {
@@ -130,6 +168,14 @@ export const useArchiveManager = ({
       setInitialArchiveId(resolved);
 
       if (!resolved) return;
+      const resolvedArchive = list.find(archive => archive.id === resolved);
+      if (resolvedArchive && isBaseSchedule(resolvedArchive)) {
+        // Basen öppnas skrivskyddad och utan lås. Ett eget lås som blivit
+        // kvar sedan förra gången skulle annars visa en själv som
+        // redigerande för kollegorna.
+        if (resolvedArchive.lock?.isMine) await releaseQuietly(resolved);
+        return;
+      }
       try {
         const result = await plannerService.acquireArchiveLock(resolved);
         upsertArchive(result.archive);
@@ -197,14 +243,32 @@ export const useArchiveManager = ({
     () => sortArchives(archives.filter(archive => !archive.isOwner)),
     [archives]
   );
-  const sortedArchives = useMemo(
-    () => [...ownArchives, ...sharedArchives],
+  /** Varje sort för sig, egna före delade. */
+  const { bases: baseArchives, weeks: weekArchives } = useMemo(
+    () => partitionSchedules([...ownArchives, ...sharedArchives]),
     [ownArchives, sharedArchives]
   );
+  /**
+   * I samma ordning som panelen visar dem: basscheman överst. Tangent-
+   * navigeringen och korten räknar på platsen i den här listan.
+   */
+  const sortedArchives = useMemo(
+    () => [...baseArchives, ...weekArchives],
+    [baseArchives, weekArchives]
+  );
 
-  /** Sant när någon annan sitter i schemat. Då går planeraren i läsläge. */
-  const isReadOnly = Boolean(activeArchive?.lock && !activeArchive.lock.isMine);
-  const lockHolder = isReadOnly ? activeArchive?.lock?.username ?? 'Någon annan' : null;
+  const isActiveBase = Boolean(activeArchive && isBaseSchedule(activeArchive));
+  const heldByOther = Boolean(activeArchive?.lock && !activeArchive.lock.isMine);
+  const lockHolder = heldByOther ? activeArchive?.lock?.username ?? 'Någon annan' : null;
+  /** Ordningen avgör när flera gäller (docs/plans/basscheman.md, avsnitt 6). */
+  const readOnlyReason: ReadOnlyReason = activeArchiveId === null
+    ? 'no-schedule'
+    : isActiveBase && !isEditingBase
+      ? 'base'
+      : heldByOther
+        ? 'locked'
+        : null;
+  const isReadOnly = readOnlyReason !== null;
 
   const ownArchiveNames = useMemo(
     () => ownArchives.map(archive => archive.name),
@@ -218,19 +282,38 @@ export const useArchiveManager = ({
     commitSchedule(() => mapPlannerActivitiesToSchedule(activities), { clearHistory: true });
     setServerSyncToken(token => token + 1);
     upsertArchive(archive);
+    return archive;
   }, [commitSchedule, mapPlannerActivitiesToSchedule, upsertArchive]);
+
+  /** Tömmer rutnätet när det öppna schemat försvunnit. Inget sparas någonstans. */
+  const closeActiveSchedule = useCallback(() => {
+    setActiveArchiveId(null);
+    setIsEditingBase(false);
+    commitSchedule(() => [], { clearHistory: true });
+    setServerSyncToken(token => token + 1);
+  }, [commitSchedule]);
 
   const handleLoadWeek = useCallback(async (archiveId: string) => {
     const previousId = activeArchiveIdRef.current;
+    await saveBeforeSwitching();
     try {
-      await loadArchiveEntries(archiveId);
+      const loaded = await loadArchiveEntries(archiveId);
       setActiveArchiveId(archiveId);
+      setIsEditingBase(false);
 
       if (previousId && previousId !== archiveId) {
         await plannerService.releaseArchiveLock(previousId);
         setArchives(prev => prev.map(existing => (
           existing.id === previousId ? { ...existing, lock: null } : existing
         )));
+      }
+
+      // Basen öppnas skrivskyddad och utan lås. Läsningen gav redan låset,
+      // så det syns ändå om någon annan redigerar den just nu.
+      const target = loaded ?? archives.find(existing => existing.id === archiveId);
+      if (target && isBaseSchedule(target)) {
+        if (target.lock?.isMine) await releaseQuietly(archiveId);
+        return;
       }
 
       const result = await plannerService.acquireArchiveLock(archiveId);
@@ -245,7 +328,45 @@ export const useArchiveManager = ({
       console.error('Archive load failed', error);
       showNotice('Kunde inte läsa in schemat.', 'error');
     }
+  }, [archives, loadArchiveEntries, releaseQuietly, saveBeforeSwitching, showNotice, upsertArchive]);
+
+  /**
+   * Redigera bas: tar låset och läser om basen, eftersom någon kan ha sparat
+   * sedan den öppnades. Har någon annan låset hamnar man i den vanliga
+   * låsraden med Ta över.
+   */
+  const handleEditBase = useCallback(async () => {
+    const archiveId = activeArchiveIdRef.current;
+    if (!archiveId) return;
+    try {
+      const result = await plannerService.acquireArchiveLock(archiveId);
+      upsertArchive(result.archive);
+      if (result.acquired) await loadArchiveEntries(archiveId);
+      setIsEditingBase(true);
+      if (!result.acquired) {
+        showNotice(
+          `${result.archive.lock?.username ?? 'Någon annan'} redigerar basschemat. Du kan ta över det.`,
+          'warning'
+        );
+      }
+    } catch (error) {
+      console.error('Edit base failed', error);
+      showNotice('Kunde inte öppna basschemat för redigering.', 'error');
+    }
   }, [loadArchiveEntries, showNotice, upsertArchive]);
+
+  /** Klar: sparar, släpper låset och gör basen skrivskyddad igen. */
+  const handleFinishEditingBase = useCallback(async () => {
+    const archiveId = activeArchiveIdRef.current;
+    if (!archiveId) return;
+    const saved = await (saveNowRef.current?.() ?? Promise.resolve(true));
+    if (!saved) {
+      showNotice('Kunde inte spara. Försök igen.', 'error');
+      return;
+    }
+    await releaseQuietly(archiveId);
+    setIsEditingBase(false);
+  }, [releaseQuietly, saveNowRef, showNotice]);
 
   /**
    * Tar över låset från någon annan. Schemat läses om först — den andre kan ha
@@ -284,41 +405,72 @@ export const useArchiveManager = ({
     try {
       await plannerService.deleteArchive(deleteArchive.id);
       setArchives(prev => prev.filter(archive => archive.id !== deleteArchive.id));
-      setActiveArchiveId(prev => (prev === deleteArchive.id ? null : prev));
+      // Förr stod det borttagna schemats poster kvar, och nästa ändring
+      // sparades i huvudschemat.
+      if (activeArchiveIdRef.current === deleteArchive.id) closeActiveSchedule();
       setDeleteArchive(null);
     } catch (error) {
       console.error('Archive delete failed', error);
       showNotice(error instanceof Error ? error.message : 'Kunde inte ta bort schemat.', 'error');
     }
-  }, [deleteArchive, showNotice]);
+  }, [closeActiveSchedule, deleteArchive, showNotice]);
 
   const [newScheduleName, setNewScheduleName] = useState('');
   const [newScheduleSource, setNewScheduleSource] = useState<NewScheduleSource>({ kind: 'empty' });
+  /** Sorten på schemat dialogen skapar. */
+  const [newScheduleKind, setNewScheduleKind] = useState<ScheduleKind>('week');
+  /** Schemat som dupliceras, eller null för Nytt veckoschema och Nytt basschema. */
+  const [duplicateOf, setDuplicateOf] = useState<PlannerArchiveSummary | null>(null);
   const [isNewScheduleDialogOpen, setIsNewScheduleDialogOpen] = useState(false);
   const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
   /**
-   * Bara knappen Nytt schema minns sitt val. Duplicera förväljer kortet den
+   * Antal poster i det gamla huvudschemat, eller null innan det hämtats.
+   * Har det poster kan de göras till ett schema (docs/plans/basscheman.md, 5.2).
+   */
+  const [legacyMainCount, setLegacyMainCount] = useState<number | null>(null);
+  const legacyMainRequestedRef = useRef(false);
+  /**
+   * Bara Nytt veckoschema minns sitt val. Duplicera förväljer kortet den
    * startades från, och skulle det sparas blev förra veckan förvald nästa gång
    * i stället för basschemat.
    */
   const rememberSourceRef = useRef(false);
 
-  /** Knappen Nytt schema: förra valet är förvalt, om det fortfarande finns. */
-  const openNewScheduleDialog = useCallback(() => {
-    const stored = typeof window === 'undefined'
-      ? null
-      : window.localStorage.getItem(NEW_SCHEDULE_SOURCE_KEY);
-    setNewScheduleSource(
-      resolveScheduleSource(decodeScheduleSource(stored), archives, activeArchiveIdRef.current)
-    );
-    setNewScheduleName('');
-    rememberSourceRef.current = true;
-    setIsNewScheduleDialogOpen(true);
-  }, [archives]);
+  /** Huvudschemat hämtas en gång, första gången en dialog öppnas. */
+  const loadLegacyMainCount = useCallback(() => {
+    if (legacyMainRequestedRef.current) return;
+    legacyMainRequestedRef.current = true;
+    plannerService.getPlannerActivities()
+      .then(activities => setLegacyMainCount(activities.length))
+      .catch(error => {
+        console.error('Legacy main schedule load failed', error);
+        setLegacyMainCount(0);
+      });
+  }, []);
 
-  /** Duplicera på ett schemakort: samma dialog, med kortet som källa. */
+  /** Nytt veckoschema förväljer senaste basen, Nytt basschema Tomt schema. */
+  const openNewScheduleDialog = useCallback((kind: ScheduleKind = 'week') => {
+    if (kind === 'week') {
+      const stored = typeof window === 'undefined'
+        ? null
+        : window.localStorage.getItem(NEW_SCHEDULE_SOURCE_KEY);
+      setNewScheduleSource(resolveWeekSource(stored, baseArchives));
+    } else {
+      setNewScheduleSource({ kind: 'empty' });
+    }
+    setNewScheduleKind(kind);
+    setDuplicateOf(null);
+    setNewScheduleName('');
+    rememberSourceRef.current = kind === 'week';
+    loadLegacyMainCount();
+    setIsNewScheduleDialogOpen(true);
+  }, [baseArchives, loadLegacyMainCount]);
+
+  /** Duplicera på ett schemakort: samma dialog, med kortet som källa och sort. */
   const handleDuplicateWeek = useCallback((archive: PlannerArchiveSummary) => {
     setNewScheduleSource({ kind: 'archive', id: archive.id });
+    setNewScheduleKind(scheduleKindOf(archive));
+    setDuplicateOf(archive);
     setNewScheduleName(`${archive.name} (kopia)`);
     rememberSourceRef.current = false;
     setIsNewScheduleDialogOpen(true);
@@ -337,12 +489,15 @@ export const useArchiveManager = ({
     if (isCreatingSchedule) return;
 
     const source = newScheduleSource;
+    const kind = newScheduleKind;
     setIsCreatingSchedule(true);
     try {
+      await saveBeforeSwitching();
       // Schemat läggs upp direkt i backend, så namnet finns kvar efter en
       // omladdning även innan den första posten är på plats.
       const result = await createScheduleFrom({
         name: trimmed,
+        kind,
         source,
         previousArchiveId: activeArchiveIdRef.current,
         service: plannerService
@@ -355,16 +510,19 @@ export const useArchiveManager = ({
         )));
       }
       setActiveArchiveId(result.archive.id);
+      // Ett nytt basschema skapas för att fyllas, och låset har man redan
+      // (POST /archives tar det). Det öppnas därför i redigeringsläge.
+      setIsEditingBase(kind === 'base');
       commitSchedule(() => mapPlannerActivitiesToSchedule(result.activities), { clearHistory: true });
       // Posterna kom från servern och är redan sparade i det nya schemat.
       setServerSyncToken(token => token + 1);
 
-      if (rememberSourceRef.current && typeof window !== 'undefined') {
+      if (rememberSourceRef.current && source.kind !== 'main' && typeof window !== 'undefined') {
         window.localStorage.setItem(NEW_SCHEDULE_SOURCE_KEY, encodeScheduleSource(source));
       }
       setNewScheduleName('');
       setIsNewScheduleDialogOpen(false);
-      showNotice(`Nytt schema "${trimmed}" skapat.`, 'success');
+      showNotice(`Nytt ${scheduleKindLabel(kind)} "${trimmed}" skapat.`, 'success');
     } catch (error) {
       console.error('Archive create failed', error);
       showNotice(error instanceof Error ? error.message : 'Kunde inte skapa schemat.', 'error');
@@ -375,12 +533,55 @@ export const useArchiveManager = ({
     commitSchedule,
     isCreatingSchedule,
     mapPlannerActivitiesToSchedule,
+    newScheduleKind,
     newScheduleName,
     newScheduleSource,
     ownArchiveNames,
+    saveBeforeSwitching,
     showNotice,
     upsertArchive
   ]);
+
+  // --- Byta sort ---
+
+  /**
+   * Gör om ett schema till basschema eller veckoschema. Är det öppet sparas
+   * det först, och öppnas sedan med den nya sortens regler: en ny bas blir
+   * skrivskyddad och släpper låset, en ny vecka tar det.
+   */
+  const handleChangeKind = useCallback(async (archive: PlannerArchiveSummary) => {
+    const next: ScheduleKind = isBaseSchedule(archive) ? 'week' : 'base';
+    const isOpen = activeArchiveIdRef.current === archive.id;
+    if (isOpen) {
+      const saved = await (saveNowRef.current?.() ?? Promise.resolve(true));
+      if (!saved) {
+        showNotice('Kunde inte spara. Försök igen.', 'error');
+        return;
+      }
+    }
+
+    try {
+      const updated = await plannerService.setArchiveKind(archive.id, next);
+      upsertArchive(updated);
+      if (isOpen) {
+        setIsEditingBase(false);
+        if (next === 'base') {
+          if (updated.lock?.isMine) await releaseQuietly(archive.id);
+        } else {
+          const result = await plannerService.acquireArchiveLock(archive.id);
+          upsertArchive(result.archive);
+        }
+      }
+      showNotice(`${archive.name} är nu ett ${scheduleKindLabel(next)}.`, 'success');
+    } catch (error) {
+      if (error instanceof ArchiveLockedError) {
+        showNotice(`${error.holder} har schemat öppet. Sorten går att byta när det är stängt.`, 'warning');
+        return;
+      }
+      console.error('Changing kind failed', error);
+      showNotice(error instanceof Error ? error.message : 'Kunde inte byta sort på schemat.', 'error');
+    }
+  }, [releaseQuietly, saveNowRef, showNotice, upsertArchive]);
 
   // --- Delning ---
 
@@ -441,19 +642,19 @@ export const useArchiveManager = ({
     try {
       await plannerService.removeArchiveShare(archive.id, username);
       setArchives(prev => prev.filter(existing => existing.id !== archive.id));
-      setActiveArchiveId(prev => (prev === archive.id ? null : prev));
+      if (activeArchiveIdRef.current === archive.id) closeActiveSchedule();
       setShareArchive(null);
       showNotice(`Du lämnade "${archive.name}".`, 'success');
     } catch (error) {
       console.error('Leaving share failed', error);
       showNotice(error instanceof Error ? error.message : 'Kunde inte lämna schemat.', 'error');
     }
-  }, [showNotice]);
+  }, [closeActiveSchedule, showNotice]);
 
   return {
     archives,
-    ownArchives,
-    sharedArchives,
+    baseArchives,
+    weekArchives,
     sortedArchives,
     ownArchiveNames,
     initialArchiveId,
@@ -462,7 +663,12 @@ export const useArchiveManager = ({
     activeArchiveId,
     activeArchiveName,
     isReadOnly,
+    readOnlyReason,
+    isEditingBase,
     lockHolder,
+    handleEditBase,
+    handleFinishEditingBase,
+    handleChangeKind,
     handleTakeOverLock,
     markLockLost,
     deleteArchive,
@@ -484,6 +690,9 @@ export const useArchiveManager = ({
     setNewScheduleName,
     newScheduleSource,
     setNewScheduleSource,
+    newScheduleKind,
+    duplicateOf,
+    legacyMainCount,
     isNewScheduleDialogOpen,
     setIsNewScheduleDialogOpen,
     isCreatingSchedule,

@@ -6,6 +6,7 @@ import type { PlannerArchiveSummary } from '@/types/schedule';
 import type { TermWeek } from '@/types/term';
 import type { WheelWeek } from '@/utils/themeWheelWeeks';
 import { weekNumberFromName } from '@/utils/termPlanner';
+import { isBaseSchedule, optionsWithCurrent } from '@/utils/scheduleKind';
 
 /** Hur det står till med en veckas schema, för rutnätet och statistiken. */
 export type WeekState =
@@ -87,6 +88,9 @@ export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeW
             // Innan listan har kommit vet vi inte vilket det är.
             const unlistedArchive = week.archiveId && !archives?.some(a => a.id === week.archiveId);
             const unlistedLabel = archives ? '(borttaget schema)' : '(schema valt)';
+            // Listan visar veckoscheman. En vald bas står kvar, märkt, i
+            // stället för att se borttagen ut.
+            const choices = optionsWithCurrent(sortedArchives, archive => !isBaseSchedule(archive), week.archiveId);
 
             return (
               <tr
@@ -118,7 +122,10 @@ export function TermWeekGrid({ weeks, calendarWeeks, states, archives, onChangeW
                   >
                     <option value="">— inget schema —</option>
                     {unlistedArchive && <option value={week.archiveId!}>{unlistedLabel}</option>}
-                    {sortedArchives.map(archive => (
+                    {choices.outside && (
+                      <option value={choices.outside.id}>{archiveLabel(choices.outside)} (basschema)</option>
+                    )}
+                    {choices.options.map(archive => (
                       <option key={archive.id} value={archive.id}>{archiveLabel(archive)}</option>
                     ))}
                   </select>

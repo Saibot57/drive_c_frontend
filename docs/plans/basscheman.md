@@ -1,9 +1,32 @@
 # Plan: Basscheman och veckoscheman
 
-Status: plan, inte påbörjad. Skriven 2026-10-09, efter att PR #211 (färre
-knappar och Kronberg) slagits ihop med main. Bygger på den nya dialogen Nytt
-schema därifrån. Kräver ändringar i både `drive_c_frontend` och
-`drive_c_backend`.
+Status: genomförd 2026-10-09 på grenen ccr-7f332348-59vnfh i båda repona,
+inte sammanslagen med main. Backend först (avsnitt 3.5). Skriven samma dag,
+efter att PR #211 (färre knappar och Kronberg) slagits ihop med main. Bygger
+på den nya dialogen Nytt schema därifrån.
+
+Genomförandet följer planen. Avvikelser och det som tillkom:
+
+- Läsraden säger **Skrivskyddat** och redigeringsraden **Redigerar bas**,
+  inte "Basschema · skrivskyddat" och "Redigerar basschema". Med de längre
+  orden bröts Neos verktygsfält till två rader när panelen var utfälld.
+  Statusraden säger redan "(bas)" efter namnet.
+- Knapparna på schemakortet är 28 px i stället för 32, med tätare
+  mellanrum. Med fyra knappar bröts namnet och "Öppet" kapades i Kronberg.
+- `syncActivities` och `handleSyncToCloud` togs bort. Avsnitt 4.2 sa att
+  workspace använder `syncActivities`, men det stämde inte: ingen annan
+  anropade den. `getPlannerActivities` och `getPlannerArchive` finns kvar.
+- Arbetslag visar ett avstängt alternativ, "Inga basscheman ännu. Gör om ett
+  schema i Schema.", i listan i stället för en text under den. Det får plats
+  i verktygsraden.
+- Detaljplanen i Arbetslag har ingen egen väljare. Den läser bara upplägget
+  `archiveId` och påverkas inte.
+- `saveNow` väntar högst 15 sekunder på en sparning som redan pågår.
+- Läsfel vid uppstart: ett schema som sedan läses in från servern (ett
+  annat schema öppnas, eller ett nytt skapas) gör sidan redigerbar igen.
+- Provat mot en lokal backend med migrationen, i Neo och Kronberg, mot
+  checklistan i avsnitt 17. Lint, typkontroll, enhetstester och bygget går
+  igenom.
 
 Idag är alla sparade scheman samma sorts sak, plus huvudschemat som gäller när
 inget schema är öppet. I praktiken används scheman redan på två sätt:

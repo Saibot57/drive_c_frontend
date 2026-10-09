@@ -4,7 +4,7 @@ import { PlannerArchiveSummary } from '@/types/schedule';
 
 interface UseMobileNavigationParams {
   activeArchiveId: string | null;
-  /** Egna och delade i den ordning listan visar dem. */
+  /** Veckoscheman, egna och delade, i den ordning listan visar dem. */
   sortedArchives: PlannerArchiveSummary[];
   handleLoadWeek: (archiveId: string) => Promise<void> | void;
 }
@@ -16,18 +16,20 @@ export function useMobileNavigation({
 }: UseMobileNavigationParams) {
   const [mobileActiveDayIndex, setMobileActiveDayIndex] = useState(0);
 
-  const mobileActiveArchiveIndex = useMemo(() => {
-    if (sortedArchives.length === 0) return -1;
-    if (!activeArchiveId) return 0;
-    const foundIndex = sortedArchives.findIndex(archive => archive.id === activeArchiveId);
-    return foundIndex >= 0 ? foundIndex : 0;
-  }, [activeArchiveId, sortedArchives]);
+  /**
+   * −1 när inget veckoschema är öppet: inget schema alls, eller en bas. Förr
+   * blev det 0, och det första schemats namn visades fast det inte var öppet.
+   * Nästa öppnar då det första veckoschemat.
+   */
+  const mobileActiveArchiveIndex = useMemo(() => (
+    activeArchiveId ? sortedArchives.findIndex(archive => archive.id === activeArchiveId) : -1
+  ), [activeArchiveId, sortedArchives]);
 
   const mobileSelectedDay = PLANNER_DAYS[mobileActiveDayIndex] ?? PLANNER_DAYS[0];
   const mobileSelectedArchive = sortedArchives[mobileActiveArchiveIndex] ?? null;
   const mobileSelectedArchiveName = mobileSelectedArchive?.name ?? null;
   const isAtFirstMobileArchive = mobileActiveArchiveIndex <= 0;
-  const isAtLastMobileArchive = mobileActiveArchiveIndex < 0 || mobileActiveArchiveIndex >= sortedArchives.length - 1;
+  const isAtLastMobileArchive = mobileActiveArchiveIndex >= sortedArchives.length - 1;
   const isAtFirstMobileDay = mobileActiveDayIndex <= 0;
   const isAtLastMobileDay = mobileActiveDayIndex >= PLANNER_DAYS.length - 1;
 

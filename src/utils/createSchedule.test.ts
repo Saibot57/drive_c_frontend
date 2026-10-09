@@ -4,11 +4,11 @@ import {
   CreateScheduleService,
   decodeScheduleSource,
   encodeScheduleSource,
-  resolveScheduleSource,
+  resolveWeekSource,
 } from './createSchedule';
-import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
+import type { PlannerActivity, PlannerArchiveSummary, ScheduleKind } from '@/types/schedule';
 
-const summary = (id: string, name: string): PlannerArchiveSummary => ({
+const summary = (id: string, name: string, kind: ScheduleKind = 'week'): PlannerArchiveSummary => ({
   id,
   name,
   ownerId: 'u1',
@@ -17,6 +17,7 @@ const summary = (id: string, name: string): PlannerArchiveSummary => ({
   sharedWith: [],
   lock: null,
   updatedAt: null,
+  kind,
 });
 
 const activity = (id: string, title: string): PlannerActivity => ({
@@ -48,6 +49,7 @@ describe('createScheduleFrom', () => {
     const service = makeService();
     const result = await createScheduleFrom({
       name: 'v.43',
+      kind: 'week',
       source: { kind: 'archive', id: 'bas' },
       previousArchiveId: null,
       service,
@@ -64,6 +66,7 @@ describe('createScheduleFrom', () => {
     const service = makeService();
     const result = await createScheduleFrom({
       name: 'v.43',
+      kind: 'week',
       source: { kind: 'main' },
       previousArchiveId: null,
       service,
@@ -78,6 +81,7 @@ describe('createScheduleFrom', () => {
     const service = makeService();
     const result = await createScheduleFrom({
       name: 'v.43',
+      kind: 'week',
       source: { kind: 'empty' },
       previousArchiveId: null,
       service,
@@ -92,6 +96,7 @@ describe('createScheduleFrom', () => {
     const service = makeService();
     const result = await createScheduleFrom({
       name: 'v.43',
+      kind: 'week',
       source: { kind: 'archive', id: 'bas' },
       previousArchiveId: 'v42',
       service,
@@ -108,6 +113,7 @@ describe('createScheduleFrom', () => {
     });
     const result = await createScheduleFrom({
       name: 'v.43',
+      kind: 'week',
       source: { kind: 'empty' },
       previousArchiveId: 'v42',
       service,
@@ -125,6 +131,7 @@ describe('createScheduleFrom', () => {
 
     await expect(createScheduleFrom({
       name: 'v.43',
+      kind: 'week',
       source: { kind: 'archive', id: 'borta' },
       previousArchiveId: 'v42',
       service,
@@ -147,14 +154,47 @@ describe('källan som sparas', () => {
     expect(decodeScheduleSource('skräp')).toEqual({ kind: 'empty' });
   });
 
-  it('släpper ett schema som inte finns kvar', () => {
-    const archives = [summary('bas', 'Bas')];
-    expect(resolveScheduleSource({ kind: 'archive', id: 'bas' }, archives, 'v42')).toEqual({ kind: 'archive', id: 'bas' });
-    expect(resolveScheduleSource({ kind: 'archive', id: 'borta' }, archives, 'v42')).toEqual({ kind: 'empty' });
+  it('förväljer den sparade basen när den finns kvar', () => {
+    const archives = [summary('b1', 'Bas 1', 'base'), summary('b2', 'Bas 2', 'base')];
+    expect(resolveWeekSource('archive:b2', archives)).toEqual({ kind: 'archive', id: 'b2' });
   });
 
-  it('erbjuder huvudschemat bara när inget schema är öppet', () => {
-    expect(resolveScheduleSource({ kind: 'main' }, [], null)).toEqual({ kind: 'main' });
-    expect(resolveScheduleSource({ kind: 'main' }, [], 'v42')).toEqual({ kind: 'empty' });
+  it('väljer den första basen första gången och när den sparade är borta', () => {
+    const archives = [summary('v1', 'v.1'), summary('b1', 'Bas 1', 'base'), summary('b2', 'Bas 2', 'base')];
+    expect(resolveWeekSource(null, archives)).toEqual({ kind: 'archive', id: 'b1' });
+    expect(resolveWeekSource('archive:borta', archives)).toEqual({ kind: 'archive', id: 'b1' });
+  });
+
+  it('förväljer aldrig ett veckoschema', () => {
+    const archives = [summary('v1', 'v.1'), summary('b1', 'Bas', 'base')];
+    expect(resolveWeekSource('archive:v1', archives)).toEqual({ kind: 'archive', id: 'b1' });
+  });
+
+  it('minns Tomt schema', () => {
+    expect(resolveWeekSource('empty', [summary('b1', 'Bas', 'base')])).toEqual({ kind: 'empty' });
+  });
+
+  it('börjar tomt när det inte finns någon bas', () => {
+    expect(resolveWeekSource(null, [summary('v1', 'v.1')])).toEqual({ kind: 'empty' });
+    expect(resolveWeekSource('archive:v1', [summary('v1', 'v.1')])).toEqual({ kind: 'empty' });
+  });
+
+  it('förväljer aldrig huvudschemat', () => {
+    expect(resolveWeekSource('main', [])).toEqual({ kind: 'empty' });
+    expect(resolveWeekSource('main', [summary('b1', 'Bas', 'base')])).toEqual({ kind: 'archive', id: 'b1' });
+  });
+});
+
+describe('sorten på det nya schemat', () => {
+  it('skickas med när schemat skapas', async () => {
+    const service = makeService();
+    await createScheduleFrom({
+      name: 'Bas HT26',
+      kind: 'base',
+      source: { kind: 'empty' },
+      previousArchiveId: null,
+      service,
+    });
+    expect(service.createArchive).toHaveBeenCalledWith('Bas HT26', 'base');
   });
 });

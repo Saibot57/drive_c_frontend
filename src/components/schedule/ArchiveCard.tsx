@@ -1,11 +1,12 @@
 'use client';
 
-import { Copy, Lock, Share2, Trash2, Users } from 'lucide-react';
+import { CalendarDays, Copy, Layers, Lock, Share2, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { uiTint } from '@/components/ui/tints';
 import { ActiveLamp } from '@/components/ui/ActiveLamp';
 import type { ActiveZone } from '@/hooks/useScheduleKeyboardNav';
 import type { PlannerArchiveSummary } from '@/types/schedule';
+import { isBaseSchedule } from '@/utils/scheduleKind';
 
 type ArchiveCardProps = {
   archive: PlannerArchiveSummary;
@@ -18,6 +19,8 @@ type ArchiveCardProps = {
   onDuplicate: (archive: PlannerArchiveSummary) => void;
   onShare: (archive: PlannerArchiveSummary) => void;
   onDelete: (archive: PlannerArchiveSummary) => void;
+  /** Gör om till basschema eller veckoschema. Bara ägaren ser knappen. */
+  onChangeKind: (archive: PlannerArchiveSummary) => void;
 };
 
 export function ArchiveCard({
@@ -29,8 +32,11 @@ export function ArchiveCard({
   onLoad,
   onDuplicate,
   onShare,
-  onDelete
+  onDelete,
+  onChangeKind
 }: ArchiveCardProps) {
+  const isBase = isBaseSchedule(archive);
+  const changeKindLabel = isBase ? 'Gör till veckoschema' : 'Gör till basschema';
   const isSelected = activeZone === 'archive' && selectedArchiveIndex === index;
   const heldByOther = archive.lock && !archive.lock.isMine ? archive.lock.username : null;
 
@@ -72,12 +78,12 @@ export function ArchiveCard({
       {/* Syns vid hovring, fokus eller tangentbordsmarkering, och tar ingen
           plats annars, så att namnet inte kortas av i onödan. På pekskärm
           finns ingen hovring, och där syns de alltid. */}
-      <div className={`${isSelected ? 'flex' : 'hidden'} shrink-0 gap-2 group-hover:flex group-focus-within:flex [@media(pointer:coarse)]:flex`}>
+      <div className={`${isSelected ? 'flex' : 'hidden'} shrink-0 gap-1.5 group-hover:flex group-focus-within:flex [@media(pointer:coarse)]:flex`}>
         <Button
           size="sm"
           variant="neutral"
           onClick={() => onDuplicate(archive)}
-          className={`h-8 w-8 p-0 sp-btn ${uiTint.info}`}
+          className={`h-7 w-7 p-0 sp-btn ${uiTint.info}`}
           aria-label={`Duplicera ${archive.name}`}
           title={`Duplicera ${archive.name}`}
         >
@@ -87,12 +93,26 @@ export function ArchiveCard({
           size="sm"
           variant="neutral"
           onClick={() => onShare(archive)}
-          className={`h-8 w-8 p-0 sp-btn ${uiTint.create}`}
+          className={`h-7 w-7 p-0 sp-btn ${uiTint.create}`}
           aria-label={`Dela ${archive.name}`}
           title={`Dela ${archive.name}`}
         >
           <Share2 size={14}/>
         </Button>
+        {/* Bara ägaren byter sort, som i backend: sorten avgör var schemat
+            syns för alla som har det. */}
+        {archive.isOwner && (
+          <Button
+            size="sm"
+            variant="neutral"
+            onClick={() => onChangeKind(archive)}
+            className="h-7 w-7 p-0 sp-btn"
+            aria-label={`${changeKindLabel}: ${archive.name}`}
+            title={changeKindLabel}
+          >
+            {isBase ? <CalendarDays size={14}/> : <Layers size={14}/>}
+          </Button>
+        )}
         {/* Bara ägaren raderar. Den som fått schemat delat lämnar det i
             delningsrutan i stället — annars skulle en klick i fel kort ta bort
             arbetslagets gemensamma vecka. */}
@@ -101,7 +121,7 @@ export function ArchiveCard({
             size="sm"
             variant="neutral"
             onClick={() => onDelete(archive)}
-            className={`h-8 w-8 p-0 sp-btn ${uiTint.danger}`}
+            className={`h-7 w-7 p-0 sp-btn ${uiTint.danger}`}
             aria-label={`Ta bort ${archive.name}`}
             title={`Ta bort ${archive.name}`}
           >

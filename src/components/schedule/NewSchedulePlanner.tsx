@@ -35,7 +35,7 @@ import {
   DEFAULT_COURSE_COLOR,
   PLANNER_DAYS
 } from '@/config/plannerConstants';
-import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
+import { PlannerArchiveSummary, PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
 import { ContextMenuState, PlannerNoticeTone } from '@/types/plannerUI';
 import {
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE,
@@ -83,7 +83,8 @@ import { useUndoableState } from '@/hooks/useUndoableState';
 import { HiddenSettingsDraft, useHiddenSettings } from '@/hooks/useHiddenSettings';
 import { usePlannerSections } from '@/hooks/usePlannerSections';
 import { useCourseManager } from '@/hooks/useCourseManager';
-import { useArchiveManager } from '@/hooks/useArchiveManager';
+import { ReadOnlyReason, useArchiveManager } from '@/hooks/useArchiveManager';
+import { isBaseSchedule } from '@/utils/scheduleKind';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/utils/courseUtils';
 import { mapPlannerActivitiesToSchedule, usePlannerSync } from '@/hooks/usePlannerSync';
@@ -113,6 +114,23 @@ type PlannerExportOutcome = {
 };
 
 // --- Helper: Conflict Check & Filtering ---
+
+/** Det som sägs när en ändring stoppas, efter skälet till att schemat är spärrat. */
+/** Rubrikerna Basscheman och Veckoscheman i högerpanelen. */
+const scheduleSectionLabel = 'block text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]';
+
+const readOnlyMessage = (reason: ReadOnlyReason, lockHolder: string | null) => {
+  switch (reason) {
+    case 'no-schedule':
+      return 'Öppna eller skapa ett schema först.';
+    case 'load-error':
+      return 'Schemat gick inte att läsa. Ladda om sidan.';
+    case 'base':
+      return 'Basschemat är skrivskyddat. Tryck Redigera bas för att ändra.';
+    default:
+      return `${lockHolder ?? 'Någon annan'} har schemat öppet. Tryck "Ta över" för att kunna ändra.`;
+  }
+};
 
 const advancedFilterMatch = (
   item: PlannerCourse | ScheduledEntry,
@@ -254,21 +272,29 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
+  // usePlannerSync behöver det arkivhanteraren räknar fram och skapas därför
+  // efter den. Arkivhanteraren når dess saveNow genom den här refen.
+  const saveNowRef = useRef<(() => Promise<boolean>) | null>(null);
   const archive = useArchiveManager({
     commitSchedule: applyScheduleFromServer,
     mapPlannerActivitiesToSchedule,
-    showNotice
+    showNotice,
+    saveNowRef
   });
   const {
-    ownArchives,
-    sharedArchives,
+    baseArchives,
+    weekArchives,
     sortedArchives,
     initialArchiveId,
     serverSyncToken,
+    activeArchive,
     activeArchiveId,
     activeArchiveName,
-    isReadOnly,
     lockHolder,
+    isEditingBase,
+    handleEditBase,
+    handleFinishEditingBase,
+    handleChangeKind,
     handleTakeOverLock,
     markLockLost,
     handleLoadWeek,
@@ -278,18 +304,32 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     openNewScheduleDialog
   } = archive;
 
-  const { saveStatus } = usePlannerSync({
+  const { saveStatus, loadStatus, saveNow } = usePlannerSync({
     schedule,
     commitSchedule: applyScheduleFromServer,
     activeArchiveId,
     initialArchiveId,
-    isReadOnly,
+    isReadOnly: archive.isReadOnly,
     serverSyncToken,
     onLockLost: markLockLost,
     showNotice
   });
+  saveNowRef.current = saveNow;
 
+  /**
+   * Varför schemat inte går att ändra, eller null. Ett schema som inte gick
+   * att läsa väger tyngre än bas och lås, men inget öppet schema tyngst.
+   */
+  const readOnlyReason: ReadOnlyReason = archive.readOnlyReason === 'no-schedule'
+    ? 'no-schedule'
+    : loadStatus === 'error'
+      ? 'load-error'
+      : archive.readOnlyReason;
+  const isReadOnly = readOnlyReason !== null;
+  const isActiveBase = Boolean(activeArchive && isBaseSchedule(activeArchive));
   isReadOnlyRef.current = isReadOnly;
+  const readOnlyReasonRef = useRef<ReadOnlyReason>(null);
+  readOnlyReasonRef.current = readOnlyReason;
 
   /**
    * Allt användaren själv gör med schemat går genom den här. Spärren sitter på
@@ -307,10 +347,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     options?: { clearHistory?: boolean }
   ) => {
     if (isReadOnlyRef.current) {
-      showNotice(
-        `${lockHolder ?? 'Någon annan'} har schemat öppet. Tryck "Ta över" för att kunna ändra.`,
-        'warning'
-      );
+      showNotice(readOnlyMessage(readOnlyReasonRef.current, lockHolder), 'warning');
       return;
     }
     applyScheduleFromServer(updater, options);
@@ -406,7 +443,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleMobileArchiveStep
   } = useMobileNavigation({
     activeArchiveId,
-    sortedArchives,
+    // Bläddraren går mellan veckorna. Baserna nås från datorn.
+    sortedArchives: weekArchives,
     handleLoadWeek
   });
 
@@ -1396,6 +1434,22 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     </>
   );
 
+  const renderArchiveCard = (archive: PlannerArchiveSummary) => (
+    <ArchiveCard
+      key={archive.id}
+      archive={archive}
+      index={sortedArchives.indexOf(archive)}
+      isActive={activeArchiveId === archive.id}
+      activeZone={activeZone}
+      selectedArchiveIndex={selectedArchiveIndex}
+      onLoad={handleLoadWeek}
+      onDuplicate={handleDuplicateWeek}
+      onShare={handleShareWeek}
+      onDelete={handleDeleteWeek}
+      onChangeKind={handleChangeKind}
+    />
+  );
+
   return (
     <DndContext
       sensors={sensors}
@@ -1456,14 +1510,17 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
              <div
                role="status"
                className="hidden min-w-0 items-center gap-1.5 text-xs font-bold text-ui-muted cursor-help lg:flex"
-               title={activeArchiveName
-                 ? `Aktivt schema: ${activeArchiveName}. Ändringar sparas hit.`
-                 : 'Inget schema är öppet. Ändringar sparas i huvudschemat.'}
+               title={!activeArchiveName
+                 ? 'Inget schema är öppet. Öppna ett schema i listan Scheman, eller skapa ett nytt.'
+                 : isActiveBase
+                   ? `Basschema: ${activeArchiveName}. ${isEditingBase ? 'Ändringar sparas hit.' : 'Skrivskyddat.'}`
+                   : `Aktivt schema: ${activeArchiveName}. Ändringar sparas hit.`}
              >
                <Archive size={12} className="shrink-0 opacity-60 kron:hidden" />
                {/* Lampan för det som är öppet. Bara i Kronberg; Neo har ikonen. */}
                <ActiveLamp />
-               <span className="truncate">{activeArchiveName ?? 'Huvudschema'}</span>
+               <span className="truncate">{activeArchiveName ?? 'Inget schema öppet'}</span>
+               {isActiveBase && <span className="shrink-0 font-normal">(bas)</span>}
              </div>
              {isPlanningMode && (
                <p
@@ -1486,7 +1543,46 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               {/* Läsläget måste synas där ändringarna görs, inte i arkivlistan.
                   Utan den här raden ser det ut som att allt fungerar ända tills
                   man upptäcker att inget sparats. */}
-              {isReadOnly && (
+              {/* Basen öppnas skrivskyddad. Redigerar någon annan den just nu
+                  står det här, så att man vet att den kan ändras under en. */}
+              {readOnlyReason === 'base' && (
+                <span
+                  role="status"
+                  className="flex items-center gap-1.5 rounded border-frame border-ui-line bg-ui-surface-2 px-2 py-1 text-xs font-bold"
+                  title="Basschemat öppnas skrivskyddat, så att det inte ändras av misstag. Nya veckoscheman utgår från det."
+                >
+                  <Lock size={12} className="shrink-0" />
+                  <span className="whitespace-nowrap">
+                    Skrivskyddat{lockHolder ? ` · ${lockHolder} redigerar` : ''}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="neutral"
+                    className="h-6 shrink-0 bg-ui-paper px-2 text-xs"
+                    onClick={() => { void handleEditBase(); }}
+                  >
+                    Redigera bas
+                  </Button>
+                </span>
+              )}
+              {isActiveBase && isEditingBase && readOnlyReason === null && (
+                <span
+                  role="status"
+                  className="flex items-center gap-1.5 rounded border-frame border-ui-line bg-ui-surface-2 px-2 py-1 text-xs font-bold"
+                  title="Klar sparar, släpper basschemat och gör det skrivskyddat igen."
+                >
+                  <span className="whitespace-nowrap">Redigerar bas</span>
+                  <Button
+                    size="sm"
+                    variant="neutral"
+                    className="h-6 shrink-0 bg-ui-paper px-2 text-xs"
+                    onClick={() => { void handleFinishEditingBase(); }}
+                  >
+                    Klar
+                  </Button>
+                </span>
+              )}
+              {readOnlyReason === 'locked' && (
                 <span
                   role="status"
                   className={`flex items-center gap-1.5 rounded border-frame border-ui-line px-2 py-1 text-xs font-bold ${uiTint.warning}`}
@@ -1629,10 +1725,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       <Download size={14} />
                       Spara säkerhetskopia (JSON)
                     </button>
+                    {/* Avstängd när schemat inte går att ändra. Annars byttes
+                        byggstenar och inställningar men inte schemat. */}
                     <button
                       type="button"
                       role="menuitem"
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm sp-menu-item"
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm sp-menu-item disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isReadOnly}
+                      title={isReadOnly ? readOnlyMessage(readOnlyReason, lockHolder) : undefined}
                       onClick={() => {
                         fileInputRef.current?.click();
                         setIsMoreMenuOpen(false);
@@ -1739,7 +1839,44 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           </div>
 
           {/* Main Schedule Area */}
-          <div className={`sp-grid flex-1 flex flex-col h-full ${activeZone === 'grid' ? 'sp-ring' : ''}`}>
+          <div className={`sp-grid relative flex-1 flex flex-col h-full ${activeZone === 'grid' ? 'sp-ring' : ''}`}>
+             {/* Inget öppet schema, eller ett som inte gick att läsa. Förr
+                 visades huvudschemat här, men det används inte längre. Visas
+                 först när uppstarten avgjort läget, så att det inte blinkar
+                 förbi medan det sparade schemat läses in. */}
+             {initialArchiveId !== undefined && loadStatus !== 'loading'
+               && (readOnlyReason === 'no-schedule' || readOnlyReason === 'load-error') && (
+               <div className="pointer-events-none absolute inset-0 z-[80] flex items-start justify-center pt-24">
+                 <div role="status" className="pointer-events-auto sp-card mx-4 max-w-sm p-5 text-center">
+                   <p className="text-sm font-bold">
+                     {readOnlyReason === 'load-error'
+                       ? 'Schemat gick inte att läsa.'
+                       : 'Inget schema är öppet.'}
+                   </p>
+                   <p className="mt-1 text-xs text-ui-muted">
+                     {readOnlyReason === 'load-error'
+                       ? 'Ladda om sidan för att försöka igen, eller öppna ett annat schema.'
+                       : 'Öppna ett schema i listan Scheman, eller skapa ett nytt.'}
+                   </p>
+                   <div className="mt-4 flex flex-wrap justify-center gap-2">
+                     <Button
+                       variant="neutral"
+                       className={`sp-btn ${uiTint.create}`}
+                       onClick={() => openNewScheduleDialog('week')}
+                     >
+                       <Plus size={14} className="mr-2" /> Nytt veckoschema
+                     </Button>
+                     <Button
+                       variant="neutral"
+                       className="sp-btn hidden lg:inline-flex"
+                       onClick={() => setIsRightSidebarCollapsed(false)}
+                     >
+                       Visa scheman
+                     </Button>
+                   </div>
+                 </div>
+               </div>
+             )}
              <div
                className="flex-1 overflow-y-auto relative"
                id="schedule-canvas"
@@ -1808,7 +1945,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       <ChevronLeft size={16} />
                     </Button>
                     <span className="truncate px-2 text-sm font-bold text-center">
-                      {mobileSelectedArchiveName ?? activeArchiveName ?? 'Aktivt schema'}
+                      {mobileSelectedArchiveName ?? activeArchiveName ?? 'Inget schema öppet'}
                     </span>
                     <Button
                       size="sm"
@@ -2031,54 +2168,43 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 <div className="flex flex-col gap-4 flex-1">
                   <Button
                     variant="neutral"
-                    onClick={openNewScheduleDialog}
+                    onClick={() => openNewScheduleDialog('week')}
                     className={`w-full sp-btn ${uiTint.create}`}
                   >
-                    <Plus size={14} className="mr-2"/> Nytt schema
+                    <Plus size={14} className="mr-2"/> Nytt veckoschema
                   </Button>
 
                   <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                    {sortedArchives.length === 0 ? (
-                      <p className="text-sm text-ui-muted italic">Inga sparade scheman ännu.</p>
+                    {/* Basscheman överst: de är få och ändras sällan, och under
+                        en termins veckor skulle de försvinna. Ordningen här och
+                        i sortedArchives måste vara densamma, eftersom
+                        tangentnavigeringen räknar på platsen. */}
+                    <div className="flex items-center justify-between">
+                      <Label className={scheduleSectionLabel}>Basscheman</Label>
+                      <Button
+                        size="sm"
+                        variant="neutral"
+                        onClick={() => openNewScheduleDialog('base')}
+                        className="h-7 w-7 p-0 sp-btn"
+                        aria-label="Nytt basschema"
+                        title="Nytt basschema"
+                      >
+                        <Plus size={14} />
+                      </Button>
+                    </div>
+                    {baseArchives.length === 0 ? (
+                      <p className="text-xs text-ui-muted">
+                        Inga basscheman ännu. Gör om ett schema med Gör till basschema, eller skapa ett med +.
+                      </p>
                     ) : (
-                      <>
-                        {ownArchives.map((archive) => (
-                          <ArchiveCard
-                            key={archive.id}
-                            archive={archive}
-                            index={sortedArchives.indexOf(archive)}
-                            isActive={activeArchiveId === archive.id}
-                            activeZone={activeZone}
-                            selectedArchiveIndex={selectedArchiveIndex}
-                            onLoad={handleLoadWeek}
-                            onDuplicate={handleDuplicateWeek}
-                            onShare={handleShareWeek}
-                            onDelete={handleDeleteWeek}
-                          />
-                        ))}
+                      baseArchives.map(archive => renderArchiveCard(archive))
+                    )}
 
-                        {sharedArchives.length > 0 && (
-                          <>
-                            <Label className="block pt-3 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]">
-                              Delade med mig
-                            </Label>
-                            {sharedArchives.map((archive) => (
-                              <ArchiveCard
-                                key={archive.id}
-                                archive={archive}
-                                index={sortedArchives.indexOf(archive)}
-                                isActive={activeArchiveId === archive.id}
-                                activeZone={activeZone}
-                                selectedArchiveIndex={selectedArchiveIndex}
-                                onLoad={handleLoadWeek}
-                                onDuplicate={handleDuplicateWeek}
-                                onShare={handleShareWeek}
-                                onDelete={handleDeleteWeek}
-                              />
-                            ))}
-                          </>
-                        )}
-                      </>
+                    <Label className={`${scheduleSectionLabel} pt-3`}>Veckoscheman</Label>
+                    {weekArchives.length === 0 ? (
+                      <p className="text-sm text-ui-muted italic">Inga veckoscheman ännu.</p>
+                    ) : (
+                      weekArchives.map(archive => renderArchiveCard(archive))
                     )}
                   </div>
                 </div>

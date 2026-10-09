@@ -7,7 +7,10 @@ import type { PlannerActivity } from '@/types/schedule';
 import { groupActivitiesByDay, sortDays } from '../utils/scheduleDayImport';
 
 export interface ScheduleSource {
-  /** null = det arbetande schemat. */
+  /**
+   * null = det gamla huvudschemat. Det går inte längre att hämta från, men
+   * element som hämtats därifrån tidigare bär det kvar (provenance läser det).
+   */
   archiveName: string | null;
   label: string;
 }
@@ -25,19 +28,12 @@ type Step =
   | { status: 'days'; source: ScheduleSource; activities: PlannerActivity[]; counts: Map<string, number> }
   | { status: 'error'; message: string };
 
-const WORKING_SCHEDULE: ScheduleSource = {
-  archiveName: null,
-  label: 'Nuvarande arbetsschema',
-};
-
 /**
  * Hämta in dagar ur schemaplaneraren.
  *
- * Två steg: källa först, sedan dagar. Arkiven ligger överst med flit — ett
- * arkiv är en version man bestämt sig för, medan arbetsschemat är en enda
- * föränderlig plats som kan se annorlunda ut i morgon. Antecknar man kring en
- * dag resonerar man om en bestämd version, så arbetsschemat är ett medvetet
- * val och inte förvalet.
+ * Två steg: källa först, sedan dagar. Källan är ett av de egna schemana.
+ * Arbetsschemat (huvudschemat) fanns här förr som ett eget val, men det
+ * används inte längre i planeraren (docs/plans/basscheman.md, 5.4).
  */
 export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: ScheduleImportModalProps) {
   const [step, setStep] = useState<Step>({ status: 'loading-sources' });
@@ -62,9 +58,8 @@ export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: Sche
   const pickSource = useCallback(async (source: ScheduleSource) => {
     setStep({ status: 'loading-days', source });
     try {
-      const activities = source.archiveName === null
-        ? await plannerService.getPlannerActivities()
-        : await plannerService.getPlannerArchive(source.archiveName);
+      if (source.archiveName === null) throw new Error('Huvudschemat går inte att hämta från');
+      const activities = await plannerService.getPlannerArchive(source.archiveName);
 
       const byDay = groupActivitiesByDay(activities);
       const counts = new Map(sortDays(Array.from(byDay.keys())).map((day) => [day, byDay.get(day)!.length]));
@@ -117,9 +112,9 @@ export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: Sche
 
           {step.status === 'sources' && (
             <>
-              <div className="ws-sidebar-header">Arkiv</div>
+              <div className="ws-sidebar-header">Scheman</div>
               {step.archives.length === 0 ? (
-                <p className="ws-dialog__empty">Du har inga arkiverade scheman.</p>
+                <p className="ws-dialog__empty">Du har inga scheman.</p>
               ) : (
                 step.archives.map((name) => (
                   <button
@@ -131,13 +126,6 @@ export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: Sche
                   </button>
                 ))
               )}
-              <div className="ws-divider" />
-              <button
-                className="ws-surface-option"
-                onClick={() => void pickSource(WORKING_SCHEDULE)}
-              >
-                {WORKING_SCHEDULE.label}
-              </button>
             </>
           )}
 

@@ -17,6 +17,7 @@ import {
 } from '@/types/schedule';
 import { PlannerNoticeTone } from '@/types/plannerUI';
 import { parseExcludeList } from '@/utils/exportExclusions';
+import { partitionSchedules } from '@/utils/scheduleKind';
 
 type Props = {
   archives: PlannerArchiveSummary[];
@@ -62,6 +63,7 @@ export default function PublicLinkControl({
   const [hiddenDraft, setHiddenDraft] = useState('');
   const [copied, setCopied] = useState(false);
   const [confirmRotate, setConfirmRotate] = useState(false);
+  const scheduleGroups = useMemo(() => partitionSchedules(archives), [archives]);
 
   // Gränssnittet visar en länk. Backenden bär flera, så en per klass kan läggas
   // till senare utan att datamodellen ändras.
@@ -266,9 +268,22 @@ export default function PublicLinkControl({
                   onChange={e => handlePoint(e.target.value || null)}
                 >
                   <option value="">Inget schema just nu</option>
-                  {archives.map(archive => (
-                    <option key={archive.id} value={archive.id}>{archive.name}</option>
-                  ))}
+                  {/* Veckorna först: länken pekas om när veckan byts. En bas
+                      går också att visa. */}
+                  {scheduleGroups.weeks.length > 0 && (
+                    <optgroup label="Veckoscheman">
+                      {scheduleGroups.weeks.map(archive => (
+                        <option key={archive.id} value={archive.id}>{archive.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {scheduleGroups.bases.length > 0 && (
+                    <optgroup label="Basscheman">
+                      {scheduleGroups.bases.map(archive => (
+                        <option key={archive.id} value={archive.id}>{archive.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 {activeArchiveId && link.archiveId !== activeArchiveId && (
                   <Button variant="neutral" size="sm" disabled={isBusy} onClick={() => handlePoint(activeArchiveId)}>

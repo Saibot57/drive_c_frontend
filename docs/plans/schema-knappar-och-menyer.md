@@ -229,6 +229,9 @@ högerställt i grått:
 
 ## 7. Ord
 
+Senare ändrat: Nytt schema heter Nytt veckoschema, och panelen delas i
+Basscheman och Veckoscheman. Se `docs/plans/basscheman.md`.
+
 | Idag | Blir |
 |---|---|
 | Sparade Veckor | Scheman |
@@ -372,6 +375,10 @@ och öppnat, och nollar låset i listan, precis som `handleLoadWeek`. Ett fel
 där stoppar inte skapandet.
 
 ### 13.2 Huvudschemat
+
+Senare ändrat: huvudschemat används inte längre i planeraren. Se
+`docs/plans/basscheman.md`, avsnitt 5. Texten nedan beskriver läget när den
+här planen skrevs.
 
 När inget schema är öppet är rutnätet huvudschemat. Det sparas med `POST
 /activities/sync` (`archive_name` tomt) och läses av workspace-importen,

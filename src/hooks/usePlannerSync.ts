@@ -8,21 +8,26 @@ import { PlannerActivity, ScheduledEntry } from '@/types/schedule';
 import { sanitizeScheduleImport } from '@/utils/scheduleImport';
 import { minutesToTime, timeToMinutes } from '@/utils/scheduleTime';
 
+/** Så länge Spara nu väntar på en sparning som redan pågår. */
+const SAVE_NOW_TIMEOUT_MS = 15000;
+
 type UsePlannerSyncParams = {
   schedule: ScheduledEntry[];
   commitSchedule: (
     updater: (prev: ScheduledEntry[]) => ScheduledEntry[],
     options?: { clearHistory?: boolean }
   ) => void;
-  /** Öppet schema, eller null för huvudschemat. */
+  /**
+   * Öppet schema, eller null när inget är öppet. Då finns inget att spara —
+   * huvudschemat, som förr tog emot ändringarna, används inte längre.
+   */
   activeArchiveId: string | null;
   /**
    * undefined tills arkivhanteraren avgjort vilket schema sidan öppnar i.
-   * Innan dess laddas ingenting — annars hämtas huvudschemat i onödan och
-   * skriver över det arkiv som var på väg in.
+   * Innan dess laddas ingenting.
    */
   initialArchiveId: string | null | undefined;
-  /** Sant när någon annan har låset. Då sparas ingenting. */
+  /** Sant när schemat inte får ändras härifrån. Då sparas ingenting. */
   isReadOnly: boolean;
   /**
    * Stegas när schemat i vyn ersatts med något som kommer från servern —
@@ -103,32 +108,6 @@ export const usePlannerSync = ({
    */
   const lastSavedSignatureRef = useRef<string | null>(null);
 
-  const areEntriesEquivalent = useCallback((a: ScheduledEntry, b: ScheduledEntry) => (
-    a.instanceId === b.instanceId
-    && a.title === b.title
-    && (a.teacher ?? '') === (b.teacher ?? '')
-    && (a.room ?? '') === (b.room ?? '')
-    && (a.notes ?? '') === (b.notes ?? '')
-    && (a.category ?? '') === (b.category ?? '')
-    && a.color === b.color
-    && a.day === b.day
-    && a.startTime === b.startTime
-    && a.endTime === b.endTime
-    && a.duration === b.duration
-  ), []);
-
-  const reconcileSyncedActivities = useCallback((activities: PlannerActivity[] | null | undefined) => {
-    if (!Array.isArray(activities) || activities.length === 0) return;
-    const reconciledSchedule = mapPlannerActivitiesToSchedule(activities);
-    const isEquivalent = reconciledSchedule.length === schedule.length
-      && reconciledSchedule.every((entry, index) => {
-        const current = schedule[index];
-        return current ? areEntriesEquivalent(entry, current) : false;
-      });
-    if (isEquivalent) return;
-    commitSchedule(() => reconciledSchedule);
-  }, [areEntriesEquivalent, commitSchedule, schedule]);
-
   // Väntar in arkivhanteraren och laddar sedan en gång. Efter det byter
   // handleLoadWeek schema, så den här ska inte köra om.
   useEffect(() => {
@@ -136,28 +115,28 @@ export const usePlannerSync = ({
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
 
+    // Inget schema öppet: rutnätet är tomt, och det finns inget att hämta.
+    if (initialArchiveId === null) {
+      lastSavedSignatureRef.current = scheduleSignature([]);
+      setLoadStatus('loaded');
+      return;
+    }
+
     const loadPlannerActivities = async () => {
       try {
-        const activities = initialArchiveId
-          ? (await plannerService.getArchiveActivities(initialArchiveId)).activities
-          : await plannerService.getPlannerActivities();
+        const { activities } = await plannerService.getArchiveActivities(initialArchiveId);
         const loaded = mapPlannerActivitiesToSchedule(activities);
         commitSchedule(() => loaded, { clearHistory: true });
         lastSavedSignatureRef.current = scheduleSignature(loaded);
         setLoadStatus('loaded');
       } catch (error) {
+        // Förr visades huvudschemat i stället. Men activeArchiveId stod kvar på
+        // schemat som inte gick att läsa, så nästa ändring skrev över det med
+        // huvudschemats poster. Nu blir rutnätet tomt och spärrat, och id:t
+        // ligger kvar så att nästa laddning försöker igen.
         console.error('Planner load failed', error);
-        showNotice('Kunde inte ladda schemat. Visar huvudschemat istället.', 'warning');
-        try {
-          const activities = await plannerService.getPlannerActivities();
-          const loaded = mapPlannerActivitiesToSchedule(activities);
-          commitSchedule(() => loaded, { clearHistory: true });
-          lastSavedSignatureRef.current = scheduleSignature(loaded);
-          setLoadStatus('loaded');
-        } catch (fallbackError) {
-          console.error('Planner fallback load failed', fallbackError);
-          setLoadStatus('error');
-        }
+        showNotice('Kunde inte läsa schemat. Ladda om sidan.', 'error');
+        setLoadStatus('error');
       }
     };
 
@@ -168,6 +147,9 @@ export const usePlannerSync = ({
   // skulle ett arkivbyte skriva tillbaka den nyss hämtade veckan direkt.
   useEffect(() => {
     lastSavedSignatureRef.current = scheduleSignature(schedule);
+    // Ett schema som lästs in från servern efter ett misslyckat första försök
+    // gör att sidan går att arbeta i igen. Vid 0 har inget lästs in än.
+    if (serverSyncToken > 0) setLoadStatus('loaded');
     // Bara token i beroendelistan med flit: schemat läses som det ser ut i
     // samma rendering som bytet, vilket är precis det servern gav oss. Att
     // lägga till schedule här skulle göra effekten till en kapplöpning med
@@ -176,54 +158,60 @@ export const usePlannerSync = ({
   }, [serverSyncToken]);
 
   /**
-   * Skriver hela schemat dit det hör hemma. Kastar ArchiveLockedError när
+   * Skriver hela schemat till det öppna schemat. Kastar ArchiveLockedError när
    * någon annan hunnit ta låset.
    */
   const pushSchedule = useCallback(async () => {
+    if (!activeArchiveId) return;
     const payload = mapScheduleToPlannerActivities(schedule);
-    const signature = JSON.stringify(payload);
-    if (activeArchiveId) {
-      await plannerService.saveArchiveActivities(activeArchiveId, payload);
-      lastSavedSignatureRef.current = signature;
-      // Ingen avstämning för scheman. Posternas id är stabila numera, men
-      // klienten har redan exakt det som sparades.
-      return;
-    }
-    const response = await plannerService.syncActivities(payload);
-    lastSavedSignatureRef.current = signature;
-    reconcileSyncedActivities(response.activities);
-  }, [activeArchiveId, reconcileSyncedActivities, schedule]);
+    await plannerService.saveArchiveActivities(activeArchiveId, payload);
+    // Ingen avstämning. Posternas id är stabila, och klienten har redan
+    // exakt det som sparades.
+    lastSavedSignatureRef.current = JSON.stringify(payload);
+  }, [activeArchiveId, schedule]);
 
-  const handleSyncToCloud = useCallback(async () => {
-    if (isSavingRef.current) return;
+  /**
+   * Sparar det som inte sparats ännu, direkt i stället för efter autosparets
+   * sekund. Anropas före allt som byter schema eller läge: annars försvinner
+   * en ändring som görs strax före bytet. Svarar false om sparningen
+   * misslyckades.
+   */
+  const saveNow = useCallback(async (): Promise<boolean> => {
+    if (loadStatus !== 'loaded' || isReadOnly || !activeArchiveId) return true;
+    // En sparning som redan pågår får gå klart. Taket finns för att ett
+    // anrop som aldrig svarar inte ska låsa knappen för alltid.
+    const waitUntil = Date.now() + SAVE_NOW_TIMEOUT_MS;
+    while (isSavingRef.current) {
+      if (Date.now() > waitUntil) return false;
+      await new Promise(resolve => window.setTimeout(resolve, 50));
+    }
+    if (scheduleSignature(schedule) === lastSavedSignatureRef.current) return true;
+
     isSavingRef.current = true;
     setIsSaving(true);
     setSaveStatus('saving');
     try {
       await pushSchedule();
       setSaveStatus('saved');
-      showNotice(
-        activeArchiveId ? 'Schemat uppdaterades.' : 'Schema synkat till molnet.',
-        'success'
-      );
+      return true;
     } catch (error) {
+      setSaveStatus('error');
       if (error instanceof ArchiveLockedError) {
-        setSaveStatus('error');
         onLockLost(error.holder);
         showNotice(error.message, 'warning');
-        return;
+      } else {
+        console.error('Save failed', error);
       }
-      console.error('Cloud sync failed', error);
-      setSaveStatus('error');
-      showNotice('Kunde inte synka schemat.', 'error');
+      return false;
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [activeArchiveId, onLockLost, pushSchedule, showNotice]);
+  }, [activeArchiveId, isReadOnly, loadStatus, onLockLost, pushSchedule, schedule, showNotice]);
 
   const performAutosave = useCallback(async () => {
     if (loadStatus !== 'loaded') return;
+    if (!activeArchiveId) return;
     if (schedule.length === 0) return;
     // Läsläge: den andres arbete ska inte skrivas över av en autospar härifrån.
     if (isReadOnly) return;
@@ -264,7 +252,7 @@ export const usePlannerSync = ({
         }, 0);
       }
     }
-  }, [isReadOnly, loadStatus, onLockLost, pushSchedule, schedule, showNotice]);
+  }, [activeArchiveId, isReadOnly, loadStatus, onLockLost, pushSchedule, schedule, showNotice]);
 
   useEffect(() => {
     if (loadStatus !== 'loaded') return;
@@ -279,6 +267,6 @@ export const usePlannerSync = ({
     isSaving,
     saveStatus,
     loadStatus,
-    handleSyncToCloud
+    saveNow
   };
 };
