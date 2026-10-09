@@ -37,7 +37,7 @@ export function AreaLibraryCard({
     <div
       onPointerDown={event => onPointerDown(area, event)}
       style={{ backgroundColor: area.color, color: textColor }}
-      className={`group relative mb-2 cursor-grab touch-none select-none rounded sp-source-card transition-all hover:shadow-[2px_2px_0_0_#000] active:cursor-grabbing ${
+      className={`group relative mb-2 cursor-grab touch-none select-none rounded sp-source-card transition-all hover:shadow-frame-sm active:cursor-grabbing ${
         isSub ? 'ml-5 px-2 py-1' : 'p-2'
       }`}
       title="Dra ut i hjulet för att placera"
@@ -62,7 +62,7 @@ export function AreaLibraryCard({
           onPointerDown={event => event.stopPropagation()}
           onClick={() => onDelete(area, isDerived)}
           disabled={isDerived}
-          className="rounded-full bg-white/60 p-1 text-rose-700 hover:bg-rose-200 disabled:opacity-40 disabled:hover:bg-white/60"
+          className="rounded-full bg-white/60 p-1 text-rose-700 kron:text-ui-danger hover:bg-rose-200 disabled:opacity-40 disabled:hover:bg-white/60"
           title={isDerived ? 'Området finns i hjulet och kan inte raderas här.' : 'Ta bort ur biblioteket'}
           aria-label={`Ta bort ${area.title}`}
         >

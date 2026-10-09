@@ -8,3 +8,35 @@
 .theme-wheel-empty-cell:hover {
   fill: rgba(0, 0, 0, 0.06);
 }
+
+/* ── Kronberg ──
+   Färgerna står som attribut på SVG:n, och det är dem exporten ritar
+   (useThemeWheelExport tar bort klassen och har ingen stilmall). En CSS-regel
+   för fill och stroke vinner över attributen, men bara här på skärmen.
+   Områdenas egna färger rörs inte: de är innehåll, och textfärgen på dem
+   är räknad på den odämpade färgen (docs/plans/kronberg-tema.md, 10.2). */
+:root[data-theme="kronberg"] .tw-wheel [stroke="#1a1a1a"] {
+  stroke: #5C5B57;
+}
+:root[data-theme="kronberg"] .tw-wheel [fill="#ffffff"]:not([stroke="#ffffff"]) {
+  fill: var(--ui-paper);
+}
+:root[data-theme="kronberg"] .tw-wheel [fill="#e5e7eb"] {
+  fill: var(--ui-surface-3);
+}
+:root[data-theme="kronberg"] .tw-wheel text[fill="#1a1a1a"] {
+  fill: var(--ui-ink);
+}
+:root[data-theme="kronberg"] .tw-wheel text[fill="#6b7280"] {
+  fill: var(--ui-muted);
+}
+:root[data-theme="kronberg"] .theme-wheel-empty-cell:hover {
+  fill: rgba(31, 32, 34, 0.05);
+}
+/* Visaren för i dag i signalfärgen. */
+:root[data-theme="kronberg"] .tw-wheel line.tw-today {
+  stroke: var(--ui-lamp);
+}
+:root[data-theme="kronberg"] .tw-wheel circle.tw-today {
+  fill: var(--ui-lamp);
+}

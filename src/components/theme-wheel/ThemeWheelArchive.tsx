@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Archive, ChevronLeft, ChevronRight, Copy, Plus, Share2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ActiveLamp } from '@/components/ui/ActiveLamp';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,7 +57,7 @@ export function ThemeWheelArchive({
     <div className={`hidden lg:flex flex-col gap-4 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-[300px]'}`}>
       <div className={`sp-card flex flex-1 flex-col transition-all duration-300 ${collapsed ? 'p-2' : 'p-4'}`}>
         <div className={`flex ${collapsed ? 'flex-col items-center gap-3' : 'mb-4 items-center justify-between'}`}>
-          <h2 className={`flex items-center gap-2 font-bold ${collapsed ? 'sr-only' : ''}`}>
+          <h2 className={`ui-panel-title flex items-center gap-2 font-bold ${collapsed ? 'sr-only' : ''}`}>
             <Archive size={18} /> Sparade hjul
           </h2>
           <Button
@@ -77,14 +78,14 @@ export function ThemeWheelArchive({
               variant="neutral"
               disabled={isBusy}
               onClick={() => setNewWheel({ name: '', startWeek: today.week, startYear: today.year })}
-              className="w-full sp-btn bg-emerald-100 hover:bg-emerald-200"
+              className="w-full sp-btn bg-emerald-100 hover:bg-emerald-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
             >
               <Plus size={14} className="mr-2" /> Nytt hjul
             </Button>
 
             <div className="flex-1 space-y-2 overflow-y-auto pr-1">
               {wheels.length === 0 ? (
-                <p className="text-sm italic text-gray-500">Inga sparade hjul ännu.</p>
+                <p className="text-sm italic text-ui-muted">Inga sparade hjul ännu.</p>
               ) : (
                 wheels.map(item => (
                   <div key={item.id} className="sp-archive-card flex items-center gap-2 p-3">
@@ -94,10 +95,14 @@ export function ThemeWheelArchive({
                       disabled={isBusy}
                       className="min-w-0 flex-1 text-left disabled:opacity-50"
                     >
-                      <span className="block break-words text-sm font-bold leading-tight">
-                        {item.name}{item.id === activeId ? ' • aktiv' : ''}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <ActiveLamp on={item.id === activeId} />
+                        <span className="block break-words text-sm font-bold leading-tight kron:font-medium">
+                          {item.name}{item.id === activeId && <span className="kron:hidden"> • aktiv</span>}
+                        </span>
+                        {item.id === activeId && <span className="ui-label hidden text-[10px] kron:inline">Öppet</span>}
                       </span>
-                      <span className="text-2xs text-gray-500">
+                      <span className="text-2xs text-ui-muted">
                         v.{item.startWeek} · {item.weekCount} veckor
                       </span>
                     </button>
@@ -111,7 +116,7 @@ export function ThemeWheelArchive({
                           startWeek: item.startWeek,
                           startYear: item.startYear,
                         })}
-                        className="h-8 w-8 p-0 sp-btn bg-indigo-100 hover:bg-indigo-200"
+                        className="h-8 w-8 p-0 sp-btn bg-indigo-100 hover:bg-indigo-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
                         aria-label={`Duplicera ${item.name}`}
                         title={`Duplicera ${item.name}`}
                       >
@@ -121,7 +126,7 @@ export function ThemeWheelArchive({
                         size="sm"
                         variant="neutral"
                         onClick={() => setShare({ id: item.id, name: item.name, recipient: '' })}
-                        className="h-8 w-8 p-0 sp-btn bg-emerald-100 hover:bg-emerald-200"
+                        className="h-8 w-8 p-0 sp-btn bg-emerald-100 hover:bg-emerald-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
                         aria-label={`Dela ${item.name}`}
                         title={`Dela ${item.name}`}
                       >
@@ -131,7 +136,7 @@ export function ThemeWheelArchive({
                         size="sm"
                         variant="neutral"
                         onClick={() => setPendingDelete(item)}
-                        className="h-8 w-8 p-0 sp-btn bg-rose-100 text-rose-800 hover:bg-rose-200"
+                        className="h-8 w-8 p-0 sp-btn bg-rose-100 text-rose-800 kron:text-ui-danger hover:bg-rose-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
                         aria-label={`Ta bort ${item.name}`}
                         title={`Ta bort ${item.name}`}
                       >
@@ -217,7 +222,7 @@ export function ThemeWheelArchive({
                 setDuplicate(null);
               }}
             >
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 kron:text-ui-muted">
                 Arbetsområdena ligger på hjulets veckonummer, så kopian kan flyttas till en
                 annan termin genom att ändra startveckan.
               </p>
@@ -275,7 +280,7 @@ export function ThemeWheelArchive({
                 if (sent) setShare(null);
               }}
             >
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 kron:text-ui-muted">
                 &quot;{share.name}&quot; kopieras till mottagarens konto. Det blir en egen kopia –
                 era ändringar påverkar inte varandra.
               </p>
@@ -311,7 +316,7 @@ export function ThemeWheelArchive({
               type="button"
               variant="neutral"
               disabled={isBusy}
-              className="sp-btn bg-rose-100 text-rose-800 hover:bg-rose-200"
+              className="sp-btn bg-rose-100 text-rose-800 kron:text-ui-danger hover:bg-rose-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
               onClick={() => {
                 if (pendingDelete) onDelete(pendingDelete.id);
                 setPendingDelete(null);

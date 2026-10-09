@@ -28,6 +28,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { uiTint } from "@/components/ui/tints";
+import { ActiveLamp } from "@/components/ui/ActiveLamp";
 import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
@@ -1304,9 +1305,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onClick={() => toggleSection('stats')}
         aria-expanded={sections.stats}
         title={sections.stats ? 'Fäll ihop tid' : 'Fäll ut tid'}
-        className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity kron:font-mono kron:text-xs kron:font-medium kron:uppercase kron:tracking-[0.08em] kron:text-ui-ink-2"
+        className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity ui-panel-title"
       >
-        <BarChart3 size={18} className="kron:hidden" /> {isPlanningMode ? 'Tid (Planering)' : 'Tid (Filtrerat)'}
+        <BarChart3 size={18} /> {isPlanningMode ? 'Tid (Planering)' : 'Tid (Filtrerat)'}
         {sections.stats
           ? <ChevronUp size={16} className="text-ui-subtle" />
           : <ChevronDown size={16} className="text-ui-subtle" />}
@@ -1461,7 +1462,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
              >
                <Archive size={12} className="shrink-0 opacity-60 kron:hidden" />
                {/* Lampan för det som är öppet. Bara i Kronberg; Neo har ikonen. */}
-               <span aria-hidden className="hidden h-2 w-2 shrink-0 rounded-full bg-ui-lamp shadow-[0_0_0_3px_rgba(217,88,28,0.16)] kron:inline-block" />
+               <ActiveLamp />
                <span className="truncate">{activeArchiveName ?? 'Huvudschema'}</span>
              </div>
              {isPlanningMode && (
@@ -1664,9 +1665,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       onClick={() => toggleSection('courses')}
                       aria-expanded={sections.courses}
                       title={sections.courses ? 'Fäll ihop byggstenar' : 'Fäll ut byggstenar'}
-                      className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity kron:font-mono kron:text-xs kron:font-medium kron:uppercase kron:tracking-[0.08em] kron:text-ui-ink-2"
+                      className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity ui-panel-title"
                     >
-                      <Hammer size={18} className="kron:hidden"/> Byggstenar
+                      <Hammer size={18}/> Byggstenar
                       {sections.courses
                         ? <ChevronUp size={16} className="text-ui-subtle" />
                         : <ChevronDown size={16} className="text-ui-subtle" />}
@@ -2006,8 +2007,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
              isRightSidebarCollapsed ? 'p-2' : 'p-4'
            } ${activeZone === 'archive' ? 'sp-ring' : ''}`}>
               <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
-                <h2 className={`font-bold flex items-center gap-2 kron:font-mono kron:text-xs kron:font-medium kron:uppercase kron:tracking-[0.08em] kron:text-ui-ink-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
-                  <Archive size={18} className="kron:hidden"/> Scheman
+                <h2 className={`font-bold flex items-center gap-2 ui-panel-title ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
+                  <Archive size={18}/> Scheman
                 </h2>
                 <Button
                   size="sm"
@@ -2364,12 +2365,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       />
 
       {plannerNotice && (
-        <div className={`fixed bottom-4 right-4 z-[80] sp-toast px-4 py-3 text-sm font-semibold kron:flex kron:items-center kron:gap-2.5 kron:bg-ui-ink kron:font-medium kron:text-ui-paper ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
-          {/* Kronberg: en mörk ruta med en lampa i tonens färg. */}
-          <span
-            aria-hidden
-            className={`hidden h-2 w-2 shrink-0 rounded-full kron:inline-block ${plannerNotice.tone === 'success' ? 'bg-ui-lamp' : plannerNotice.tone === 'warning' ? 'bg-amber-400' : 'bg-rose-500'}`}
-          />
+        <div className={`fixed bottom-4 right-4 z-[80] sp-toast px-4 py-3 text-sm font-semibold ui-toast ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
+          <ActiveLamp tone={plannerNotice.tone === 'success' ? 'lamp' : plannerNotice.tone === 'warning' ? 'warning' : 'error'} />
           {plannerNotice.message}
         </div>
       )}

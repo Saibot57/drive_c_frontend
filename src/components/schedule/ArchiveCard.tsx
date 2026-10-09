@@ -3,6 +3,7 @@
 import { Copy, Lock, Share2, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { uiTint } from '@/components/ui/tints';
+import { ActiveLamp } from '@/components/ui/ActiveLamp';
 import type { ActiveZone } from '@/hooks/useScheduleKeyboardNav';
 import type { PlannerArchiveSummary } from '@/types/schedule';
 
@@ -43,10 +44,7 @@ export function ArchiveCard({
       >
         <span className="flex min-w-0 items-center gap-2">
           {/* Lampan för det öppna schemat. Bara i Kronberg; Neo skriver "• aktiv". */}
-          <span
-            aria-hidden
-            className={`hidden h-2 w-2 shrink-0 rounded-full border kron:inline-block ${isActive ? 'border-ui-lamp bg-ui-lamp shadow-[0_0_0_3px_rgba(217,88,28,0.16)]' : 'border-[#B5B3AD]'}`}
-          />
+          <ActiveLamp on={isActive} />
           <span className="font-bold text-sm break-words leading-tight kron:font-medium">
             {archive.name}{isActive && <span className="kron:hidden"> • aktiv</span>}
           </span>

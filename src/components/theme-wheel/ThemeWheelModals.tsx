@@ -57,7 +57,7 @@ const ctrlEnter = (submit: (event: React.FormEvent) => void) =>
     }
   };
 
-const selectClassName = 'sp-input h-10 w-full rounded-md bg-white px-3 text-sm';
+const selectClassName = 'sp-input h-10 w-full rounded-md bg-ui-paper px-3 text-sm';
 
 export function ThemeWheelModals({
   weeks,
@@ -147,7 +147,7 @@ export function ThemeWheelModals({
           {editingBlock && (
             <form onSubmit={onSaveBlock} onKeyDown={ctrlEnter(onSaveBlock)} className="space-y-3">
               {blockParent && (
-                <p className="flex items-center gap-2 text-xs text-gray-600">
+                <p className="flex items-center gap-2 text-xs text-gray-600 kron:text-ui-muted">
                   <span
                     className="h-3 w-3 shrink-0 rounded-full border border-black"
                     style={{ backgroundColor: blockParent.color }}
@@ -229,7 +229,7 @@ export function ThemeWheelModals({
                 />
               </div>
 
-              <div className="space-y-2 rounded border-2 border-black/10 p-3">
+              <div className="space-y-2 rounded border-frame border-ui-line/10 p-3">
                 <label className="flex items-center gap-2 text-sm font-bold">
                   <input
                     type="checkbox"
@@ -306,7 +306,7 @@ export function ThemeWheelModals({
                   <Button
                     type="button"
                     variant="neutral"
-                    className="sp-btn bg-rose-100 text-rose-800 hover:bg-rose-200"
+                    className="sp-btn bg-rose-100 text-rose-800 kron:text-ui-danger hover:bg-rose-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
                     onClick={() => onDeleteBlock(editingBlock.instanceId)}
                   >
                     Ta bort
@@ -382,7 +382,7 @@ export function ThemeWheelModals({
                   />
                 </div>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ui-muted">
                 Arbetsområdena ligger på hjulets veckonummer, inte på kalendern. Byter du
                 startvecka följer hela temat med.
               </p>
@@ -408,7 +408,7 @@ export function ThemeWheelModals({
             <Button
               type="button"
               variant="neutral"
-              className="sp-btn bg-rose-100 text-rose-800 hover:bg-rose-200"
+              className="sp-btn bg-rose-100 text-rose-800 kron:text-ui-danger hover:bg-rose-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
               onClick={onConfirmDeleteArea}
             >
               Ta bort

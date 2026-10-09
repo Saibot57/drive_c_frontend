@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
+import { ActiveLamp } from '@/components/ui/ActiveLamp';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ThemeArea, ThemeBlock, ThemeWheel as ThemeWheelData } from '@/types/themeWheel';
 import {
@@ -374,7 +375,7 @@ export default function ThemeWheelPlanner() {
 
   return (
     <div className="sp-root">
-      <div className="fixed inset-0 z-0">
+      <div className="ui-backdrop fixed inset-0 z-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bakgrund59.png" alt="" className="h-full w-full object-cover" />
       </div>
@@ -385,11 +386,11 @@ export default function ThemeWheelPlanner() {
 
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
             <span
-              className="flex items-center gap-1.5 text-xs font-semibold text-gray-500"
+              className="flex items-center gap-1.5 text-xs font-semibold text-ui-muted"
               title={saveStatus === 'error' ? 'Ändringarna nådde inte molnet' : 'Sparas automatiskt'}
             >
               {saveStatus === 'saving' && <Loader2 size={14} className="animate-spin" />}
-              {saveStatus === 'error' && <CloudOff size={14} className="text-rose-600" />}
+              {saveStatus === 'error' && <CloudOff size={14} className="text-rose-600 kron:text-ui-danger" />}
               {saveStatus !== 'saving' && saveStatus !== 'error' && <Cloud size={14} />}
               {saveStatus === 'saving' ? 'Sparar…' : saveStatus === 'error' ? 'Ej sparat' : 'Sparat'}
             </span>
@@ -411,7 +412,7 @@ export default function ThemeWheelPlanner() {
                 <Download size={16} className="mr-2" /> Exportera
               </Button>
               {isExportMenuOpen && (
-                <div className="absolute right-0 z-[100] mt-2 w-56 bg-white p-1 sp-dropdown">
+                <div className="absolute right-0 z-[100] mt-2 w-56 bg-ui-paper p-1 sp-dropdown">
                   {([
                     ['Spara PDF (A4)', <Download key="a4" size={14} />, () => exportPdf('a4')],
                     ['Spara PDF (A3)', <Download key="a3" size={14} />, () => exportPdf('a3')],
@@ -428,7 +429,7 @@ export default function ThemeWheelPlanner() {
                       {icon}{label}
                     </button>
                   ))}
-                  <div className="my-1 border-t-2 border-gray-100" />
+                  <div className="my-1 border-t-2 border-gray-100 kron:border-ui-hair" />
                   <button
                     type="button"
                     className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm sp-menu-item"
@@ -456,7 +457,7 @@ export default function ThemeWheelPlanner() {
             <Button
               variant="neutral"
               onClick={() => setEditingSettings(wheel)}
-              className="sp-btn bg-amber-100 hover:bg-amber-200"
+              className="sp-btn bg-amber-100 hover:bg-amber-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
             >
               <Settings size={16} className="mr-2" /> {wheel.name} · {wheel.weekCount} v
             </Button>
@@ -467,7 +468,7 @@ export default function ThemeWheelPlanner() {
           <div className="shrink-0 lg:w-[300px]">
             <div className="sp-card p-4">
               <div className="mb-4 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 font-bold">
+                <h2 className="ui-panel-title flex items-center gap-2 font-bold">
                   <Palette size={18} /> Arbetsområden
                 </h2>
                 <Button
@@ -476,7 +477,7 @@ export default function ThemeWheelPlanner() {
                     setManualColor(false);
                     setEditingArea({ id: uuidv4(), title: '', color: DEFAULT_AREA_COLOR });
                   }}
-                  className="h-8 w-8 rounded-full p-0 sp-btn bg-[#aee8fe]"
+                  className="h-8 w-8 rounded-full p-0 sp-btn bg-[#aee8fe] kron:bg-ui-paper kron:hover:bg-ui-surface-3"
                   aria-label="Nytt arbetsområde"
                 >
                   <Plus size={16} />
@@ -484,7 +485,7 @@ export default function ThemeWheelPlanner() {
               </div>
 
               {areas.length === 0 ? (
-                <p className="text-sm italic text-gray-500">
+                <p className="text-sm italic text-ui-muted">
                   Inga arbetsområden ännu. Skapa ett här, eller klicka på en tom tårtbit i hjulet.
                 </p>
               ) : (
@@ -502,7 +503,7 @@ export default function ThemeWheelPlanner() {
                 ))
               )}
 
-              <p className="mt-4 border-t-2 border-gray-100 pt-3 text-2xs leading-relaxed text-gray-500">
+              <p className="mt-4 border-t-2 border-gray-100 kron:border-ui-hair pt-3 text-2xs leading-relaxed text-ui-muted">
                 Dra ut ett område i hjulet, eller klicka på en tom tårtbit. Markera en båge
                 för att dra i dess ändar. Högerklicka för fler val.
               </p>
@@ -512,12 +513,12 @@ export default function ThemeWheelPlanner() {
           <div className="sp-grid flex min-w-0 flex-1 items-center justify-center p-4">
             <div className="w-full max-w-[820px]">
               {loadStatus === 'loading' && (
-                <p className="py-24 text-center text-sm font-semibold text-gray-500">
+                <p className="py-24 text-center text-sm font-semibold text-ui-muted">
                   Hämtar hjulet…
                 </p>
               )}
               {loadStatus === 'error' && (
-                <p className="py-24 text-center text-sm font-semibold text-rose-700">
+                <p className="py-24 text-center text-sm font-semibold text-rose-700 kron:text-ui-danger">
                   Kunde inte hämta hjulet. Ladda om sidan för att försöka igen.
                 </p>
               )}
@@ -565,7 +566,7 @@ export default function ThemeWheelPlanner() {
 
       {contextMenu && (
         <div
-          className="fixed z-[100] flex w-max flex-col bg-white sp-context-menu"
+          className="fixed z-[100] flex w-max flex-col bg-ui-paper sp-context-menu"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           {contextMenu.kind === 'block' ? (
@@ -607,7 +608,7 @@ export default function ThemeWheelPlanner() {
                 Placera ringen automatiskt
               </button>
               <button
-                className="px-3 py-2 text-left text-sm text-rose-700 sp-menu-item"
+                className="px-3 py-2 text-left text-sm text-rose-700 kron:text-ui-danger sp-menu-item"
                 onClick={() => handleRemoveBlock(contextMenu.block.instanceId)}
               >
                 Ta bort
@@ -668,11 +669,12 @@ export default function ThemeWheelPlanner() {
       {/* z-1400 lägger toasten över dialogerna (z-1300), så att t.ex. ett
           delningsfel syns medan rutan fortfarande är öppen. */}
       {plannerNotice && (
-        <div className={`fixed bottom-4 right-4 z-[1400] sp-toast px-4 py-3 text-sm font-semibold ${
+        <div className={`ui-toast fixed bottom-4 right-4 z-[1400] sp-toast px-4 py-3 text-sm font-semibold ${
           plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900'
             : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900'
               : 'bg-rose-100 text-rose-900'
         }`}>
+          <ActiveLamp tone={plannerNotice.tone === 'success' ? 'lamp' : plannerNotice.tone === 'warning' ? 'warning' : 'error'} />
           {plannerNotice.message}
         </div>
       )}
