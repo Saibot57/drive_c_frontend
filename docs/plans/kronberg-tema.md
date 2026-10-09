@@ -470,12 +470,15 @@ Där genomförandet avviker från planen:
 - **`secondary`-varianten** av Button används inte någonstans, så 10.3:s
   ändring av den syns inte.
 - **Växlaren står utanför menyn.** Gruppen "Utseende" i menyn bakom sidnamnet
-  är borttagen. I stället står en halvcirkel (`ThemeToggle.tsx`) direkt efter
-  sidnamnet och byter till det andra temat med ett klick. Den renderas av
+  är borttagen. I stället står en liten ratt med lampa (`ThemeToggle.tsx`)
+  efter sidnamnet och byter till det andra temat med ett klick. Strecket
+  pekar åt vänster i Neo och åt höger i Kronberg, och lampan tänds i
+  Kronberg. Båda läggs med `kron:` i CSS. Ratten renderas av
   `FeatureNavigation` och syns därför på alla vyer utan att någon vy ändrats.
-  Halvcirkeln vrids ett halvt varv i Kronberg, med `kron:` i CSS. Varianterna
-  som jämfördes finns i prototypen
-  https://claude.ai/artifact/L9X5AkdYyDohFDbi8UFUzA (variant 3).
+  Namnrutan före ratten är lika bred i båda temana (en osynlig kopia av namnet
+  i Neos typsnitt), så ratten står still när temat byts. Placeringen valdes i
+  https://claude.ai/artifact/L9X5AkdYyDohFDbi8UFUzA (variant 3) och ratten i
+  https://claude.ai/artifact/GgssRgP6tSTHncrz2aLSxG (variant 6).
 
 Regel för ny kod: använd `--ui-*`, klasserna i avsnitt 3 och `kron:` från
 början. Regeln bör flyttas till CLAUDE.md. Den filen finns inte i repot, men

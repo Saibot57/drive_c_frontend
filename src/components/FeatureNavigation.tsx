@@ -133,68 +133,82 @@ export function FeatureNavigation() {
       <ShortcutHelpOverlay />
       {/* Ett omslag, så att växlaren håller sig intill namnet i föräldrarnas flex. */}
       <span className="inline-flex items-center gap-0.5">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className={cn(
-                'ui-wordmark inline-flex items-center gap-2 text-xl leading-none tracking-[0.2em] select-none',
-                'bg-white kron:bg-transparent border-none cursor-pointer rounded-md px-2 py-1.5',
-                'hover:bg-black/5 transition-colors outline-none',
-                'focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)] focus-visible:ring-offset-2',
-              )}
-              aria-label="Switch feature"
-            >
-              <Icon size={18} />
-              {current.label.toUpperCase()}
-              <ChevronsUpDown size={14} className="opacity-40 ml-0.5" />
-            </button>
-          </DropdownMenuTrigger>
+        {/* Namnet är bredare i Neo än i Kronberg. En osynlig kopia i Neos
+            typsnitt ligger i samma cell som knappen och håller cellen lika
+            bred i båda temana, så att växlaren står still när temat byts. */}
+        <span className="grid">
+          <span
+            aria-hidden
+            className="invisible col-start-1 row-start-1 inline-flex items-center gap-2 whitespace-nowrap px-2 py-1.5 font-monument text-xl font-normal normal-case leading-none tracking-[0.2em] [font-stretch:normal]"
+          >
+            <Icon size={18} />
+            {current.label.toUpperCase()}
+            <ChevronsUpDown size={14} className="ml-0.5" />
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  'col-start-1 row-start-1 justify-self-start',
+                  'ui-wordmark inline-flex items-center gap-2 text-xl leading-none tracking-[0.2em] select-none',
+                  'bg-white kron:bg-transparent border-none cursor-pointer rounded-md px-2 py-1.5',
+                  'hover:bg-black/5 transition-colors outline-none',
+                  'focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)] focus-visible:ring-offset-2',
+                )}
+                aria-label="Switch feature"
+              >
+                <Icon size={18} />
+                {current.label.toUpperCase()}
+                <ChevronsUpDown size={14} className="opacity-40 ml-0.5" />
+              </button>
+            </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="start" className="w-52 bg-white kron:bg-ui-paper">
-            {features.map(feature => {
-              const FeatureIcon = feature.icon;
-              const isActive = feature.href === current.href;
+            <DropdownMenuContent align="start" className="w-52 bg-white kron:bg-ui-paper">
+              {features.map(feature => {
+                const FeatureIcon = feature.icon;
+                const isActive = feature.href === current.href;
 
-              return (
-                <DropdownMenuItem key={feature.href} asChild>
-                  <Link
-                    href={feature.href}
-                    className={cn(
-                      'flex items-center gap-2 cursor-pointer',
-                      isActive && 'font-semibold',
-                    )}
-                  >
-                    <FeatureIcon size={15} />
-                    {feature.label}
-                    {isActive && <Check size={13} className="ml-auto" />}
+                return (
+                  <DropdownMenuItem key={feature.href} asChild>
+                    <Link
+                      href={feature.href}
+                      className={cn(
+                        'flex items-center gap-2 cursor-pointer',
+                        isActive && 'font-semibold',
+                      )}
+                    >
+                      <FeatureIcon size={15} />
+                      {feature.label}
+                      {isActive && <Check size={13} className="ml-auto" />}
+                    </Link>
+                  </DropdownMenuItem>
+                );
+              })}
+              <DropdownMenuSeparator />
+              {isAuthenticated ? (
+                <DropdownMenuItem
+                  className="flex items-center gap-2 cursor-pointer"
+                  onClick={() => { logout(); window.location.href = '/login'; }}
+                >
+                  <LogOut size={15} />
+                  <span>Logga ut</span>
+                  {user && (
+                    <span className="ml-auto text-xs text-ui-subtle truncate max-w-[80px]">
+                      {user.username}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem asChild>
+                  <Link href="/login" className="flex items-center gap-2 cursor-pointer">
+                    <LogIn size={15} />
+                    <span>Logga in</span>
                   </Link>
                 </DropdownMenuItem>
-              );
-            })}
-            <DropdownMenuSeparator />
-            {isAuthenticated ? (
-              <DropdownMenuItem
-                className="flex items-center gap-2 cursor-pointer"
-                onClick={() => { logout(); window.location.href = '/login'; }}
-              >
-                <LogOut size={15} />
-                <span>Logga ut</span>
-                {user && (
-                  <span className="ml-auto text-xs text-ui-subtle truncate max-w-[80px]">
-                    {user.username}
-                  </span>
-                )}
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem asChild>
-                <Link href="/login" className="flex items-center gap-2 cursor-pointer">
-                  <LogIn size={15} />
-                  <span>Logga in</span>
-                </Link>
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </span>
         {/* Utseendet gäller den här webbläsaren. Neo är standard. */}
         <ThemeToggle />
       </span>
