@@ -1,7 +1,7 @@
 # Plan: Färre knappar och tydligare menyer i schemaplaneraren
 
-Status: beslutad 2026-10-09, inte genomförd. Prototyp med båda stilarna:
-länken står i avsnitt 11.
+Status: beslutad 2026-10-09, inte genomförd. Granskad mot backend samma dag,
+se avsnitt 13. Prototyp med båda stilarna: länken står i avsnitt 11.
 
 Schemaplaneraren (`/`, `src/components/schedule/NewSchedulePlanner.tsx`) har
 vuxit en knapp i taget. Den här planen ordnar om knappar och menyer så att det
@@ -111,7 +111,9 @@ namn. Det blir ett enda sätt:
 - Knappen Nytt schema öppnar `NewScheduleDialog` med två fält:
   - **Namn**
   - **Utgå från**: en lista med "Tomt schema" överst och sedan alla scheman,
-    egna först och därefter "Delade med mig".
+    egna först och därefter "Delade med mig". När inget schema är öppet
+    (statusraden visar "Huvudschema") står även **Huvudschemat** i listan,
+    direkt under Tomt schema. Se 13.2.
 - Utgå från minns det senaste valet i localStorage
   (`app.new_schedule_source.v1`), så att basschemat är förvalt nästa gång.
   Finns schemat inte längre faller valet tillbaka till Tomt schema. Bara ett
@@ -121,7 +123,16 @@ namn. Det blir ett enda sätt:
 - Med ett schema valt gör dialogen det `handleDuplicateWeek` gör idag: hämtar
   posterna, skapar ett nytt schema, sparar posterna med nya id:n och öppnar
   det nya schemat.
+- Med Huvudschemat hämtas posterna med `plannerService.getPlannerActivities()`
+  i stället för `getArchiveActivities`. Resten är detsamma.
 - Med Tomt schema gör den det `handleCreateNewSchedule` gör idag.
+- Alla tre vägarna går genom en och samma funktion i `useArchiveManager`.
+  Den släpper låset på schemat som var öppet innan, på samma sätt som
+  `handleLoadWeek` gör. Se 13.1.
+- Kopian görs av det som är sparat på servern, inte av det som syns i
+  rutnätet. Står autosparningen på fel (`saveStatus === 'error'`) när källan är
+  det öppna schemat, säger dialogen det och föreslår att vänta tills
+  sparningen gått igenom. Se 13.3.
 - Knapparna är Avbryt och Skapa, som idag. Skapa är avstängd när namnet är tomt
   eller redan finns bland de egna schemana.
 
@@ -132,6 +143,8 @@ namn. Det blir ett enda sätt:
   och dialogen "Ersätta befintlig vecka?" i `dialogs/ArchiveDialogs.tsx`.
 - `weekName` och `setWeekName` utgår.
 - Autosparningen ändras inte. Den skriver fortfarande till det aktiva schemat.
+- Spara vecka var det enda sättet att göra ett namngivet schema av
+  huvudschemat. Det ersätts av valet Huvudschemat i Utgå från (4.2).
 
 ### 4.4 Korten
 
@@ -198,6 +211,11 @@ högerställt i grått:
 - Drag påverkas inte, eftersom `PointerSensor` startar först efter 8 px
   (`useDragHandlers.ts` rad 53). Klick med Shift, Ctrl eller Cmd markerar som
   förut.
+- Dubbelklick på uppgiftslänken eller ikonerna inne i kortet räknas inte.
+  Hanteraren hoppar över `closest('a, button')`, som `onClick` på posten redan
+  gör (`ScheduledEventCard.tsx` rad 105–108).
+- I läsläget öppnas dialogen som idag via pennan. Ändringen stoppas av
+  `commitSchedule`, så inget nytt skydd behövs.
 
 ---
 
@@ -254,6 +272,9 @@ högerställt i grått:
   minnet och i JSON-kopian. Planen ändrar inte det. Ska de sparas som de andra
   inställningarna behövs `usePersistentState` med en ny nyckel. Det beslutas
   när sektionen byggs.
+- Reglerna ska inte följa med till `PublicLinkControl`. Den skickar färg- och
+  salsreglerna till backend som visningsinställningar för den publika länken,
+  och reglerna har ingenting där att göra. Se 13.4.
 
 ---
 
@@ -292,4 +313,78 @@ sidans Dela-meny)
 - Gränssnittstexten i planeraren innehåller inte "Rensa", "Spara vecka",
   "Sparade veckor" eller "Regler".
 - Kortkommandona i menyerna stämmer med `src/config/shortcuts.ts`.
+- Efter Nytt schema eller Duplicera är det förra schemat inte längre låst på
+  en själv (13.1).
+- Huvudschemat går att välja i Utgå från när inget schema är öppet (13.2).
+- Den nya skapa-funktionen har ett eget test. Det täcker de tre källorna och
+  att det förra låset släpps. Inga befintliga tester rör de flöden planen
+  ändrar, så `pnpm test` ensamt säger lite.
 - `pnpm lint`, `pnpm test` och `pnpm build` går igenom.
+
+---
+
+## 13. Backend
+
+Planen kräver inga ändringar i backend (`drive_c_backend`). Den använder bara
+anrop som redan finns: `POST /archives`, `GET` och `PUT
+/archives/<id>/activities`, `GET /activities` (huvudschemat) och låsen. Två
+saker i frontendens nuvarande flöden behöver ändå rättas när planen byggs,
+eftersom planen leder fler skapade scheman genom dem.
+
+Kontrollerat och oförändrat:
+
+- Namn är unika per ägare (`uq_planner_archive_owner_name`). `POST /archives`
+  svarar 409 på ett namn som redan finns. Planens regel att Skapa är avstängd
+  när namnet finns bland de egna stämmer med det.
+- `POST /archives` tar låset åt den som skapar. Det nya schemat är alltså
+  redan låst på en själv.
+- Rensa nådde aldrig backend. Autosparningen hoppar över ett tomt schema
+  (`usePlannerSync`, `schedule.length === 0`), så ett rensat schema kom
+  tillbaka vid omladdning. Att ta bort knappen ändrar inget på servern.
+- Terminsplaneraren pekar på scheman med id. Workspace-importen, provenance
+  och Command Center hittar dem med namn, via `GET /activities?archive_name=`.
+  Planen döper inte om något schema och byter inga id.
+
+### 13.1 Låset på det förra schemat släpps inte
+
+`handleCreateNewSchedule`, `handleDuplicateWeek` och `saveIntoArchive` (Spara
+vecka) byter aktivt schema utan att släppa låset på det som var öppet. Bara
+`handleLoadWeek` gör det. Lås går inte ut av sig själva i backend
+(`_lock_holder` läser bara `locked_by_id`). `pagehide` släpper bara det schema
+som är öppet just då.
+
+Följden är att ett delat schema man stod i när man skapade nästa vecka
+fortsätter vara låst på en. Kollegor hamnar i läsläge och måste trycka Ta
+över. Felet finns redan idag. Planen gör det vanligare, eftersom hela
+veckoflödet går den här vägen.
+
+Åtgärd: den gemensamma skapa-funktionen (4.2) anropar
+`plannerService.releaseArchiveLock(previousId)` när det nya schemat är skapat
+och öppnat, och nollar låset i listan, precis som `handleLoadWeek`. Ett fel
+där stoppar inte skapandet.
+
+### 13.2 Huvudschemat
+
+När inget schema är öppet är rutnätet huvudschemat. Det sparas med `POST
+/activities/sync` (`archive_name` tomt) och läses av workspace-importen,
+provenance och Command Center. Man hamnar där första gången, efter att ha
+tagit bort det öppna schemat och efter att ha lämnat ett delat schema.
+
+Spara vecka var det enda sättet att göra ett namngivet schema av
+huvudschemat. Därför får Utgå från valet Huvudschemat (4.2).
+
+### 13.3 Kopian görs av serverns version
+
+Spara vecka sparade det som syntes i rutnätet. Utgå från hämtar posterna från
+servern. Med autosparning efter en sekund (`AUTOSAVE_DELAY_MS`) är det i
+praktiken samma sak. Om den senaste sparningen misslyckades saknas de
+osparade ändringarna i kopian, därav varningen i 4.2.
+
+### 13.4 Reglerna
+
+Reglerna (Får inte ligga samtidigt) finns bara i frontendens minne och i
+JSON-kopian. Backend känner inte till dem. Det enda i Inställningar som når
+backend är färg- och salsreglerna, som `PublicLinkControl` skickar med
+`PATCH /public-links/<id>` som `displayConfig`. Så länge reglerna inte kopplas
+in där påverkar flytten inte backend.
+
