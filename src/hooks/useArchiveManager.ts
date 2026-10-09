@@ -1,19 +1,27 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { ACTIVE_ARCHIVE_ID_KEY, ACTIVE_ARCHIVE_NAME_KEY } from '@/config/plannerConstants';
+import {
+  ACTIVE_ARCHIVE_ID_KEY,
+  ACTIVE_ARCHIVE_NAME_KEY,
+  NEW_SCHEDULE_SOURCE_KEY
+} from '@/config/plannerConstants';
 import { plannerService } from '@/services/plannerService';
 import { PlannerActivity, PlannerArchiveSummary, ScheduledEntry } from '@/types/schedule';
+import {
+  createScheduleFrom,
+  decodeScheduleSource,
+  encodeScheduleSource,
+  NewScheduleSource,
+  resolveScheduleSource
+} from '@/utils/createSchedule';
 
 type UseArchiveManagerParams = {
-  schedule: ScheduledEntry[];
   commitSchedule: (
     updater: (prev: ScheduledEntry[]) => ScheduledEntry[],
     options?: { clearHistory?: boolean }
   ) => void;
   mapPlannerActivitiesToSchedule: (activities: PlannerActivity[]) => ScheduledEntry[];
-  mapScheduleToPlannerActivities: (entries: ScheduledEntry[]) => PlannerActivity[];
   showNotice: (message: string, tone: 'success' | 'error' | 'warning') => void;
 };
 
@@ -61,10 +69,8 @@ const resolveStoredArchiveId = (archives: PlannerArchiveSummary[]): string | nul
 };
 
 export const useArchiveManager = ({
-  schedule,
   commitSchedule,
   mapPlannerActivitiesToSchedule,
-  mapScheduleToPlannerActivities,
   showNotice
 }: UseArchiveManagerParams) => {
   const [archives, setArchives] = useState<PlannerArchiveSummary[]>([]);
@@ -79,8 +85,6 @@ export const useArchiveManager = ({
    * vyn redan är sparat, och därför inte behöver skrivas tillbaka.
    */
   const [serverSyncToken, setServerSyncToken] = useState(0);
-  const [weekName, setWeekName] = useState('');
-  const [overwriteArchive, setOverwriteArchive] = useState<PlannerArchiveSummary | null>(null);
   const [deleteArchive, setDeleteArchive] = useState<PlannerArchiveSummary | null>(null);
 
   // Låset behöver släppas när fliken stängs, och då finns ingen render kvar.
@@ -269,51 +273,7 @@ export const useArchiveManager = ({
     )));
   }, []);
 
-  // --- Spara, skapa, duplicera, radera ---
-
-  const saveIntoArchive = useCallback(async (archive: PlannerArchiveSummary) => {
-    const payload = mapScheduleToPlannerActivities(schedule);
-    const result = await plannerService.saveArchiveActivities(archive.id, payload);
-    upsertArchive(result.archive);
-    setActiveArchiveId(archive.id);
-    setWeekName('');
-    showNotice('Veckan sparades.', 'success');
-  }, [mapScheduleToPlannerActivities, schedule, showNotice, upsertArchive]);
-
-  const handleSaveWeek = useCallback(async () => {
-    const trimmedName = weekName.trim();
-    if (!trimmedName) {
-      showNotice('Ange ett veckonamn.', 'warning');
-      return;
-    }
-
-    const existing = ownArchives.find(archive => archive.name === trimmedName);
-    if (existing) {
-      setOverwriteArchive(existing);
-      return;
-    }
-
-    try {
-      const created = await plannerService.createArchive(trimmedName);
-      upsertArchive(created);
-      await saveIntoArchive(created);
-    } catch (error) {
-      console.error('Archive save failed', error);
-      showNotice(error instanceof Error ? error.message : 'Kunde inte spara veckan.', 'error');
-    }
-  }, [ownArchives, saveIntoArchive, showNotice, upsertArchive, weekName]);
-
-  const handleConfirmOverwriteWeek = useCallback(async () => {
-    if (!overwriteArchive) return;
-    try {
-      await saveIntoArchive(overwriteArchive);
-    } catch (error) {
-      console.error('Archive overwrite failed', error);
-      showNotice(error instanceof Error ? error.message : 'Kunde inte spara veckan.', 'error');
-    } finally {
-      setOverwriteArchive(null);
-    }
-  }, [overwriteArchive, saveIntoArchive, showNotice]);
+  // --- Skapa, duplicera, radera ---
 
   const handleDeleteWeek = useCallback((archive: PlannerArchiveSummary) => {
     setDeleteArchive(archive);
@@ -328,45 +288,41 @@ export const useArchiveManager = ({
       setDeleteArchive(null);
     } catch (error) {
       console.error('Archive delete failed', error);
-      showNotice(error instanceof Error ? error.message : 'Kunde inte ta bort veckan.', 'error');
+      showNotice(error instanceof Error ? error.message : 'Kunde inte ta bort schemat.', 'error');
     }
   }, [deleteArchive, showNotice]);
 
-  const handleDuplicateWeek = useCallback(async (archive: PlannerArchiveSummary) => {
-    const suggestedName = `${archive.name} (kopia)`;
-    const duplicateName = window.prompt('Namn på kopian:', suggestedName)?.trim();
-    if (!duplicateName) return;
-    if (ownArchiveNames.includes(duplicateName)) {
-      showNotice('Det finns redan ett schema med det namnet.', 'warning');
-      return;
-    }
-
-    try {
-      const { activities } = await plannerService.getArchiveActivities(archive.id);
-      const duplicatedEntries = activities.map(entry => ({ ...entry, id: uuidv4() }));
-      const created = await plannerService.createArchive(duplicateName);
-      const result = await plannerService.saveArchiveActivities(created.id, duplicatedEntries);
-
-      upsertArchive(result.archive);
-      setActiveArchiveId(created.id);
-      setWeekName(duplicateName);
-      commitSchedule(() => mapPlannerActivitiesToSchedule(duplicatedEntries), { clearHistory: true });
-      setServerSyncToken(token => token + 1);
-      showNotice(`"${archive.name}" duplicerades till "${duplicateName}".`, 'success');
-    } catch (error) {
-      console.error('Archive duplication failed', error);
-      showNotice(error instanceof Error ? error.message : 'Kunde inte duplicera veckan.', 'error');
-    }
-  }, [
-    commitSchedule,
-    mapPlannerActivitiesToSchedule,
-    ownArchiveNames,
-    showNotice,
-    upsertArchive
-  ]);
-
   const [newScheduleName, setNewScheduleName] = useState('');
+  const [newScheduleSource, setNewScheduleSource] = useState<NewScheduleSource>({ kind: 'empty' });
   const [isNewScheduleDialogOpen, setIsNewScheduleDialogOpen] = useState(false);
+  const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
+  /**
+   * Bara knappen Nytt schema minns sitt val. Duplicera förväljer kortet den
+   * startades från, och skulle det sparas blev förra veckan förvald nästa gång
+   * i stället för basschemat.
+   */
+  const rememberSourceRef = useRef(false);
+
+  /** Knappen Nytt schema: förra valet är förvalt, om det fortfarande finns. */
+  const openNewScheduleDialog = useCallback(() => {
+    const stored = typeof window === 'undefined'
+      ? null
+      : window.localStorage.getItem(NEW_SCHEDULE_SOURCE_KEY);
+    setNewScheduleSource(
+      resolveScheduleSource(decodeScheduleSource(stored), archives, activeArchiveIdRef.current)
+    );
+    setNewScheduleName('');
+    rememberSourceRef.current = true;
+    setIsNewScheduleDialogOpen(true);
+  }, [archives]);
+
+  /** Duplicera på ett schemakort: samma dialog, med kortet som källa. */
+  const handleDuplicateWeek = useCallback((archive: PlannerArchiveSummary) => {
+    setNewScheduleSource({ kind: 'archive', id: archive.id });
+    setNewScheduleName(`${archive.name} (kopia)`);
+    rememberSourceRef.current = false;
+    setIsNewScheduleDialogOpen(true);
+  }, []);
 
   const handleCreateNewSchedule = useCallback(async () => {
     const trimmed = newScheduleName.trim();
@@ -378,22 +334,53 @@ export const useArchiveManager = ({
       showNotice('Det finns redan ett schema med det namnet.', 'warning');
       return;
     }
+    if (isCreatingSchedule) return;
 
+    const source = newScheduleSource;
+    setIsCreatingSchedule(true);
     try {
       // Schemat läggs upp direkt i backend, så namnet finns kvar efter en
       // omladdning även innan den första posten är på plats.
-      const created = await plannerService.createArchive(trimmed);
-      upsertArchive(created);
-      commitSchedule(() => [], { clearHistory: true });
-      setActiveArchiveId(created.id);
+      const result = await createScheduleFrom({
+        name: trimmed,
+        source,
+        previousArchiveId: activeArchiveIdRef.current,
+        service: plannerService
+      });
+
+      upsertArchive(result.archive);
+      if (result.releasedArchiveId) {
+        setArchives(prev => prev.map(existing => (
+          existing.id === result.releasedArchiveId ? { ...existing, lock: null } : existing
+        )));
+      }
+      setActiveArchiveId(result.archive.id);
+      commitSchedule(() => mapPlannerActivitiesToSchedule(result.activities), { clearHistory: true });
+      // Posterna kom från servern och är redan sparade i det nya schemat.
+      setServerSyncToken(token => token + 1);
+
+      if (rememberSourceRef.current && typeof window !== 'undefined') {
+        window.localStorage.setItem(NEW_SCHEDULE_SOURCE_KEY, encodeScheduleSource(source));
+      }
       setNewScheduleName('');
       setIsNewScheduleDialogOpen(false);
       showNotice(`Nytt schema "${trimmed}" skapat.`, 'success');
     } catch (error) {
       console.error('Archive create failed', error);
       showNotice(error instanceof Error ? error.message : 'Kunde inte skapa schemat.', 'error');
+    } finally {
+      setIsCreatingSchedule(false);
     }
-  }, [commitSchedule, newScheduleName, ownArchiveNames, showNotice, upsertArchive]);
+  }, [
+    commitSchedule,
+    isCreatingSchedule,
+    mapPlannerActivitiesToSchedule,
+    newScheduleName,
+    newScheduleSource,
+    ownArchiveNames,
+    showNotice,
+    upsertArchive
+  ]);
 
   // --- Delning ---
 
@@ -478,18 +465,12 @@ export const useArchiveManager = ({
     lockHolder,
     handleTakeOverLock,
     markLockLost,
-    weekName,
-    setWeekName,
-    overwriteArchive,
-    setOverwriteArchive,
     deleteArchive,
     setDeleteArchive,
-    handleSaveWeek,
     handleLoadWeek,
     handleDeleteWeek,
     handleConfirmDeleteWeek,
     handleDuplicateWeek,
-    handleConfirmOverwriteWeek,
     shareArchive: shareArchiveLive,
     setShareArchive,
     shareRecipient,
@@ -501,8 +482,12 @@ export const useArchiveManager = ({
     handleLeaveShare,
     newScheduleName,
     setNewScheduleName,
+    newScheduleSource,
+    setNewScheduleSource,
     isNewScheduleDialogOpen,
     setIsNewScheduleDialogOpen,
+    isCreatingSchedule,
+    openNewScheduleDialog,
     handleCreateNewSchedule
   };
 };

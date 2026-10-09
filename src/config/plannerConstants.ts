@@ -42,6 +42,8 @@ export const SIDEBAR_SECTIONS_KEY = 'app.planner_sections.v1';
  */
 export const ACTIVE_ARCHIVE_NAME_KEY = 'active_archive_name';
 export const ACTIVE_ARCHIVE_ID_KEY = 'active_archive_id';
+/** Vad Nytt schema utgick från senast, så att basschemat är förvalt nästa gång. */
+export const NEW_SCHEDULE_SOURCE_KEY = 'app.new_schedule_source.v1';
 
 /** Kortare luckor än så räknas inte som planeringstid. Ställs om i debug-menyn. */
 export const DEFAULT_PLANNING_MIN_GAP_MINUTES = 45;

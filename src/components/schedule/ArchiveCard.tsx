@@ -33,7 +33,7 @@ export function ArchiveCard({
   const heldByOther = archive.lock && !archive.lock.isMine ? archive.lock.username : null;
 
   return (
-    <div className={`sp-archive-card p-3 flex items-center gap-2 ${isSelected ? 'sp-ring' : ''}`}>
+    <div className={`group sp-archive-card p-3 flex items-center gap-2 ${isSelected ? 'sp-ring' : ''}`}>
       <Button
         type="button"
         variant="noShadow"
@@ -62,7 +62,10 @@ export function ArchiveCard({
         )}
       </Button>
 
-      <div className="flex shrink-0 gap-2">
+      {/* Syns vid hovring, fokus eller tangentbordsmarkering, och tar ingen
+          plats annars, så att namnet inte kortas av i onödan. På pekskärm
+          finns ingen hovring, och där syns de alltid. */}
+      <div className={`${isSelected ? 'flex' : 'hidden'} shrink-0 gap-2 group-hover:flex group-focus-within:flex [@media(pointer:coarse)]:flex`}>
         <Button
           size="sm"
           variant="neutral"

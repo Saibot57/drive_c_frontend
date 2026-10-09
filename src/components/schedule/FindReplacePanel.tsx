@@ -31,7 +31,7 @@ const FIELD_OPTIONS: { value: FindReplaceField; label: string }[] = [
   { value: 'all', label: 'Alla fält' },
   { value: 'room', label: 'Sal' },
   { value: 'teacher', label: 'Lärare' },
-  { value: 'title', label: 'Kurs/Titel' },
+  { value: 'title', label: 'Titel' },
   { value: 'category', label: 'Kategori' },
   { value: 'notes', label: 'Anteckningar' },
 ];

@@ -27,7 +27,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     label: 'Schema — Navigering',
     shortcuts: [
-      { keys: ['Tab'], description: 'Växla zon (Kurser → Grid → Arkiv)' },
+      { keys: ['Tab'], description: 'Växla zon (Byggstenar → Schema → Scheman)' },
       { keys: ['↓', 'j'], description: 'Nästa objekt' },
       { keys: ['↑', 'k'], description: 'Föregående objekt' },
       { keys: ['→', 'l'], description: 'Nästa dag (i grid)' },
@@ -37,17 +37,17 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     label: 'Schema — Åtgärder',
     shortcuts: [
-      { keys: ['Enter'], description: 'Redigera / Placera kurs' },
+      { keys: ['Enter'], description: 'Redigera / placera byggsten' },
       { keys: ['e'], description: 'Redigera vald post' },
       { keys: ['n'], description: 'Ny byggsten' },
       { keys: ['Delete'], description: 'Ta bort' },
-      { keys: ['d'], description: 'Duplicera parallellt' },
+      { keys: ['d'], description: 'Duplicera bredvid' },
       { keys: ['Shift', 'D'], description: 'Duplicera och placera' },
       { keys: ['c'], description: 'Kopiera innehåll' },
       { keys: ['v'], description: 'Klistra in innehåll' },
       { keys: ['Shift', 'C'], description: 'Kopiera anteckningar' },
       { keys: ['Shift', 'V'], description: 'Klistra in anteckningar' },
-      { keys: ['Shift', 'A'], description: 'Kopiera anteckningar och markera' },
+      { keys: ['Shift', 'A'], description: 'Kopiera anteckningar till flera' },
       { keys: ['m'], description: 'Öppna kontextmeny' },
       { keys: ['Escape'], description: 'Avmarkera / Avbryt' },
     ],

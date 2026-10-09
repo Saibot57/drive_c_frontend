@@ -16,13 +16,13 @@ import {
   Upload,
   BarChart3,
   Hammer,
-  Save,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  MoreVertical,
+  MoreHorizontal,
   Search,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
@@ -67,7 +67,6 @@ import { ArchiveDialogs } from '@/components/schedule/dialogs/ArchiveDialogs';
 import { ConfirmDialog } from '@/components/schedule/dialogs/ConfirmDialog';
 import { CourseEditorDialog } from '@/components/schedule/dialogs/CourseEditorDialog';
 import { EntryEditorDialog } from '@/components/schedule/dialogs/EntryEditorDialog';
-import { RestrictionsDialog } from '@/components/schedule/dialogs/RestrictionsDialog';
 import { BulkEditModal } from '@/components/schedule/BulkEditModal';
 import { FindReplacePanel } from '@/components/schedule/FindReplacePanel';
 import { applyBulkEdit, BulkEditPatch } from '@/utils/bulkEditSchedule';
@@ -79,13 +78,13 @@ import {
 } from '@/utils/findReplaceSchedule';
 import { usePlannerNotice } from '@/hooks/usePlannerNotice';
 import { useUndoableState } from '@/hooks/useUndoableState';
-import { useHiddenSettings } from '@/hooks/useHiddenSettings';
+import { HiddenSettingsDraft, useHiddenSettings } from '@/hooks/useHiddenSettings';
 import { usePlannerSections } from '@/hooks/usePlannerSections';
 import { useCourseManager } from '@/hooks/useCourseManager';
 import { useArchiveManager } from '@/hooks/useArchiveManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/utils/courseUtils';
-import { mapPlannerActivitiesToSchedule, mapScheduleToPlannerActivities, usePlannerSync } from '@/hooks/usePlannerSync';
+import { mapPlannerActivitiesToSchedule, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
 import { useScheduleVectorExport, VectorExportOutcome } from '@/hooks/useScheduleVectorExport';
 import { ScheduleExportInput } from '@/types/scheduleExport';
@@ -189,8 +188,6 @@ export default function NewSchedulePlanner() {
   const [editingCourse, setEditingCourse] = useState<PlannerCourse | null>(null);
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ScheduledEntry | null>(null);
-  const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
-  const [newRule, setNewRule] = useState<RestrictionRule>({ id: '', subjectA: '', subjectB: '' });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [copiedEntryContent, setCopiedEntryContent] = useState<{ teacher: string; room: string; notes?: string; category?: string; color?: string } | null>(null);
   /**
@@ -244,25 +241,20 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     planningEndMinutes?: unknown;
   } | null>(null);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
-  const [isClearScheduleConfirmOpen, setIsClearScheduleConfirmOpen] = useState(false);
-  const [isPdfMenuOpen, setIsPdfMenuOpen] = useState(false);
-  const [isImageExportMenuOpen, setIsImageExportMenuOpen] = useState(false);
-  const [isJsonMenuOpen, setIsJsonMenuOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
   const [findReplaceField, setFindReplaceField] = useState<FindReplaceField>('all');
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
   const [findReplaceOptions, setFindReplaceOptions] = useState<FindReplaceOptions>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pdfMenuRef = useRef<HTMLDivElement>(null);
-  const imageExportMenuRef = useRef<HTMLDivElement>(null);
-  const jsonMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const archive = useArchiveManager({
-    schedule,
     commitSchedule: applyScheduleFromServer,
     mapPlannerActivitiesToSchedule,
-    mapScheduleToPlannerActivities,
     showNotice
   });
   const {
@@ -277,17 +269,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     lockHolder,
     handleTakeOverLock,
     markLockLost,
-    weekName,
-    setWeekName,
-    handleSaveWeek,
     handleLoadWeek,
     handleDeleteWeek,
     handleDuplicateWeek,
     handleShareWeek,
-    setIsNewScheduleDialogOpen
+    openNewScheduleDialog
   } = archive;
 
-  usePlannerSync({
+  const { saveStatus } = usePlannerSync({
     schedule,
     commitSchedule: applyScheduleFromServer,
     activeArchiveId,
@@ -684,24 +673,30 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // läser localStorage och tar låset. Ingen efterhandssynk behövs här.
 
   useEffect(() => {
-    if (!isPdfMenuOpen && !isImageExportMenuOpen && !isJsonMenuOpen) return;
+    if (!isExportMenuOpen && !isMoreMenuOpen) return;
 
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (pdfMenuRef.current && !pdfMenuRef.current.contains(target)) {
-        setIsPdfMenuOpen(false);
+      if (exportMenuRef.current && !exportMenuRef.current.contains(target)) {
+        setIsExportMenuOpen(false);
       }
-      if (imageExportMenuRef.current && !imageExportMenuRef.current.contains(target)) {
-        setIsImageExportMenuOpen(false);
+      if (moreMenuRef.current && !moreMenuRef.current.contains(target)) {
+        setIsMoreMenuOpen(false);
       }
-      if (jsonMenuRef.current && !jsonMenuRef.current.contains(target)) {
-        setIsJsonMenuOpen(false);
-      }
+    };
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIsExportMenuOpen(false);
+      setIsMoreMenuOpen(false);
     };
 
     window.addEventListener('mousedown', handleOutsideClick);
-    return () => window.removeEventListener('mousedown', handleOutsideClick);
-  }, [isPdfMenuOpen, isImageExportMenuOpen, isJsonMenuOpen]);
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('mousedown', handleOutsideClick);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [isExportMenuOpen, isMoreMenuOpen]);
 
   const categoryStats = useMemo(() => {
     const normalized = schedule.map(entry => (
@@ -917,14 +912,15 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     setManualCourses
   ]);
 
-  const handleAddRestrictionRule = useCallback(() => {
-    if (!newRule.subjectA || !newRule.subjectB) return;
-    setRestrictions(prev => [...prev, { ...newRule, id: uuidv4() }]);
-  }, [newRule]);
-
-  const handleRemoveRestrictionRule = useCallback((ruleId: string) => {
-    setRestrictions(prev => prev.filter(rule => rule.id !== ruleId));
-  }, []);
+  /**
+   * Reglerna för ämnen som inte får ligga samtidigt redigeras i
+   * Inställningar men lever här, i minnet och i JSON-kopian. De skickas inte
+   * vidare till något som når backend.
+   */
+  const handleSettingsSave = useCallback((next: HiddenSettingsDraft, nextRestrictions: RestrictionRule[]) => {
+    handleHiddenSettingsSave(next);
+    setRestrictions(nextRestrictions);
+  }, [handleHiddenSettingsSave]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -1460,7 +1456,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                className="hidden min-w-0 items-center gap-1.5 text-xs font-bold text-gray-500 cursor-help lg:flex"
                title={activeArchiveName
                  ? `Aktivt schema: ${activeArchiveName}. Ändringar sparas hit.`
-                 : 'Inget arkiv är aktivt. Ändringar sparas i huvudschemat.'}
+                 : 'Inget schema är öppet. Ändringar sparas i huvudschemat.'}
              >
                <Archive size={12} className="shrink-0 opacity-60" />
                <span className="truncate">{activeArchiveName ?? 'Huvudschema'}</span>
@@ -1512,7 +1508,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 <span
                   role="status"
                   className="flex items-center gap-1 rounded border-2 border-black bg-rose-200 px-2 py-1 text-xs font-bold cursor-help"
-                  title={`Nästa export hoppar över: ${exportExcludes.join(', ')}. Listan töms när du exporterat. Ändras i dolda inställningar (Ctrl + Shift + K).`}
+                  title={`Nästa export hoppar över: ${exportExcludes.join(', ')}. Listan töms när du exporterat. Ändras i Inställningar (Ctrl + Shift + K).`}
                 >
                   <ShieldAlert size={12} className="shrink-0" />
                   Utesluter {exportExcludes.length}
@@ -1527,48 +1523,43 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 settingsLoaded={hiddenSettingsLoaded}
                 showNotice={showNotice}
               />
-              <div className="relative" ref={pdfMenuRef}>
+              <div className="relative" ref={exportMenuRef}>
                 <Button
                   variant="neutral"
-                  onClick={() => setIsPdfMenuOpen(open => !open)}
+                  onClick={() => {
+                    setIsExportMenuOpen(open => !open);
+                    setIsMoreMenuOpen(false);
+                  }}
                   className="sp-btn"
+                  aria-haspopup="menu"
+                  aria-expanded={isExportMenuOpen}
                 >
-                  <Download size={16} className="mr-2"/> PDF
+                  <Download size={16} className="mr-2"/> Exportera <ChevronDown size={14} className="-mr-1 opacity-60" />
                 </Button>
-                {isPdfMenuOpen && (
-                  <div className="absolute left-0 z-[100] mt-2 w-56 bg-white sp-dropdown p-1">
+                {isExportMenuOpen && (
+                  <div role="menu" className="absolute right-0 z-[100] mt-2 w-56 bg-white sp-dropdown p-1">
+                    <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-gray-500">PDF</p>
                     {([
-                      ['digital', 'PDF (digital)', 'Sidan får schemats egna mått – skarp på vilken skärm som helst.'],
-                      ['a4', 'PDF (A4 utskrift)', 'Skalas till exakt en liggande A4.'],
-                      ['a3', 'PDF (A3 utskrift)', 'Skalas till exakt en liggande A3.']
+                      ['digital', 'PDF – digital', 'Sidan får schemats egna mått – skarp på vilken skärm som helst.'],
+                      ['a4', 'PDF – A4', 'Skalas till exakt en liggande A4.'],
+                      ['a3', 'PDF – A3', 'Skalas till exakt en liggande A3.']
                     ] as const).map(([mode, label, hint]) => (
                       <button
                         key={mode}
                         type="button"
+                        role="menuitem"
                         title={hint}
                         className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
                         onClick={() => {
                           void runVectorExport('pdf', mode);
-                          setIsPdfMenuOpen(false);
+                          setIsExportMenuOpen(false);
                         }}
                       >
                         {label}
                       </button>
                     ))}
-                  </div>
-                )}
-              </div>
-              <div className="relative" ref={imageExportMenuRef}>
-                <Button
-                  variant="neutral"
-                  onClick={() => setIsImageExportMenuOpen(open => !open)}
-                  className="h-10 w-10 p-0 sp-btn"
-                  aria-label="Bildexport meny"
-                >
-                  <MoreVertical size={16} />
-                </Button>
-                {isImageExportMenuOpen && (
-                  <div className="absolute right-0 z-[100] mt-2 w-52 bg-white sp-dropdown p-1">
+                    <div className="my-1 h-px bg-gray-200" role="separator" />
+                    <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-gray-500">Bild</p>
                     {([
                       ['png', 'PNG', 'Ritas ur schemadatan i 3x – förhandsvisas inline i chattar.'],
                       ['jpeg', 'JPG', 'Som PNG men mindre fil.'],
@@ -1577,53 +1568,74 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       <button
                         key={format}
                         type="button"
+                        role="menuitem"
                         title={hint}
                         className="w-full rounded px-3 py-2 text-left text-sm sp-menu-item"
                         onClick={() => {
                           void runVectorExport(format, 'digital');
-                          setIsImageExportMenuOpen(false);
+                          setIsExportMenuOpen(false);
                         }}
                       >
-                        Exportera {label}
+                        {label}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
               <input type="file" accept=".json" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportJSON} />
-              <Button variant="neutral" onClick={() => setIsClearScheduleConfirmOpen(true)} className="sp-btn bg-rose-100 text-rose-800"><RefreshCcw size={16} className="mr-2"/> Rensa</Button>
-              <div className="relative ml-auto" ref={jsonMenuRef}>
+              <div className="relative" ref={moreMenuRef}>
                 <Button
                   variant="neutral"
-                  onClick={() => setIsJsonMenuOpen(open => !open)}
+                  onClick={() => {
+                    setIsMoreMenuOpen(open => !open);
+                    setIsExportMenuOpen(false);
+                  }}
                   className="h-10 w-10 p-0 sp-btn"
-                  aria-label="JSON meny"
+                  aria-label="Fler val"
+                  title="Fler val"
+                  aria-haspopup="menu"
+                  aria-expanded={isMoreMenuOpen}
                 >
-                  <MoreVertical size={16} />
+                  <MoreHorizontal size={16} />
                 </Button>
-                {isJsonMenuOpen && (
-                  <div className="absolute right-0 z-20 z-[100] mt-2 w-36 bg-white sp-dropdown p-1">
+                {isMoreMenuOpen && (
+                  <div role="menu" className="absolute right-0 z-[100] mt-2 w-72 bg-white sp-dropdown p-1">
                     <button
                       type="button"
+                      role="menuitem"
+                      className="flex w-full items-center justify-between gap-4 rounded px-3 py-2 text-left text-sm sp-menu-item"
+                      onClick={() => {
+                        setIsHiddenSettingsOpen(true);
+                        setIsMoreMenuOpen(false);
+                      }}
+                    >
+                      <span className="flex items-center gap-2"><SlidersHorizontal size={14} /> Inställningar…</span>
+                      <span className="sp-kbd">Ctrl+Shift+K</span>
+                    </button>
+                    <div className="my-1 h-px bg-gray-200" role="separator" />
+                    <button
+                      type="button"
+                      role="menuitem"
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm sp-menu-item"
                       onClick={() => {
                         handleExportJSON();
-                        setIsJsonMenuOpen(false);
+                        setIsMoreMenuOpen(false);
                       }}
                     >
                       <Download size={14} />
-                      Spara
+                      Spara säkerhetskopia (JSON)
                     </button>
                     <button
                       type="button"
+                      role="menuitem"
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm sp-menu-item"
                       onClick={() => {
                         fileInputRef.current?.click();
-                        setIsJsonMenuOpen(false);
+                        setIsMoreMenuOpen(false);
                       }}
                     >
                       <Upload size={14} />
-                      Ladda
+                      Ladda säkerhetskopia (JSON)…
                     </button>
                   </div>
                 )}
@@ -1658,21 +1670,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     </button>
                   </h2>
                   {!isSidebarCollapsed && (
-                    <Button
-                      size="sm"
-                      variant="neutral"
-                      onClick={() => setIsRestrictionsModalOpen(true)}
-                      className="h-8 sp-btn bg-amber-100 hover:bg-amber-200 text-xs"
-                    >
-                      <ShieldAlert size={14} className="mr-1" /> Regler
-                    </Button>
-                  )}
-                  {!isSidebarCollapsed && (
                     <Button size="sm" onClick={() => {
                       setManualColor(false);
                       setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: DEFAULT_COURSE_COLOR, duration: 60 });
                       setIsCourseModalOpen(true);
-                    }} className="h-8 w-8 p-0 rounded-full sp-btn bg-[#aee8fe]"><Plus size={16}/></Button>
+                    }} className="ml-auto h-8 w-8 p-0 rounded-full sp-btn bg-[#aee8fe]" aria-label="Ny byggsten (N)" title="Ny byggsten (N)"><Plus size={16}/></Button>
                   )}
                   <Button
                     size="sm"
@@ -2001,14 +2003,15 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
            } ${activeZone === 'archive' ? 'sp-ring' : ''}`}>
               <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
                 <h2 className={`font-bold flex items-center gap-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
-                  <Archive size={18}/> Sparade Veckor
+                  <Archive size={18}/> Scheman
                 </h2>
                 <Button
                   size="sm"
                   variant="neutral"
                   onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
                   className="h-8 w-8 p-0 sp-btn"
-                  aria-label={isRightSidebarCollapsed ? 'Visa arkiv' : 'Dölj arkiv'}
+                  aria-label={isRightSidebarCollapsed ? 'Visa scheman' : 'Dölj scheman'}
+                  title={isRightSidebarCollapsed ? 'Visa scheman' : 'Dölj scheman'}
                 >
                   {isRightSidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                 </Button>
@@ -2023,35 +2026,15 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 <div className="flex flex-col gap-4 flex-1">
                   <Button
                     variant="neutral"
-                    onClick={() => setIsNewScheduleDialogOpen(true)}
+                    onClick={openNewScheduleDialog}
                     className="w-full sp-btn bg-emerald-100 hover:bg-emerald-200"
                   >
                     <Plus size={14} className="mr-2"/> Nytt schema
                   </Button>
 
-                  <div className="space-y-2">
-                    <Label className="text-2xs font-bold uppercase text-gray-500">Spara vecka</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={weekName}
-                        onChange={(e) => setWeekName(e.target.value)}
-                        placeholder="Vecka 42 eller Höstlov"
-                        className="sp-input"
-                      />
-                      <Button
-                        variant="neutral"
-                        onClick={handleSaveWeek}
-                        disabled={!weekName.trim()}
-                        className="sp-btn bg-amber-100 hover:bg-amber-200"
-                      >
-                        <Save size={14} className="mr-2"/> Spara
-                      </Button>
-                    </div>
-                  </div>
-
                   <div className="flex-1 overflow-y-auto pr-1 space-y-2">
                     {sortedArchives.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic">Inga sparade veckor ännu.</p>
+                      <p className="text-sm text-gray-500 italic">Inga sparade scheman ännu.</p>
                     ) : (
                       <>
                         {ownArchives.map((archive) => (
@@ -2157,45 +2140,48 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             onClick={() => setContextMenu(null)}
           />
           <div
-            className="fixed z-[100] flex flex-col w-max bg-white sp-context-menu"
+            className="fixed z-[100] flex min-w-[260px] flex-col w-max bg-white sp-context-menu p-1"
             style={{ top: contextMenu.y, left: contextMenu.x }}
+            role="menu"
           >
-          <button
-            className="px-3 py-2 text-left text-sm sp-menu-item"
+          {/* Fyra grupper med avdelare. Kortkommandot står bredvid, så att
+              menyn lär ut tangentbordet; de måste stämma med shortcuts.ts. */}
+          <ContextMenuItem
+            label="Redigera…"
+            shortcut="E"
             onClick={() => {
               setEditingEntry(contextMenu.entry);
               setIsEntryModalOpen(true);
               setContextMenu(null);
             }}
-          >
-            Redigera
-          </button>
-          <button
-            className="px-3 py-2 text-left text-sm sp-menu-item"
+          />
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            label="Duplicera bredvid"
+            shortcut="D"
             onClick={() => handleDuplicateParallel(contextMenu.entry)}
-          >
-            Duplicera och lägg parallellt
-          </button>
-          <button
-            className="px-3 py-2 text-left text-sm sp-menu-item"
+          />
+          <ContextMenuItem
+            label="Duplicera och placera"
+            shortcut="Shift+D"
             onClick={() => handleDuplicateAndPlace(contextMenu.entry)}
-          >
-            Duplicera och placera
-          </button>
-          <button
-            className="px-3 py-2 text-left text-sm sp-menu-item"
+          />
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            label="Kopiera innehåll"
+            shortcut="C"
+            title="Lärare, sal, anteckningar, uppgift och färg. Inte titel eller tid."
             onClick={() => {
               const { teacher, room, notes, category, color } = contextMenu.entry;
               setCopiedEntryContent({ teacher, room, notes, category, color });
               showNotice('Innehåll kopierat', 'success');
               setContextMenu(null);
             }}
-          >
-            Kopiera innehåll
-          </button>
+          />
           {copiedEntryContent && (
-            <button
-              className="px-3 py-2 text-left text-sm sp-menu-item"
+            <ContextMenuItem
+              label="Klistra in innehåll"
+              shortcut="V"
               onClick={() => {
                 commitSchedule(prev =>
                   prev.map(e =>
@@ -2207,23 +2193,21 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 showNotice('Innehåll inklistrat', 'success');
                 setContextMenu(null);
               }}
-            >
-              Klistra in innehåll
-            </button>
+            />
           )}
-          <button
-            className="px-3 py-2 text-left text-sm sp-menu-item"
+          <ContextMenuItem
+            label="Kopiera anteckningar"
+            shortcut="Shift+C"
             disabled={!contextMenu.entry.notes?.trim()}
             title={contextMenu.entry.notes?.trim() ? undefined : 'Posten har inga anteckningar'}
             onClick={() => {
               handleCopyNotes(contextMenu.entry);
               setContextMenu(null);
             }}
-          >
-            Kopiera anteckningar
-          </button>
-          <button
-            className="px-3 py-2 text-left text-sm sp-menu-item"
+          />
+          <ContextMenuItem
+            label="Kopiera anteckningar till flera…"
+            shortcut="Shift+A"
             disabled={!contextMenu.entry.notes?.trim()}
             title={contextMenu.entry.notes?.trim() ? undefined : 'Posten har inga anteckningar'}
             onClick={() => {
@@ -2231,29 +2215,27 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               setContextMenu(null);
               handleCopyNotesAndMark(entry);
             }}
-          >
-            Kopiera anteckningar och dra
-          </button>
+          />
           {copiedNotes !== null && (
-            <button
-              className="px-3 py-2 text-left text-sm sp-menu-item"
+            <ContextMenuItem
+              label="Klistra in anteckningar"
+              shortcut="Shift+V"
               onClick={() => {
                 handlePasteNotes(contextMenu.entry);
                 setContextMenu(null);
               }}
-            >
-              Klistra in anteckningar
-            </button>
+            />
           )}
-          <button
-            className="px-3 py-2 text-left text-sm text-rose-700 sp-menu-item"
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            label="Ta bort"
+            shortcut="Delete"
+            danger
             onClick={() => {
               commitSchedule(p => p.filter(e => e.instanceId !== contextMenu.entry.instanceId));
               setContextMenu(null);
             }}
-          >
-            Radera
-          </button>
+          />
         </div>
         </>
       )}
@@ -2285,7 +2267,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         exportExcludes={exportExcludes}
         planningStartMinutes={planningStartMinutes}
         planningEndMinutes={planningEndMinutes}
-        onSave={handleHiddenSettingsSave}
+        restrictions={restrictions}
+        onSave={handleSettingsSave}
       />
       <CategoryDebugPanel
         open={isCategoryDebugOpen}
@@ -2306,6 +2289,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         rooms={rooms}
         colorTriggers={colorTriggers}
         roomTriggers={roomTriggers}
+        isNew={!editingCourse || !courses.some(course => course.id === editingCourse.id)}
       />
       <EntryEditorDialog
         open={isEntryModalOpen}
@@ -2317,15 +2301,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         rooms={rooms}
         colorTriggers={colorTriggers}
         roomTriggers={roomTriggers}
-      />
-      <RestrictionsDialog
-        open={isRestrictionsModalOpen}
-        onOpenChange={setIsRestrictionsModalOpen}
-        newRule={newRule}
-        onNewRuleChange={setNewRule}
-        restrictions={restrictions}
-        onAddRule={handleAddRestrictionRule}
-        onRemoveRule={handleRemoveRestrictionRule}
       />
       <ConfirmDialog
         open={isImportConfirmOpen}
@@ -2342,7 +2317,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           Om du fortsätter ersätts aktuella byggstenar och schema med innehållet från filen.
         </p>
       </ConfirmDialog>
-      <ArchiveDialogs archive={archive} currentUsername={user?.username ?? null} />
+      <ArchiveDialogs
+        archive={archive}
+        currentUsername={user?.username ?? null}
+        saveFailed={saveStatus === 'error'}
+      />
       <ConfirmDialog
         open={Boolean(deleteCourseName)}
         onOpenChange={(open) => { if (!open) setDeleteCourseId(null); }}
@@ -2352,19 +2331,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onConfirm={handleConfirmDeleteCourse}
       >
         <p className="text-sm text-gray-700">Ta bort byggstenen &quot;{deleteCourseName}&quot;?</p>
-      </ConfirmDialog>
-      <ConfirmDialog
-        open={isClearScheduleConfirmOpen}
-        onOpenChange={setIsClearScheduleConfirmOpen}
-        title="Rensa schemat?"
-        confirmLabel="Rensa"
-        destructive
-        onConfirm={() => {
-          commitSchedule(() => []);
-          setIsClearScheduleConfirmOpen(false);
-        }}
-      >
-        <p className="text-sm text-gray-700">Detta tar bort alla schemaposter från den aktuella vyn.</p>
       </ConfirmDialog>
 
       <BulkEditModal
@@ -2401,4 +2367,39 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     </DndContext>
   );
+}
+
+/** Ett val i högerklicksmenyn, med kortkommandot högerställt. */
+function ContextMenuItem({
+  label,
+  shortcut,
+  onClick,
+  disabled,
+  title,
+  danger,
+}: {
+  label: string;
+  shortcut?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className={`flex items-center justify-between gap-6 rounded px-3 py-2 text-left text-sm sp-menu-item ${danger ? 'text-rose-700' : ''}`}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
+      <span>{label}</span>
+      {shortcut && <span className="sp-kbd">{shortcut}</span>}
+    </button>
+  );
+}
+
+function ContextMenuSeparator() {
+  return <div className="my-1 h-px bg-gray-200" role="separator" />;
 }

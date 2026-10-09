@@ -199,3 +199,12 @@
 .sp-divider {
   border-top: var(--sp-border-divider);
 }
+
+/* Kortkommandot bredvid ett menyval. Grått och i monospace, så att det läses
+   som en upplysning och inte som en del av namnet. */
+.sp-kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--sp-text-muted);
+  white-space: nowrap;
+}

@@ -107,6 +107,13 @@ export function ScheduledEventCard({
         if ((event.target as HTMLElement).closest('a, button')) return;
         onToggleBulk(entry.instanceId);
       }}
+      /* Det man oftast gör med en post. Klick med Shift, Ctrl eller Cmd
+         markerar som förut, och länken och ikonerna sköter sina egna klick. */
+      onDoubleClick={(event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if ((event.target as HTMLElement).closest('a, button')) return;
+        onEdit(entry);
+      }}
       style={{
         position: 'absolute',
         top: `${adjustedTop}px`,
@@ -152,8 +159,26 @@ export function ScheduledEventCard({
               </a>
             )}
             <div className={`${isSelected ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 flex gap-1 bg-white/60 rounded`}>
-              <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(entry)} className="p-1 hover:bg-white rounded"><Edit2 size={8} /></button>
-              <button onPointerDown={e => e.stopPropagation()} onClick={() => onRemove(entry.instanceId)} className="p-1 hover:bg-rose-200 text-rose-600 rounded"><Trash2 size={8} /></button>
+              <button
+                type="button"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => onEdit(entry)}
+                className="grid h-5 w-5 place-items-center rounded hover:bg-white"
+                aria-label="Redigera"
+                title="Redigera"
+              >
+                <Edit2 size={12} />
+              </button>
+              <button
+                type="button"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => onRemove(entry.instanceId)}
+                className="grid h-5 w-5 place-items-center rounded text-rose-600 hover:bg-rose-200"
+                aria-label="Ta bort"
+                title="Ta bort"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           </div>
         </div>
