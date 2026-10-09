@@ -1,7 +1,8 @@
 # Plan: Temat Kronberg
 
-Status: förslag 2026-10-09, granskad samma dag (avsnitt 10). Öppna frågor i
-avsnitt 9.
+Status: steg 0–8 genomförda 2026-10-09 på grenen ccr-d2c1653a-tupg0s, inte
+sammanslagna med main. Fråga 4 i avsnitt 9 är fortfarande öppen. Avvikelser
+från planen står i avsnitt 11.
 
 Kronberg är ett andra utseende för Drive C, inspirerat av Dieter Rams och
 Braun: grå ramar i stället för svarta, inga hårda skuggor, en enda
@@ -423,3 +424,52 @@ dämpas bara Schema, där texten alltid är mörk (3.4).
   till 60 % svart som klassen säger.
 - Hovringen på bekräfta-knappen behålls genom `--ui-danger-bg-hover` (2.1).
 
+---
+
+## 11. Genomförande
+
+Varje steg är en egen commit. Neo har jämförts pixel för pixel mot
+skärmbilder från före steg 1, för varje vy och för planerarens menyer och
+dialoger. Skillnaderna som återstår är data (en tidsstämpel, ett element som
+skapades under provet), inte utseende. En workspace-export gjord i Kronberg
+är pixel för pixel lika den i Neo.
+
+Där genomförandet avviker från planen:
+
+- **`kron:`-varianten.** Planen bytte Neo-klasser mot temats klasser. Det
+  görs där Neo-värdet är exakt detsamma som en variabel (`border-2
+  border-black` → `border-frame border-ui-line`, `text-gray-500` →
+  `text-ui-muted`). Där inget delar Neo-värdet (`text-gray-600`) står Neo-klassen
+  kvar och en `kron:`-klass bredvid. `kron:` gäller bara under
+  `:root[data-theme="kronberg"]`, så Neo kan inte ändras av den.
+- **Färgade knappar** är Tailwind-klasser i `src/components/ui/tints.ts`, inte
+  CSS-klasser (`ui-tint-*`). Button lägger själv `bg-bw`, och bara en `bg-*`
+  i className tar bort den. En klass i components-lagret hade förlorat och
+  gjort knappen vit i Neo.
+- **Kursfärgerna** blandas 54 % mot en varm grå (`--ui-course-base`,
+  `#D8D6D0`), inte 72 % mot papperet. Mot papperet blev pastellerna bara
+  ljusare. Blandningen är anpassad efter prototypens sju färger. Dämpningen
+  gäller bara i Kronberg; Neo målar `var(--course)` rakt av.
+- **Monospace i Neo** är Tailwinds stack. Planens kortare lista saknade
+  Consolas och Liberation Mono och hade bytt typsnitt i Neo på Windows och
+  Linux.
+- **Primärknappar med egen botten.** En knapp i standardvarianten med en
+  `bg-*` i className får sidans textfärg i stället för primärknappens. Annars
+  blev texten vit på ljus botten i Kronberg.
+- **`ui-panel-title`, `ui-toast` och `ActiveLamp`** samlar panelrubriker,
+  notiser och lampan för det som är öppet, så att vyerna inte bär långa
+  listor med `kron:`-klasser.
+- **`tailwind-merge`** känner till de nya namnen (`src/lib/utils.ts`). Utan
+  det togs `border-frame` för en färg och tappades bredvid `border-ui-line`.
+  Byts `font-monument` mot `ui-heading` i en `cn()` måste `font-monument` stå
+  kvar bredvid, eftersom den tar bort en `font-heading` som annars gör
+  rubriken fet (inloggningen).
+- **Den publika sidan** ritar rutnätet med exportens färgfil och ser därför ut
+  som den exporterade bilden i båda temana. Bara sidans ram följer temat.
+- **`secondary`-varianten** av Button används inte någonstans, så 10.3:s
+  ändring av den syns inte.
+
+Regel för ny kod: använd `--ui-*`, klasserna i avsnitt 3 och `kron:` från
+början. Regeln bör flyttas till CLAUDE.md. Den filen finns inte i repot, men
+`next.config.mjs` hänvisar till den, så den ligger troligen lokalt. En
+incheckad fil hade krockat med den.

@@ -1,7 +1,15 @@
 # Plan: Färre knappar och tydligare menyer i schemaplaneraren
 
-Status: beslutad 2026-10-09, inte genomförd. Granskad mot backend samma dag,
-se avsnitt 13. Prototyp med båda stilarna: länken står i avsnitt 11.
+Status: genomförd 2026-10-09 på grenen ccr-d2c1653a-tupg0s, inte sammanslagen
+med main. Granskad mot backend samma dag, se avsnitt 13. Prototyp med båda
+stilarna: länken står i avsnitt 11.
+
+Genomförandet följer planen. Det som tillkom:
+
+- Den gemensamma skapa-funktionen ligger i `src/utils/createSchedule.ts` med
+  tester. Källan läses före skapandet, så ett misslyckat hämtande lämnar inget
+  tomt schema i listan.
+- Exportera- och ⋯-menyerna stängs med Esc.
 
 Schemaplaneraren (`/`, `src/components/schedule/NewSchedulePlanner.tsx`) har
 vuxit en knapp i taget. Den här planen ordnar om knappar och menyer så att det
