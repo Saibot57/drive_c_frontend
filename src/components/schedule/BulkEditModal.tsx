@@ -148,7 +148,7 @@ export function BulkEditModal({
     const titleFor = (entry: ScheduledEntry) => patch.title ?? entry.title;
     const filledByRule = entries.filter(entry => findRoomTrigger(titleFor(entry), roomTriggers)).length;
     return (
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-600 kron:text-ui-muted">
         Salen töms i {plural(entries.length)}.
         {filledByRule > 0 && ` I ${filledByRule} av dem fyller en salsregel i salen.`}
       </p>
@@ -160,7 +160,7 @@ export function BulkEditModal({
     const trigger = findColorTrigger(patch.title, colorTriggers);
     if (!trigger) return null;
     return (
-      <p className="flex items-center gap-2 text-xs text-gray-600">
+      <p className="flex items-center gap-2 text-xs text-gray-600 kron:text-ui-muted">
         <span
           className="h-3 w-3 shrink-0 rounded-full border border-black"
           style={{ backgroundColor: trigger.color }}
@@ -173,7 +173,7 @@ export function BulkEditModal({
   const emptiedHint = (field: BulkEditField) => {
     if (!isEmptiedByTyping(field)) return null;
     return (
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-600 kron:text-ui-muted">
         {field === 'title'
           ? 'Titeln kan inte tömmas. Tomt fält lämnas orört.'
           : 'Tomt fält lämnas orört. Tryck Töm för att tömma det.'}
@@ -231,7 +231,7 @@ export function BulkEditModal({
             Bara fält du ändrar sparas. Det du skriver ersätter det som står i alla markerade poster.
           </DialogDescription>
         </DialogHeader>
-        <ul className="text-xs text-gray-700 space-y-0.5">
+        <ul className="text-xs text-gray-700 kron:text-ui-ink-2 space-y-0.5">
           {listed.map(entry => (
             <li key={entry.instanceId} className="truncate">
               <span className="font-mono">{entry.day.slice(0, 3)} {entry.startTime}</span>
@@ -239,7 +239,7 @@ export function BulkEditModal({
               <span className="font-semibold">{entry.title}</span>
             </li>
           ))}
-          {rest > 0 && <li className="text-gray-500">+{rest} till</li>}
+          {rest > 0 && <li className="text-ui-muted">+{rest} till</li>}
         </ul>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
@@ -259,7 +259,7 @@ export function BulkEditModal({
           </div>
           {roomHint}
           {error && (
-            <p role="alert" className="border-2 border-black bg-rose-100 px-3 py-2 text-sm font-semibold text-rose-900">
+            <p role="alert" className="border-frame border-ui-line bg-rose-100 kron:bg-ui-paper px-3 py-2 text-sm font-semibold text-rose-900 kron:text-ui-danger">
               Inget ändrades. {error}
             </p>
           )}

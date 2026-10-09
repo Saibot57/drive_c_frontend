@@ -48,7 +48,7 @@ function ColorTriggerList({ triggers, onChange }: {
       listClassName="max-h-64"
       renderValue={(trigger, index, update) => (
         <label
-          className="flex shrink-0 cursor-pointer items-center gap-2 rounded border-2 border-black px-2 py-1 text-xs"
+          className="flex shrink-0 cursor-pointer items-center gap-2 rounded border-frame border-ui-line px-2 py-1 text-xs"
           title="Välj färg"
         >
           <span
@@ -255,7 +255,7 @@ export function HiddenSettingsDialog({
           <div className="flex min-h-0 flex-col">
             <div className="shrink-0">
               <Label>När lärare inte kan schemaläggas</Label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ui-muted">
                 Klicka på en dag för att spärra hela dagen. Pilen fäller ut förmiddag
                 (ryms helt före 12) och eftermiddag (börjar 12 eller senare). En post som
                 krockar placeras ändå, men du får en varning.
@@ -263,7 +263,7 @@ export function HiddenSettingsDialog({
             </div>
 
             {teacherRows.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-500 italic">
+              <p className="mt-2 text-sm text-ui-muted italic">
                 Lägg till lärare i listan till vänster för att kunna spärra dagar.
               </p>
             ) : (
@@ -281,7 +281,7 @@ export function HiddenSettingsDialog({
               </div>
             )}
 
-            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+            <div className="mt-3 shrink-0 border-t-frame border-ui-line pt-3">
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <Label htmlFor="planning-min-gap">Kortaste planeringspass</Label>
@@ -296,7 +296,7 @@ export function HiddenSettingsDialog({
                       onChange={event => setMinGapText(event.target.value)}
                       className="h-9 w-20"
                     />
-                    <span className="text-xs text-gray-500">min</span>
+                    <span className="text-xs text-ui-muted">min</span>
                   </div>
                 </div>
                 <div>
@@ -320,12 +320,12 @@ export function HiddenSettingsDialog({
                   />
                 </div>
               </div>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-ui-muted">
                 Söker du t.ex. &quot;Tobias planering&quot; visas bara luckor som är minst
                 så här långa. Spärrade dagar ovan räknas som lediga och ger ingen
                 planeringstid alls.
               </p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-ui-muted">
                 Arbetsdagen räknas från 08:00 till dagens sista lektion. Fyller du i
                 en tid gäller den i stället, varje dag och åt båda hållen: den både
                 förlänger och kapar. Tomma fält betyder standard.
@@ -338,7 +338,7 @@ export function HiddenSettingsDialog({
           <div className="flex min-h-0 flex-col overflow-y-auto pr-1">
             <div className="shrink-0 mb-2">
               <Label>Färg efter ord i titeln</Label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ui-muted">
                 Innehåller titeln ordet får posten den valda färgen. Hela ord matchar,
                 så &quot;prov&quot; träffar &quot;Prov kap 3&quot; men inte &quot;Provisorisk&quot;.
                 Matchar flera regler vinner den översta, och färgen slår igenom även på
@@ -347,10 +347,10 @@ export function HiddenSettingsDialog({
             </div>
             <ColorTriggerList triggers={triggers} onChange={setTriggers} />
 
-            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+            <div className="mt-3 shrink-0 border-t-frame border-ui-line pt-3">
               <div className="mb-2">
                 <Label>Sal efter ord i titeln</Label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   Samma ordmatchning som färgreglerna, men tvärtom vad gäller vem som
                   vinner: salen fylls bara på poster där <strong>salfältet är tomt</strong>.
                   Har du skrivit in en sal står den kvar. Töm fältet så tar regeln över
@@ -361,9 +361,9 @@ export function HiddenSettingsDialog({
               <RoomTriggerList triggers={roomRules} onChange={setRoomRules} rooms={rooms} />
             </div>
 
-            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+            <div className="mt-3 shrink-0 border-t-frame border-ui-line pt-3">
               <Label htmlFor="restriction-a">Får inte ligga samtidigt</Label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ui-muted">
                 Två ämnen som inte får ligga på samma tid. <code>*</code> matchar
                 början av titeln. En post som skulle krocka går inte att placera.
                 Reglerna sparas i säkerhetskopian (JSON) men inte mellan
@@ -404,8 +404,8 @@ export function HiddenSettingsDialog({
               {rules.length > 0 && (
                 <ul className="mt-2 space-y-1">
                   {rules.map(rule => (
-                    <li key={rule.id} className="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-sm">
-                      <span>{rule.subjectA} <span className="text-gray-500">och</span> {rule.subjectB}</span>
+                    <li key={rule.id} className="flex items-center justify-between gap-2 rounded bg-gray-50 kron:bg-ui-surface-3 px-2 py-1 text-sm">
+                      <span>{rule.subjectA} <span className="text-ui-muted">och</span> {rule.subjectB}</span>
                       <button
                         type="button"
                         onClick={() => setRules(prev => prev.filter(item => item.id !== rule.id))}
@@ -421,7 +421,7 @@ export function HiddenSettingsDialog({
               )}
             </div>
 
-            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+            <div className="mt-3 shrink-0 border-t-frame border-ui-line pt-3">
               <Label htmlFor="export-excludes">Uteslut från nästa print/export</Label>
               <Textarea
                 id="export-excludes"
@@ -430,7 +430,7 @@ export function HiddenSettingsDialog({
                 placeholder="ATP; AK MÖTE"
                 className="mt-1 h-20 resize-none"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-ui-muted">
                 Titlar separerade med semikolon eller radbrytning. De syns kvar i
                 schemat men saknas i filen. Hela titeln måste stämma, med{' '}
                 <code>*</code> som jokertecken: <code>AK*</code> tar både AK MÖTE
@@ -438,7 +438,7 @@ export function HiddenSettingsDialog({
               </p>
             </div>
 
-            <div className="mt-3 shrink-0 border-t-2 border-black pt-3">
+            <div className="mt-3 shrink-0 border-t-frame border-ui-line pt-3">
               <Label htmlFor="paste-protect">Skydda från inklistring</Label>
               <Textarea
                 id="paste-protect"
@@ -447,7 +447,7 @@ export function HiddenSettingsDialog({
                 placeholder="Lunch; Paus; Rast"
                 className="mt-1 h-20 resize-none"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-ui-muted">
                 Poster med de här titlarna får inga inklistrade anteckningar när du
                 markerar flera på en gång — de ritas gråstreckade i ramen och räknas
                 bort. Samma syntax som ovan. Väljer du <em>Klistra in anteckningar</em>{' '}

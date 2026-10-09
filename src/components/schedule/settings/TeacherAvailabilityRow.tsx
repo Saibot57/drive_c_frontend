@@ -58,11 +58,11 @@ export function TeacherAvailabilityRow({ teacher, days, onChange }: TeacherAvail
   }, [days]);
 
   return (
-    <div className="border-2 border-black rounded p-2 bg-white">
+    <div className="border-frame border-ui-line rounded p-2 bg-ui-paper">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="font-bold text-sm break-words">{teacher}</p>
-          <p className="text-[11px] text-gray-500 truncate">{summary}</p>
+          <p className="text-[11px] text-ui-muted truncate">{summary}</p>
         </div>
         <Button
           type="button"
@@ -89,8 +89,8 @@ export function TeacherAvailabilityRow({ teacher, days, onChange }: TeacherAvail
                 aria-pressed={wholeDay}
                 title={`${teacher}, ${day.toLocaleLowerCase('sv')} – hela dagen`}
                 onClick={() => onChange(day, wholeDay ? [] : ['all'])}
-                className={`w-full rounded border-2 border-black px-1 py-1 text-xs font-bold transition-colors ${
-                  wholeDay ? 'bg-rose-300' : 'bg-white hover:bg-gray-100'
+                className={`w-full rounded border-frame border-ui-line px-1 py-1 text-xs font-bold transition-colors ${
+                  wholeDay ? 'bg-rose-300' : 'bg-ui-paper hover:bg-gray-100 kron:hover:bg-ui-surface-3'
                 }`}
               >
                 {DAY_ABBREVIATION[day]}
@@ -112,7 +112,7 @@ export function TeacherAvailabilityRow({ teacher, days, onChange }: TeacherAvail
                       onChange(day, next);
                     }}
                     className={`w-full rounded border border-black px-1 py-0.5 text-[10px] font-bold uppercase transition-colors ${
-                      active ? 'bg-rose-200' : 'bg-white hover:bg-gray-100'
+                      active ? 'bg-rose-200' : 'bg-ui-paper hover:bg-gray-100 kron:hover:bg-ui-surface-3'
                     }`}
                   >
                     {part}

@@ -2,6 +2,7 @@
 
 import { Copy, Lock, Share2, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { uiTint } from '@/components/ui/tints';
 import type { ActiveZone } from '@/hooks/useScheduleKeyboardNav';
 import type { PlannerArchiveSummary } from '@/types/schedule';
 
@@ -33,25 +34,33 @@ export function ArchiveCard({
   const heldByOther = archive.lock && !archive.lock.isMine ? archive.lock.username : null;
 
   return (
-    <div className={`group sp-archive-card p-3 flex items-center gap-2 ${isSelected ? 'sp-ring' : ''}`}>
+    <div className={`group sp-archive-card p-3 flex items-center gap-2 ${isActive ? 'sp-archive-card-active' : ''} ${isSelected ? 'sp-ring' : ''}`}>
       <Button
         type="button"
         variant="noShadow"
         onClick={() => onLoad(archive.id)}
         className="h-auto flex-1 min-w-0 flex-col items-start justify-start gap-0.5 whitespace-normal border-0 bg-transparent p-0 text-left shadow-none hover:translate-x-0 hover:translate-y-0 hover:bg-transparent"
       >
-        <span className="font-bold text-sm break-words leading-tight">
-          {archive.name}{isActive ? ' • aktiv' : ''}
+        <span className="flex min-w-0 items-center gap-2">
+          {/* Lampan för det öppna schemat. Bara i Kronberg; Neo skriver "• aktiv". */}
+          <span
+            aria-hidden
+            className={`hidden h-2 w-2 shrink-0 rounded-full border kron:inline-block ${isActive ? 'border-ui-lamp bg-ui-lamp shadow-[0_0_0_3px_rgba(217,88,28,0.16)]' : 'border-[#B5B3AD]'}`}
+          />
+          <span className="font-bold text-sm break-words leading-tight kron:font-medium">
+            {archive.name}{isActive && <span className="kron:hidden"> • aktiv</span>}
+          </span>
+          {isActive && <span className="ui-label hidden text-[10px] kron:inline">Öppet</span>}
         </span>
 
         {/* Ägaren behöver se att schemat är delat; mottagaren vems det är. */}
         {!archive.isOwner && archive.ownerUsername && (
-          <span className="flex items-center gap-1 text-[11px] font-normal text-gray-500">
+          <span className="flex items-center gap-1 text-[11px] font-normal text-ui-muted">
             <Users size={11}/> Från {archive.ownerUsername}
           </span>
         )}
         {archive.isOwner && archive.sharedWith.length > 0 && (
-          <span className="flex items-center gap-1 text-[11px] font-normal text-gray-500">
+          <span className="flex items-center gap-1 text-[11px] font-normal text-ui-muted">
             <Users size={11}/> Delad med {archive.sharedWith.join(', ')}
           </span>
         )}
@@ -70,7 +79,7 @@ export function ArchiveCard({
           size="sm"
           variant="neutral"
           onClick={() => onDuplicate(archive)}
-          className="h-8 w-8 p-0 sp-btn bg-indigo-100 hover:bg-indigo-200"
+          className={`h-8 w-8 p-0 sp-btn ${uiTint.info}`}
           aria-label={`Duplicera ${archive.name}`}
           title={`Duplicera ${archive.name}`}
         >
@@ -80,7 +89,7 @@ export function ArchiveCard({
           size="sm"
           variant="neutral"
           onClick={() => onShare(archive)}
-          className="h-8 w-8 p-0 sp-btn bg-emerald-100 hover:bg-emerald-200"
+          className={`h-8 w-8 p-0 sp-btn ${uiTint.create}`}
           aria-label={`Dela ${archive.name}`}
           title={`Dela ${archive.name}`}
         >
@@ -94,7 +103,7 @@ export function ArchiveCard({
             size="sm"
             variant="neutral"
             onClick={() => onDelete(archive)}
-            className="h-8 w-8 p-0 sp-btn bg-rose-100 hover:bg-rose-200 text-rose-800"
+            className={`h-8 w-8 p-0 sp-btn ${uiTint.danger}`}
             aria-label={`Ta bort ${archive.name}`}
             title={`Ta bort ${archive.name}`}
           >

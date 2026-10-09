@@ -16,3 +16,17 @@ describe('cn med temats klasser', () => {
     expect(cn('shadow-frame-sm shadow-black')).toBe('shadow-frame-sm shadow-black');
   });
 });
+
+describe('kron:-varianten', () => {
+  it('slås inte ihop med Neo-klassen', () => {
+    expect(cn('text-gray-600 kron:text-ui-muted')).toBe('text-gray-600 kron:text-ui-muted');
+  });
+
+  it('låter en senare kron:-klass vinna över en tidigare', () => {
+    expect(cn('kron:bg-ui-paper', 'kron:bg-ui-surface')).toBe('kron:bg-ui-surface');
+  });
+
+  it('känner till ramens bredd på en sida', () => {
+    expect(cn('border-t-frame border-ui-line')).toBe('border-t-frame border-ui-line');
+  });
+});

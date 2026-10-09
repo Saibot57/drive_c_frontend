@@ -40,7 +40,7 @@ export function PlanningBlockCard({ block }: PlanningBlockCardProps) {
         {!isCompact && (
           <>
             <p className="text-sm font-bold leading-tight">Planering</p>
-            <p className="text-xs font-semibold text-gray-700">{formatMinutes(duration)}</p>
+            <p className="text-xs font-semibold text-gray-700 kron:text-ui-ink-2">{formatMinutes(duration)}</p>
           </>
         )}
       </div>

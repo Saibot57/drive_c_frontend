@@ -41,13 +41,7 @@
      Neo-värdet står först och är exakt det komponenterna hade innan.
      Kronberg skriver över under :root[data-theme="kronberg"] längre ned. */
 
-  /* Knappar med egen färg i Neo. I Kronberg är knappar neutrala. */
-  .ui-tint-create { @apply bg-emerald-100 hover:bg-emerald-200; }
-  .ui-tint-save { @apply bg-amber-100 hover:bg-amber-200; }
-  .ui-tint-info { @apply bg-indigo-100 hover:bg-indigo-200; }
-  .ui-tint-sky { @apply bg-sky-100 hover:bg-sky-200; }
-  .ui-tint-danger { @apply bg-rose-100 text-rose-800 hover:bg-rose-200; }
-  .ui-tint-warning { background-color: var(--ui-warning-bg); }
+  /* Knappar med egen färg står i src/components/ui/tints.ts. */
 
   /* En kursfärg. Komponenten sätter --course; Kronberg dämpar den. */
   .ui-course-fill { background-color: var(--course); }
@@ -220,28 +214,10 @@
   transform: translateY(1px);
 }
 
-:root[data-theme="kronberg"] .ui-tint-create,
-:root[data-theme="kronberg"] .ui-tint-save,
-:root[data-theme="kronberg"] .ui-tint-info,
-:root[data-theme="kronberg"] .ui-tint-sky,
-:root[data-theme="kronberg"] .ui-tint-danger {
-  background-color: var(--ui-paper);
-}
-:root[data-theme="kronberg"] .ui-tint-create:hover,
-:root[data-theme="kronberg"] .ui-tint-save:hover,
-:root[data-theme="kronberg"] .ui-tint-info:hover,
-:root[data-theme="kronberg"] .ui-tint-sky:hover,
-:root[data-theme="kronberg"] .ui-tint-danger:hover {
-  background-color: var(--ui-btn-hover);
-}
-:root[data-theme="kronberg"] .ui-tint-danger {
-  color: var(--ui-danger);
-}
-
 /* Lika mycket för alla färger, också egna färger och färgregler. Bara där
    texten på färgen alltid är mörk (avsnitt 3.4 och 10.2). */
 :root[data-theme="kronberg"] .ui-course-fill {
-  background-color: color-mix(in oklab, var(--course) var(--ui-course-mix), var(--ui-paper));
+  background-color: color-mix(in oklab, var(--course) var(--ui-course-mix), var(--ui-course-base));
 }
 
 :root[data-theme="kronberg"] .ui-wordmark {

@@ -39,6 +39,42 @@
   --sp-drag-shadow: 4px 4px 0px rgba(0,0,0,1);
 }
 
+/* ── Kronberg ──
+   Samma variabler, lästa ur temats lager (src/styles/tokens.css). Neo-blocket
+   ovan står orört, så att Neo inte kan ändras av misstag härifrån. */
+:root[data-theme="kronberg"],
+:root[data-theme="kronberg"] .sp-root {
+  --sp-border: var(--ui-frame-w) solid var(--ui-line);
+  --sp-border-light: 1px solid var(--ui-hair);
+  --sp-border-thin: 1px solid rgba(31, 32, 34, 0.07);
+  --sp-border-divider: 1px solid var(--ui-line);
+  --sp-shadow: var(--ui-frame-shadow);
+  --sp-shadow-sm: var(--ui-frame-shadow-sm);
+  --sp-shadow-lg: var(--ui-float-shadow);
+  --sp-radius: var(--ui-radius);
+  --sp-radius-sm: var(--ui-radius-sm);
+  --sp-bg: var(--ui-surface);
+  --sp-bg-grid: var(--ui-surface-2);
+  --sp-bg-muted: var(--ui-surface-3);
+  --sp-bg-time-axis: var(--ui-surface);
+  --sp-text: var(--ui-ink);
+  --sp-text-muted: var(--ui-muted);
+  --sp-text-subtle: var(--ui-subtle);
+  --sp-ring: 2px solid var(--ui-focus);
+  --sp-input-border: 1px solid var(--ui-control-line);
+  --sp-input-shadow: none;
+  --sp-grid-line: 1px solid var(--ui-hour);
+  --sp-grid-border: 1px solid var(--ui-hair);
+  --sp-day-hover-bg: var(--ui-surface-3);
+  --sp-menu-hover: var(--ui-surface-3);
+  --sp-btn-border: 1px solid #C4C2BC;
+  --sp-event-border: 1px solid rgba(31, 32, 34, 0.07);
+  --sp-event-shadow: none;
+  --sp-event-ring: 2px solid var(--ui-ink);
+  --sp-drag-border: 1px solid var(--ui-line);
+  --sp-drag-shadow: var(--ui-float-shadow);
+}
+
 /* ── Utility classes ── */
 
 .sp-card {
@@ -207,4 +243,57 @@
   font-size: 11px;
   color: var(--sp-text-muted);
   white-space: nowrap;
+}
+
+/* ── Kronberg: det som inte är en variabel ── */
+
+/* Dagkolumnerna är papper, rutnätet runt dem en ton mörkare. */
+:root[data-theme="kronberg"] .sp-day-column {
+  background: var(--ui-paper);
+}
+:root[data-theme="kronberg"] .sp-day-column-active {
+  background: var(--sp-day-hover-bg);
+}
+
+/* Menyer svävar i stället för att ha en ram och en hård skugga. */
+:root[data-theme="kronberg"] .sp-dropdown,
+:root[data-theme="kronberg"] .sp-context-menu {
+  background: var(--ui-paper);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-float-shadow);
+}
+
+/* Scheman som rader med hårlinjer emellan, inte som egna lådor (3.7). */
+:root[data-theme="kronberg"] .sp-archive-card {
+  border: 0;
+  border-bottom: 1px solid var(--ui-hair);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+:root[data-theme="kronberg"] .sp-archive-card:first-of-type {
+  border-top: 1px solid var(--ui-hair);
+}
+
+/* Sökträffar i signalfärgen. Neo behåller sin orange ring. */
+:root[data-theme="kronberg"] .scheduled-event-card.ring-orange-500 {
+  --tw-ring-color: var(--ui-lamp);
+}
+
+:root[data-theme="kronberg"] .sp-toast {
+  border: 0;
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-float-shadow);
+}
+
+:root[data-theme="kronberg"] .sp-kbd {
+  font-family: var(--ui-font-mono);
+  color: var(--ui-muted);
+}
+
+:root[data-theme="kronberg"] .sp-planning-dayoff {
+  background: var(--ui-surface-3);
 }

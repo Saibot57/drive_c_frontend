@@ -27,6 +27,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { uiTint } from "@/components/ui/tints";
 import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
@@ -1270,7 +1271,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             recomputeCourses(schedule, manualCourses);
             showNotice('Byggstenar uppdaterade.', 'success');
           }}
-          className="mb-3 shrink-0 sp-btn bg-emerald-100 hover:bg-emerald-200"
+          className={`mb-3 shrink-0 sp-btn ${uiTint.create}`}
         >
           <RefreshCcw size={16} className="mr-2"/> Uppdatera byggstenar från schema
         </Button>
@@ -1303,19 +1304,19 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onClick={() => toggleSection('stats')}
         aria-expanded={sections.stats}
         title={sections.stats ? 'Fäll ihop tid' : 'Fäll ut tid'}
-        className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity"
+        className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity kron:font-mono kron:text-xs kron:font-medium kron:uppercase kron:tracking-[0.08em] kron:text-ui-ink-2"
       >
-        <BarChart3 size={18} /> {isPlanningMode ? 'Tid (Planering)' : 'Tid (Filtrerat)'}
+        <BarChart3 size={18} className="kron:hidden" /> {isPlanningMode ? 'Tid (Planering)' : 'Tid (Filtrerat)'}
         {sections.stats
-          ? <ChevronUp size={16} className="text-gray-400" />
-          : <ChevronDown size={16} className="text-gray-400" />}
+          ? <ChevronUp size={16} className="text-ui-subtle" />
+          : <ChevronDown size={16} className="text-ui-subtle" />}
       </button>
     </h2>
   );
 
   const planningStatsContent = planningByDay && (
-    <div className="mb-3 shrink-0 border-b-2 border-gray-100 pb-3">
-      <p className="mb-1 text-2xs font-bold uppercase text-gray-500">
+    <div className="mb-3 shrink-0 border-b-2 border-gray-100 kron:border-ui-hair pb-3">
+      <p className="mb-1 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]">
         Planering – {planningLabel}
       </p>
       <div className="space-y-1 text-xs">
@@ -1329,13 +1330,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           return (
             <div key={day} className="flex justify-between gap-2">
               <span className="truncate">{day}</span>
-              <span className={`font-mono font-bold shrink-0 ${result.isDayOff ? 'text-rose-600' : ''}`}>
+              <span className={`font-mono font-bold shrink-0 ${result.isDayOff ? 'text-rose-600 kron:text-ui-danger' : ''}`}>
                 {value}
               </span>
             </div>
           );
         })}
-        <div className="flex justify-between gap-2 border-t border-gray-200 pt-1">
+        <div className="flex justify-between gap-2 border-t border-ui-hair pt-1">
           <span className="font-bold">Veckan</span>
           <span className="font-mono font-bold shrink-0">{formatMinutes(planningWeekMinutes)}</span>
         </div>
@@ -1351,14 +1352,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onClick={() => toggleSection('subjects')}
         aria-expanded={sections.subjects}
         title={sections.subjects ? 'Fäll ihop ämnen' : 'Fäll ut ämnen'}
-        className="shrink-0 flex items-center gap-1 text-2xs font-bold uppercase text-gray-500 mb-1 hover:text-gray-700 transition-colors"
+        className="shrink-0 flex items-center gap-1 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em] mb-1 hover:text-gray-700 transition-colors"
       >
         Ämnen
         {sections.subjects ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
       {sections.subjects && (
         <div className="min-h-0 space-y-1 text-xs overflow-y-auto">
-          {scheduleStats.length === 0 ? <span className="text-gray-400 italic">Inget schemalagt</span> :
+          {scheduleStats.length === 0 ? <span className="text-ui-subtle italic">Inget schemalagt</span> :
             scheduleStats.map(([title, minutes]) => (
               <div key={title} className="flex justify-between gap-2">
                 <span className="truncate" title={title}>{title}</span>
@@ -1374,14 +1375,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         onClick={() => toggleSection('teachers')}
         aria-expanded={sections.teachers}
         title={sections.teachers ? 'Fäll ihop lärare' : 'Fäll ut lärare'}
-        className="shrink-0 flex items-center gap-1 text-2xs font-bold uppercase text-gray-500 mt-3 mb-1 hover:text-gray-700 transition-colors"
+        className="shrink-0 flex items-center gap-1 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em] mt-3 mb-1 hover:text-gray-700 transition-colors"
       >
         Lärare
         {sections.teachers ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
       {sections.teachers && (
         <div className="min-h-0 space-y-1 text-xs overflow-y-auto">
-          {teacherStats.length === 0 ? <span className="text-gray-400 italic">Ingen lärare angiven</span> :
+          {teacherStats.length === 0 ? <span className="text-ui-subtle italic">Ingen lärare angiven</span> :
             teacherStats.map(([teacher, minutes]) => (
               <div key={teacher} className="flex justify-between gap-2">
                 <span className="min-w-0 break-words" title={teacher}>{teacher}</span>
@@ -1404,7 +1405,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     >
       <div className="sp-root">
         {/* Background image */}
-        <div className="fixed inset-0 z-0">
+        <div className="ui-backdrop fixed inset-0 z-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/bakgrund59.png"
@@ -1434,10 +1435,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
                 placeholder="Filter: 'Lärare'+'ämne'; -Ämne · Tobias planering"
-                className="sp-input pl-10 rounded-xl"
+                className="sp-input pl-10 rounded-ui"
               />
               <div
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-help"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-subtle cursor-help"
                 title={"Sökguide:\n+ = Kräver båda (ex: matte+hanna)\n; = ELLER-sökning (ex: idrott;musik)\n- = Exkludera (ex: -engelska)\n\nNamn + ordet \"planering\" visar i stället lärarens fria tid\n(ex: tobias planering). Flera namn ger gemensam fri tid."}
               >
                 <Search className="h-5 w-5" />
@@ -1453,24 +1454,26 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
            <div className={`mr-auto min-w-0 shrink flex-col gap-0.5 lg:max-w-[280px] ${isPlanningMode ? 'flex' : 'hidden lg:flex'}`}>
              <div
                role="status"
-               className="hidden min-w-0 items-center gap-1.5 text-xs font-bold text-gray-500 cursor-help lg:flex"
+               className="hidden min-w-0 items-center gap-1.5 text-xs font-bold text-ui-muted cursor-help lg:flex"
                title={activeArchiveName
                  ? `Aktivt schema: ${activeArchiveName}. Ändringar sparas hit.`
                  : 'Inget schema är öppet. Ändringar sparas i huvudschemat.'}
              >
-               <Archive size={12} className="shrink-0 opacity-60" />
+               <Archive size={12} className="shrink-0 opacity-60 kron:hidden" />
+               {/* Lampan för det som är öppet. Bara i Kronberg; Neo har ikonen. */}
+               <span aria-hidden className="hidden h-2 w-2 shrink-0 rounded-full bg-ui-lamp shadow-[0_0_0_3px_rgba(217,88,28,0.16)] kron:inline-block" />
                <span className="truncate">{activeArchiveName ?? 'Huvudschema'}</span>
              </div>
              {isPlanningMode && (
                <p
-                 className="min-w-0 truncate text-xs font-bold text-gray-600"
+                 className="min-w-0 truncate text-xs font-bold text-gray-600 kron:text-ui-muted"
                  title={planningQuery.ignoredWords.length > 0
                    ? `Planeringstid för ${planningLabel}. Ignorerar ${planningQuery.ignoredWords.join(', ')}.`
                    : `Planeringstid för ${planningLabel}`}
                >
                  Planeringstid för {planningLabel}
                  {planningQuery.ignoredWords.length > 0 && (
-                   <span className="font-normal text-gray-400">
+                   <span className="font-normal text-ui-subtle">
                      {' '}· ignorerar {planningQuery.ignoredWords.join(', ')}
                    </span>
                  )}
@@ -1485,7 +1488,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               {isReadOnly && (
                 <span
                   role="status"
-                  className="flex items-center gap-1.5 rounded border-2 border-black bg-amber-200 px-2 py-1 text-xs font-bold"
+                  className={`flex items-center gap-1.5 rounded border-frame border-ui-line px-2 py-1 text-xs font-bold ${uiTint.warning}`}
                   title={`${lockHolder} har schemat öppet. Ändringar du gör här sparas inte. Ta över för att kunna redigera — då läses schemat om, så du utgår från ${lockHolder}s senaste version.`}
                 >
                   <Lock size={12} className="shrink-0" />
@@ -1493,7 +1496,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <Button
                     size="sm"
                     variant="neutral"
-                    className="h-6 shrink-0 bg-white px-2 text-xs"
+                    className="h-6 shrink-0 bg-ui-paper px-2 text-xs"
                     onClick={handleTakeOverLock}
                   >
                     Ta över
@@ -1507,7 +1510,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
               {exportExcludes.length > 0 && (
                 <span
                   role="status"
-                  className="flex items-center gap-1 rounded border-2 border-black bg-rose-200 px-2 py-1 text-xs font-bold cursor-help"
+                  className="flex items-center gap-1 rounded border-frame border-ui-line bg-rose-200 kron:bg-[var(--ui-warning-bg)] px-2 py-1 text-xs font-bold cursor-help"
                   title={`Nästa export hoppar över: ${exportExcludes.join(', ')}. Listan töms när du exporterat. Ändras i Inställningar (Ctrl + Shift + K).`}
                 >
                   <ShieldAlert size={12} className="shrink-0" />
@@ -1537,8 +1540,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <Download size={16} className="mr-2"/> Exportera <ChevronDown size={14} className="-mr-1 opacity-60" />
                 </Button>
                 {isExportMenuOpen && (
-                  <div role="menu" className="absolute right-0 z-[100] mt-2 w-56 bg-white sp-dropdown p-1">
-                    <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-gray-500">PDF</p>
+                  <div role="menu" className="absolute right-0 z-[100] mt-2 w-56 bg-ui-paper sp-dropdown p-1">
+                    <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]">PDF</p>
                     {([
                       ['digital', 'PDF – digital', 'Sidan får schemats egna mått – skarp på vilken skärm som helst.'],
                       ['a4', 'PDF – A4', 'Skalas till exakt en liggande A4.'],
@@ -1558,8 +1561,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                         {label}
                       </button>
                     ))}
-                    <div className="my-1 h-px bg-gray-200" role="separator" />
-                    <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-gray-500">Bild</p>
+                    <div className="my-1 h-px bg-gray-200 kron:bg-ui-hair" role="separator" />
+                    <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]">Bild</p>
                     {([
                       ['png', 'PNG', 'Ritas ur schemadatan i 3x – förhandsvisas inline i chattar.'],
                       ['jpeg', 'JPG', 'Som PNG men mindre fil.'],
@@ -1599,7 +1602,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <MoreHorizontal size={16} />
                 </Button>
                 {isMoreMenuOpen && (
-                  <div role="menu" className="absolute right-0 z-[100] mt-2 w-72 bg-white sp-dropdown p-1">
+                  <div role="menu" className="absolute right-0 z-[100] mt-2 w-72 bg-ui-paper sp-dropdown p-1">
                     <button
                       type="button"
                       role="menuitem"
@@ -1612,7 +1615,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       <span className="flex items-center gap-2"><SlidersHorizontal size={14} /> Inställningar…</span>
                       <span className="sp-kbd">Ctrl+Shift+K</span>
                     </button>
-                    <div className="my-1 h-px bg-gray-200" role="separator" />
+                    <div className="my-1 h-px bg-gray-200 kron:bg-ui-hair" role="separator" />
                     <button
                       type="button"
                       role="menuitem"
@@ -1661,12 +1664,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       onClick={() => toggleSection('courses')}
                       aria-expanded={sections.courses}
                       title={sections.courses ? 'Fäll ihop byggstenar' : 'Fäll ut byggstenar'}
-                      className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity"
+                      className="font-bold flex items-center gap-2 hover:opacity-70 transition-opacity kron:font-mono kron:text-xs kron:font-medium kron:uppercase kron:tracking-[0.08em] kron:text-ui-ink-2"
                     >
-                      <Hammer size={18}/> Byggstenar
+                      <Hammer size={18} className="kron:hidden"/> Byggstenar
                       {sections.courses
-                        ? <ChevronUp size={16} className="text-gray-400" />
-                        : <ChevronDown size={16} className="text-gray-400" />}
+                        ? <ChevronUp size={16} className="text-ui-subtle" />
+                        : <ChevronDown size={16} className="text-ui-subtle" />}
                     </button>
                   </h2>
                   {!isSidebarCollapsed && (
@@ -1674,7 +1677,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       setManualColor(false);
                       setEditingCourse({ id: uuidv4(), title: '', teacher: '', room: '', color: DEFAULT_COURSE_COLOR, duration: 60 });
                       setIsCourseModalOpen(true);
-                    }} className="ml-auto h-8 w-8 p-0 rounded-full sp-btn bg-[#aee8fe]" aria-label="Ny byggsten (N)" title="Ny byggsten (N)"><Plus size={16}/></Button>
+                    }} className={`ml-auto h-8 w-8 p-0 rounded-full sp-btn ${uiTint.sky}`} aria-label="Ny byggsten (N)" title="Ny byggsten (N)"><Plus size={16}/></Button>
                   )}
                   <Button
                     size="sm"
@@ -1722,7 +1725,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                         <div className="flex-1 min-h-0 flex flex-col">{coursesContent}</div>
                       )}
                       <div className={`flex flex-col ${
-                        sections.courses ? 'mt-3 pt-3 border-t-2 border-gray-100' : ''
+                        sections.courses ? 'mt-3 pt-3 border-t-2 border-gray-100 kron:border-ui-hair' : ''
                       } ${sections.stats ? 'flex-1 min-h-0' : 'shrink-0'}`}>
                         {statsHeading}
                         {sections.stats && statsContent}
@@ -1783,7 +1786,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                    {PLANNER_DAYS.map(day => (
                      <div
                        key={day}
-                       className="flex-1 py-2 text-center font-bold text-sm border-r border-gray-200 last:border-0 cursor-help"
+                       className="flex-1 py-2 text-center font-bold text-sm border-r border-ui-hair last:border-0 cursor-help"
                        title={dayHeaderTooltips[day]}
                      >
                        {day}
@@ -1817,7 +1820,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                       <ChevronRight size={16} />
                     </Button>
                   </div>
-                  <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-2 py-1">
+                  <div className="flex items-center justify-between gap-2 border-t border-ui-hair px-2 py-1">
                     <Button
                       size="sm"
                       variant="neutral"
@@ -1847,9 +1850,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                    <div className="w-[50px] flex-shrink-0 sp-time-axis relative">
                       <div className="absolute -top-4 left-0 right-0 h-4 sp-time-axis" />
                       {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
-                        <div key={h} className="absolute w-full text-right pr-1 text-xs font-bold text-gray-500 -mt-2"
+                        <div key={h} className="absolute w-full text-right pr-1 text-xs font-bold text-ui-muted -mt-2 kron:font-mono kron:text-[11px] kron:font-normal"
                              style={{ top: `${(h - START_HOUR) * 60 * PIXELS_PER_MINUTE}px` }}>
-                           {h}:00
+                           {/* 08:00 i Kronberg, där tiderna står i monospace. */}
+                           {h < 10 && <span className="hidden kron:inline">0</span>}{h}:00
                         </div>
                       ))}
                    </div>
@@ -2002,8 +2006,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
              isRightSidebarCollapsed ? 'p-2' : 'p-4'
            } ${activeZone === 'archive' ? 'sp-ring' : ''}`}>
               <div className={`flex ${isRightSidebarCollapsed ? 'flex-col items-center gap-3' : 'justify-between items-center mb-4'}`}>
-                <h2 className={`font-bold flex items-center gap-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
-                  <Archive size={18}/> Scheman
+                <h2 className={`font-bold flex items-center gap-2 kron:font-mono kron:text-xs kron:font-medium kron:uppercase kron:tracking-[0.08em] kron:text-ui-ink-2 ${isRightSidebarCollapsed ? 'sr-only' : ''}`}>
+                  <Archive size={18} className="kron:hidden"/> Scheman
                 </h2>
                 <Button
                   size="sm"
@@ -2016,7 +2020,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   {isRightSidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                 </Button>
                 {isRightSidebarCollapsed && (
-                  <div className="flex flex-col items-center gap-2 text-xs font-bold text-gray-600">
+                  <div className="flex flex-col items-center gap-2 text-xs font-bold text-gray-600 kron:text-ui-muted">
                     <Archive size={18}/>
                   </div>
                 )}
@@ -2027,14 +2031,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <Button
                     variant="neutral"
                     onClick={openNewScheduleDialog}
-                    className="w-full sp-btn bg-emerald-100 hover:bg-emerald-200"
+                    className={`w-full sp-btn ${uiTint.create}`}
                   >
                     <Plus size={14} className="mr-2"/> Nytt schema
                   </Button>
 
                   <div className="flex-1 overflow-y-auto pr-1 space-y-2">
                     {sortedArchives.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic">Inga sparade scheman ännu.</p>
+                      <p className="text-sm text-ui-muted italic">Inga sparade scheman ännu.</p>
                     ) : (
                       <>
                         {ownArchives.map((archive) => (
@@ -2054,7 +2058,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
                         {sharedArchives.length > 0 && (
                           <>
-                            <Label className="block pt-3 text-2xs font-bold uppercase text-gray-500">
+                            <Label className="block pt-3 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]">
                               Delade med mig
                             </Label>
                             {sharedArchives.map((archive) => (
@@ -2086,13 +2090,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
       <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.5' } } }) }}>
         {activeDragItem?.type === 'course' && (
-          <div className="w-[120px] h-[60px] sp-drag-overlay p-2 rounded opacity-80" style={{backgroundColor: resolveColor(activeDragItem.course.title, activeDragItem.course.color)}}>
+          <div className="ui-course-fill w-[120px] h-[60px] sp-drag-overlay p-2 rounded opacity-80" style={{ '--course': resolveColor(activeDragItem.course.title, activeDragItem.course.color) } as React.CSSProperties}>
              {activeDragItem.course.title}
           </div>
         )}
         {activeDragItem?.type === 'scheduled' && (
-           <div className="w-[120px] sp-drag-overlay p-1 rounded opacity-80" 
-             style={{ height: `${Math.max(activeDragItem.entry.duration * PIXELS_PER_MINUTE - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`, backgroundColor: resolveColor(activeDragItem.entry.title, activeDragItem.entry.color) }}>
+           <div className="ui-course-fill w-[120px] sp-drag-overlay p-1 rounded opacity-80" 
+             style={{ height: `${Math.max(activeDragItem.entry.duration * PIXELS_PER_MINUTE - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`, '--course': resolveColor(activeDragItem.entry.title, activeDragItem.entry.color) } as React.CSSProperties}>
               {activeDragItem.entry.title}
            </div>
         )}
@@ -2105,7 +2109,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             onClick={() => setContextMenu(null)}
           />
           <div
-            className="fixed z-[100] flex flex-col w-max bg-white sp-context-menu"
+            className="fixed z-[100] flex flex-col w-max bg-ui-paper sp-context-menu"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
             <button
@@ -2140,7 +2144,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             onClick={() => setContextMenu(null)}
           />
           <div
-            className="fixed z-[100] flex min-w-[260px] flex-col w-max bg-white sp-context-menu p-1"
+            className="fixed z-[100] flex min-w-[260px] flex-col w-max bg-ui-paper sp-context-menu p-1"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             role="menu"
           >
@@ -2241,14 +2245,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       )}
 
       {isMarqueeActive && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none sp-toast bg-amber-50 px-4 py-2 text-sm font-semibold text-black">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none sp-toast bg-amber-50 kron:bg-ui-paper px-4 py-2 text-sm font-semibold text-black kron:text-ui-ink">
           Markera posterna som ska få anteckningarna: dra en ram, eller stega med
           ←→ ↑↓ (Shift = dag / 15 min). Enter klistrar in, Esc avbryter.
         </div>
       )}
 
       {isKbPlacementActive && kbPlacementGhost && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none sp-toast bg-amber-50 px-4 py-2 text-sm font-semibold text-black">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] pointer-events-none sp-toast bg-amber-50 kron:bg-ui-paper px-4 py-2 text-sm font-semibold text-black kron:text-ui-ink">
           Placera <strong>&quot;{kbPlacementGhost.title}&quot;</strong>: ←→ dag, ↑↓ tid, Enter bekräftar, Esc avbryter
         </div>
       )}
@@ -2313,7 +2317,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         confirmLabel="Ersätt schema"
         onConfirm={handleConfirmImport}
       >
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-gray-700 kron:text-ui-ink-2">
           Om du fortsätter ersätts aktuella byggstenar och schema med innehållet från filen.
         </p>
       </ConfirmDialog>
@@ -2330,7 +2334,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         destructive
         onConfirm={handleConfirmDeleteCourse}
       >
-        <p className="text-sm text-gray-700">Ta bort byggstenen &quot;{deleteCourseName}&quot;?</p>
+        <p className="text-sm text-gray-700 kron:text-ui-ink-2">Ta bort byggstenen &quot;{deleteCourseName}&quot;?</p>
       </ConfirmDialog>
 
       <BulkEditModal
@@ -2360,7 +2364,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       />
 
       {plannerNotice && (
-        <div className={`fixed bottom-4 right-4 z-[80] sp-toast px-4 py-3 text-sm font-semibold ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
+        <div className={`fixed bottom-4 right-4 z-[80] sp-toast px-4 py-3 text-sm font-semibold kron:flex kron:items-center kron:gap-2.5 kron:bg-ui-ink kron:font-medium kron:text-ui-paper ${plannerNotice.tone === 'success' ? 'bg-emerald-100 text-emerald-900' : plannerNotice.tone === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
+          {/* Kronberg: en mörk ruta med en lampa i tonens färg. */}
+          <span
+            aria-hidden
+            className={`hidden h-2 w-2 shrink-0 rounded-full kron:inline-block ${plannerNotice.tone === 'success' ? 'bg-ui-lamp' : plannerNotice.tone === 'warning' ? 'bg-amber-400' : 'bg-rose-500'}`}
+          />
           {plannerNotice.message}
         </div>
       )}
@@ -2389,7 +2398,7 @@ function ContextMenuItem({
     <button
       type="button"
       role="menuitem"
-      className={`flex items-center justify-between gap-6 rounded px-3 py-2 text-left text-sm sp-menu-item ${danger ? 'text-rose-700' : ''}`}
+      className={`flex items-center justify-between gap-6 rounded px-3 py-2 text-left text-sm sp-menu-item ${danger ? 'text-rose-700 kron:text-ui-danger' : ''}`}
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -2401,5 +2410,5 @@ function ContextMenuItem({
 }
 
 function ContextMenuSeparator() {
-  return <div className="my-1 h-px bg-gray-200" role="separator" />;
+  return <div className="my-1 h-px bg-gray-200 kron:bg-ui-hair" role="separator" />;
 }

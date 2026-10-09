@@ -59,7 +59,7 @@ export function NewScheduleDialog({
               autoFocus
             />
             {nameExists && (
-              <p className="text-xs text-rose-600 mt-1">Det finns redan ett schema med det namnet.</p>
+              <p className="text-xs text-rose-600 kron:text-ui-danger mt-1">Det finns redan ett schema med det namnet.</p>
             )}
           </div>
           <div>
@@ -68,7 +68,7 @@ export function NewScheduleDialog({
               id="new-schedule-source"
               value={encodeScheduleSource(source)}
               onChange={(e) => onSourceChange(decodeScheduleSource(e.target.value))}
-              className="sp-input h-10 w-full rounded-base border-2 border-black bg-white px-2 text-sm"
+              className="sp-input h-10 w-full rounded-base border-frame border-ui-line bg-ui-paper px-2 text-sm"
             >
               <option value="empty">Tomt schema</option>
               {canUseMainSchedule && <option value="main">Huvudschemat</option>}
@@ -91,13 +91,13 @@ export function NewScheduleDialog({
                 </optgroup>
               )}
             </select>
-            <p className="mt-1 text-xs text-gray-600">
+            <p className="mt-1 text-xs text-gray-600 kron:text-ui-muted">
               {source.kind === 'empty'
                 ? 'Schemat börjar tomt.'
                 : 'Posterna kopieras till det nya schemat, som öppnas direkt. Källan ändras inte.'}
             </p>
             {sourceHasUnsavedChanges && (
-              <p className="mt-1 text-xs font-bold text-rose-700">
+              <p className="mt-1 text-xs font-bold text-rose-700 kron:text-ui-danger">
                 Den senaste ändringen i det öppna schemat sparades inte och kommer inte med i kopian. Vänta tills sparningen gått igenom.
               </p>
             )}

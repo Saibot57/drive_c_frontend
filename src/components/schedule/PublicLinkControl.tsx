@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, ExternalLink, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { uiTint } from '@/components/ui/tints';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -204,7 +205,7 @@ export default function PublicLinkControl({
       <Button
         variant="neutral"
         onClick={handleOpen}
-        className={`sp-btn ${isPublishingActive ? 'bg-emerald-200 hover:bg-emerald-300' : ''}`}
+        className={`sp-btn ${isPublishingActive ? uiTint.createStrong : ''}`}
         title={isPublishingActive
           ? 'Det här schemat visas på den publika länken just nu.'
           : 'Dela schemat med deltagarna via en länk som alltid visar senaste versionen.'}
@@ -220,9 +221,9 @@ export default function PublicLinkControl({
           </DialogHeader>
 
           {links === null ? (
-            <p className="text-sm text-gray-500">Hämtar…</p>
+            <p className="text-sm text-ui-muted">Hämtar…</p>
           ) : !link ? (
-            <div className="space-y-3 text-sm text-gray-700">
+            <div className="space-y-3 text-sm text-gray-700 kron:text-ui-ink-2">
               <p>
                 En fast länk som deltagarna kan spara som bokmärke. Den visar alltid den senast
                 sparade versionen av det schema du väljer, utan inloggning.
@@ -251,7 +252,7 @@ export default function PublicLinkControl({
                   </Button>
                 </div>
                 {!link.enabled && (
-                  <p className="font-bold text-rose-700">Avstängd — deltagarna ser &quot;Länken fungerar inte längre&quot;.</p>
+                  <p className="font-bold text-rose-700 kron:text-ui-danger">Avstängd — deltagarna ser &quot;Länken fungerar inte längre&quot;.</p>
                 )}
               </section>
 
@@ -259,7 +260,7 @@ export default function PublicLinkControl({
                 <Label htmlFor="public-link-archive">Visar</Label>
                 <select
                   id="public-link-archive"
-                  className="w-full rounded border-2 border-black bg-white px-2 py-1.5"
+                  className="w-full rounded border-frame border-ui-line bg-ui-paper px-2 py-1.5"
                   value={link.archiveId ?? ''}
                   disabled={isBusy}
                   onChange={e => handlePoint(e.target.value || null)}
@@ -293,7 +294,7 @@ export default function PublicLinkControl({
                   placeholder="APT; AK-möte; Planering*"
                   rows={2}
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ui-muted">
                   Hela titeln, semikolon mellan. <code>*</code> är jokertecken: &quot;AK*&quot; döljer
                   även &quot;AK-möte&quot;. Egen lista, skild från exportundantagen.
                 </p>
@@ -302,19 +303,19 @@ export default function PublicLinkControl({
                 </Button>
               </section>
 
-              <section className="space-y-2 border-t-2 border-dashed border-gray-200 pt-4">
-                <p className="text-xs text-gray-500">
+              <section className="space-y-2 border-t-2 border-dashed border-ui-hair pt-4">
+                <p className="text-xs text-ui-muted">
                   Färg- och salsregler följer med från den här datorn när du byter schema, sparar
                   eller ändrar reglerna.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {confirmRotate ? (
                     <>
-                      <Button size="sm" className="bg-rose-200 hover:bg-rose-300" disabled={isBusy} onClick={handleRotate}>
+                      <Button size="sm" className={uiTint.dangerStrong} disabled={isBusy} onClick={handleRotate}>
                         Ja, byt länk
                       </Button>
                       <Button size="sm" variant="neutral" onClick={() => setConfirmRotate(false)}>Avbryt</Button>
-                      <span className="self-center text-xs text-gray-600">
+                      <span className="self-center text-xs text-gray-600 kron:text-ui-muted">
                         Den gamla slutar fungera direkt. Du behöver dela den nya.
                       </span>
                     </>
@@ -338,7 +339,7 @@ export default function PublicLinkControl({
             </div>
           )}
 
-          {error && <p className="text-sm font-bold text-rose-700" role="alert">{error}</p>}
+          {error && <p className="text-sm font-bold text-rose-700 kron:text-ui-danger" role="alert">{error}</p>}
 
           <DialogFooter>
             <Button variant="neutral" onClick={() => setIsOpen(false)}>Stäng</Button>

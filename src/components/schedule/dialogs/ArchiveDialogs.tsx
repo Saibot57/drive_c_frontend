@@ -32,10 +32,10 @@ export function ArchiveDialogs({ archive, currentUsername, saveFailed }: Archive
         destructive
         onConfirm={archive.handleConfirmDeleteWeek}
       >
-        <p className="text-sm text-gray-700">Ta bort schemat &quot;{deleteArchive?.name}&quot;?</p>
+        <p className="text-sm text-gray-700 kron:text-ui-ink-2">Ta bort schemat &quot;{deleteArchive?.name}&quot;?</p>
         {/* Radering av ett delat schema drabbar fler än en. */}
         {deleteArchive && deleteArchive.sharedWith.length > 0 && (
-          <p className="text-sm font-bold text-rose-800">
+          <p className="text-sm font-bold text-rose-800 kron:text-ui-danger">
             Schemat är delat med {deleteArchive.sharedWith.join(', ')}. Det försvinner för dem också.
           </p>
         )}

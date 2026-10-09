@@ -56,12 +56,12 @@ export function TriggerRuleList<R extends TriggerRule>({
       {children}
 
       {rules.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">{emptyText}</p>
+        <p className="text-sm text-ui-muted italic">{emptyText}</p>
       ) : (
         <div className={`${listClassName} min-h-0 space-y-2 overflow-y-auto pr-1`}>
           {rules.map((rule, index) => (
             <div key={rule.id} className="flex items-center gap-2">
-              <span className="w-5 shrink-0 text-xs font-bold text-gray-400">{index + 1}</span>
+              <span className="w-5 shrink-0 text-xs font-bold text-ui-subtle">{index + 1}</span>
               <Input
                 value={rule.word}
                 onChange={event => update(rule.id, { word: event.target.value } as Partial<R>)}

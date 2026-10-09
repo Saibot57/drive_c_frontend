@@ -80,7 +80,7 @@ export function FindReplacePanel({
 
   return (
     <div
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[120] w-[min(560px,calc(100vw-2rem))] border-2 border-black bg-yellow-50 shadow-[6px_6px_0px_black] rounded-lg"
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-[120] w-[min(560px,calc(100vw-2rem))] border-frame border-ui-line bg-yellow-50 kron:bg-ui-surface shadow-[6px_6px_0px_black] kron:shadow-float rounded-lg kron:rounded-ui"
       role="dialog"
       aria-label="Hitta och ersätt i schema"
       onClick={(e) => e.stopPropagation()}
@@ -91,7 +91,7 @@ export function FindReplacePanel({
         }
       }}
     >
-      <div className="flex items-center justify-between px-3 py-2 border-b-2 border-black bg-yellow-200 rounded-t-md">
+      <div className="flex items-center justify-between px-3 py-2 border-b-frame border-ui-line bg-yellow-200 kron:bg-ui-surface-3 rounded-t-md">
         <div className="flex items-center gap-2 font-bold text-sm">
           <Search size={14} />
           Hitta och ersätt
@@ -120,7 +120,7 @@ export function FindReplacePanel({
               </option>
             ))}
           </select>
-          <span className="ml-auto text-xs font-semibold text-gray-700">
+          <span className="ml-auto text-xs font-semibold text-gray-700 kron:text-ui-ink-2">
             {hasQuery
               ? `${matchCount} träff${matchCount === 1 ? '' : 'ar'} i ${affectedEntries} post${affectedEntries === 1 ? '' : 'er'}`
               : 'Skriv något att söka efter'}

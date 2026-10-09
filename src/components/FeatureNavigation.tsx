@@ -134,10 +134,10 @@ export function FeatureNavigation() {
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              'inline-flex items-center gap-2 font-monument text-xl leading-none tracking-[0.2em] select-none',
-              'bg-white border-none cursor-pointer rounded-md px-2 py-1.5',
+              'ui-wordmark inline-flex items-center gap-2 text-xl leading-none tracking-[0.2em] select-none',
+              'bg-white kron:bg-transparent border-none cursor-pointer rounded-md px-2 py-1.5',
               'hover:bg-black/5 transition-colors outline-none',
-              'focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2',
+              'focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)] focus-visible:ring-offset-2',
             )}
             aria-label="Switch feature"
           >

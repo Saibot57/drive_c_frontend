@@ -100,7 +100,11 @@
   --ui-scrim: rgba(31, 32, 34, 0.28);
   --ui-focus: #1F2022;
 
-  --ui-course-mix: 72%;
+  /* Kursfärgen blandas med en varm grå i samma ljushet, inte med papperet:
+     mot papperet blev pastellerna bara ljusare. 54 % mot #D8D6D0 hamnar
+     inom några nyanser från prototypens sju färger. */
+  --ui-course-mix: 54%;
+  --ui-course-base: #D8D6D0;
   --ui-font-mono: var(--font-plex-mono), ui-monospace, monospace;
 
   /* shadcn-variablerna som Button, Card och Input läser. */

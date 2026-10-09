@@ -17,7 +17,7 @@ export function ColorTriggerHint({ title, colorTriggers }: {
   const trigger = findColorTrigger(title ?? '', colorTriggers);
   if (!trigger) return null;
   return (
-    <p className="flex items-center gap-2 text-xs text-gray-600">
+    <p className="flex items-center gap-2 text-xs text-gray-600 kron:text-ui-muted">
       <span
         className="h-3 w-3 shrink-0 rounded-full border border-black"
         style={{ backgroundColor: trigger.color }}
@@ -40,7 +40,7 @@ export function RoomTriggerHint({ title, room, roomTriggers }: {
   const trigger = findRoomTrigger(title ?? '', roomTriggers);
   if (!trigger) return null;
   return (
-    <p className="text-xs text-gray-600">
+    <p className="text-xs text-gray-600 kron:text-ui-muted">
       Salen fylls av regeln &quot;{trigger.word}&quot; → <strong>{trigger.room}</strong>.
       Skriv en sal här för att styra över.
     </p>

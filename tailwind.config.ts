@@ -1,5 +1,6 @@
 import type { Config } from 'tailwindcss';
 import tailwindAnimate from 'tailwindcss-animate';
+import plugin from 'tailwindcss/plugin';
 
 /**
  * En färg ur temats variabler (src/styles/tokens.css). Opacitetsmodifierare
@@ -138,7 +139,16 @@ const config: Config = {
       }
     },
   },
-  plugins: [tailwindAnimate],
+  plugins: [
+    tailwindAnimate,
+    /**
+     * `kron:` gäller bara i Kronberg (`kron:text-ui-muted`). Används där Neo
+     * har ett värde som ingen variabel delar, så att Neo kan stå orört bredvid.
+     */
+    plugin(({ addVariant }) => {
+      addVariant('kron', ':root[data-theme="kronberg"] &');
+    }),
+  ],
 };
 
 export default config;
