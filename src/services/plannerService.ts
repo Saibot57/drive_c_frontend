@@ -2,17 +2,13 @@ import { fetchWithAuth } from './authService';
 import type {
   PlannerActivity,
   PlannerArchiveSummary,
+  ScheduleKind,
   PlannerPublicLink,
   PublicLinkDisplayConfig,
 } from '@/types/schedule';
 
 import { API_URL } from '@/config/api';
 const PLANNER_API_URL = `${API_URL}/planner`;
-
-type PlannerSyncResponse = {
-  activities: PlannerActivity[];
-  count: number;
-};
 
 /** Kastas när någon annan har schemat öppet, så anroparen kan gå i läsläge. */
 export class ArchiveLockedError extends Error {
@@ -44,41 +40,12 @@ const assertNotLocked = async (response: Response) => {
   );
 };
 
-type PlannerSyncPayload = {
-  activities?: unknown;
-  count?: unknown;
-  data?: {
-    activities?: unknown;
-    count?: unknown;
-  };
-};
-
-const normalizePlannerSyncResponse = (payload: unknown): PlannerSyncResponse => {
-  if (!payload || typeof payload !== 'object') {
-    return { activities: [], count: 0 };
-  }
-
-  const typedPayload = payload as PlannerSyncPayload;
-  const dataPayload = typedPayload.data && typeof typedPayload.data === 'object'
-    ? (typedPayload.data as PlannerSyncPayload['data'])
-    : undefined;
-
-  const directActivities = Array.isArray(typedPayload.activities)
-    ? (typedPayload.activities as PlannerActivity[])
-    : undefined;
-  const dataActivities = Array.isArray(dataPayload?.activities)
-    ? (dataPayload?.activities as PlannerActivity[])
-    : undefined;
-
-  const activities = directActivities ?? dataActivities ?? [];
-  const directCount = typeof typedPayload.count === 'number' ? typedPayload.count : undefined;
-  const dataCount = typeof dataPayload?.count === 'number' ? dataPayload.count : undefined;
-  const count = directCount ?? dataCount ?? activities.length;
-
-  return { activities, count };
-};
-
 export const plannerService = {
+  /**
+   * Det gamla huvudschemat. Planeraren skriver inte längre dit, men läser det
+   * när någon vill göra ett schema av det som ligger där, och workspace
+   * jämför element som en gång hämtats därifrån (docs/plans/basscheman.md, 5).
+   */
   async getPlannerActivities(): Promise<PlannerActivity[]> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`);
     if (!response.ok) {
@@ -92,18 +59,6 @@ export const plannerService = {
       return payload as PlannerActivity[];
     }
     return [];
-  },
-
-  async syncActivities(activities: PlannerActivity[]): Promise<PlannerSyncResponse> {
-    const response = await fetchWithAuth(`${PLANNER_API_URL}/activities`, {
-      method: 'POST',
-      body: JSON.stringify({ activities }),
-    });
-    if (!response.ok) {
-      throw new Error('Kunde inte synka planeringsaktiviteter.');
-    }
-    const payload = await response.json();
-    return normalizePlannerSyncResponse(payload);
   },
 
   async getPlannerArchive(name: string): Promise<PlannerActivity[]> {
@@ -147,14 +102,31 @@ export const plannerService = {
     return Array.isArray(archives) ? (archives as PlannerArchiveSummary[]) : [];
   },
 
-  async createArchive(name: string): Promise<PlannerArchiveSummary> {
+  async createArchive(name: string, kind: ScheduleKind = 'week'): Promise<PlannerArchiveSummary> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives`, {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, kind }),
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error(payload?.error || 'Kunde inte skapa schemat.');
+    }
+    return unwrap(payload) as PlannerArchiveSummary;
+  },
+
+  /**
+   * Gör om ett schema till basschema eller veckoschema. Bara ägaren får, och
+   * inte medan någon annan har schemat öppet (ArchiveLockedError).
+   */
+  async setArchiveKind(archiveId: string, kind: ScheduleKind): Promise<PlannerArchiveSummary> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ kind }),
+    });
+    await assertNotLocked(response);
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Kunde inte byta sort på schemat.');
     }
     return unwrap(payload) as PlannerArchiveSummary;
   },

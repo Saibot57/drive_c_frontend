@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { downloadBlob } from '@/utils/download';
 import { buildLabExport, labExportFileName } from '@/utils/labExport';
 import { isOwnPlan } from '@/utils/labPlans';
+import { isBaseSchedule, optionsWithCurrent } from '@/utils/scheduleKind';
 import type { LabDay, LabLesson, LabState, LabTeacher, LabTeam } from '@/types/lessonLab';
 import {
   assignTeam,
@@ -156,6 +157,7 @@ export default function LessonLab() {
   const archiveUnreachable = Boolean(
     sharedPlan && state.archiveId && source.archives && !source.archives.some(a => a.id === state.archiveId)
   );
+  const archiveChoices = optionsWithCurrent(source.archives ?? [], isBaseSchedule, state.archiveId);
   const [dragging, setDragging] = useState<DragData | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [plansOpen, setPlansOpen] = useState(false);
@@ -370,16 +372,20 @@ export default function LessonLab() {
                 <PlanSaveStatus lab={lab} />
               </div>
 
-              {/* Arkivet är schemat upplägget bygger på: tiderna och de fasta passen. */}
+              {/* Basschemat är det upplägget bygger på: tiderna och de fasta
+                  passen. Listan visar bara basscheman, men om ett schema finns
+                  avgörs av hela listan (source.archives). Annars hade ett
+                  upplägg byggt på ett veckoschema sett ut att peka på ett
+                  borttaget schema. */}
               <div className="flex items-center gap-2">
-                <span className={groupLabel}>Schema</span>
+                <span className={groupLabel}>Basschema</span>
                 <select
                   className="sp-input h-8 max-w-[10rem] rounded-md bg-ui-paper px-3 text-sm font-semibold"
                   value={state.archiveId ?? ''}
                   onChange={event => chooseArchive(event.target.value)}
                   disabled={source.status === 'loading'}
-                  aria-label="Schema som grund"
-                  title="Schemats temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
+                  aria-label="Basschema som grund"
+                  title="Basschemats temapass blir rutorna, och övriga pass räknas som lärarnas fasta timmar"
                 >
                   <option value="">Tavlan (inget schema)</option>
                   {state.archiveId && !source.archives?.some(a => a.id === state.archiveId) && (
@@ -387,7 +393,13 @@ export default function LessonLab() {
                       {!source.archives ? 'Laddar scheman…' : archiveUnreachable ? 'Inte delat med dig' : 'Schemat finns inte längre'}
                     </option>
                   )}
-                  {(source.archives ?? []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {archiveChoices.outside && (
+                    <option value={archiveChoices.outside.id}>{archiveChoices.outside.name} (veckoschema)</option>
+                  )}
+                  {archiveChoices.options.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {source.archives && archiveChoices.options.length === 0 && (
+                    <option disabled value="__none">Inga basscheman ännu. Gör om ett schema i Schema.</option>
+                  )}
                 </select>
                 {state.archiveId && (
                   <Button

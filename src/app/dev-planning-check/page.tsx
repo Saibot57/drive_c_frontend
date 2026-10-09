@@ -58,7 +58,21 @@ const OWN_ARCHIVE = {
   isOwner: true,
   sharedWith: ['hanna'],
   lock: { userId: 'u-tobias', username: 'tobias', acquiredAt: null, isMine: true },
-  updatedAt: null
+  updatedAt: null,
+  kind: 'week' as 'week' | 'base'
+};
+
+/** Ett basschema. Öppnas skrivskyddat; Redigera bas tar låset. */
+const BASE_ARCHIVE = {
+  id: 'arch-bas',
+  name: 'Bas HT26',
+  ownerId: 'u-tobias',
+  ownerUsername: 'tobias',
+  isOwner: true,
+  sharedWith: [] as string[],
+  lock: null as { userId: string; username: string; acquiredAt: null; isMine: boolean } | null,
+  updatedAt: null,
+  kind: 'base' as 'week' | 'base'
 };
 
 /**
@@ -73,7 +87,8 @@ const SHARED_ARCHIVE = {
   isOwner: false,
   sharedWith: ['tobias'],
   lock: { userId: 'u-hanna', username: 'hanna', acquiredAt: null, isMine: false },
-  updatedAt: null
+  updatedAt: null,
+  kind: 'week' as 'week' | 'base'
 };
 
 /**
@@ -87,7 +102,7 @@ const stubPublicLink = (url: string, method: string, body: BodyInit | null | und
   const changes = body ? JSON.parse(String(body)) : {};
   const withArchiveName = (link: Record<string, unknown>) => ({
     ...link,
-    archiveName: [OWN_ARCHIVE, SHARED_ARCHIVE].find(a => a.id === link.archiveId)?.name ?? null,
+    archiveName: [OWN_ARCHIVE, SHARED_ARCHIVE, BASE_ARCHIVE].find(a => a.id === link.archiveId)?.name ?? null,
     updatedAt: new Date().toISOString(),
   });
 
@@ -146,7 +161,7 @@ const installStub = () => {
   );
 
   const archiveOf = (url: string) => (
-    url.includes(SHARED_ARCHIVE.id) ? SHARED_ARCHIVE : OWN_ARCHIVE
+    url.includes(SHARED_ARCHIVE.id) ? SHARED_ARCHIVE : url.includes(BASE_ARCHIVE.id) ? BASE_ARCHIVE : OWN_ARCHIVE
   );
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -161,7 +176,7 @@ const installStub = () => {
       }
       // Hannas schema är låst från början, så läsläget går att titta på. Ett
       // medvetet övertagande (force) släpps igenom, precis som i backend.
-      const held = Boolean(archive.lock) && !archive.lock.isMine;
+      const held = Boolean(archive.lock && !archive.lock.isMine);
       const force = Boolean(init?.body && String(init.body).includes('"force":true'));
       if (held && !force) return json({ acquired: false, archive });
       archive.lock = { userId: 'u-tobias', username: 'tobias', acquiredAt: null, isMine: true };
@@ -170,11 +185,16 @@ const installStub = () => {
     if (url.includes('/planner/public-links')) {
       return json(stubPublicLink(url, method, init?.body));
     }
+    if (url.includes('/planner/archives/') && method === 'PATCH') {
+      const archive = archiveOf(url);
+      archive.kind = JSON.parse(String(init?.body ?? '{}')).kind;
+      return json(archive);
+    }
     if (url.includes('/planner/archives/')) {
       if (method === 'PUT') return json({ archive: archiveOf(url), count: ACTIVITIES.length, activities: ACTIVITIES });
       return json({ archive: archiveOf(url), activities: ACTIVITIES });
     }
-    if (url.includes('/planner/archives')) return json([OWN_ARCHIVE, SHARED_ARCHIVE]);
+    if (url.includes('/planner/archives')) return json([BASE_ARCHIVE, OWN_ARCHIVE, SHARED_ARCHIVE]);
     if (url.includes('/planner/activities')) return json(ACTIVITIES);
     return json([]);
   };

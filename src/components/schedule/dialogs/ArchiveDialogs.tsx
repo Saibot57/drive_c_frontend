@@ -19,8 +19,7 @@ type ArchiveDialogsProps = {
 export function ArchiveDialogs({ archive, currentUsername, saveFailed }: ArchiveDialogsProps) {
   const { deleteArchive, newScheduleSource, activeArchiveId } = archive;
   const sourceIsOpenSchedule = newScheduleSource.kind === 'archive'
-    ? newScheduleSource.id === activeArchiveId
-    : newScheduleSource.kind === 'main' && activeArchiveId === null;
+    && newScheduleSource.id === activeArchiveId;
 
   return (
     <>
@@ -56,13 +55,15 @@ export function ArchiveDialogs({ archive, currentUsername, saveFailed }: Archive
       <NewScheduleDialog
         open={archive.isNewScheduleDialogOpen}
         onOpenChange={archive.setIsNewScheduleDialogOpen}
+        kind={archive.newScheduleKind}
+        duplicateOf={archive.duplicateOf}
         name={archive.newScheduleName}
         onNameChange={archive.setNewScheduleName}
         source={newScheduleSource}
         onSourceChange={archive.setNewScheduleSource}
-        ownArchives={archive.ownArchives}
-        sharedArchives={archive.sharedArchives}
-        canUseMainSchedule={activeArchiveId === null}
+        baseArchives={archive.baseArchives}
+        weekArchives={archive.weekArchives}
+        legacyMainCount={archive.legacyMainCount}
         sourceHasUnsavedChanges={saveFailed && sourceIsOpenSchedule}
         onCreate={archive.handleCreateNewSchedule}
         isCreating={archive.isCreatingSchedule}
