@@ -1,6 +1,7 @@
 # Plan: Temat Kronberg
 
-Status: förslag 2026-10-09, inte påbörjad. Öppna frågor i avsnitt 9.
+Status: förslag 2026-10-09, granskad samma dag (avsnitt 10). Öppna frågor i
+avsnitt 9.
 
 Kronberg är ett andra utseende för Drive C, inspirerat av Dieter Rams och
 Braun: grå ramar i stället för svarta, inga hårda skuggor, en enda
@@ -28,7 +29,7 @@ Underlag:
 | 5 | Kursfärger | Sparas som idag. Kronberg dämpar dem när de visas, med `color-mix` i CSS. Inga data ändras. |
 | 6 | Typsnitt | Red Hat Text för brödtext i båda temana. Kronberg lägger till IBM Plex Mono för tider, siffror, etiketter och kortkommandon. Sidnamnet (SCHEMA) sätts i Archivo i stället för Monument Extended. |
 | 7 | Bakgrundsbilden | `bakgrund59.png` visas bara i Neo. Kronberg har en jämn grå botten. |
-| 8 | Export | PDF, PNG och SVG ser ut som idag i båda temana. De har en egen färgfil (`src/utils/schedulePdf/theme.ts`) och är dokument som delas med andra. |
+| 8 | Export | PDF, PNG och SVG ser ut som idag i båda temana. Schemats export har en egen färgfil (`src/utils/schedulePdf/theme.ts`). Temahjulets och workspace exporter bygger på sidan och kräver var sin åtgärd för att förbli oförändrade (10.1). |
 | 9 | Mörkt läge | Ingår inte. Variablerna gör det möjligt senare. |
 
 ---
@@ -103,7 +104,9 @@ som förut. Deras värden byts mot `--ui-*`:
   `var(--ui-frame-shadow-sm)`. `--radius` (grund för `rounded-lg/md/sm`) får
   ett eget Kronberg-värde, `4px`, men behåller `0.375rem` i Neo.
 - `ConfirmDialog` färgar idag bekräfta-knappen med `bg-rose-200` när något
-  tas bort. Den använder `--ui-danger-bg` och `--ui-danger-fg` i stället.
+  tas bort, och `bg-rose-300` vid hovring. Den använder `--ui-danger-bg`,
+  `--ui-danger-fg` och en ny `--ui-danger-bg-hover` (`#fda4af` i Neo,
+  `#922A17` i Kronberg) i stället.
 
 ### 2.2 Tailwind
 
@@ -119,9 +122,11 @@ kan använda dem i stället för hårdkodade klasser:
 - `borderRadius`: `ui` och `ui-sm`.
 - `fontFamily.mono: 'var(--ui-font-mono)'`. Alla `font-mono` som finns idag
   följer då med utan att röras.
-- `colors.border` är idag `hsl(var(--border))`, men `--border` är `#000`. Det
-  blir ett ogiltigt värde som råkar bli svart. Det ändras till
-  `var(--ui-line)`.
+- `colors.border` är idag `hsl(var(--border))`, men `--border` är `#000`.
+  `hsl(#000)` är ogiltigt, och en ogiltig färg via variabel faller tillbaka
+  på `currentColor`. Ramen får alltså textens färg, inte svart. Den ändras
+  till `var(--ui-line)`. Det ändrar Neo på fyra ställen, som står i PR:en
+  (10.3).
 - `colors.bw`, `mtext` och `text` pekar på `--ui-paper` och `--ui-ink`.
 
 ---
@@ -187,7 +192,11 @@ Komponenter som målar en kursfärg sätter variabeln `--course` i stället för
 I Neo blandas ingenting (100 %), så färgen är exakt som idag. I Kronberg
 dämpas alla färger lika mycket, också egna färger och färger från
 färgreglerna. 72 % ska jämföras med prototypen och justeras där.
-`readableTextColor` behöver inte ändras.
+`ui-course-fill` används bara där texten på färgen alltid är mörk, det vill
+säga i Schema. Där blir kontrasten bättre av dämpningen. I temahjulet,
+Arbetslag och workspace väljs textfärgen med `getReadableTextColor` utifrån
+den odämpade färgen, och där skulle vit text tappa kontrast (10.2). Där
+dämpas inte färgerna.
 
 ### 3.5 Bakgrundsbilden
 
@@ -277,7 +286,9 @@ svarta ramar, 6 skuggor och 66 färgklasser.
   sökträffar i `--ui-lamp`, anteckningsramen blå och massmarkeringen violett
   streckad.
 - Statusmärkena (låst, utesluter) använder `ui-tint-warning`.
-- Den publika sidan (`/s/[token]`) ingår inte här, se steg 7.
+- Den publika sidan (`/s/[token]`) ingår inte här, se steg 7. Skriptet i
+  `<head>` gäller alla sidor från steg 1, så den som slagit på Kronberg ser
+  den publika sidan delvis i Kronberg fram till steg 7.
 - Klart när: Schema med `?tema=kronberg` motsvarar prototypen.
 
 ### Steg 3: Kalender
@@ -289,9 +300,12 @@ CSS-filen. Dagens datum markeras med `--ui-lamp`.
 
 ### Steg 4: Temakalender
 
+Områdenas färger är innehåll och dämpas inte (3.4, 10.2). Färger på SVG sätts
+som `fill`-attribut som idag, så att exporten är oförändrad (10.1).
+
 `src/components/theme-wheel` och `src/styles/theme-wheel.css`. Där finns 2
 svarta ramar, 1 skugga, 31 färgklasser och 12 hex-värden. Områdenas färger i
-hjulet är innehåll och går via `ui-course-fill`.
+hjulet är innehåll och ändras inte.
 
 ### Steg 5: Workspace
 
@@ -369,3 +383,43 @@ dialogerna.
 | 2 | Ska exporten följa temat? | Nej (beslut 8). Kan bli en egen plan. |
 | 3 | Den publika schemasidan | Följer temat från steg 7. Deltagare ser standardtemat, eftersom valet sparas per webbläsare. |
 | 4 | Ska Kronberg ersätta Neo när alla vyer är klara? | Bestäms i steg 8. Tas Neo bort kan `--ui-*` behållas och Neo-värdena strykas. |
+
+---
+
+## 10. Granskning
+
+Planen rör inte backend. Temat är CSS och ett val i webbläsarens
+localStorage. Inget sparas eller skickas till servern, och de publika
+länkarnas `displayConfig` påverkas inte. CSP:n tillåter inline-skript
+(`next.config.mjs`), så skriptet i avsnitt 4 fungerar.
+
+### 10.1 Exporterna
+
+Bara schemats export har en egen färgfil. Två exporter bygger på sidan:
+
+- **Temahjulet** (`useThemeWheelExport.ts`) serialiserar SVG:n utan sidans
+  CSS. Färger som flyttas från `fill`-attribut till CSS försvinner ur
+  exporten, och `background-color` gäller inte SVG alls. Färger i hjulet står
+  kvar som attribut. Ska något dämpas på skärmen görs det med en CSS-regel
+  för `fill`, som exporten inte ser.
+- **Workspace** (`useWorkspaceExport.ts`) fotograferar sidan med
+  `html2canvas` och följer därför temat. Exporten sätts därför till Neo medan
+  den ritas, genom att `html2canvas` får en `onclone` som tar bort
+  `data-theme` från kopian. `html2canvas` 1.4.1 kan inte heller läsa färger
+  som `color-mix` ger, så `color-mix` används inte i workspace.
+
+### 10.2 Dämpade färger och textfärg
+
+`getReadableTextColor` väljer mellan mörk och vit text utifrån den sparade
+färgen. Dämpad med 72 % mot `--ui-paper` blir vit text på exempelvis
+`#e11d48`, `#2563eb` och `#7c3aed` ungefär 3:1 i stället för 5:1. Därför
+dämpas bara Schema, där texten alltid är mörk (3.4).
+
+### 10.3 Ändringar i Neo
+
+- `border-border` får svart i stället för textens färg. Det syns på
+  Ta bort-knapparna i `ShareArchiveDialog.tsx` och `LabShareDialog.tsx`
+  (rosa text) och på den enda `secondary`-knappen, vars kant går från helsvart
+  till 60 % svart som klassen säger.
+- Hovringen på bekräfta-knappen behålls genom `--ui-danger-bg-hover` (2.1).
+
