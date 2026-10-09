@@ -264,12 +264,12 @@ export function TermPanels({ panels }: { panels: PanelDef[] }) {
               onDragEnd={onDragEnd}
               className={cn(
                 'flex cursor-grab select-none items-center gap-2 px-3 py-2.5 active:cursor-grabbing',
-                !item.collapsed && 'border-b-2 border-black',
+                !item.collapsed && 'border-b-frame border-ui-line',
               )}
             >
               <button
                 type="button"
-                className="rounded p-0.5 text-gray-400 hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
+                className="rounded p-0.5 text-ui-subtle hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
                 aria-label="Flytta rutan (piltangenter)"
                 title="Dra för att flytta"
                 onKeyDown={event => onGripKey(event, item.id)}
@@ -280,7 +280,7 @@ export function TermPanels({ panels }: { panels: PanelDef[] }) {
               {panel.actions}
               <button
                 type="button"
-                className="rounded p-1 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
+                className="rounded p-1 hover:bg-gray-100 kron:hover:bg-ui-surface-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
                 aria-expanded={!item.collapsed}
                 aria-label={item.collapsed ? 'Fäll ut' : 'Fäll ihop'}
                 title={item.collapsed ? 'Fäll ut' : 'Fäll ihop'}
@@ -313,7 +313,7 @@ export function TermPanels({ panels }: { panels: PanelDef[] }) {
                   onDoubleClick={() => update(item.id, { height: null })}
                   onKeyDown={event => onResizeKey(event, item)}
                 >
-                  <svg viewBox="0 0 16 16" className="h-4 w-4 text-gray-400" aria-hidden>
+                  <svg viewBox="0 0 16 16" className="h-4 w-4 text-ui-subtle" aria-hidden>
                     <path d="M14 6 6 14M14 10l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                 </div>

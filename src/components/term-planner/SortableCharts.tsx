@@ -61,7 +61,7 @@ export function SortableCharts({ storageKey, items, className }: {
             )}
             <button
               type="button"
-              className="absolute left-1 top-1 rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:text-black focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black group-hover:opacity-100"
+              className="absolute left-1 top-1 rounded p-0.5 text-ui-subtle opacity-0 transition-opacity hover:text-black focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black group-hover:opacity-100"
               aria-label={`Flytta ${item.label} (piltangenter)`}
               title="Dra för att flytta"
               onKeyDown={event => onKeyDown(event, id)}

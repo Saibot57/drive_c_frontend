@@ -98,8 +98,8 @@ export default function PublicDayList({ entries, resolveColor, resolveRoom }: Pr
               role="tab"
               aria-selected={isActive}
               onClick={() => setDay(name)}
-              className={`rounded border-2 border-black py-2 text-sm font-bold ${
-                isActive ? 'bg-black text-white' : 'bg-white text-black'
+              className={`rounded border-frame border-ui-line py-2 text-sm font-bold ${
+                isActive ? 'bg-black text-white' : 'bg-ui-paper text-black'
               } ${count === 0 && !isActive ? 'opacity-50' : ''}`}
             >
               {SHORT_DAY[name] ?? name}
@@ -111,7 +111,7 @@ export default function PublicDayList({ entries, resolveColor, resolveRoom }: Pr
       <h2 className="mt-4 mb-2 text-lg font-bold">{day}</h2>
 
       {groups.length === 0 ? (
-        <p className="rounded border-2 border-dashed border-gray-300 p-4 text-center text-sm text-gray-500">
+        <p className="rounded border-2 border-dashed border-gray-300 kron:border-ui-line p-4 text-center text-sm text-ui-muted">
           Inga pass den här dagen.
         </p>
       ) : (
@@ -124,7 +124,7 @@ export default function PublicDayList({ entries, resolveColor, resolveRoom }: Pr
                   {group.sharedEndTime ? `–${group.sharedEndTime}` : ''}
                 </span>
                 {group.entries.length > 1 && (
-                  <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                  <span className="text-xs font-bold uppercase tracking-wide text-ui-muted">
                     {group.entries.length} parallella
                   </span>
                 )}
@@ -137,7 +137,7 @@ export default function PublicDayList({ entries, resolveColor, resolveRoom }: Pr
                   return (
                     <li
                       key={entry.instanceId}
-                      className="flex overflow-hidden rounded border-2 border-black bg-white"
+                      className="flex overflow-hidden rounded border-frame border-ui-line bg-ui-paper"
                     >
                       <div
                         className="w-2 shrink-0"
@@ -156,12 +156,12 @@ export default function PublicDayList({ entries, resolveColor, resolveRoom }: Pr
                           )}
                         </div>
                         {(teachers.length > 0 || room) && (
-                          <div className="mt-0.5 text-sm text-gray-700">
+                          <div className="mt-0.5 text-sm text-gray-700 kron:text-ui-ink-2">
                             {[teachers.join(', '), room].filter(Boolean).join(' · ')}
                           </div>
                         )}
                         {entry.notes && (
-                          <p className="mt-1.5 whitespace-pre-line text-sm text-gray-800">{entry.notes}</p>
+                          <p className="mt-1.5 whitespace-pre-line text-sm text-gray-800 kron:text-ui-ink">{entry.notes}</p>
                         )}
                         {url && (
                           <a

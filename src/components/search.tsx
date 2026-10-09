@@ -14,7 +14,7 @@ export const Search: React.FC<SearchProps> = ({ onSearch }) => {
       <Input
         type="text"
         placeholder="Sök filer…"
-        className="pl-10 h-10 border-2 border-black rounded-xl bg-[#dbd3ee] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:bg-[#e2dcf1] transition-colors"
+        className="pl-10 h-10 border-frame border-ui-line rounded-ui bg-[#dbd3ee] kron:bg-ui-paper shadow-frame focus:bg-[#e2dcf1] kron:focus:bg-ui-paper kron:border-ui-control transition-colors"
         onChange={(e) => onSearch(e.target.value)}
       />
       <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-black-500" />

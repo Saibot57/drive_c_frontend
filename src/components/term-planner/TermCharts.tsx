@@ -33,7 +33,7 @@ const LESSON_ORDER_KEY = 'termPlanner.order.lessons.v1';
 // Passens titel, normaliserad.
 const LESSON_TYPE_ORDER_KEY = 'termPlanner.order.lessonTypes.v1';
 
-const Empty = () => <p className="p-4 text-sm italic text-gray-500">Inga lärartimmar att visa ännu.</p>;
+const Empty = () => <p className="p-4 text-sm italic text-ui-muted">Inga lärartimmar att visa ännu.</p>;
 
 /** Hur Oliv, Rosa och Grund fördelas på lärarna. */
 export function ClassSharePanel({ stats, teacherColors }: {
@@ -77,7 +77,7 @@ export function LessonMixPanel({ mixes, teacherColors }: {
                   aria-hidden
                 />
                 <span className="truncate">{mix.label}</span>
-                <span className="font-normal text-gray-500">· {formatHours(mix.total)} h</span>
+                <span className="font-normal text-ui-muted">· {formatHours(mix.total)} h</span>
               </span>
             )}
             slices={foldSlices(mix.lessons, MAX_LESSON_SLICES)}
@@ -100,7 +100,7 @@ export function LessonTeachersPanel({ lessons, isSelected, teacherColors }: {
   if (lessons.length === 0) return <Empty />;
   const shown = lessons.filter(isSelected);
   if (shown.length === 0) {
-    return <p className="p-4 text-sm italic text-gray-500">Inga pass valda. Välj pass under kugghjulet.</p>;
+    return <p className="p-4 text-sm italic text-ui-muted">Inga pass valda. Välj pass under kugghjulet.</p>;
   }
   return (
     <SortableCharts

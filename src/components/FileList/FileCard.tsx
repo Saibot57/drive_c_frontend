@@ -34,7 +34,7 @@ export const FileCard: React.FC<FileCardProps> = ({ file, showTags }) => {
       {showTags && file.tags && file.tags.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-1">
           {file.tags.map((tag, idx) => (
-            <span key={idx} className="px-1.5 py-0.5 bg-gray-100 text-xs rounded">
+            <span key={idx} className="px-1.5 py-0.5 bg-gray-100 kron:bg-ui-surface-3 text-xs rounded">
               {tag}
             </span>
           ))}

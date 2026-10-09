@@ -59,7 +59,7 @@ export function LessonSelectionMenu({ lessons, selection }: {
   return (
     <DropdownMenuPrimitive.Root modal={false}>
       <DropdownMenuPrimitive.Trigger
-        className="rounded p-1 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black data-[state=open]:bg-gray-100"
+        className="rounded p-1 hover:bg-gray-100 kron:hover:bg-ui-surface-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black data-[state=open]:bg-gray-100"
         aria-label="Välj vilka pass som visas"
         title="Välj vilka pass som visas"
       >
@@ -70,14 +70,14 @@ export function LessonSelectionMenu({ lessons, selection }: {
           align="end"
           sideOffset={6}
           collisionPadding={12}
-          className="z-50 flex max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] w-72 flex-col rounded-md border-2 border-black bg-white shadow-[4px_4px_0_0_#000]"
+          className="z-50 flex max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] w-72 flex-col rounded-md border-frame border-ui-line bg-ui-paper shadow-frame"
         >
-          <div className="flex items-center justify-between gap-2 border-b-2 border-black px-3 py-2">
+          <div className="flex items-center justify-between gap-2 border-b-frame border-ui-line px-3 py-2">
             <span className="text-sm font-bold">
-              Visa pass <span className="font-normal text-gray-500">{selectedCount} av {lessons.length}</span>
+              Visa pass <span className="font-normal text-ui-muted">{selectedCount} av {lessons.length}</span>
             </span>
           </div>
-          <div className="flex gap-1 border-b border-gray-100 px-2 py-1.5">
+          <div className="flex gap-1 border-b border-gray-100 kron:border-ui-hair px-2 py-1.5">
             <DropdownMenuPrimitive.Item className={actionClass} onSelect={event => { keepOpen(event); selection.setAll(lessons, true); }}>
               Alla
             </DropdownMenuPrimitive.Item>
@@ -94,7 +94,7 @@ export function LessonSelectionMenu({ lessons, selection }: {
           </div>
 
           <div className="min-h-0 overflow-y-auto p-1">
-            {sorted.length === 0 && <p className="px-2 py-1.5 text-sm italic text-gray-500">Inga pass ännu.</p>}
+            {sorted.length === 0 && <p className="px-2 py-1.5 text-sm italic text-ui-muted">Inga pass ännu.</p>}
             {sorted.map(lesson => {
               const checked = selection.isSelected(lesson);
               return (
@@ -108,15 +108,15 @@ export function LessonSelectionMenu({ lessons, selection }: {
                   <span
                     aria-hidden
                     className={cn(
-                      'flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border-2 border-black',
-                      checked ? 'bg-black text-white' : 'bg-white',
+                      'flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border-frame border-ui-line',
+                      checked ? 'bg-black text-white' : 'bg-ui-paper',
                     )}
                   >
                     {checked && <Check size={12} strokeWidth={3} />}
                   </span>
                   <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: lesson.color }} />
                   <span className="min-w-0 flex-1 truncate" title={lesson.label}>{lesson.label}</span>
-                  <span className="shrink-0 text-xs tabular-nums text-gray-500">{formatHours(lesson.total)} h</span>
+                  <span className="shrink-0 text-xs tabular-nums text-ui-muted">{formatHours(lesson.total)} h</span>
                 </DropdownMenuPrimitive.CheckboxItem>
               );
             })}

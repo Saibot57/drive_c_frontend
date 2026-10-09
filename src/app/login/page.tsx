@@ -38,16 +38,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-white">
-      <Card className="w-full max-w-md overflow-hidden rounded-xl border-2 border-black bg-white shadow-neo">
-        <CardHeader className="border-b-2 border-black bg-main">
-          <CardTitle className="font-monument text-2xl text-black">
+    <div className="flex items-center justify-center min-h-screen bg-ui-bg">
+      <Card className="w-full max-w-md overflow-hidden rounded-ui border-frame border-ui-line bg-ui-paper shadow-frame">
+        <CardHeader className="border-b-frame border-ui-line bg-main kron:bg-ui-surface">
+          <CardTitle className="font-monument ui-heading text-2xl text-black kron:text-ui-ink">
             {isRegister ? 'Skapa konto' : 'Logga in'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           {error && (
-            <div className="mb-4 rounded border-2 border-black bg-rose-50 p-3 text-sm text-rose-800">
+            <div className="mb-4 rounded border-frame border-ui-line bg-rose-50 p-3 text-sm text-rose-800 kron:text-ui-danger">
               {error}
             </div>
           )}
@@ -61,7 +61,7 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="border-2 border-black"
+                className="border-frame border-ui-line"
               />
             </div>
             
@@ -76,9 +76,9 @@ export default function LoginPage() {
                     onChange={(e) => setInviteCode(e.target.value)}
                     required
                     autoComplete="off"
-                    className="border-2 border-black"
+                    className="border-frame border-ui-line"
                   />
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 kron:text-ui-muted">
                     Krävs för att skapa konto. Fråga den som äger appen.
                   </p>
                 </div>
@@ -90,7 +90,7 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="border-2 border-black"
+                    className="border-frame border-ui-line"
                   />
                 </div>
               </>
@@ -105,10 +105,10 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={isRegister ? MIN_PASSWORD_LENGTH : undefined}
-                className="border-2 border-black"
+                className="border-frame border-ui-line"
               />
               {isRegister && (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-600 kron:text-ui-muted">
                   Minst {MIN_PASSWORD_LENGTH} tecken.
                 </p>
               )}

@@ -339,7 +339,7 @@ export default function TermPlanner() {
   // --- Render ---
 
   const countSummary = (
-    <div className="border-b border-gray-100 px-4 py-2 text-xs text-gray-600">
+    <div className="border-b border-gray-100 kron:border-ui-hair px-4 py-2 text-xs text-gray-600 kron:text-ui-muted">
       Timmar, räknat ur {scopeSummary.counted} {scopeSummary.counted === 1 ? 'vecka' : 'veckor'}
       {scopeSummary.holidays > 0 && ` · ${scopeSummary.holidays} lov`}
       {scopeSummary.loading > 0 && ` · ${scopeSummary.loading} laddas`}
@@ -347,9 +347,9 @@ export default function TermPlanner() {
         <span className="text-amber-700"> · utan schema: {scopeSummary.uncounted.join(', ')}</span>
       )}
       {scopeSummary.unreadable.length > 0 && (
-        <span className="text-rose-700"> · kunde inte läsas: {scopeSummary.unreadable.join(', ')}</span>
+        <span className="text-rose-700 kron:text-ui-danger"> · kunde inte läsas: {scopeSummary.unreadable.join(', ')}</span>
       )}
-      <div className="mt-1 text-gray-400">
+      <div className="mt-1 text-ui-subtle">
         Pass med &quot;alla&quot; som lärare räknas inte. Samtidiga pass räknas en gång.
         Klicka på en lärare för vecka för vecka.
       </div>
@@ -395,7 +395,7 @@ export default function TermPlanner() {
 
   return (
     <div className="sp-root">
-      <div className="fixed inset-0 z-0">
+      <div className="ui-backdrop fixed inset-0 z-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/bakgrund59.png" alt="" className="h-full w-full object-cover" />
       </div>
@@ -406,16 +406,16 @@ export default function TermPlanner() {
 
           <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
             {term && (
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-ui-muted">
                 {saveStatus === 'saving' && <Loader2 size={14} className="animate-spin" />}
-                {saveStatus === 'error' && <CloudOff size={14} className="text-rose-600" />}
+                {saveStatus === 'error' && <CloudOff size={14} className="text-rose-600 kron:text-ui-danger" />}
                 {(saveStatus === 'saved' || saveStatus === 'pending') && <Cloud size={14} />}
                 {saveStatus === 'saving' ? 'Sparar…' : saveStatus === 'error' ? 'Ej sparat' : saveStatus === 'pending' ? 'Ändrat' : 'Sparat'}
               </span>
             )}
             {terms.length > 0 && (
               <select
-                className="sp-input h-10 rounded-md bg-white px-3 text-sm font-semibold"
+                className="sp-input h-10 rounded-md bg-ui-paper px-3 text-sm font-semibold"
                 value={term?.id ?? ''}
                 onChange={event => { void openTerm(event.target.value); }}
                 disabled={saveStatus !== 'saved' && saveStatus !== 'error'}
@@ -442,7 +442,7 @@ export default function TermPlanner() {
             <Button variant="neutral" className="sp-btn" onClick={refresh} title="Läs om scheman från planeraren">
               <RefreshCw size={16} className="mr-2" /> Uppdatera
             </Button>
-            <Button variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200" onClick={() => setNewTermOpen(true)}>
+            <Button variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3" onClick={() => setNewTermOpen(true)}>
               <Plus size={16} className="mr-2" /> Ny termin
             </Button>
           </div>
@@ -458,22 +458,22 @@ export default function TermPlanner() {
           <div className="sp-toast mb-4 flex items-center justify-between gap-4 bg-rose-50 px-4 py-2 text-sm">
             <span>
               Kunde inte hämta scheman från planeraren.
-              <span className="ml-2 text-xs text-gray-500">{archivesError}</span>
+              <span className="ml-2 text-xs text-ui-muted">{archivesError}</span>
             </span>
             <button type="button" className="text-xs font-semibold underline" onClick={refresh}>Försök igen</button>
           </div>
         )}
 
         {loadStatus === 'loading' && (
-          <div className="sp-card p-6 text-sm text-gray-500">Laddar…</div>
+          <div className="sp-card p-6 text-sm text-ui-muted">Laddar…</div>
         )}
         {loadStatus === 'error' && (
-          <div className="sp-card p-6 text-sm text-rose-700">Kunde inte hämta terminerna.</div>
+          <div className="sp-card p-6 text-sm text-rose-700 kron:text-ui-danger">Kunde inte hämta terminerna.</div>
         )}
         {loadStatus === 'loaded' && !term && (
           <div className="sp-card p-6">
             <h2 className="mb-2 font-bold">Terminsplaneraren</h2>
-            <p className="mb-4 text-sm text-gray-600">
+            <p className="mb-4 text-sm text-gray-600 kron:text-ui-muted">
               Lägg upp terminens veckor, markera lov och välj vilket veckoschema som gäller.
               Då räknas lärarnas timmar per klass ihop för hela terminen.
             </p>
@@ -484,7 +484,7 @@ export default function TermPlanner() {
         {term && (
           <div className="flex flex-col gap-6 2xl:flex-row 2xl:items-start">
             <div className="sp-card shrink-0 2xl:w-[440px]">
-              <div className="flex items-center justify-between gap-2 border-b-2 border-black px-4 py-3">
+              <div className="flex items-center justify-between gap-2 border-b-frame border-ui-line px-4 py-3">
                 <h2 className="font-bold">{term.name} · veckor</h2>
                 <Button
                   variant="neutral"
@@ -521,7 +521,7 @@ export default function TermPlanner() {
         href="/features/arbetslag"
         title="Arbetslag"
         aria-label="Arbetslag"
-        className="fixed bottom-4 left-4 z-20 rounded-md border-2 border-black bg-white p-1.5 opacity-60 shadow-[2px_2px_0_0_#000] transition-opacity hover:opacity-100 focus-visible:opacity-100"
+        className="fixed bottom-4 left-4 z-20 rounded-md border-frame border-ui-line bg-ui-paper p-1.5 opacity-60 shadow-frame-sm transition-opacity hover:opacity-100 focus-visible:opacity-100"
       >
         <DoorOpen size={18} />
       </Link>

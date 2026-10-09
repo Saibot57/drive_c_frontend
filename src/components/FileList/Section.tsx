@@ -71,13 +71,13 @@ const Folder: React.FC<FolderControls & { folder: FolderNode }> = ({ folder, ...
         />
         <span
           className={`min-w-0 flex-grow break-words leading-tight group-hover:underline ${
-            subheading ? 'font-monument text-lg' : 'text-sm font-semibold'
+            subheading ? 'ui-heading text-lg' : 'text-sm font-semibold'
           }`}
         >
           {folder.name}
         </span>
         {!open && (
-          <span className="flex-shrink-0 pl-1 text-xs tabular-nums text-gray-500">
+          <span className="flex-shrink-0 pl-1 text-xs tabular-nums text-ui-muted">
             {folder.fileCount}
           </span>
         )}
@@ -131,19 +131,19 @@ export const Section: React.FC<SectionProps> = ({ section, drag, ...controls }) 
           mappen att flytta är fliken greppet. */}
       <h2
         {...drag?.handleProps}
-        className={`relative z-10 -mb-[2px] inline-block max-w-[85%] rounded-t-xl border-2 border-b-0 border-black px-[9px] pb-[6px] pt-[7px] align-bottom shadow-[4px_0_0_0_#000] ${
+        className={`relative z-10 -mb-[2px] inline-block max-w-[85%] rounded-t-xl border-2 border-b-0 border-black px-[9px] pb-[6px] pt-[7px] align-bottom shadow-[4px_0_0_0_#000] kron:shadow-none ${
           drag ? 'cursor-grab select-none active:cursor-grabbing' : ''
         }`}
         style={{ backgroundColor: sectionColor }}
         title={drag ? `${section.name} – dra för att flytta` : section.name}
       >
-        <span className="block truncate rounded-[5px] border-2 border-black bg-white px-2.5 pb-0.5 pt-1 font-monument text-[19px] leading-tight">
+        <span className="block truncate rounded-[5px] border-frame border-ui-line bg-ui-paper px-2.5 pb-0.5 pt-1 ui-heading text-[19px] leading-tight">
           {section.name}
         </span>
         {drag && (
           <button
             type="button"
-            className="absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded border-2 border-black bg-white p-0.5 opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black group-hover/section:opacity-100"
+            className="absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded border-frame border-ui-line bg-ui-paper p-0.5 opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black group-hover/section:opacity-100"
             aria-label={`Flytta ${section.name} (piltangenter)`}
             onKeyDown={drag.onKeyDown}
           >
@@ -154,14 +154,14 @@ export const Section: React.FC<SectionProps> = ({ section, drag, ...controls }) 
       {/* Kortet är mappens baksida. Bunten sticker upp ovanför framsidan,
           som är vit och har ett tumgrepp mitt på överkanten. */}
       <div
-        className="relative rounded-xl rounded-tl-none border-2 border-black pt-[34px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+        className="relative rounded-ui rounded-tl-none border-frame border-ui-line pt-[34px] shadow-frame"
         style={{ backgroundColor: sectionColor }}
       >
         <PaperStack fileCount={section.fileCount} />
-        <div className="relative z-[1] rounded-b-[10px] border-t-2 border-black bg-white">
+        <div className="relative z-[1] rounded-b-[10px] border-t-frame border-ui-line bg-ui-paper">
           <span
             aria-hidden
-            className="absolute -top-[2px] left-1/2 z-[1] h-5 w-[58px] -translate-x-1/2 rounded-b-full border-2 border-t-0 border-black bg-white"
+            className="absolute -top-[2px] left-1/2 z-[1] h-5 w-[58px] -translate-x-1/2 rounded-b-full border-2 border-t-0 border-black bg-ui-paper"
           />
           <div className="overflow-hidden rounded-b-[10px]">
             {/* Radix lägger innehållet i en display: table, som låter långa namn
