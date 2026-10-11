@@ -23,13 +23,13 @@ const toPayload = (term: Omit<Term, 'id'>) => ({
 export const termService = {
   async listTerms(): Promise<TermSummary[]> {
     const response = await fetchWithAuth(TERM_API_URL);
-    const data = await readData<TermSummary[]>(response, 'Kunde inte hämta terminerna.');
+    const data = await readData<TermSummary[]>(response, 'Kunde inte hämta temana.');
     return Array.isArray(data) ? data : [];
   },
 
   async getTerm(id: string): Promise<Term> {
     const response = await fetchWithAuth(`${TERM_API_URL}/${encodeURIComponent(id)}`);
-    return readData<Term>(response, 'Kunde inte hämta terminen.');
+    return readData<Term>(response, 'Kunde inte hämta temat.');
   },
 
   async createTerm(term: Omit<Term, 'id'>): Promise<Term> {
@@ -37,7 +37,7 @@ export const termService = {
       method: 'POST',
       body: JSON.stringify(toPayload(term)),
     });
-    return readData<Term>(response, 'Kunde inte skapa terminen.');
+    return readData<Term>(response, 'Kunde inte skapa temat.');
   },
 
   async updateTerm(term: Term): Promise<Term> {
@@ -45,13 +45,13 @@ export const termService = {
       method: 'PUT',
       body: JSON.stringify(toPayload(term)),
     });
-    return readData<Term>(response, 'Kunde inte spara terminen.');
+    return readData<Term>(response, 'Kunde inte spara temat.');
   },
 
   async deleteTerm(id: string): Promise<void> {
     const response = await fetchWithAuth(`${TERM_API_URL}/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
-    await readData(response, 'Kunde inte ta bort terminen.');
+    await readData(response, 'Kunde inte ta bort temat.');
   },
 };

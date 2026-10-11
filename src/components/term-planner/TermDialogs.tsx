@@ -82,7 +82,7 @@ type NewTermDialogProps = {
   onCreate: (meta: TermMeta, weeks: TermWeek[] | null) => Promise<void>;
 };
 
-/** Ny termin, tom eller med veckor och lov från ett temahjul. */
+/** Nytt tema, tomt eller med veckor och lov från ett temahjul. */
 export function NewTermDialog({ open, onClose, onCreate }: NewTermDialogProps) {
   const [meta, setMeta] = useState<TermMeta>(defaultMeta);
   const [wheels, setWheels] = useState<ThemeWheelSummary[]>([]);
@@ -127,7 +127,7 @@ export function NewTermDialog({ open, onClose, onCreate }: NewTermDialogProps) {
       await onCreate(meta, wheelWeeks);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Kunde inte skapa terminen.');
+      setError(e instanceof Error ? e.message : 'Kunde inte skapa temat.');
     } finally {
       setBusy(false);
     }
@@ -136,7 +136,7 @@ export function NewTermDialog({ open, onClose, onCreate }: NewTermDialogProps) {
   return (
     <Dialog open={open} onOpenChange={next => { if (!next) onClose(); }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Ny termin</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Nytt tema</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
             <Label htmlFor="term-wheel">Utgå från temakalendern (valfritt)</Label>
@@ -146,7 +146,7 @@ export function NewTermDialog({ open, onClose, onCreate }: NewTermDialogProps) {
               value={wheelId}
               onChange={event => { void chooseWheel(event.target.value); }}
             >
-              <option value="">— tom termin —</option>
+              <option value="">— tomt tema —</option>
               {wheels.map(wheel => (
                 <option key={wheel.id} value={wheel.id}>
                   {wheel.name} (v.{wheel.startWeek}, {wheel.weekCount} v)
@@ -199,12 +199,12 @@ export function TermSettingsDialog({ initial, onClose, onSave, onDelete }: Setti
   return (
     <Dialog open={Boolean(initial)} onOpenChange={next => { if (!next) onClose(); }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Terminens inställningar</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Temats inställningar</DialogTitle></DialogHeader>
         {meta && (
           <form onSubmit={submit} className="space-y-3">
             <MetaFields meta={meta} onChange={setMeta} />
             <p className="text-xs text-ui-muted">
-              Färre veckor kapar slutet av terminen. Ändrad startvecka flyttar alla rader.
+              Färre veckor kapar slutet av temat. Ändrad startvecka flyttar alla rader.
             </p>
             <DialogFooter className="gap-2 sm:justify-between">
               <Button
@@ -216,7 +216,7 @@ export function TermSettingsDialog({ initial, onClose, onSave, onDelete }: Setti
                   void onDelete().then(onClose);
                 }}
               >
-                {confirmDelete ? 'Klicka igen för att radera' : 'Radera terminen'}
+                {confirmDelete ? 'Klicka igen för att radera' : 'Radera temat'}
               </Button>
               <Button type="submit" disabled={!isValidMeta(meta)}>Spara</Button>
             </DialogFooter>
