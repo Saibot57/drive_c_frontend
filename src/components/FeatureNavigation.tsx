@@ -50,7 +50,7 @@ const features: readonly Feature[] = [
  * Sidor som inte står i menyn eller i genvägshjälpen. De finns här bara för
  * att menyknappen ska visa rätt namn när man väl är där.
  *
- * Terminsplaneraren nås med t-t-t (tre gånger inom en sekund, utanför
+ * Statistiken nås med t-t-t (tre gånger inom en sekund, utanför
  * textfält) eller Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
  * sidan läser bara scheman som den inloggade redan har tillgång till.
  *
@@ -59,10 +59,11 @@ const features: readonly Feature[] = [
  */
 const hiddenFeatures: readonly Feature[] = [
   { label: 'Detaljplan',      href: '/features/arbetslag/detalj',   icon: DoorOpen,     shortcut: '' },
-  { label: 'Termin',          href: '/features/termin',             icon: Sigma,        shortcut: '' },
+  { label: 'Statistik',       href: '/features/statistik',          icon: Sigma,        shortcut: '',
+    aliases: ['/features/termin'] },
 ];
 
-const TERM_PLANNER_HREF = '/features/termin';
+const TERM_PLANNER_HREF = '/features/statistik';
 
 export function FeatureNavigation() {
   const pathname = usePathname();

@@ -104,7 +104,7 @@ export default function TermPlanner() {
       setArchives(await withRetry(() => plannerService.listArchives()));
       setArchivesError(null);
     } catch (error) {
-      console.error('Terminsplaneraren: kunde inte hämta scheman', error);
+      console.error('Statistik: kunde inte hämta scheman', error);
       // Bara felkoden, eller webbläsarens egen text ("Load failed") när
       // anropet aldrig nådde servern. Resten står redan i rutan.
       const detail = errorDetail(error);
@@ -119,7 +119,7 @@ export default function TermPlanner() {
       setSaveStatus('saved');
       writeLastTermId(id);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Kunde inte hämta terminen.');
+      setNotice(e instanceof Error ? e.message : 'Kunde inte hämta temat.');
     }
   }, []);
 
@@ -160,7 +160,7 @@ export default function TermPlanner() {
         if (version.current === savingVersion) setSaveStatus('saved');
       } catch (e) {
         if (version.current === savingVersion) setSaveStatus('error');
-        setNotice(e instanceof Error ? e.message : 'Kunde inte spara terminen.');
+        setNotice(e instanceof Error ? e.message : 'Kunde inte spara temat.');
       }
     }, SAVE_DELAY_MS);
   }, []);
@@ -332,7 +332,7 @@ export default function TermPlanner() {
       setSaveStatus('saved');
       if (remaining[0]) await openTerm(remaining[0].id);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Kunde inte ta bort terminen.');
+      setNotice(e instanceof Error ? e.message : 'Kunde inte ta bort temat.');
     }
   };
 
@@ -419,9 +419,9 @@ export default function TermPlanner() {
                 value={term?.id ?? ''}
                 onChange={event => { void openTerm(event.target.value); }}
                 disabled={saveStatus !== 'saved' && saveStatus !== 'error'}
-                aria-label="Välj termin"
+                aria-label="Välj tema"
               >
-                {!term && <option value="">Välj termin</option>}
+                {!term && <option value="">Välj tema</option>}
                 {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             )}
@@ -443,7 +443,7 @@ export default function TermPlanner() {
               <RefreshCw size={16} className="mr-2" /> Uppdatera
             </Button>
             <Button variant="neutral" className="sp-btn bg-amber-100 hover:bg-amber-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3" onClick={() => setNewTermOpen(true)}>
-              <Plus size={16} className="mr-2" /> Ny termin
+              <Plus size={16} className="mr-2" /> Nytt tema
             </Button>
           </div>
         </div>
@@ -468,16 +468,16 @@ export default function TermPlanner() {
           <div className="sp-card p-6 text-sm text-ui-muted">Laddar…</div>
         )}
         {loadStatus === 'error' && (
-          <div className="sp-card p-6 text-sm text-rose-700 kron:text-ui-danger">Kunde inte hämta terminerna.</div>
+          <div className="sp-card p-6 text-sm text-rose-700 kron:text-ui-danger">Kunde inte hämta temana.</div>
         )}
         {loadStatus === 'loaded' && !term && (
           <div className="sp-card p-6">
-            <h2 className="mb-2 font-bold">Terminsplaneraren</h2>
+            <h2 className="mb-2 font-bold">Statistik</h2>
             <p className="mb-4 text-sm text-gray-600 kron:text-ui-muted">
-              Lägg upp terminens veckor, markera lov och välj vilket veckoschema som gäller.
-              Då räknas lärarnas timmar per klass ihop för hela terminen.
+              Lägg upp temats veckor, markera lov och välj vilket veckoschema som gäller.
+              Då räknas lärarnas timmar per klass ihop för hela temat.
             </p>
-            <Button onClick={() => setNewTermOpen(true)}><Plus size={16} className="mr-2" /> Ny termin</Button>
+            <Button onClick={() => setNewTermOpen(true)}><Plus size={16} className="mr-2" /> Nytt tema</Button>
           </div>
         )}
 

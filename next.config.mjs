@@ -30,6 +30,8 @@ const nextConfig = {
   async redirects() {
     return [
       { source: '/features/termin/labb/:path*', destination: '/features/arbetslag/:path*', permanent: true },
+      // Sidan hette Termin. Gamla bokmärken leder till Statistik.
+      { source: '/features/termin', destination: '/features/statistik', permanent: true },
     ];
   },
   async headers() {

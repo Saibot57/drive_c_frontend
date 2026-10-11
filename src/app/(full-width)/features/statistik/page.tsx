@@ -2,7 +2,7 @@
 import ProtectedRoute from '@/components/ProtectedRoute';
 import TermPlanner from '@/components/term-planner/TermPlanner';
 
-export default function TerminPage() {
+export default function StatistikPage() {
   return (
     <ProtectedRoute>
       <div className="space-y-6">
