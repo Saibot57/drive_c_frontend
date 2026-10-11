@@ -106,7 +106,7 @@ const PaperStack: React.FC<{ fileCount: number }> = ({ fileCount }) => (
     {Array.from({ length: sheetCount(fileCount) }, (_, k) => (
       <span
         key={k}
-        className="absolute h-full rounded-t-[3px] border-[1.5px] border-b-0 border-black"
+        className="absolute h-full rounded-t-[3px] border-[1.5px] border-b-0 border-black kron:border-x kron:border-t kron:border-ui-line"
         style={{
           top: 1 + k * 4,
           left: 10 + (k % 2 ? 7 : 2) + k,
@@ -127,11 +127,12 @@ export const Section: React.FC<SectionProps> = ({ section, drag, ...controls }) 
   return (
     <div className="group/section mb-5 min-w-0">
       {/* Fliken sitter på mappens baksida och har dess färg. Namnet står på en
-          vit etikett. Fliken täcker kortets övre kant med -mb-[2px]. Går
+          vit etikett. Fliken täcker kortets övre kant med -mb-[2px] (en ramtjocklek
+          i Kronberg). Går
           mappen att flytta är fliken greppet. */}
       <h2
         {...drag?.handleProps}
-        className={`relative z-10 -mb-[2px] inline-block max-w-[85%] rounded-t-xl border-2 border-b-0 border-black px-[9px] pb-[6px] pt-[7px] align-bottom shadow-[4px_0_0_0_#000] kron:shadow-none ${
+        className={`relative z-10 -mb-[2px] inline-block max-w-[85%] rounded-t-xl border-frame border-b-0 border-ui-line px-[9px] kron:-mb-px pb-[6px] pt-[7px] align-bottom shadow-[4px_0_0_0_#000] kron:shadow-none ${
           drag ? 'cursor-grab select-none active:cursor-grabbing' : ''
         }`}
         style={{ backgroundColor: sectionColor }}
@@ -161,7 +162,7 @@ export const Section: React.FC<SectionProps> = ({ section, drag, ...controls }) 
         <div className="relative z-[1] rounded-b-[10px] border-t-frame border-ui-line bg-ui-paper">
           <span
             aria-hidden
-            className="absolute -top-[2px] left-1/2 z-[1] h-5 w-[58px] -translate-x-1/2 rounded-b-full border-2 border-t-0 border-black bg-ui-paper"
+            className="absolute -top-[2px] left-1/2 z-[1] h-5 w-[58px] -translate-x-1/2 rounded-b-full border-frame border-t-0 border-ui-line bg-ui-paper kron:-top-px"
           />
           <div className="overflow-hidden rounded-b-[10px]">
             {/* Radix lägger innehållet i en display: table, som låter långa namn
