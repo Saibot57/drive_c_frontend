@@ -243,6 +243,19 @@
   color: var(--ui-muted);
 }
 
+/* Bibliotekets mappar: allt i monospace, också fliken och undermapparna.
+   Plex Mono finns i 400 och 500, så fet text blir 500 i stället för en
+   konstgjord fetstil. */
+:root[data-theme="kronberg"] .ui-folder,
+:root[data-theme="kronberg"] .ui-folder .ui-heading {
+  font-family: var(--ui-font-mono);
+}
+:root[data-theme="kronberg"] .ui-folder .ui-heading,
+:root[data-theme="kronberg"] .ui-folder .font-semibold,
+:root[data-theme="kronberg"] .ui-folder .font-bold {
+  font-weight: 500;
+}
+
 :root[data-theme="kronberg"] .font-mono {
   font-variant-numeric: tabular-nums;
 }

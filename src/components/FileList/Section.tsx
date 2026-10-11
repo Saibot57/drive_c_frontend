@@ -125,7 +125,7 @@ export const Section: React.FC<SectionProps> = ({ section, drag, ...controls }) 
   const sectionColor = sectionColors[colorIndex];
 
   return (
-    <div className="group/section mb-5 min-w-0">
+    <div className="ui-folder group/section mb-5 min-w-0">
       {/* Fliken sitter på mappens baksida och har dess färg. Namnet står på en
           vit etikett. Fliken täcker kortets övre kant med -mb-[2px] (en ramtjocklek
           i Kronberg). Går
