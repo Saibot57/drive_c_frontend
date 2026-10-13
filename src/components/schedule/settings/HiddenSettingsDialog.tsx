@@ -117,6 +117,7 @@ type HiddenSettingsDialogProps = {
   planningMinGap: number;
   exportExcludes: string[];
   pasteProtect: string[];
+  selectionDefaults: string[];
   planningStartMinutes: number | null;
   planningEndMinutes: number | null;
   /**
@@ -144,6 +145,7 @@ export function HiddenSettingsDialog({
   planningMinGap,
   exportExcludes,
   pasteProtect,
+  selectionDefaults,
   planningStartMinutes,
   planningEndMinutes,
   restrictions,
@@ -157,6 +159,7 @@ export function HiddenSettingsDialog({
   const [minGapText, setMinGapText] = useState('');
   const [excludeText, setExcludeText] = useState('');
   const [protectText, setProtectText] = useState('');
+  const [selectionDefaultsText, setSelectionDefaultsText] = useState('');
   const [startText, setStartText] = useState('');
   const [endText, setEndText] = useState('');
   const [rules, setRules] = useState<RestrictionRule[]>([]);
@@ -173,6 +176,7 @@ export function HiddenSettingsDialog({
     setMinGapText(String(planningMinGap));
     setExcludeText(exportExcludes.join('; '));
     setProtectText(pasteProtect.join('; '));
+    setSelectionDefaultsText(selectionDefaults.join('; '));
     setStartText(planningStartMinutes === null ? '' : minutesToTime(planningStartMinutes));
     setEndText(planningEndMinutes === null ? '' : minutesToTime(planningEndMinutes));
     setRules(restrictions);
@@ -188,6 +192,7 @@ export function HiddenSettingsDialog({
     planningMinGap,
     exportExcludes,
     pasteProtect,
+    selectionDefaults,
     planningStartMinutes,
     planningEndMinutes,
     restrictions
@@ -207,6 +212,7 @@ export function HiddenSettingsDialog({
       planningMinGap: sanitizePlanningMinGap(minGapText),
       exportExcludes: parseExcludeList(excludeText),
       pasteProtect: parseExcludeList(protectText),
+      selectionDefaults: parseExcludeList(selectionDefaultsText),
       planningStartMinutes: sanitizePlanningTime(startText),
       planningEndMinutes: sanitizePlanningTime(endText)
     }, rules);
@@ -453,6 +459,22 @@ export function HiddenSettingsDialog({
                 bort. Samma syntax som ovan. Väljer du <em>Klistra in anteckningar</em>{' '}
                 på just en sådan post sker det ändå: skyddet finns för svepen.{' '}
                 <strong>Den här listan står kvar.</strong>
+              </p>
+            </div>
+
+            <div className="mt-3 shrink-0 border-t-frame border-ui-line pt-3">
+              <Label htmlFor="selection-defaults">Förkryssade i urval</Label>
+              <Textarea
+                id="selection-defaults"
+                value={selectionDefaultsText}
+                onChange={event => setSelectionDefaultsText(event.target.value)}
+                placeholder="Lunch; Paus; Rast"
+                className="mt-1 h-20 resize-none"
+              />
+              <p className="mt-1 text-xs text-ui-muted">
+                Pass som alla deltagare har. De är ikryssade när du gör ett nytt urval
+                med ögat, och syns i ett sparat urval även när de är nya i veckan.
+                Samma syntax som ovan.
               </p>
             </div>
           </div>

@@ -11,6 +11,8 @@ import {
   PLANNING_MIN_GAP_KEY,
   PLANNING_START_TIME_KEY,
   ROOMS_KEY,
+  DEFAULT_SELECTION_DEFAULTS,
+  SELECTION_DEFAULTS_KEY,
   ROOM_TRIGGERS_KEY,
   TEACHERS_KEY,
   TEACHER_AVAILABILITY_KEY
@@ -39,6 +41,7 @@ export type HiddenSettingsDraft = {
   planningMinGap: number;
   exportExcludes: string[];
   pasteProtect: string[];
+  selectionDefaults: string[];
   planningStartMinutes: number | null;
   planningEndMinutes: number | null;
 };
@@ -89,6 +92,10 @@ export const useHiddenSettings = () => {
    */
   const [pasteProtect, persistPasteProtect] = usePersistentState(
     PASTE_PROTECT_KEY, sanitizeExcludeList, DEFAULT_PASTE_PROTECT
+  );
+  /** Titlar som är ikryssade i ett nytt urval. Samma förval som skyddslistan. */
+  const [selectionDefaults, persistSelectionDefaults] = usePersistentState(
+    SELECTION_DEFAULTS_KEY, sanitizeExcludeList, DEFAULT_SELECTION_DEFAULTS
   );
   /** Ramens gränser i minuter. `null` = standard. */
   const [planningStartMinutes, persistPlanningStart] = usePersistentState(
@@ -143,6 +150,7 @@ export const useHiddenSettings = () => {
     persistPlanningMinGap(next.planningMinGap);
     persistExportExcludes(next.exportExcludes);
     persistPasteProtect(next.pasteProtect);
+    persistSelectionDefaults(next.selectionDefaults);
     applyPlanningFrame(next.planningStartMinutes, next.planningEndMinutes);
   }, [
     persistTeachers,
@@ -153,6 +161,7 @@ export const useHiddenSettings = () => {
     persistPlanningMinGap,
     persistExportExcludes,
     persistPasteProtect,
+    persistSelectionDefaults,
     applyPlanningFrame
   ]);
 
@@ -165,6 +174,7 @@ export const useHiddenSettings = () => {
     planningMinGap,
     exportExcludes,
     pasteProtect,
+    selectionDefaults,
     planningStartMinutes,
     planningEndMinutes,
     isLoaded,
