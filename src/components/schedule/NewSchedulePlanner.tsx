@@ -47,7 +47,7 @@ import { computePlanningByDay, parsePlanningQuery } from '@/utils/planningTime';
 import { runPlanningFixtureValidation } from '@/components/schedule/planningValidation';
 import { createColorResolver } from '@/utils/colorTriggers';
 import { createRoomResolver } from '@/utils/roomTriggers';
-import { buildDayLayout, DayLayoutEntry } from '@/utils/scheduleLayout';
+import { buildDayLayout, DayLayoutEntry, getLanePeers, stepInLane } from '@/utils/scheduleLayout';
 import {
   collectTeacherNames,
   formatMinutes,
@@ -457,6 +457,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleDragEnd,
     handleDragCancel
   } = useDragHandlers({
+    schedule,
     commitSchedule,
     validatePlacement,
     resolveColor,
@@ -846,7 +847,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleExportJSON = () => {
     const dataToSave: PersistedPlannerState = {
-      version: 11,
+      version: 12,
       timestamp: new Date().toISOString(),
       courses,
       schedule,
@@ -1077,7 +1078,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     });
     if (!reportPlacementVerdict(verdict, showNotice)) return;
 
-    commitSchedule(p => p.map(entry => entry.instanceId === editingEntry.instanceId ? {...editingEntry, duration: newDuration} : entry));
+    commitSchedule(p => p.map(entry => {
+      if (entry.instanceId !== editingEntry.instanceId) return entry;
+      // Platsen bland samtidiga poster gällde de gamla grannarna.
+      const moved = entry.day !== editingEntry.day || entry.startTime !== editingEntry.startTime;
+      return { ...editingEntry, duration: newDuration, laneOrder: moved ? undefined : editingEntry.laneOrder };
+    }));
     setIsEntryModalOpen(false);
   };
 
@@ -1094,7 +1100,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     setContextMenu(null);
     if (!reportPlacementVerdict(verdict, showNotice, { announceWarning: false })) return;
 
-    const newEntry: ScheduledEntry = { ...entry, instanceId: uuidv4() };
+    // Kopian ärver inte originalets plats. Är de samtidiga ordnade ställer den
+    // sig sist, annars sorteras den som vilken ny post som helst.
+    const newEntry: ScheduledEntry = { ...entry, instanceId: uuidv4(), laneOrder: undefined };
     commitSchedule(prev => [...prev, newEntry]);
     showNotice(verdict.warning ?? 'Post duplicerad parallellt', verdict.warning ? 'warning' : 'success');
   }, [commitSchedule, showNotice, validatePlacement]);
@@ -1235,6 +1243,13 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     contextMenu && bulkEntries.length > 1 && bulkIds.has(contextMenu.entry.instanceId)
   );
 
+  /** Var den högerklickade posten står bland dem som börjar samtidigt. */
+  const contextMenuLane = useMemo(() => {
+    if (!contextMenu) return null;
+    const peers = getLanePeers(schedule, contextMenu.entry);
+    return { index: peers.findIndex(e => e.instanceId === contextMenu.entry.instanceId), count: peers.length };
+  }, [contextMenu, schedule]);
+
 
   // --- Keyboard Navigation ---
   const {
@@ -1259,6 +1274,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     onEditEntry: (e) => { setEditingEntry(e); setIsEntryModalOpen(true); },
     onRemoveEntry: (id) => commitSchedule(p => p.filter(e => e.instanceId !== id)),
     onDuplicateParallel: handleDuplicateParallel,
+    onStepLane: (entry, step) => commitSchedule(prev => stepInLane(prev, entry.instanceId, step)),
     onDuplicateAndPlace: handleDuplicateAndPlace,
     onCopyContent: (entry) => {
       const { teacher, room, notes, category, color } = entry;
@@ -2297,6 +2313,29 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             shortcut="Shift+D"
             onClick={() => handleDuplicateAndPlace(contextMenu.entry)}
           />
+          {contextMenuLane && contextMenuLane.count > 1 && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                label="Flytta åt vänster"
+                shortcut="Shift+←"
+                disabled={contextMenuLane.index === 0}
+                onClick={() => {
+                  commitSchedule(prev => stepInLane(prev, contextMenu.entry.instanceId, -1));
+                  setContextMenu(null);
+                }}
+              />
+              <ContextMenuItem
+                label="Flytta åt höger"
+                shortcut="Shift+→"
+                disabled={contextMenuLane.index === contextMenuLane.count - 1}
+                onClick={() => {
+                  commitSchedule(prev => stepInLane(prev, contextMenu.entry.instanceId, 1));
+                  setContextMenu(null);
+                }}
+              />
+            </>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem
             label="Kopiera innehåll"

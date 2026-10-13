@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { PlannerArchiveSummary, PlannerCourse, ScheduledEntry } from '@/types/schedule';
 import { PLANNER_DAYS } from '@/config/plannerConstants';
+import { compareLaneEntries } from '@/utils/scheduleLayout';
 import { timeToMinutes } from '@/utils/scheduleTime';
 
 export type ActiveZone = 'courses' | 'grid' | 'archive';
@@ -22,6 +23,8 @@ type UseScheduleKeyboardNavOptions = {
   onEditEntry: (entry: ScheduledEntry) => void;
   onRemoveEntry: (instanceId: string) => void;
   onDuplicateParallel: (entry: ScheduledEntry) => void;
+  /** Ett steg åt vänster (-1) eller höger (1) bland posterna som börjar samtidigt. */
+  onStepLane: (entry: ScheduledEntry, step: -1 | 1) => void;
   onDuplicateAndPlace: (entry: ScheduledEntry) => void;
   onCopyContent: (entry: ScheduledEntry) => void;
   onPasteContent: (entry: ScheduledEntry) => void;
@@ -48,10 +51,11 @@ type UseScheduleKeyboardNavOptions = {
   advancedFilterMatch: (item: PlannerCourse | ScheduledEntry, query: string) => boolean;
 };
 
+/** Dagens poster i den ordning ↑/↓ går igenom dem: tid, sedan vänster till höger. */
 function getEntriesForDay(schedule: ScheduledEntry[], day: string): ScheduledEntry[] {
   return schedule
     .filter(e => e.day === day)
-    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    .sort(compareLaneEntries);
 }
 
 export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
@@ -68,6 +72,7 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
     onEditEntry,
     onRemoveEntry,
     onDuplicateParallel,
+    onStepLane,
     onDuplicateAndPlace,
     onCopyContent,
     onPasteContent,
@@ -375,6 +380,23 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
               }
             },
           },
+          // Shift+Left / Shift+Right - byt plats med grannen bland de samtidiga
+          {
+            key: 'ArrowLeft',
+            shift: true,
+            handler: () => {
+              const entry = getSelectedEntry();
+              if (entry) onStepLane(entry, -1);
+            },
+          },
+          {
+            key: 'ArrowRight',
+            shift: true,
+            handler: () => {
+              const entry = getSelectedEntry();
+              if (entry) onStepLane(entry, 1);
+            },
+          },
           // Enter / e - edit selected entry
           {
             key: 'Enter',
@@ -489,7 +511,7 @@ export function useScheduleKeyboardNav(options: UseScheduleKeyboardNavOptions) {
           },
         ]
       : [],
-    [activeZone, isSuspended, selectedEventId, gridDayIndex, schedule, getSelectedEntry, hasCopiedContent, hasCopiedNotes, onEditEntry, onRemoveEntry, onDuplicateParallel, onDuplicateAndPlace, onCopyContent, onPasteContent, onCopyNotes, onPasteNotes, onStartNotesMarquee, onOpenContextMenu],
+    [activeZone, isSuspended, selectedEventId, gridDayIndex, schedule, getSelectedEntry, hasCopiedContent, hasCopiedNotes, onEditEntry, onRemoveEntry, onDuplicateParallel, onStepLane, onDuplicateAndPlace, onCopyContent, onPasteContent, onCopyNotes, onPasteNotes, onStartNotesMarquee, onOpenContextMenu],
   );
 
   // --- Archive sidebar navigation ---

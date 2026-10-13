@@ -21,6 +21,7 @@ export interface PlannerActivity {
   notes?: string;
   color?: string;
   category?: string;
+  laneOrder?: number | null;
 }
 
 /** Vem som har ett delat schema öppet just nu. */
@@ -78,6 +79,11 @@ export interface ScheduledEntry extends PlannerCourse {
   startTime: string; // "HH:MM", t.ex "08:15"
   endTime: string;   // "HH:MM", t.ex "09:15"
   notes?: string;
+  /**
+   * Plats bland poster som börjar samtidigt samma dag, 0 längst till vänster.
+   * Saknas den avgör sluttid och titel (`compareLaneEntries`).
+   */
+  laneOrder?: number;
 }
 
 export interface RestrictionRule {

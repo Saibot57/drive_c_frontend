@@ -5,10 +5,13 @@ import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/c
 import { v4 as uuidv4 } from 'uuid';
 import { GhostPlacement } from '@/types/plannerUI';
 import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
+import { moveInLane, resolveLaneDrop } from '@/utils/scheduleLayout';
 import { PlacementCandidate, PlacementVerdict, reportPlacementVerdict } from '@/utils/scheduleRules';
-import { END_HOUR, minutesToTime, PIXELS_PER_MINUTE, snapTime, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
+import { END_HOUR, minutesToTime, PIXELS_PER_MINUTE, SNAP_MINUTES, snapTime, START_HOUR, timeToMinutes } from '@/utils/scheduleTime';
 
 type UseDragHandlersParams = {
+  /** Behövs för att förhandsvisa en platsbyte bland samtidiga poster. */
+  schedule: ScheduledEntry[];
   commitSchedule: (
     updater: (prev: ScheduledEntry[]) => ScheduledEntry[],
     options?: { clearHistory?: boolean }
@@ -30,7 +33,43 @@ type DropTimeResult = {
   itemDuration: number;
 };
 
+/**
+ * Så långt i höjdled ett drag får gå och ändå räknas som ett platsbyte i sidled.
+ * Halva magnetsteget, alltså precis så långt som tiden ändå skulle ha avrundats
+ * tillbaka till samma kvart.
+ */
+const LANE_DRAG_MAX_DY = (SNAP_MINUTES * PIXELS_PER_MINUTE) / 2;
+
+/** Var i sidled pekaren är, som andel av dagskolumnens bredd (0–1). */
+const pointerFraction = (event: any): number | null => {
+  const overRect = event.over?.rect;
+  if (!overRect || overRect.width <= 0) return null;
+  const start = event.activatorEvent;
+  if (start && typeof start.clientX === 'number') {
+    return (start.clientX + event.delta.x - overRect.left) / overRect.width;
+  }
+  // Tangentbordsdrag har ingen pekare; kortets mitt får stå för den.
+  const rect = event.active.rect.current?.translated;
+  if (!rect) return null;
+  return (rect.left + rect.width / 2 - overRect.left) / overRect.width;
+};
+
+/**
+ * Ett kort som dras i sidled inom sin dag, utan att tiden ändras, byter plats
+ * bland posterna som börjar samtidigt i stället för att flyttas. Ger `null` när
+ * dragningen är en vanlig flytt.
+ */
+const resolveLaneFraction = (event: any): { entry: ScheduledEntry; fraction: number } | null => {
+  if (event.active.data.current?.type !== 'scheduled') return null;
+  const entry = event.active.data.current?.entry as ScheduledEntry | undefined;
+  if (!entry || event.over?.id !== entry.day) return null;
+  if (Math.abs(event.delta.y) >= LANE_DRAG_MAX_DY) return null;
+  const fraction = pointerFraction(event);
+  return fraction === null ? null : { entry, fraction };
+};
+
 export const useDragHandlers = ({
+  schedule,
   commitSchedule,
   validatePlacement,
   resolveColor,
@@ -98,6 +137,22 @@ export const useDragHandlers = ({
   }, []);
 
   const handleDragMove = useCallback((event: any) => {
+    const laneMove = resolveLaneFraction(event);
+    const lane = laneMove ? resolveLaneDrop(schedule, laneMove.entry.instanceId, laneMove.fraction) : null;
+    if (laneMove && lane) {
+      const { entry } = laneMove;
+      setGhostPlacement({
+        day: entry.day,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        duration: entry.duration,
+        color: resolveColor(entry.title, entry.color),
+        title: entry.title,
+        lane: { column: lane.column, columns: lane.columns }
+      });
+      return;
+    }
+
     const computed = computeDropTime(event);
     if (!computed) {
       setGhostPlacement(null);
@@ -134,7 +189,7 @@ export const useDragHandlers = ({
     }
 
     setGhostPlacement(null);
-  }, [computeDropTime, resolveColor]);
+  }, [computeDropTime, resolveColor, schedule]);
 
   const handleDragEnd = useCallback((event: any) => {
     const { active } = event;
@@ -143,6 +198,16 @@ export const useDragHandlers = ({
 
     if (isReadOnly) {
       showNotice('Någon annan har schemat öppet. Ta över det för att kunna ändra.', 'warning');
+      return;
+    }
+
+    const laneMove = resolveLaneFraction(event);
+    if (laneMove && resolveLaneDrop(schedule, laneMove.entry.instanceId, laneMove.fraction)) {
+      const { entry, fraction } = laneMove;
+      commitSchedule(prev => {
+        const lane = resolveLaneDrop(prev, entry.instanceId, fraction);
+        return lane ? moveInLane(prev, entry.instanceId, lane.index) : prev;
+      });
       return;
     }
 
@@ -191,13 +256,21 @@ export const useDragHandlers = ({
       });
       if (!reportPlacementVerdict(verdict, showNotice)) return;
 
+      const moved = computed.targetDay !== entry.day || computed.newStartTime !== entry.startTime;
       commitSchedule(prev => prev.map(existing =>
         existing.instanceId === entry.instanceId
-          ? { ...existing, day: computed.targetDay, startTime: computed.newStartTime, endTime: computed.newEndTime }
+          ? {
+              ...existing,
+              day: computed.targetDay,
+              startTime: computed.newStartTime,
+              endTime: computed.newEndTime,
+              // Platsen gällde bland de gamla grannarna.
+              laneOrder: moved ? undefined : existing.laneOrder
+            }
           : existing
       ));
     }
-  }, [commitSchedule, computeDropTime, isPlanningMode, isReadOnly, showNotice, validatePlacement]);
+  }, [commitSchedule, computeDropTime, isPlanningMode, isReadOnly, schedule, showNotice, validatePlacement]);
 
   const handleDragCancel = useCallback(() => {
     setActiveDragItem(null);
