@@ -182,7 +182,7 @@ export const workspaceService = {
   async copyElement(
     elementId: string,
     surfaceId: string,
-    pos?: { position_x?: number; position_y?: number; width?: number; height?: number },
+    pos?: { position_x?: number; position_y?: number; width?: number; height?: number; title?: string },
   ): Promise<SurfaceElement & { element: WorkspaceElement }> {
     const res = await fetchWithAuth(`${BASE}/elements/${elementId}/copy`, {
       method: 'POST',
