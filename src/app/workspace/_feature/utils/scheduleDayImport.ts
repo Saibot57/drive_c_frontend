@@ -129,7 +129,7 @@ export const dayCardHeight = (windowStartHour: number, windowEndHour: number): n
 export const buildScheduleDays = (
   activities: PlannerActivity[],
   days: string[],
-  source: { archiveName: string | null; sourceLabel: string },
+  source: { archiveId: string | null; archiveName: string | null; sourceLabel: string },
   capturedAt: string = new Date().toISOString(),
 ): ScheduleDayDraft[] => {
   const entriesByDay = groupActivitiesByDay(activities);
@@ -148,6 +148,7 @@ export const buildScheduleDays = (
 
     return {
       content: {
+        archiveId: source.archiveId,
         archiveName: source.archiveName,
         sourceLabel: source.sourceLabel,
         capturedAt,

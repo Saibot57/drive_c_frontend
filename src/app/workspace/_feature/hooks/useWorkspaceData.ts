@@ -581,12 +581,13 @@ export function useWorkspaceData() {
   const importScheduleDays = useCallback(async (
     activities: PlannerActivity[],
     days: string[],
-    source: { archiveName: string | null; label: string },
+    source: { archiveId?: string | null; archiveName: string | null; label: string },
     viewport: ViewportState,
     containerWidth: number,
     containerHeight: number,
   ) => {
     const drafts = buildScheduleDays(activities, days, {
+      archiveId: source.archiveId ?? null,
       archiveName: source.archiveName,
       sourceLabel: source.label,
     });

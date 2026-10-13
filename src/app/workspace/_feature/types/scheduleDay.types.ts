@@ -4,11 +4,14 @@
  * Dagen är enheten. "Hela veckan" är fem dagar bredvid varandra, vilket är vad
  * som gör att man kan dra ut onsdagen ur högen och skriva bredvid den.
  *
- * Att det är en fryst kopia löser dessutom ett problem som annars saknar
- * lösning: ett schema har inget id. Ett arkiv är strängen `archive_name` på
- * raderna i `planner_activity`, så en referens hade dött tyst vid ett namnbyte.
- * Här är namnet en etikett och inget annat — byts arkivet namn eller raderas
- * påverkas kortet inte, det tappar bara möjligheten att erbjuda uppdatering.
+ * Att det är en fryst kopia är det som skyddar ytan: ändras schemat flyttas
+ * inga kort och inget innehåll byts ut bakom användarens rygg. Kortet pekar på
+ * schemat med dess id, och härkomstkontrollen använder id:t för att erbjuda en
+ * uppdatering. Raderas schemat, eller slutar det delas med dig, ligger kortet
+ * kvar — det tappar bara möjligheten att uppdateras.
+ *
+ * Kort hämtade före 2026-10 saknar id och pekar med namnet. De går fortfarande
+ * att kontrollera, men bara mot de egna schemana.
  */
 
 /** En lektion, med bara det som behövs för att rita och läsa den. */
@@ -28,7 +31,12 @@ export interface ScheduleDayEntry {
 
 export interface ScheduleDayContent {
   // ── Härkomst ──
-  /** null = det arbetande schemat, som inte ligger i något arkiv. */
+  /** Schemats id. Nyckeln för härkomst. Saknas på kort hämtade före 2026-10. */
+  archiveId?: string | null;
+  /**
+   * Schemats namn vid hämtningen. Nyckel bara för kort utan `archiveId`.
+   * null = det gamla huvudschemat, som inte ligger i något arkiv.
+   */
   archiveName: string | null;
   /** Vad källan hette vid hämtningen. Etikett, aldrig nyckel. */
   sourceLabel: string;
