@@ -88,6 +88,8 @@ import { isBaseSchedule } from '@/utils/scheduleKind';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/utils/courseUtils';
 import { mapPlannerActivitiesToSchedule, usePlannerSync } from '@/hooks/usePlannerSync';
+import { useScheduleSelections } from '@/hooks/useScheduleSelections';
+import { isInSelection } from '@/utils/scheduleSelection';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
 import { useScheduleVectorExport, VectorExportOutcome } from '@/hooks/useScheduleVectorExport';
 import { ScheduleExportInput } from '@/types/scheduleExport';
@@ -99,6 +101,7 @@ import { useNotesMarquee } from '@/hooks/useNotesMarquee';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import PublicLinkControl from '@/components/schedule/PublicLinkControl';
+import { SelectionControl } from '@/components/schedule/SelectionControl';
 import { sanitizeScheduleImport } from '@/utils/scheduleImport';
 import { isEditableElement } from '@/utils/dom';
 import { reportPlacementVerdict } from '@/utils/scheduleRules';
@@ -119,8 +122,13 @@ type PlannerExportOutcome = {
 /** Rubrikerna Basscheman och Veckoscheman i högerpanelen. */
 const scheduleSectionLabel = 'block text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]';
 
-const readOnlyMessage = (reason: ReadOnlyReason, lockHolder: string | null) => {
+/** Ett urval låser schemat utan att arkivet är låst, därför ett eget skäl. */
+type PlannerReadOnlyReason = ReadOnlyReason | 'selection';
+
+const readOnlyMessage = (reason: PlannerReadOnlyReason, lockHolder: string | null) => {
   switch (reason) {
+    case 'selection':
+      return 'Ett urval visas. Tryck på krysset bredvid ögat för att visa alla och kunna ändra.';
     case 'no-schedule':
       return 'Öppna eller skapa ett schema först.';
     case 'load-error':
@@ -230,6 +238,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     planningMinGap,
     exportExcludes,
     pasteProtect,
+    selectionDefaults,
     planningStartMinutes,
     planningEndMinutes,
     isLoaded: hiddenSettingsLoaded,
@@ -244,6 +253,25 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     setIsHiddenSettingsOpen,
     handleHiddenSettingsSave
   } = useHiddenSettings();
+  const {
+    selections,
+    activeSelection,
+    setActiveSelectionId,
+    addSelection,
+    updateSelection,
+    removeSelection
+  } = useScheduleSelections();
+  /**
+   * Det som ritas och exporteras. Med ett urval är det bara urvalets pass, och
+   * kolumnerna räknas om över dem så att det bortvalda inte tar plats. Utan
+   * urval är det hela schemat; sökfiltret döljer kort men lämnar bredden kvar.
+   */
+  const gridSchedule = useMemo(
+    () => (activeSelection
+      ? schedule.filter(entry => isInSelection(activeSelection, entry, selectionDefaults))
+      : schedule),
+    [schedule, activeSelection, selectionDefaults]
+  );
   const { sections, toggleSection } = usePlannerSections();
   const [isCategoryDebugOpen, setIsCategoryDebugOpen] = useState(false);
   const isMobileDragDisabled = useMediaQuery('(pointer: coarse), (max-width: 1023px)');
@@ -320,15 +348,16 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
    * Varför schemat inte går att ändra, eller null. Ett schema som inte gick
    * att läsa väger tyngre än bas och lås, men inget öppet schema tyngst.
    */
-  const readOnlyReason: ReadOnlyReason = archive.readOnlyReason === 'no-schedule'
+  const readOnlyReason: PlannerReadOnlyReason = archive.readOnlyReason === 'no-schedule'
     ? 'no-schedule'
     : loadStatus === 'error'
       ? 'load-error'
-      : archive.readOnlyReason;
+      // Ett urval går att ta bort med ett klick, så det väger lättast.
+      : archive.readOnlyReason ?? (activeSelection ? 'selection' : null);
   const isReadOnly = readOnlyReason !== null;
   const isActiveBase = Boolean(activeArchive && isBaseSchedule(activeArchive));
   isReadOnlyRef.current = isReadOnly;
-  const readOnlyReasonRef = useRef<ReadOnlyReason>(null);
+  const readOnlyReasonRef = useRef<PlannerReadOnlyReason>(null);
   readOnlyReasonRef.current = readOnlyReason;
 
   /**
@@ -376,7 +405,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     () => parsePlanningQuery(filterQuery, allTeacherNames),
     [filterQuery, allTeacherNames]
   );
-  const isPlanningMode = planningQuery.isPlanning;
+  // Ett urval är ett deltagarschema, och planeringstiden hör inte hemma där.
+  const isPlanningMode = planningQuery.isPlanning && !activeSelection;
 
   const planningByDay = useMemo(() => {
     if (!isPlanningMode) return null;
@@ -412,9 +442,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const filterMatch = useCallback(
     (item: PlannerCourse | ScheduledEntry, query: string) => (
-      isPlanningMode ? true : advancedFilterMatch(item, query, allTeacherNames, resolveRoom)
+      // Planeringsfrågan är ingen textsökning, även när ett urval stängt av vyn.
+      planningQuery.isPlanning ? true : advancedFilterMatch(item, query, allTeacherNames, resolveRoom)
     ),
-    [isPlanningMode, allTeacherNames, resolveRoom]
+    [planningQuery.isPlanning, allTeacherNames, resolveRoom]
   );
 
   /**
@@ -542,17 +573,21 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
    */
   const buildVectorExportInput = useCallback(
     (pageMode: PageMode): ScheduleExportInput => ({
-      schedule,
+      schedule: gridSchedule,
       isVisible: entry => filterMatch(entry, filterQuery) && !isExcludedFromExport(entry),
       resolveColor,
       resolveRoom,
       planningByDay,
       extraEndMinutes: planningExportEndMinutes,
-      archiveName: activeArchiveName,
+      // Rubriken och filnamnet säger vems schema det är.
+      archiveName: activeSelection
+        ? `${activeArchiveName?.trim() || 'Schema'} – ${activeSelection.name}`
+        : activeArchiveName,
       pageMode
     }),
     [
-      schedule,
+      gridSchedule,
+      activeSelection,
       filterMatch,
       filterQuery,
       isExcludedFromExport,
@@ -754,8 +789,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Statistics
   const visibleSchedule = useMemo(
-    () => schedule.filter(entry => filterMatch(entry, filterQuery)),
-    [schedule, filterQuery, filterMatch]
+    () => gridSchedule.filter(entry => filterMatch(entry, filterQuery)),
+    [gridSchedule, filterQuery, filterMatch]
   );
 
   const scheduleStats = useMemo(() => totalMinutesByTitle(visibleSchedule), [visibleSchedule]);
@@ -772,11 +807,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const layoutByDay = useMemo(() => {
     const layout: Record<string, Map<string, DayLayoutEntry>> = {};
     PLANNER_DAYS.forEach(day => {
-      const entries = schedule.filter(entry => entry.day === day);
+      const entries = gridSchedule.filter(entry => entry.day === day);
       layout[day] = buildDayLayout(entries);
     });
     return layout;
-  }, [schedule]);
+  }, [gridSchedule]);
 
   const daySubjectTotals = useMemo(() => {
     const totals: Record<string, Record<string, number>> = {};
@@ -785,7 +820,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       totals[day] = {};
       intervalsByDay[day] = {};
     });
-    schedule.forEach(entry => {
+    gridSchedule.forEach(entry => {
       if (!intervalsByDay[entry.day]) {
         intervalsByDay[entry.day] = {};
       }
@@ -805,7 +840,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       });
     });
     return totals;
-  }, [schedule]);
+  }, [gridSchedule]);
 
   const planningLabel = planningQuery.label;
 
@@ -1259,7 +1294,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     selectedArchiveIndex,
   } = useScheduleKeyboardNav({
     courses,
-    schedule,
+    schedule: gridSchedule,
     sortedArchives,
     filterQuery,
     isSidebarCollapsed,
@@ -1630,6 +1665,16 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   Utesluter {exportExcludes.length}
                 </span>
               )}
+              <SelectionControl
+                schedule={schedule}
+                selections={selections}
+                activeSelection={activeSelection}
+                defaults={selectionDefaults}
+                onActivate={setActiveSelectionId}
+                onAdd={name => addSelection(name, schedule, selectionDefaults)}
+                onUpdate={updateSelection}
+                onRemove={removeSelection}
+              />
               <PublicLinkControl
                 archives={sortedArchives}
                 activeArchiveId={activeArchiveId}
@@ -2031,7 +2076,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                                 ));
                               }
 
-                              const dayEntries = schedule.filter(e => e.day === day);
+                              const dayEntries = gridSchedule.filter(e => e.day === day);
                               const lastEndTime = dayEntries.reduce((latest, entry) => {
                                 const endMinutes = timeToMinutes(entry.endTime);
                                 return Math.max(latest, endMinutes);
@@ -2098,7 +2143,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                              ));
                            }
 
-                           const dayEntries = schedule.filter(e => e.day === mobileSelectedDay);
+                           const dayEntries = gridSchedule.filter(e => e.day === mobileSelectedDay);
                            const lastEndTime = dayEntries.reduce((latest, entry) => {
                              const endMinutes = timeToMinutes(entry.endTime);
                              return Math.max(latest, endMinutes);
@@ -2434,6 +2479,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         roomTriggers={roomTriggers}
         planningMinGap={planningMinGap}
         pasteProtect={pasteProtect}
+        selectionDefaults={selectionDefaults}
         exportExcludes={exportExcludes}
         planningStartMinutes={planningStartMinutes}
         planningEndMinutes={planningEndMinutes}

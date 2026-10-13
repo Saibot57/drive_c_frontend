@@ -32,6 +32,11 @@ export const PASTE_PROTECT_KEY = 'app.paste_protect.v1';
  * är en paus även nästa vecka.
  */
 export const DEFAULT_PASTE_PROTECT = ['Lunch', 'Paus', 'Rast'];
+/** Sparade urval: vilka pass en viss deltagare ska se. */
+export const SCHEDULE_SELECTIONS_KEY = 'app.schedule_selections.v1';
+export const SELECTION_DEFAULTS_KEY = 'app.selection_defaults.v1';
+/** Titlar som är ikryssade i ett nytt urval — pass som alla deltagare har. */
+export const DEFAULT_SELECTION_DEFAULTS = ['Lunch', 'Paus', 'Rast'];
 export const PLANNING_START_TIME_KEY = 'app.planning_start_time.v1';
 export const PLANNING_END_TIME_KEY = 'app.planning_end_time.v1';
 export const SIDEBAR_SECTIONS_KEY = 'app.planner_sections.v1';
