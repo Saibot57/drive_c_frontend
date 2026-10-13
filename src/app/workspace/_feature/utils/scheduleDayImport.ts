@@ -39,6 +39,21 @@ export const scheduleSourceLabel = (
   archive.isOwner || !archive.ownerUsername ? archive.name : `${archive.name} · ${archive.ownerUsername}`
 );
 
+/**
+ * Källorna i hämtningsdialogen: egna först, sedan de som delats med dig.
+ * Inom varje grupp senast ändrat överst, som i planeraren — veckan man
+ * arbetar med just nu är den man oftast vill hämta från.
+ */
+export const orderScheduleSources = <T extends Pick<PlannerArchiveSummary, 'isOwner' | 'updatedAt'>>(
+  archives: T[],
+): { own: T[]; shared: T[] } => {
+  const newestFirst = (a: T, b: T) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '');
+  return {
+    own: archives.filter((archive) => archive.isOwner).sort(newestFirst),
+    shared: archives.filter((archive) => !archive.isOwner).sort(newestFirst),
+  };
+};
+
 export interface ScheduleDayDraft {
   content: ScheduleDayContent;
   size: { width: number; height: number };

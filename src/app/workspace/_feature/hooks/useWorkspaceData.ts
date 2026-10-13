@@ -574,20 +574,20 @@ export function useWorkspaceData() {
    * Dagen är enheten — en hel vecka är fem kort bredvid varandra, vilket är vad
    * som gör att man kan dra ut onsdagen och skriva bredvid den.
    *
-   * Kopian är fryst, och det löser id-problemet i stället för att kringgå det:
-   * ett arkiv är strängen `archive_name` på raderna i planner_activity, så en
-   * levande referens hade dött tyst vid ett namnbyte. Här är namnet en etikett.
+   * Kopian är fryst: ändras schemat flyttas inga kort. Den pekar på schemat
+   * med id, så att härkomstkontrollen kan erbjuda en uppdatering även för ett
+   * delat schema eller ett som bytt namn. Namnet är en etikett.
    */
   const importScheduleDays = useCallback(async (
     activities: PlannerActivity[],
     days: string[],
-    source: { archiveId?: string | null; archiveName: string | null; label: string },
+    source: { archiveId: string; archiveName: string; label: string },
     viewport: ViewportState,
     containerWidth: number,
     containerHeight: number,
   ) => {
     const drafts = buildScheduleDays(activities, days, {
-      archiveId: source.archiveId ?? null,
+      archiveId: source.archiveId,
       archiveName: source.archiveName,
       sourceLabel: source.label,
     });
