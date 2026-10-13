@@ -27,6 +27,8 @@ export interface GhostPlacement {
   duration: number;
   color: string;
   title: string;
+  /** Satt när dragningen byter plats bland samtidiga poster: spalten den hamnar i. */
+  lane?: { column: number; columns: number };
 }
 
 export interface ContextMenuState {

@@ -54,7 +54,8 @@ export const mapPlannerActivitiesToSchedule = (activities: PlannerActivity[]) =>
       day: activity.day ?? PLANNER_DAYS[0],
       startTime: activity.startTime ?? '08:00',
       endTime: activity.endTime ?? minutesToTime(timeToMinutes(activity.startTime ?? '08:00') + 60),
-      notes: activity.notes ?? undefined
+      notes: activity.notes ?? undefined,
+      laneOrder: activity.laneOrder ?? undefined
     }))
   )
 );
@@ -71,7 +72,8 @@ export const mapScheduleToPlannerActivities = (entries: ScheduledEntry[]): Plann
     endTime: entry.endTime,
     duration: entry.duration,
     color: entry.color,
-    category: entry.category
+    category: entry.category,
+    laneOrder: entry.laneOrder
   }))
 );
 

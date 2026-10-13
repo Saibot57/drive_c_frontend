@@ -43,6 +43,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Delete'], description: 'Ta bort' },
       { keys: ['d'], description: 'Duplicera bredvid' },
       { keys: ['Shift', 'D'], description: 'Duplicera och placera' },
+      { keys: ['Shift', '←→'], description: 'Flytta i sidled bland poster som börjar samtidigt' },
       { keys: ['c'], description: 'Kopiera innehåll' },
       { keys: ['v'], description: 'Klistra in innehåll' },
       { keys: ['Shift', 'C'], description: 'Kopiera anteckningar' },

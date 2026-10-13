@@ -158,6 +158,7 @@ export function useKeyboardPlacement({
                 day,
                 startTime,
                 endTime,
+                laneOrder: undefined,
               };
               commitSchedule(prev => [...prev, newEntry]);
               setKbPlacement(null);

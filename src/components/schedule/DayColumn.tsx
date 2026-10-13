@@ -25,6 +25,13 @@ export function DayColumn({
 
   const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
   const ghostStyles = ghost ? getPositionStyles(ghost.startTime, ghost.duration) : null;
+  // Ett platsbyte visas i spalten det hamnar i, placerat som korten själva.
+  const ghostHorizontal = ghost?.lane
+    ? {
+        left: `calc(${(100 / ghost.lane.columns) * ghost.lane.column}% + 4px)`,
+        width: `calc(${100 / ghost.lane.columns}% - 8px)`
+      }
+    : { left: '6px', right: '6px' };
   const placementGhostStyles = placementGhost ? getPositionStyles(placementGhost.startTime, placementGhost.duration) : null;
 
   return (
@@ -51,12 +58,13 @@ export function DayColumn({
             style={{ top: `${ghostStyles.top}px`, borderColor: ghost.color }}
           />
           <div
-            className="absolute rounded border-2 border-dashed text-blue-900/80 px-1 py-0.5 z-[6] pointer-events-none opacity-70"
+            /* Ett platsbyte landar på ett annat kort, så det ritas ovanpå korten
+               (z-10) för att synas. En vanlig flytt ligger under dem som förut. */
+            className={`absolute rounded border-2 border-dashed text-blue-900/80 px-1 py-0.5 ${ghost.lane ? 'z-[40]' : 'z-[6]'} pointer-events-none opacity-70`}
             style={{
               top: `${ghostStyles.top}px`,
               height: `${Math.max(ghostStyles.height - EVENT_GAP_PX, MIN_HEIGHT_PX)}px`,
-              left: '6px',
-              right: '6px',
+              ...ghostHorizontal,
               borderColor: ghost.color,
               backgroundColor: ghost.color
             }}
