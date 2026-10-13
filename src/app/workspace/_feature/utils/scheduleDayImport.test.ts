@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlannerActivity } from '@/types/schedule';
-import { buildScheduleDays } from './scheduleDayImport';
+import { buildScheduleDays, scheduleSourceLabel } from './scheduleDayImport';
 
 const activity = (id: string, day: string, startTime: string, endTime: string): PlannerActivity => ({
   id, title: id, day, startTime, endTime, duration: 0,
@@ -25,5 +25,19 @@ describe('buildScheduleDays', () => {
       expect(content.archiveName).toBe('v.35');
       expect(content.sourceLabel).toBe('v.35 · anna');
     });
+  });
+});
+
+describe('scheduleSourceLabel', () => {
+  it('ger ett eget schema dess namn', () => {
+    expect(scheduleSourceLabel({ name: 'v.35', isOwner: true, ownerUsername: 'tobias' })).toBe('v.35');
+  });
+
+  it('ger ett delat schema ägarens namn efter', () => {
+    expect(scheduleSourceLabel({ name: 'v.35', isOwner: false, ownerUsername: 'anna' })).toBe('v.35 · anna');
+  });
+
+  it('klarar ett delat schema utan känd ägare', () => {
+    expect(scheduleSourceLabel({ name: 'v.35', isOwner: false, ownerUsername: null })).toBe('v.35');
   });
 });

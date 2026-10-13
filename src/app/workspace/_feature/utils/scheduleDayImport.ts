@@ -5,7 +5,7 @@
  * tidsfunktioner men ändrar inget i dem.
  */
 
-import type { PlannerActivity } from '@/types/schedule';
+import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
 import { PLANNER_DAYS } from '@/config/plannerConstants';
 import {
   END_HOUR,
@@ -27,6 +27,17 @@ export const DAY_CARD_GAP = 12;
 
 /** Reservfärg för aktiviteter som saknar egen. Samma grå som schemats rutnät. */
 const FALLBACK_COLOR = '#e5e7eb';
+
+/**
+ * Vad ett schema heter på kort och i "Uppdatera från …". Ett delat schema
+ * bär ägarens namn: två personer kan ha varsin "v.35", och på ytan ska det gå
+ * att se vems dagen kom från.
+ */
+export const scheduleSourceLabel = (
+  archive: Pick<PlannerArchiveSummary, 'name' | 'isOwner' | 'ownerUsername'>,
+): string => (
+  archive.isOwner || !archive.ownerUsername ? archive.name : `${archive.name} · ${archive.ownerUsername}`
+);
 
 export interface ScheduleDayDraft {
   content: ScheduleDayContent;

@@ -21,6 +21,17 @@ export class ArchiveLockedError extends Error {
   }
 }
 
+/**
+ * Schemat finns inte, eller du når det inte längre. Backend skiljer inte på
+ * de två (404 i båda fallen), och för den som läser är det samma sak.
+ */
+export class ArchiveNotFoundError extends Error {
+  constructor(message = 'Schemat finns inte.') {
+    super(message);
+    this.name = 'ArchiveNotFoundError';
+  }
+}
+
 type ArchiveActivitiesResult = {
   archive: PlannerArchiveSummary;
   activities: PlannerActivity[];
@@ -79,9 +90,9 @@ export const plannerService = {
   },
 
   /**
-   * Namnen på de egna schemana. Används av workspace-importen, provenance och
-   * Command Center, som läser arkiv via de namnbaserade endpointerna och därför
-   * inte kan nå någon annans schema. Planeraren själv går på id.
+   * Namnen på de egna schemana. Används bara av workspace-härkomsten, för
+   * schemadagar hämtade innan de fick schemats id. Den namnbaserade vägen når
+   * inte någon annans schema; allt nytt går på id.
    */
   async getPlannerArchiveNames(): Promise<string[]> {
     const archives = await plannerService.listArchives();
@@ -133,6 +144,9 @@ export const plannerService = {
 
   async getArchiveActivities(archiveId: string): Promise<ArchiveActivitiesResult> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/activities`);
+    if (response.status === 404) {
+      throw new ArchiveNotFoundError();
+    }
     if (!response.ok) {
       throw new Error(`Kunde inte hämta schemat (HTTP ${response.status}).`);
     }
