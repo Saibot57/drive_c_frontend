@@ -15,7 +15,7 @@ import type { ThemeWheel } from '@/types/themeWheel';
 import type { PlannerActivity } from '@/types/schedule';
 import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent, ScheduleDayEntry } from '../types/scheduleDay.types';
-import { buildWheelParts } from './wheelExplode';
+import { buildWheelParts, type WheelPartMode } from './wheelExplode';
 import { groupActivitiesByDay } from './scheduleDayImport';
 
 export type ProvenanceStatus =
@@ -107,13 +107,25 @@ export const mergeScheduleDay = (
   capturedAt: new Date().toISOString(),
 });
 
+/**
+ * Delarna hjulet ger nu, per block. Byggs en gång per hjul och läge och delas
+ * av alla kort därifrån: en sprängning på tjugofem delar hade annars räknat
+ * hela hjulet tjugofem gånger.
+ */
+export const currentWheelParts = (
+  wheel: ThemeWheel,
+  mode: WheelPartMode,
+): Map<string, WheelPartContent> => new Map(
+  buildWheelParts(wheel, mode).map((d) => [d.content.instanceId, d.content]),
+);
+
 /** Delen som hjulet skulle ge för samma block nu, eller null om blocket är borta. */
 export const currentWheelPart = (
-  wheel: ThemeWheel,
+  parts: Map<string, WheelPartContent>,
   frozen: WheelPartContent,
 ): WheelPartContent | null => {
-  const drafts = buildWheelParts(wheel, frozen.straight ? 'unroll' : 'explode', frozen.capturedAt);
-  return drafts.find((d) => d.content.instanceId === frozen.instanceId)?.content ?? null;
+  const fresh = parts.get(frozen.instanceId);
+  return fresh ? { ...fresh, capturedAt: frozen.capturedAt } : null;
 };
 
 /** Lektionerna källan har för dagen nu. Tom lista om dagen tömts. */

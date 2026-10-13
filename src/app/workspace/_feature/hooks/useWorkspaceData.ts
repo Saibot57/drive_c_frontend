@@ -1093,7 +1093,9 @@ export function useWorkspaceData() {
    * Klistrar in urklippet på den aktiva ytan med gruppens övre vänstra hörn i
    * `at`. Korten kopieras ett i taget: backend ger varje kopia z_index max+1,
    * så ordningen bevarar staplingen och parallella anrop hade krockat om max.
-   * Kopian får typens grundnamn i stället för backends "X (kopia)".
+   * Kopian får typens grundnamn i stället för backends "X (kopia)". Namnet
+   * skickas med i kopieringen; en backend som inte tar emot det får ett
+   * separat namnbyte efteråt.
    * Returnerar de nya placeringarnas id:n, så att de kan bli en markering.
    */
   const pasteCopies = useCallback(async (items: ClipboardItem[], at: Point): Promise<string[]> => {
@@ -1105,21 +1107,23 @@ export function useWorkspaceData() {
     const created: { elementId: string; placementId: string }[] = [];
 
     for (const item of items) {
+      // Källan kan saknas i state om urklippet kommer från en annan yta. Då
+      // blir en rubriks namn en gissning, som rättas mot kopians innehåll nedan.
+      const source = stateRef.current.elements[item.elementId];
       const result = await track('kopiera elementet', () =>
         workspaceService.copyElement(item.elementId, surfaceId, {
           position_x: originX + item.dx,
           position_y: originY + item.dy,
           width: item.width,
           height: item.height,
+          title: copyTitle(item.type, source?.content),
         }),
       );
       if (!result) continue;
 
       const copy = result.element;
-      const title = copy?.type === 'heading'
-        ? (copy.content as HeadingContent)?.text?.trim() || 'Rubrik'
-        : COPY_NAMES[item.type];
-      if (copy) {
+      const title = copyTitle(item.type, copy?.content);
+      if (copy && copy.title !== title) {
         await track('byta namn på kopian', () => workspaceService.updateElement(copy.id, { title }));
       }
 
@@ -1215,6 +1219,13 @@ export interface ClipboardItem {
   dy: number;
   width: number;
   height: number;
+}
+
+/** Namnet en inklistrad kopia får. En rubrik heter som sin text. */
+function copyTitle(type: ElementType, content: unknown): string {
+  return type === 'heading'
+    ? (content as HeadingContent | undefined)?.text?.trim() || 'Rubrik'
+    : COPY_NAMES[type];
 }
 
 /** Måttet en del vill ha i sitt nuvarande läge. */

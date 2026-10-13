@@ -10,6 +10,7 @@ import {
   ProvenanceEntry,
   currentScheduleDay,
   currentWheelPart,
+  currentWheelParts,
   mergeScheduleDay,
   mergeWheelPart,
   scheduleDaySignature,
@@ -124,6 +125,8 @@ export function useProvenance(
 
     if (run !== runId.current) return;
 
+    const partsByWheel = new Map<string, Map<string, WheelPartContent>>();
+
     items.forEach(({ element, content }) => {
       if (element.type === 'wheel_part') {
         const frozen = content as WheelPartContent;
@@ -134,7 +137,14 @@ export function useProvenance(
           result.set(element.id, { ...base, status: 'unknown' });
           return;
         }
-        const fresh = currentWheelPart(wheel, frozen);
+        const mode = frozen.straight ? 'unroll' : 'explode';
+        const partsKey = `${frozen.wheelId}:${mode}`;
+        let parts = partsByWheel.get(partsKey);
+        if (!parts) {
+          parts = currentWheelParts(wheel, mode);
+          partsByWheel.set(partsKey, parts);
+        }
+        const fresh = currentWheelPart(parts, frozen);
         if (!fresh) {
           result.set(element.id, { ...base, status: 'missing' });
           return;
