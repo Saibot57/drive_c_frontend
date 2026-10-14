@@ -2,22 +2,43 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { themeWheelService } from '@/services/themeWheelService';
-import { plannerService } from '@/services/plannerService';
+import { ArchiveNotFoundError, plannerService } from '@/services/plannerService';
 import type { SurfaceElement, WorkspaceElement } from '../types/workspace.types';
 import type { WheelPartContent } from '../types/wheelPart.types';
 import type { ScheduleDayContent } from '../types/scheduleDay.types';
 import {
   ProvenanceEntry,
-  currentScheduleDay,
+  ScheduleLookup,
   currentWheelPart,
   currentWheelParts,
-  mergeScheduleDay,
   mergeWheelPart,
+  scheduleDayProvenance,
   scheduleDaySignature,
   scheduleSourceKey,
   wheelPartSignature,
   wheelSourceKey,
 } from '../utils/provenance';
+import { scheduleSourceLabel } from '../utils/scheduleDayImport';
+
+/**
+ * Hämtar schemat ett kort kom från. Med id går det till schemat direkt, och
+ * delade scheman nås. Kort från före id:t går på namnet, vilket bara når de
+ * egna, eller på det gamla huvudschemat (archiveName null).
+ */
+const fetchSchedule = async (source: ScheduleDayContent): Promise<ScheduleLookup> => {
+  try {
+    if (source.archiveId) {
+      const { archive, activities } = await plannerService.getArchiveActivities(source.archiveId);
+      return { found: true, activities, label: archive ? scheduleSourceLabel(archive) : undefined };
+    }
+    const activities = source.archiveName === null
+      ? await plannerService.getPlannerActivities()
+      : await plannerService.getPlannerArchive(source.archiveName);
+    return { found: true, activities };
+  } catch (error) {
+    return { found: false, reason: error instanceof ArchiveNotFoundError ? 'missing' : 'unknown' };
+  }
+};
 
 /**
  * Kontrollerar om ytans sticklingar har hunnit bli inaktuella.
@@ -77,26 +98,28 @@ export function useProvenance(
     const result = new Map<string, ProvenanceEntry>();
 
     const wheelIds = new Set<string>();
-    const archives = new Set<string>();
-    let needsWorkingSchedule = false;
+    /** En hämtning per källa. Värdet är ett av korten därifrån. */
+    const scheduleSources = new Map<string, ScheduleDayContent>();
+    let needsOwnNames = false;
 
     items.forEach(({ element, content }) => {
       if (element.type === 'wheel_part') {
         wheelIds.add((content as WheelPartContent).wheelId);
       } else {
-        const name = (content as ScheduleDayContent).archiveName;
-        if (name === null) needsWorkingSchedule = true;
-        else archives.add(name);
+        const day = content as ScheduleDayContent;
+        scheduleSources.set(scheduleSourceKey(day), day);
+        if (!day.archiveId && day.archiveName !== null) needsOwnNames = true;
       }
     });
 
     const wheels = new Map<string, Awaited<ReturnType<typeof themeWheelService.getWheel>> | null>();
-    const schedules = new Map<string, Awaited<ReturnType<typeof plannerService.getPlannerActivities>> | null>();
-    // Ett borttaget arkiv ger tom lista, inte 404 — namnlistan är enda sättet
-    // att skilja "raderat" från "tomt".
-    let archiveNames: string[] | null = null;
-
-    await Promise.all([
+    const schedules = new Map<string, ScheduleLookup>();
+    // Namnvägen svarar tom lista för ett raderat schema, inte 404 — namnlistan
+    // är enda sättet att skilja "raderat" från "tomt" för kort utan id.
+    const [ownNames] = await Promise.all([
+      needsOwnNames
+        ? plannerService.getPlannerArchiveNames().catch(() => null)
+        : Promise.resolve(null),
       ...Array.from(wheelIds).map(async (id) => {
         try {
           wheels.set(id, await themeWheelService.getWheel(id));
@@ -104,23 +127,9 @@ export function useProvenance(
           wheels.set(id, null);
         }
       }),
-      ...(archives.size > 0
-        ? [plannerService.getPlannerArchiveNames()
-            .then((names) => { archiveNames = names; })
-            .catch(() => { archiveNames = null; })]
-        : []),
-      ...Array.from(archives).map(async (name) => {
-        try {
-          schedules.set(name, await plannerService.getPlannerArchive(name));
-        } catch {
-          schedules.set(name, null);
-        }
+      ...Array.from(scheduleSources).map(async ([key, source]) => {
+        schedules.set(key, await fetchSchedule(source));
       }),
-      ...(needsWorkingSchedule
-        ? [plannerService.getPlannerActivities()
-            .then((a) => { schedules.set('', a); })
-            .catch(() => { schedules.set('', null); })]
-        : []),
     ]);
 
     if (run !== runId.current) return;
@@ -156,22 +165,14 @@ export function useProvenance(
       }
 
       const frozen = content as ScheduleDayContent;
-      const key = frozen.archiveName ?? '';
-      const base = { sourceKey: scheduleSourceKey(frozen.archiveName), sourceLabel: frozen.sourceLabel };
-
-      if (frozen.archiveName !== null && archiveNames && !archiveNames.includes(frozen.archiveName)) {
-        result.set(element.id, { ...base, status: 'missing' });
-        return;
-      }
-      const activities = schedules.get(key);
-      if (activities === null || activities === undefined) {
-        result.set(element.id, { ...base, status: 'unknown' });
-        return;
-      }
-      const entries = currentScheduleDay(activities, frozen.day);
-      result.set(element.id, scheduleDaySignature(entries) === scheduleDaySignature(frozen.entries ?? [])
-        ? { ...base, status: 'fresh' }
-        : { ...base, status: 'drifted', fresh: mergeScheduleDay(frozen, entries) });
+      const goneByName = !frozen.archiveId
+        && frozen.archiveName !== null
+        && ownNames !== null
+        && !ownNames.includes(frozen.archiveName);
+      const lookup: ScheduleLookup = goneByName
+        ? { found: false, reason: 'missing' }
+        : schedules.get(scheduleSourceKey(frozen)) ?? { found: false, reason: 'unknown' };
+      result.set(element.id, scheduleDayProvenance(frozen, lookup));
     });
 
     setByElement(result);

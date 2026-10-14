@@ -3,15 +3,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarDays, ChevronLeft, Loader2, X } from 'lucide-react';
 import { plannerService } from '@/services/plannerService';
-import type { PlannerActivity } from '@/types/schedule';
-import { groupActivitiesByDay, sortDays } from '../utils/scheduleDayImport';
+import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
+import { isBaseSchedule } from '@/utils/scheduleKind';
+import {
+  groupActivitiesByDay,
+  orderScheduleSources,
+  scheduleSourceLabel,
+  sortDays,
+} from '../utils/scheduleDayImport';
 
 export interface ScheduleSource {
-  /**
-   * null = det gamla huvudschemat. Det går inte längre att hämta från, men
-   * element som hämtats därifrån tidigare bär det kvar (provenance läser det).
-   */
-  archiveName: string | null;
+  /** Nyckeln. Kortet pekar på schemat med den. */
+  archiveId: string;
+  /** Namnet vid hämtningen, sparat bredvid id:t. */
+  archiveName: string;
+  /** Det korten visar, med ägaren för ett delat schema. */
   label: string;
 }
 
@@ -22,7 +28,7 @@ interface ScheduleImportModalProps {
 }
 
 type Step =
-  | { status: 'sources'; archives: string[] }
+  | { status: 'sources'; own: PlannerArchiveSummary[]; shared: PlannerArchiveSummary[] }
   | { status: 'loading-sources' }
   | { status: 'loading-days'; source: ScheduleSource }
   | { status: 'days'; source: ScheduleSource; activities: PlannerActivity[]; counts: Map<string, number> }
@@ -31,9 +37,11 @@ type Step =
 /**
  * Hämta in dagar ur schemaplaneraren.
  *
- * Två steg: källa först, sedan dagar. Källan är ett av de egna schemana.
- * Arbetsschemat (huvudschemat) fanns här förr som ett eget val, men det
- * används inte längre i planeraren (docs/plans/basscheman.md, 5.4).
+ * Två steg: källa först, sedan dagar. Källan är ett schema du når, eget
+ * eller delat med dig, och kortet pekar på det med id
+ * (docs/plans/schemadagar-pa-id.md). Arbetsschemat (huvudschemat) fanns här
+ * förr som ett eget val, men det används inte längre i planeraren
+ * (docs/plans/basscheman.md, 5.4).
  */
 export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: ScheduleImportModalProps) {
   const [step, setStep] = useState<Step>({ status: 'loading-sources' });
@@ -42,7 +50,8 @@ export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: Sche
   const loadSources = useCallback(async () => {
     setStep({ status: 'loading-sources' });
     try {
-      setStep({ status: 'sources', archives: await plannerService.getPlannerArchiveNames() });
+      const { own, shared } = orderScheduleSources(await plannerService.listArchives());
+      setStep({ status: 'sources', own, shared });
     } catch {
       setStep({ status: 'error', message: 'Kunde inte hämta dina scheman.' });
     }
@@ -58,8 +67,7 @@ export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: Sche
   const pickSource = useCallback(async (source: ScheduleSource) => {
     setStep({ status: 'loading-days', source });
     try {
-      if (source.archiveName === null) throw new Error('Huvudschemat går inte att hämta från');
-      const activities = await plannerService.getPlannerArchive(source.archiveName);
+      const { activities } = await plannerService.getArchiveActivities(source.archiveId);
 
       const byDay = groupActivitiesByDay(activities);
       const counts = new Map(sortDays(Array.from(byDay.keys())).map((day) => [day, byDay.get(day)!.length]));
@@ -111,22 +119,20 @@ export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: Sche
           {step.status === 'error' && <p className="ws-dialog__empty">{step.message}</p>}
 
           {step.status === 'sources' && (
-            <>
-              <div className="ws-sidebar-header">Scheman</div>
-              {step.archives.length === 0 ? (
-                <p className="ws-dialog__empty">Du har inga scheman.</p>
-              ) : (
-                step.archives.map((name) => (
-                  <button
-                    key={name}
-                    className="ws-surface-option"
-                    onClick={() => void pickSource({ archiveName: name, label: name })}
-                  >
-                    {name}
-                  </button>
-                ))
-              )}
-            </>
+            step.own.length + step.shared.length === 0 ? (
+              <p className="ws-dialog__empty">Du har inga scheman.</p>
+            ) : (
+              <>
+                {step.own.length > 0 && <div className="ws-sidebar-header">Dina scheman</div>}
+                {step.own.map((archive) => (
+                  <SourceOption key={archive.id} archive={archive} onPick={(source) => void pickSource(source)} />
+                ))}
+                {step.shared.length > 0 && <div className="ws-sidebar-header">Delade med dig</div>}
+                {step.shared.map((archive) => (
+                  <SourceOption key={archive.id} archive={archive} onPick={(source) => void pickSource(source)} />
+                ))}
+              </>
+            )
           )}
 
           {step.status === 'days' && (
@@ -166,5 +172,33 @@ export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: Sche
         </div>
       </div>
     </div>
+  );
+}
+
+/** Ett schema i källistan. Sorten och ägaren står till höger, i grått. */
+function SourceOption({
+  archive,
+  onPick,
+}: {
+  archive: PlannerArchiveSummary;
+  onPick: (source: ScheduleSource) => void;
+}) {
+  const meta = [
+    isBaseSchedule(archive) ? 'bas' : null,
+    !archive.isOwner && archive.ownerUsername ? `delat av ${archive.ownerUsername}` : null,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <button
+      className="ws-surface-option"
+      onClick={() => onPick({
+        archiveId: archive.id,
+        archiveName: archive.name,
+        label: scheduleSourceLabel(archive),
+      })}
+    >
+      <span className="ws-surface-option__name">{archive.name}</span>
+      {meta && <span className="ws-surface-option__meta">{meta}</span>}
+    </button>
   );
 }

@@ -5,7 +5,7 @@
  * tidsfunktioner men ändrar inget i dem.
  */
 
-import type { PlannerActivity } from '@/types/schedule';
+import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
 import { PLANNER_DAYS } from '@/config/plannerConstants';
 import {
   END_HOUR,
@@ -27,6 +27,32 @@ export const DAY_CARD_GAP = 12;
 
 /** Reservfärg för aktiviteter som saknar egen. Samma grå som schemats rutnät. */
 const FALLBACK_COLOR = '#e5e7eb';
+
+/**
+ * Vad ett schema heter på kort och i "Uppdatera från …". Ett delat schema
+ * bär ägarens namn: två personer kan ha varsin "v.35", och på ytan ska det gå
+ * att se vems dagen kom från.
+ */
+export const scheduleSourceLabel = (
+  archive: Pick<PlannerArchiveSummary, 'name' | 'isOwner' | 'ownerUsername'>,
+): string => (
+  archive.isOwner || !archive.ownerUsername ? archive.name : `${archive.name} · ${archive.ownerUsername}`
+);
+
+/**
+ * Källorna i hämtningsdialogen: egna först, sedan de som delats med dig.
+ * Inom varje grupp senast ändrat överst, som i planeraren — veckan man
+ * arbetar med just nu är den man oftast vill hämta från.
+ */
+export const orderScheduleSources = <T extends Pick<PlannerArchiveSummary, 'isOwner' | 'updatedAt'>>(
+  archives: T[],
+): { own: T[]; shared: T[] } => {
+  const newestFirst = (a: T, b: T) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '');
+  return {
+    own: archives.filter((archive) => archive.isOwner).sort(newestFirst),
+    shared: archives.filter((archive) => !archive.isOwner).sort(newestFirst),
+  };
+};
 
 export interface ScheduleDayDraft {
   content: ScheduleDayContent;
@@ -129,7 +155,7 @@ export const dayCardHeight = (windowStartHour: number, windowEndHour: number): n
 export const buildScheduleDays = (
   activities: PlannerActivity[],
   days: string[],
-  source: { archiveName: string | null; sourceLabel: string },
+  source: { archiveId: string | null; archiveName: string | null; sourceLabel: string },
   capturedAt: string = new Date().toISOString(),
 ): ScheduleDayDraft[] => {
   const entriesByDay = groupActivitiesByDay(activities);
@@ -148,6 +174,7 @@ export const buildScheduleDays = (
 
     return {
       content: {
+        archiveId: source.archiveId,
         archiveName: source.archiveName,
         sourceLabel: source.sourceLabel,
         capturedAt,

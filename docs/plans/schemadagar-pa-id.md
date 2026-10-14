@@ -1,7 +1,24 @@
 # Plan: Schemadagar i workspace pekar på schemats id
 
-Status: plan, skriven 2026-10-13. Inte påbörjad. Bara frontend, backend har
-redan allt som behövs.
+Status: genomförd 2026-10-13 på grenen claude/nifty-meitner-ojgea2, inte
+sammanslagen med main. Bara frontend, backend hade redan allt som behövs.
+
+Genomförandet följer planen. Avvikelser och det som tillkom:
+
+- **Etiketten bär alltid ägaren för ett delat schema** ("v.35 · anna"), inte
+  bara när namnet krockar med ett eget. Härkomstkontrollen ser inte hela
+  listan och hade annars gett kortet en annan etikett än dialogen.
+  `scheduleSourceLabel` används på båda ställena.
+- Namnnyckeln fick prefixet `schedule:name:` (avsnitt 4 lät det vara valfritt).
+- `getArchiveActivities` kastar `ArchiveNotFoundError` vid 404. Övriga
+  anropare (planeraren, terminsplaneraren, Arbetslag) fångar den som vilket
+  `Error` som helst och påverkas inte.
+- Sorteringen i dialogen är utbruten till `orderScheduleSources`.
+- Provat mot en lokal backend (SQLite) med två användare, i Neo: punkt 1–5 i
+  avsnitt 7 går igenom. Punkt 6 (låst schema) är inte provad för hand, men
+  `GET /archives/<id>/activities` läser inte låset. Kronberg är inte provat;
+  de nya klasserna läser bara befintliga tokens.
+- Lint, typkontroll, enhetstester och bygget går igenom.
 
 Schemaplaneraren gick över till id när scheman blev delbara
 (`PlannerArchiveSummary`, `/archives/<id>/activities`). Workspace gjorde det

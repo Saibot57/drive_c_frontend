@@ -1044,6 +1044,21 @@
   background: var(--ws-bg-subtle);
 }
 
+.ws-surface-option__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-surface-option__meta {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+  font-size: var(--ws-font-xs);
+  color: var(--ws-text-faint);
+}
+
 .ws-surface-option--selected,
 .ws-surface-option--selected:hover {
   border-color: var(--ws-accent);

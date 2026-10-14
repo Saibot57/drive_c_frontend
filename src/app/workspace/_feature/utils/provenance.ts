@@ -39,8 +39,15 @@ export interface ProvenanceEntry {
 
 /** Två element med samma nyckel hämtas i ett anrop, inte ett per kort. */
 export const wheelSourceKey = (wheelId: string) => `wheel:${wheelId}`;
-export const scheduleSourceKey = (archiveName: string | null) =>
-  `schedule:${archiveName ?? ''}`;
+/**
+ * Ett schemakort pekar med id om det har ett, annars med namnet. Prefixen
+ * håller isär dem, så att ett id-kort och ett namnkort aldrig räknas som
+ * samma källa bara för att strängarna råkar vara lika.
+ */
+export const scheduleSourceKey = (content: Pick<ScheduleDayContent, 'archiveId' | 'archiveName'>) =>
+  content.archiveId
+    ? `schedule:id:${content.archiveId}`
+    : `schedule:name:${content.archiveName ?? ''}`;
 
 const canonical = (value: unknown): string => JSON.stringify(value ?? null);
 
@@ -133,3 +140,29 @@ export const currentScheduleDay = (
   activities: PlannerActivity[],
   day: string,
 ): ScheduleDayEntry[] => groupActivitiesByDay(activities).get(day) ?? [];
+
+/**
+ * Vad källan svarade om ett schema. `label` är schemats nuvarande namn, när
+ * källan vet det — då säger "Uppdatera från …" sanningen även om schemat bytt
+ * namn sedan kortet hämtades.
+ */
+export type ScheduleLookup =
+  | { found: true; activities: PlannerActivity[]; label?: string }
+  | { found: false; reason: 'missing' | 'unknown' };
+
+/** Härkomsten för en schemadag, givet vad källan svarade. */
+export const scheduleDayProvenance = (
+  frozen: ScheduleDayContent,
+  lookup: ScheduleLookup,
+): ProvenanceEntry => {
+  const base = {
+    sourceKey: scheduleSourceKey(frozen),
+    sourceLabel: (lookup.found && lookup.label) || frozen.sourceLabel,
+  };
+  if (!lookup.found) return { ...base, status: lookup.reason };
+
+  const entries = currentScheduleDay(lookup.activities, frozen.day);
+  return scheduleDaySignature(entries) === scheduleDaySignature(frozen.entries ?? [])
+    ? { ...base, status: 'fresh' }
+    : { ...base, status: 'drifted', fresh: mergeScheduleDay(frozen, entries) };
+};
