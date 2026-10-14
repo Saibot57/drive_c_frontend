@@ -98,24 +98,9 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
   // ── Empty state ──
   if (!source) {
     return (
-      <div
-        ref={containerRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
-          padding: '0.75rem',
-          color: '#6b7280',
-          fontSize: '0.8125rem',
-          ...pointerStyle,
-        }}
-      >
+      <div ref={containerRef} className="ws-source-form ws-source-form--centered" style={pointerStyle}>
         <ImageIcon size={28} strokeWidth={1.5} />
-        <div style={{ textAlign: 'center', maxWidth: '16rem' }}>
+        <div className="ws-source-form__hint">
           Klistra in en delningslänk till en bild (Google Drive, OneDrive eller direkt URL).
         </div>
         <input
@@ -130,44 +115,18 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
           }}
           placeholder="https://…"
           disabled={isLocked}
-          style={{
-            width: '100%',
-            maxWidth: '18rem',
-            fontSize: '0.75rem',
-            padding: '0.375rem 0.5rem',
-            border: '1px solid #e5e7eb',
-            borderRadius: '0.375rem',
-            outline: 'none',
-          }}
+          className="ws-source-form__input"
         />
         <button
           type="button"
           onClick={handleLoadUrl}
           disabled={isLocked || !urlInput.trim()}
-          style={{
-            fontSize: '0.75rem',
-            padding: '0.375rem 0.75rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.375rem',
-            background: '#f9fafb',
-            cursor: isLocked || !urlInput.trim() ? 'not-allowed' : 'pointer',
-            color: '#111827',
-          }}
+          className="ws-source-form__button"
         >
           Öppna
         </button>
         {error && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              color: '#b91c1c',
-              fontSize: '0.6875rem',
-              maxWidth: '18rem',
-              textAlign: 'center',
-            }}
-          >
+          <div className="ws-source-form__error">
             <AlertCircle size={12} />
             {error}
           </div>
@@ -178,63 +137,24 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
 
   // ── Loaded state ──
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#f3f4f6',
-        position: 'relative',
-        ...pointerStyle,
-      }}
-    >
+    <div ref={containerRef} className="ws-media" style={pointerStyle}>
       {/* Image area */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          minHeight: 0,
-        }}
-      >
+      <div className="ws-media__stage">
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#6b7280', fontSize: '0.75rem' }}>
+          <div className="ws-media__loading">
             <Loader2 size={14} className="ws-spin" />
             Laddar bild…
           </div>
         )}
         {!loading && error && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.375rem',
-              color: '#b91c1c',
-              fontSize: '0.75rem',
-              padding: '0.5rem',
-              textAlign: 'center',
-            }}
-          >
+          <div className="ws-media__error">
             <AlertCircle size={16} />
             <div>{error}</div>
             <button
               type="button"
               onClick={handleClearSource}
               disabled={isLocked}
-              style={{
-                fontSize: '0.6875rem',
-                padding: '0.25rem 0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.25rem',
-                background: '#ffffff',
-                cursor: isLocked ? 'not-allowed' : 'pointer',
-                color: '#111827',
-              }}
+              className="ws-media__retry"
             >
               Byt länk
             </button>
@@ -249,13 +169,7 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
               setError('Bilden kunde inte visas. Kontrollera att länken pekar direkt till en bildfil.');
               setBlobUrl(null);
             }}
-            style={{
-              maxWidth: '100%',
-              maxHeight: '100%',
-              objectFit: 'contain',
-              display: 'block',
-              userSelect: 'none',
-            }}
+            className="ws-media__image"
           />
         )}
       </div>
@@ -267,22 +181,7 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
           onClick={handleClearSource}
           disabled={isLocked}
           title="Byt bild"
-          style={{
-            position: 'absolute',
-            top: 4,
-            right: 4,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 24,
-            height: 24,
-            border: '1px solid #d1d5db',
-            borderRadius: '0.25rem',
-            background: 'rgba(255,255,255,0.9)',
-            cursor: isLocked ? 'not-allowed' : 'pointer',
-            color: '#374151',
-            padding: 0,
-          }}
+          className="ws-corner-btn"
         >
           <RefreshCw size={12} />
         </button>
