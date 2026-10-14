@@ -25,6 +25,10 @@
   --ws-bg-muted: var(--sp-bg-grid, #f9fafb);
   --ws-bg-hover: var(--sp-menu-hover, #f3f4f6);
   --ws-bg-subtle: #f9fafb;
+  /* Fält inne i ett kort: kanbankolumn, tabellhuvud. Måste skilja sig från kortet. */
+  --ws-bg-inset: #f9fafb;
+  /* Inmatningsfält. Följer temats papper, så ingen Kronberg-regel behövs. */
+  --ws-field-bg: var(--ui-paper);
   --ws-canvas-bg: var(--sp-bg-grid, #f9fafb);
   --ws-canvas-dot: #d1d5db;
   --ws-overlay: rgba(0, 0, 0, 0.3);
@@ -1401,7 +1405,7 @@
 
 .ws-table__head {
   position: relative;
-  background: var(--ws-bg-muted);
+  background: var(--ws-bg-inset);
   font-weight: 600;
   text-align: left;
 }
@@ -1453,7 +1457,7 @@
   min-width: 11rem;
   padding: 0.5rem;
   border-radius: 0.5rem;
-  background: var(--ws-bg-muted);
+  background: var(--ws-bg-inset);
 }
 
 .ws-kanban__column-head {
@@ -1573,6 +1577,7 @@
   padding: 0.375rem 0.5rem;
   border: 1px solid var(--ws-border-color);
   border-radius: 0.375rem;
+  background: var(--ws-field-bg);
   outline: none;
   font-size: var(--ws-font-sm);
 }
@@ -2645,6 +2650,7 @@
   --ws-bg-muted: var(--ui-surface-2);
   --ws-bg-hover: var(--ui-surface-3);
   --ws-bg-subtle: var(--ui-surface-2);
+  --ws-bg-inset: var(--ui-surface-3);
   --ws-canvas-bg: var(--ui-bg);
   --ws-canvas-dot: #C9C7C1;
   --ws-overlay: var(--ui-scrim);
