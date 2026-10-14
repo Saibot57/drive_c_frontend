@@ -1239,7 +1239,7 @@ function getDefaultContent(type: ElementType): unknown {
     case 'text':
       return { type: 'doc', content: [{ type: 'paragraph' }] };
     case 'table':
-      return { headers: ['Kolumn 1', 'Kolumn 2'], rows: [['', '']], cellColors: {}, borderColor: '#e5e7eb' };
+      return { headers: ['Kolumn 1', 'Kolumn 2'], rows: [['', '']], cellColors: {} };
     case 'mindmap':
       return { root: { id: '1', label: 'Central nod', children: [] } };
     case 'list':

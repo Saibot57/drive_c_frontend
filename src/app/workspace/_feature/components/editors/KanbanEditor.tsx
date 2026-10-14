@@ -122,47 +122,26 @@ export default function KanbanEditor({ content, isLocked, onChange }: KanbanEdit
   };
 
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', height: '100%', minWidth: 'max-content' }}>
+    <div className="ws-kanban">
       {cols.map((col) => (
         <div
           key={col.id}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(col.id, e)}
-          style={{
-            width: '11rem',
-            minWidth: '11rem',
-            display: 'flex',
-            flexDirection: 'column',
-            background: '#f9fafb',
-            borderRadius: '0.5rem',
-            padding: '0.5rem',
-            gap: '0.375rem',
-          }}
+          className="ws-kanban__column"
         >
           {/* Column header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.25rem' }}>
+          <div className="ws-kanban__column-head">
             <input
               value={col.title}
               onChange={(e) => renameColumn(col.id, e.target.value)}
               disabled={isLocked}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                fontSize: '0.6875rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                color: '#6b7280',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                padding: '0.125rem 0',
-              }}
+              className="ws-editor-bare-input ws-kanban__column-title"
             />
             {!isLocked && (
               <button
                 onClick={() => removeColumn(col.id)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db', padding: '2px' }}
+                className="ws-editor-icon-btn ws-kanban__remove-column"
                 title="Ta bort kolumn"
               >
                 <X size={10} />
@@ -171,54 +150,25 @@ export default function KanbanEditor({ content, isLocked, onChange }: KanbanEdit
           </div>
 
           {/* Cards */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto' }}>
+          <div className="ws-kanban__cards">
             {col.cards.map((card) => (
               <div
                 key={card.id}
                 draggable={!isLocked}
                 onDragStart={(e) => handleDragStart(card.id, col.id, e)}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '0.375rem',
-                  padding: '0.375rem 0.5rem',
-                  fontSize: '0.75rem',
-                  cursor: isLocked ? 'default' : 'grab',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.25rem',
-                }}
+                className={`ws-kanban__card${isLocked ? ' ws-kanban__card--locked' : ''}`}
               >
                 <input
                   value={card.text}
                   onChange={(e) => updateCard(col.id, card.id, e.target.value)}
                   disabled={isLocked}
                   placeholder="Korttext…"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    fontSize: 'inherit',
-                    color: '#374151',
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    padding: 0,
-                  }}
+                  className="ws-editor-bare-input ws-kanban__card-text"
                 />
                 {!isLocked && (
                   <button
                     onClick={() => removeCard(col.id, card.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: '#d1d5db',
-                      padding: '1px',
-                      flexShrink: 0,
-                      opacity: 0,
-                      transition: 'opacity 150ms',
-                    }}
-                    className="kanban-card-delete"
+                    className="ws-editor-icon-btn ws-kanban__card-remove"
                     title="Ta bort"
                   >
                     <X size={10} />
@@ -230,20 +180,7 @@ export default function KanbanEditor({ content, isLocked, onChange }: KanbanEdit
 
           {/* Add card */}
           {!isLocked && (
-            <button
-              onClick={() => addCard(col.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                fontSize: '0.6875rem',
-                color: '#9ca3af',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0.25rem 0',
-              }}
-            >
+            <button onClick={() => addCard(col.id)} className="ws-editor-add ws-kanban__add-card">
               <Plus size={10} /> Kort
             </button>
           )}
@@ -254,19 +191,7 @@ export default function KanbanEditor({ content, isLocked, onChange }: KanbanEdit
       {!isLocked && (
         <button
           onClick={addColumn}
-          style={{
-            width: '2rem',
-            minWidth: '2rem',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'center',
-            paddingTop: '0.5rem',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: '#d1d5db',
-            borderRadius: '0.5rem',
-          }}
+          className="ws-editor-icon-btn ws-kanban__add-column"
           title="Ny kolumn"
         >
           <Plus size={14} />

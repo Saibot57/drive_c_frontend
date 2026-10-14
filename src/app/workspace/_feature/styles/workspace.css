@@ -1379,9 +1379,160 @@
   margin-top: 0.375rem;
 }
 
+/* ── Tabell ──
+ * --ws-table-border sätts inline bara när användaren valt en egen ram.
+ * Annars följer ramen temats hårlinje. */
+.ws-table {
+  height: 100%;
+  overflow: auto;
+  font-size: var(--ws-font-md);
+}
+
+.ws-table__grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.ws-table__cell {
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--ws-table-border, var(--ws-border-color));
+}
+
+.ws-table__head {
+  position: relative;
+  background: var(--ws-bg-muted);
+  font-weight: 600;
+  text-align: left;
+}
+
+.ws-table__input {
+  width: 100%;
+}
+
+.ws-table__head .ws-table__input {
+  font-weight: 600;
+}
+
+.ws-table__remove-col {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+
+.ws-table__row-tools {
+  padding: 0 0.25rem;
+  border: none;
+  vertical-align: middle;
+}
+
+/* I cellen står knappen i textraden, som de andra cellerna, inte som flex. */
+.ws-table__row-tools .ws-editor-icon-btn {
+  display: inline-block;
+}
+
+.ws-table__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+}
+
 /* ── Kanban ── */
-div:hover > .kanban-card-delete {
-  opacity: 1 !important;
+.ws-kanban {
+  display: flex;
+  gap: 0.5rem;
+  height: 100%;
+  min-width: max-content;
+}
+
+.ws-kanban__column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  width: 11rem;
+  min-width: 11rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--ws-bg-muted);
+}
+
+.ws-kanban__column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.ws-kanban__column-title {
+  flex: 1;
+  min-width: 0;
+  padding: 0.125rem 0;
+  font-size: var(--ws-font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ws-text-subtle);
+}
+
+.ws-kanban__remove-column {
+  padding: 2px;
+}
+
+.ws-kanban__cards {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+}
+
+.ws-kanban__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--ws-border-color);
+  border-radius: 0.375rem;
+  background: var(--ws-bg);
+  font-size: var(--ws-font-sm);
+  cursor: grab;
+}
+
+.ws-kanban__card--locked {
+  cursor: default;
+}
+
+.ws-kanban__card-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--ws-text-muted);
+}
+
+/* Syns bara när pekaren är över kortet. */
+.ws-kanban__card-remove {
+  flex-shrink: 0;
+  padding: 1px;
+  opacity: 0;
+  transition: opacity var(--ws-transition);
+}
+
+.ws-kanban__card:hover .ws-kanban__card-remove {
+  opacity: 1;
+}
+
+.ws-kanban__add-card {
+  padding: 0.25rem 0;
+  font-size: var(--ws-font-xs);
+  color: var(--ws-text-faint);
+}
+
+.ws-kanban__add-column {
+  align-items: flex-start;
+  justify-content: center;
+  width: 2rem;
+  min-width: 2rem;
+  padding-top: 0.5rem;
+  border-radius: 0.5rem;
 }
 
 /* ──────────────────────────────────────────────────────────────

@@ -7,7 +7,8 @@ export interface TableContent {
   headers: string[];
   rows: string[][];
   cellColors: Record<string, string>;
-  borderColor: string;
+  /** Egen ramfärg. Saknas den följer ramen temat. */
+  borderColor?: string;
 }
 
 interface TableEditorProps {
@@ -20,8 +21,18 @@ const defaultContent: TableContent = {
   headers: ['Kolumn 1', 'Kolumn 2'],
   rows: [['', '']],
   cellColors: {},
-  borderColor: '#e5e7eb',
 };
+
+/**
+ * Ramen som skrevs in i varje ny tabell fram till 2026-10. Ingen har kunnat
+ * välja den, så den betyder "följ temat" och inte ett val att bevara.
+ */
+const LEGACY_DEFAULT_BORDER = '#e5e7eb';
+
+/** Ramfärgen användaren valt, eller undefined om ramen ska följa temat. */
+const customBorder = (color: string | undefined) => (
+  color && color.toLowerCase() !== LEGACY_DEFAULT_BORDER ? color : undefined
+);
 
 export default function TableEditor({
   content: rawContent,
@@ -87,31 +98,18 @@ export default function TableEditor({
     [content, colCount, onChange],
   );
 
-  const borderStyle = `1px solid ${content.borderColor}`;
+  const border = customBorder(content.borderColor);
 
   return (
-    <div style={{ fontSize: '0.8125rem', overflow: 'auto', height: '100%' }}>
+    <div className="ws-table">
       <table
-        style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          tableLayout: 'fixed',
-        }}
+        className="ws-table__grid"
+        style={border ? ({ '--ws-table-border': border } as React.CSSProperties) : undefined}
       >
         <thead>
           <tr>
             {content.headers.map((h, ci) => (
-              <th
-                key={ci}
-                style={{
-                  border: borderStyle,
-                  padding: '0.375rem 0.5rem',
-                  background: '#f9fafb',
-                  fontWeight: 600,
-                  textAlign: 'left',
-                  position: 'relative',
-                }}
-              >
+              <th key={ci} className="ws-table__cell ws-table__head">
                 {isLocked ? (
                   h
                 ) : (
@@ -119,29 +117,12 @@ export default function TableEditor({
                     <input
                       value={h}
                       onChange={(e) => updateHeader(ci, e.target.value)}
-                      style={{
-                        width: '100%',
-                        border: 'none',
-                        background: 'transparent',
-                        fontWeight: 600,
-                        fontSize: 'inherit',
-                        outline: 'none',
-                        padding: 0,
-                      }}
+                      className="ws-editor-bare-input ws-table__input"
                     />
                     {colCount > 1 && (
                       <button
                         onClick={() => removeCol(ci)}
-                        style={{
-                          position: 'absolute',
-                          top: 2,
-                          right: 2,
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#d1d5db',
-                          padding: 0,
-                        }}
+                        className="ws-editor-icon-btn ws-table__remove-col"
                         title="Ta bort kolumn"
                       >
                         <Trash2 size={10} />
@@ -160,44 +141,24 @@ export default function TableEditor({
                 const colorKey = `${ri}-${ci}`;
                 const bg = content.cellColors[colorKey] || undefined;
                 return (
-                  <td
-                    key={ci}
-                    style={{
-                      border: borderStyle,
-                      padding: '0.375rem 0.5rem',
-                      background: bg,
-                    }}
-                  >
+                  <td key={ci} className="ws-table__cell" style={bg ? { background: bg } : undefined}>
                     {isLocked ? (
                       cell
                     ) : (
                       <input
                         value={cell}
                         onChange={(e) => updateCell(ri, ci, e.target.value)}
-                        style={{
-                          width: '100%',
-                          border: 'none',
-                          background: 'transparent',
-                          fontSize: 'inherit',
-                          outline: 'none',
-                          padding: 0,
-                        }}
+                        className="ws-editor-bare-input ws-table__input"
                       />
                     )}
                   </td>
                 );
               })}
               {!isLocked && content.rows.length > 1 && (
-                <td style={{ border: 'none', padding: '0 0.25rem', verticalAlign: 'middle' }}>
+                <td className="ws-table__row-tools">
                   <button
                     onClick={() => removeRow(ri)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: '#d1d5db',
-                      padding: 0,
-                    }}
+                    className="ws-editor-icon-btn"
                     title="Ta bort rad"
                   >
                     <Trash2 size={12} />
@@ -210,35 +171,11 @@ export default function TableEditor({
       </table>
 
       {!isLocked && (
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.375rem' }}>
-          <button
-            onClick={addRow}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              fontSize: '0.75rem',
-              color: '#6b7280',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
+        <div className="ws-table__actions">
+          <button onClick={addRow} className="ws-editor-add">
             <Plus size={12} /> Rad
           </button>
-          <button
-            onClick={addCol}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              fontSize: '0.75rem',
-              color: '#6b7280',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
+          <button onClick={addCol} className="ws-editor-add">
             <Plus size={12} /> Kolumn
           </button>
         </div>
