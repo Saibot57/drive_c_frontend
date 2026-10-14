@@ -1187,6 +1187,198 @@
   border: 2px solid var(--ws-text-subtle);
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Editorer
+   Innehållet i text-, tabell-, mindmap-, list- och kanbankorten, och
+   källformuläret i bild, PDF och länk. Bara färger som användaren själv
+   valt (tabellceller, lappar) och mått som räknas fram ligger inline.
+   ────────────────────────────────────────────────────────────── */
+
+/* Tyst ikonknapp: ta bort rad, kolumn, kort, nod. */
+.ws-editor-icon-btn {
+  display: flex;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ws-text-disabled);
+  cursor: pointer;
+}
+
+/* "+ Rad", "+ Lägg till": textknapp under innehållet. */
+.ws-editor-add {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: none;
+  background: none;
+  font-size: var(--ws-font-sm);
+  color: var(--ws-text-subtle);
+  cursor: pointer;
+}
+
+/* Fält utan egen ram, inuti en cell, nod eller rad. */
+.ws-editor-bare-input {
+  border: none;
+  background: transparent;
+  font-size: inherit;
+  outline: none;
+  padding: 0;
+}
+
+/* ── Text ── */
+.ws-text-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ws-text-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 0.25rem 0;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--ws-divider-color);
+}
+
+.ws-text-editor__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--ws-text-subtle);
+  cursor: pointer;
+}
+
+.ws-text-editor__btn--active {
+  background: var(--ws-border-color);
+  color: var(--ws-text);
+}
+
+.ws-text-editor__scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+.ws-text-editor__content {
+  min-height: 3rem;
+  padding: 0;
+  outline: none;
+  font-size: var(--ws-font-lg);
+  line-height: 1.6;
+  color: var(--ws-text-muted);
+}
+
+/* ── Mindmap ── */
+.ws-mindmap {
+  display: flex;
+  align-items: flex-start;
+  height: 100%;
+  overflow: auto;
+  padding: 0.5rem;
+  font-size: var(--ws-font-md);
+}
+
+.ws-mindmap__branch {
+  display: flex;
+  align-items: center;
+}
+
+.ws-mindmap__node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--ws-control-border);
+  border-radius: 9999px;
+  background: var(--ws-bg);
+  white-space: nowrap;
+}
+
+.ws-mindmap__node--root {
+  background: var(--ws-accent-bg);
+}
+
+.ws-mindmap__add {
+  color: var(--ws-text-faint);
+}
+
+.ws-mindmap__children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-left: 0.75rem;
+}
+
+.ws-mindmap__connector {
+  flex-shrink: 0;
+  width: 0.75rem;
+  height: 1px;
+  background: var(--ws-control-border);
+}
+
+/* ── Lista ── */
+.ws-list {
+  height: 100%;
+  overflow: auto;
+  font-size: var(--ws-font-md);
+}
+
+.ws-list__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ws-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0;
+  border-radius: 0.25rem;
+}
+
+.ws-list__grip {
+  flex-shrink: 0;
+  color: var(--ws-text-disabled);
+  cursor: grab;
+}
+
+.ws-list__check {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  accent-color: var(--ws-accent);
+  cursor: pointer;
+}
+
+.ws-list__check:disabled {
+  cursor: default;
+}
+
+.ws-list__text {
+  flex: 1;
+  color: var(--ws-text-muted);
+}
+
+.ws-list__text--done {
+  text-decoration: line-through;
+  color: var(--ws-text-faint);
+}
+
+.ws-list__remove {
+  opacity: 0.5;
+}
+
+.ws-list__add {
+  margin-top: 0.375rem;
+}
+
 /* ── Kanban ── */
 div:hover > .kanban-card-delete {
   opacity: 1 !important;

@@ -61,16 +61,7 @@ export default function MindmapEditor({
   );
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        overflow: 'auto',
-        height: '100%',
-        padding: '0.5rem',
-        fontSize: '0.8125rem',
-      }}
-    >
+    <div className="ws-mindmap">
       <NodeView
         node={content.root}
         isRoot
@@ -99,21 +90,9 @@ function NodeView({
   onRemove: (id: string) => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
+    <div className="ws-mindmap__branch">
       {/* The node pill */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.25rem',
-          padding: '0.25rem 0.625rem',
-          borderRadius: '9999px',
-          border: '1px solid #d1d5db',
-          background: isRoot ? '#f0f9ff' : '#ffffff',
-          whiteSpace: 'nowrap',
-          position: 'relative',
-        }}
-      >
+      <div className={`ws-mindmap__node${isRoot ? ' ws-mindmap__node--root' : ''}`}>
         {isLocked ? (
           <span>{node.label}</span>
         ) : (
@@ -121,14 +100,8 @@ function NodeView({
             value={node.label}
             onChange={(e) => onUpdate(node.id, e.target.value)}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              fontSize: 'inherit',
-              outline: 'none',
-              padding: 0,
-              width: `${Math.max(node.label.length, 3)}ch`,
-            }}
+            className="ws-editor-bare-input"
+            style={{ width: `${Math.max(node.label.length, 3)}ch` }}
           />
         )}
         {!isLocked && (
@@ -138,14 +111,7 @@ function NodeView({
               onAddChild(node.id);
             }}
             title="Lägg till barn"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#9ca3af',
-              padding: 0,
-              display: 'flex',
-            }}
+            className="ws-editor-icon-btn ws-mindmap__add"
           >
             <Plus size={12} />
           </button>
@@ -157,14 +123,7 @@ function NodeView({
               onRemove(node.id);
             }}
             title="Ta bort"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#d1d5db',
-              padding: 0,
-              display: 'flex',
-            }}
+            className="ws-editor-icon-btn"
           >
             <X size={10} />
           </button>
@@ -173,18 +132,11 @@ function NodeView({
 
       {/* Children branch */}
       {node.children.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', marginLeft: '0.75rem', gap: '0.375rem' }}>
+        <div className="ws-mindmap__children">
           {/* Connector line */}
           {node.children.map((child) => (
-            <div key={child.id} style={{ display: 'flex', alignItems: 'center' }}>
-              <div
-                style={{
-                  width: '0.75rem',
-                  height: '1px',
-                  background: '#d1d5db',
-                  flexShrink: 0,
-                }}
-              />
+            <div key={child.id} className="ws-mindmap__branch">
+              <div className="ws-mindmap__connector" />
               <NodeView
                 node={child}
                 isRoot={false}
