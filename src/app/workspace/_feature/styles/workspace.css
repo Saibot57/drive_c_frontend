@@ -39,6 +39,8 @@
   --ws-border-color: #e5e7eb;
   --ws-border: 1px solid var(--ws-border-color);
   --ws-divider-color: #f3f4f6;
+  /* Ramen på knappar och noder inuti korten. Ett steg mörkare än DETALJ. */
+  --ws-control-border: #d1d5db;
   --ws-radius-sm: var(--sp-radius-sm, 0.25rem);
   --ws-radius: 0.5rem;
   --ws-radius-lg: var(--sp-radius, 0.75rem);
@@ -2016,6 +2018,8 @@ div:hover > .kanban-card-delete {
   --ws-text-muted: var(--ui-ink-2);
   --ws-text-subtle: var(--ui-muted);
   --ws-text-faint: var(--ui-subtle);
+  --ws-text-disabled: var(--ui-line);
+  --ws-control-border: var(--ui-line);
 
   --ws-accent: var(--ui-ink);
   --ws-accent-soft: var(--ui-ink-2);
