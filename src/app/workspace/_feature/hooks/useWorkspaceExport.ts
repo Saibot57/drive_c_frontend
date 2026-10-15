@@ -8,6 +8,19 @@ import { addCanvasCentered, downloadUrl, toFileSlug } from '@/utils/download';
 
 type ShowNotice = (message: string, tone: PlannerNoticeTone) => void;
 
+/*
+ * html2canvas mäter typsnittens baslinje och mitt i sidans eget dokument,
+ * inte i klonen: en 1×1-bild läggs efter en textrad i en dold div direkt
+ * under body, och måtten är bildens avstånd från radens topp. Tailwinds
+ * preflight gör alla img till block, så bilden hamnar på raden under och
+ * måtten blir en hel rad fel. Genomstrykningar ritas från mitten och hamnade
+ * därför ovanför texten (en avbockad punkt i en låst lista).
+ *
+ * Medan exporten pågår står mätbilden inline igen. Selektorn träffar bara
+ * den: inga riktiga bilder är 1×1 direkt under en div direkt under body.
+ */
+const FONT_METRICS_FIX = 'body > div > img[width="1"][height="1"] { display: inline !important; }';
+
 type UseWorkspaceExportParams = {
   /** Elementet som bär canvasens transform. Innehållet ligger inuti det. */
   viewportRef: RefObject<HTMLDivElement>;
@@ -46,6 +59,9 @@ export function useWorkspaceExport({
     const width = Math.max(...onCanvas.map((p) => p.position_x + p.width)) + pad - minX;
     const height = Math.max(...onCanvas.map((p) => p.position_y + p.height)) + pad - minY;
 
+    const metricsFix = document.createElement('style');
+    metricsFix.textContent = FONT_METRICS_FIX;
+
     const saved = {
       transform: viewport.style.transform,
       width: viewport.style.width,
@@ -61,6 +77,7 @@ export function useWorkspaceExport({
       viewport.style.setProperty('--ws-zoom', '1');
       // Låsknappar och storlekshandtag hör till redigeringen, inte till bilden.
       viewport.classList.add('ws-exporting');
+      document.head.appendChild(metricsFix);
 
       /*
        * Rubrikerna använder fyra typsnitt som laddas först när de behövs.
@@ -84,9 +101,11 @@ export function useWorkspaceExport({
         // är ett eget dokument, så sidan själv byter aldrig tema.
         onclone: (clonedDocument) => {
           clonedDocument.documentElement.removeAttribute('data-theme');
+          matchFieldsToScreen(clonedDocument);
         },
       });
     } finally {
+      metricsFix.remove();
       viewport.classList.remove('ws-exporting');
       viewport.style.transform = saved.transform;
       viewport.style.width = saved.width;
@@ -132,4 +151,47 @@ export function useWorkspaceExport({
   }, [renderToCanvas, surfaceName, showNotice]);
 
   return { exportImage, exportPdf };
+}
+
+/*
+ * html2canvas ritar ett textfälts värde själv i stället för att låta
+ * webbläsaren göra det, och det blir fel på flera sätt: texten hamnar några
+ * pixlar för lågt och klipps, platshållaren får textens färg, och
+ * text-transform och text-decoration ignoreras (kanbankolumnernas versaler,
+ * en avbockad punkt i en olåst lista).
+ *
+ * I klonen byts varje textfält på korten mot ett span med samma klasser och
+ * samma mått, så att texten ritas som all annan text. Klonen är ett eget
+ * dokument; sidans fält rörs inte.
+ */
+function matchFieldsToScreen(doc: Document) {
+  const view = doc.defaultView;
+  if (!view) return;
+
+  doc.querySelectorAll<HTMLInputElement>('.ws-element input:not([type]), .ws-element input[type="text"]')
+    .forEach((input) => {
+      // Bredden mäts; höjden blir densamma av sig själv, eftersom spannet
+      // ärver samma radhöjd som fältet och får samma klasser. Med overflow
+      // hidden ligger ett inline-blocks baslinje i nederkanten, och då växer
+      // raden runt det — vertical-align: top håller tabellcellerna i höjd.
+      const width = input.getBoundingClientRect().width;
+      const span = doc.createElement('span');
+      span.className = input.className;
+      span.style.cssText = input.style.cssText;
+      Object.assign(span.style, {
+        display: 'inline-block',
+        boxSizing: 'border-box',
+        width: `${width}px`,
+        overflow: 'hidden',
+        whiteSpace: 'pre',
+        verticalAlign: 'top',
+      });
+      if (input.value) {
+        span.textContent = input.value;
+      } else {
+        span.textContent = input.placeholder;
+        span.style.color = view.getComputedStyle(input, '::placeholder').color;
+      }
+      input.replaceWith(span);
+    });
 }
