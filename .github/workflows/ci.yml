@@ -1,0 +1,43 @@
+name: CI
+
+# Körs på varje PR och på main. Samma kontroller som en session ska köra
+# lokalt före push: typkontroll, lint, tester och bygge.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      # Versionen läses från "packageManager" i package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typkontroll
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tester
+        run: pnpm test
+
+      - name: Bygge
+        run: pnpm build

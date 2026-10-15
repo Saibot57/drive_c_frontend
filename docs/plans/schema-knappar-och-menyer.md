@@ -1,7 +1,6 @@
 # Plan: Färre knappar och tydligare menyer i schemaplaneraren
 
-Status: genomförd 2026-10-09 på grenen ccr-d2c1653a-tupg0s, inte sammanslagen
-med main. Granskad mot backend samma dag, se avsnitt 13. Prototyp med båda
+Status: genomförd 2026-10-09 och sammanslagen med main (#211). Granskad mot backend samma dag, se avsnitt 13. Prototyp med båda
 stilarna: länken står i avsnitt 11.
 
 Genomförandet följer planen. Det som tillkom:

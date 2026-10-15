@@ -2,8 +2,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest täcker i dagsläget bara datumlagret (`src/utils/calendarDates`).
- * Resten av frontenden verifieras manuellt — se KALENDER-planen.
+ * Vitest kör alla testfiler under `src` (se `include`), lokalt med
+ * `pnpm test` och i CI.
  *
  * `TZ` sätts här och inte i skriptet: flera testfall handlar om att lokal
  * midnatt och UTC ligger på olika kalenderdagar, och de säger ingenting alls

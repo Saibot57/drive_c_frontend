@@ -1,7 +1,7 @@
 # Plan: Temat Kronberg
 
-Status: steg 0–8 genomförda 2026-10-09 på grenen ccr-d2c1653a-tupg0s, inte
-sammanslagna med main. Fråga 4 i avsnitt 9 är fortfarande öppen. Avvikelser
+Status: steg 0–8 genomförda 2026-10-09 och sammanslagna med main (#211,
+växlaren i #214). Fråga 4 i avsnitt 9 är fortfarande öppen. Avvikelser
 från planen står i avsnitt 11.
 
 Kronberg är ett andra utseende för Drive C, inspirerat av Dieter Rams och
