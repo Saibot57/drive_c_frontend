@@ -44,7 +44,6 @@ import {
 } from '@/utils/scheduleTime';
 import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
 import { computePlanningByDay, parsePlanningQuery } from '@/utils/planningTime';
-import { runPlanningFixtureValidation } from '@/components/schedule/planningValidation';
 import { createColorResolver } from '@/utils/colorTriggers';
 import { createRoomResolver } from '@/utils/roomTriggers';
 import { buildDayLayout, DayLayoutEntry, getLanePeers, stepInLane } from '@/utils/scheduleLayout';
@@ -57,7 +56,6 @@ import {
   totalMinutesByTitle
 } from '@/utils/scheduleStats';
 import { matchesExcludeList } from '@/utils/exportExclusions';
-import { runLayoutFixtureValidation } from '@/components/schedule/layoutValidation';
 import { DraggableSourceCard } from '@/components/schedule/DraggableSourceCard';
 import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
 import { PlanningBlockCard, PlanningDayOffLabel } from '@/components/schedule/PlanningBlockCard';
@@ -732,12 +730,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const queryEnabled = params.has('debugLayout') && params.get('debugLayout') !== '0';
     const envEnabled = process.env.NEXT_PUBLIC_SCHEDULE_DEBUG_LAYOUT === 'true';
     setShowLayoutDebug(queryEnabled || envEnabled);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    runLayoutFixtureValidation();
-    runPlanningFixtureValidation();
   }, []);
 
   useHotkeys(
