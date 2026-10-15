@@ -27,8 +27,12 @@ export function useWorkspaceSync(showNotice: ShowNotice) {
    * Kör en skrivning och håller statusen uppdaterad. Returnerar resultatet,
    * eller null om anropet gick fel — anroparen avgör själv om den vill rulla
    * tillbaka sin optimistiska uppdatering.
+   *
+   * `T` får inte vara void eller undefined: då går ett lyckat anrop inte att
+   * skilja från ett misslyckat, och `if (!ok)` rullar tillbaka en ändring som
+   * faktiskt gick igenom. Ett anrop utan svar returnerar `true`.
    */
-  const track = useCallback(async <T,>(
+  const track = useCallback(async <T extends {} | null>(
     /** Visas i felnotisen: "Kunde inte {label}." */
     label: string,
     action: () => Promise<T>,

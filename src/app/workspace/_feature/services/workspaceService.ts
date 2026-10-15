@@ -68,9 +68,12 @@ export const workspaceService = {
     return unwrap<Surface[]>(res);
   },
 
-  async deleteSurface(id: string): Promise<void> {
+  // Raderingarna svarar `true` och inte void: track() ger null vid fel, och
+  // ett tomt svar gick inte att skilja från det.
+  async deleteSurface(id: string): Promise<true> {
     const res = await fetchWithAuth(`${BASE}/surfaces/${id}`, { method: 'DELETE' });
     await unwrap<null>(res);
+    return true;
   },
 
   // ── Elements ──
@@ -102,9 +105,10 @@ export const workspaceService = {
   },
 
   /** Mjuk radering — placeringarna ligger kvar tills elementet återställs. */
-  async deleteElement(id: string): Promise<void> {
+  async deleteElement(id: string): Promise<true> {
     const res = await fetchWithAuth(`${BASE}/elements/${id}`, { method: 'DELETE' });
     await unwrap<null>(res);
+    return true;
   },
 
   async restoreElement(id: string): Promise<WorkspaceElement> {
@@ -161,9 +165,10 @@ export const workspaceService = {
     return unwrap<SurfaceElement>(res);
   },
 
-  async deletePlacement(placementId: string): Promise<void> {
+  async deletePlacement(placementId: string): Promise<true> {
     const res = await fetchWithAuth(`${BASE}/placements/${placementId}`, { method: 'DELETE' });
     await unwrap<null>(res);
+    return true;
   },
 
   // ── Mirror & Copy ──

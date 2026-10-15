@@ -87,7 +87,10 @@ export function useWorkspaceData() {
     const run = () => {
       delete timers.current[key];
       delete pendingWrites.current[key];
-      void track(label, fn);
+      void track(label, async () => {
+        await fn();
+        return true;
+      });
     };
     pendingWrites.current[key] = run;
     timers.current[key] = setTimeout(run, delay);
@@ -643,6 +646,7 @@ export function useWorkspaceData() {
       await track(label, async () => {
         await workspaceService.updateElement(elementId, { content });
         await workspaceService.updatePlacement(placementId, size);
+        return true;
       });
     };
 
@@ -688,6 +692,7 @@ export function useWorkspaceData() {
       await track(label, async () => {
         await workspaceService.updateElement(elementId, { content });
         await workspaceService.updatePlacement(placementId, size);
+        return true;
       });
     };
 
