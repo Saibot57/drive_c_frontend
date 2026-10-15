@@ -67,6 +67,7 @@ import { CategoryDebugPanel } from '@/components/schedule/CategoryDebugPanel';
 import { HiddenSettingsDialog } from '@/components/schedule/settings/HiddenSettingsDialog';
 import { ArchiveDialogs } from '@/components/schedule/dialogs/ArchiveDialogs';
 import { ConfirmDialog } from '@/components/schedule/dialogs/ConfirmDialog';
+import { ArchiveConflictDialog } from '@/components/schedule/dialogs/ArchiveConflictDialog';
 import { CourseEditorDialog } from '@/components/schedule/dialogs/CourseEditorDialog';
 import { EntryEditorDialog } from '@/components/schedule/dialogs/EntryEditorDialog';
 import { BulkEditModal } from '@/components/schedule/BulkEditModal';
@@ -87,7 +88,7 @@ import { ReadOnlyReason, useArchiveManager } from '@/hooks/useArchiveManager';
 import { isBaseSchedule } from '@/utils/scheduleKind';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/utils/courseUtils';
-import { mapPlannerActivitiesToSchedule, usePlannerSync } from '@/hooks/usePlannerSync';
+import { ArchiveBase, mapPlannerActivitiesToSchedule, usePlannerSync } from '@/hooks/usePlannerSync';
 import { useScheduleSelections } from '@/hooks/useScheduleSelections';
 import { isInSelection } from '@/utils/scheduleSelection';
 import { useDragHandlers } from '@/hooks/useDragHandlers';
@@ -303,11 +304,15 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // usePlannerSync behöver det arkivhanteraren räknar fram och skapas därför
   // efter den. Arkivhanteraren når dess saveNow genom den här refen.
   const saveNowRef = useRef<(() => Promise<boolean>) | null>(null);
+  // Versionen vyn bygger på. Arkivhanteraren sätter den vid inläsning och
+  // usePlannerSync efter varje sparning; se ArchiveBase.
+  const archiveBaseRef = useRef<ArchiveBase | null>(null);
   const archive = useArchiveManager({
     commitSchedule: applyScheduleFromServer,
     mapPlannerActivitiesToSchedule,
     showNotice,
-    saveNowRef
+    saveNowRef,
+    archiveBaseRef
   });
   const {
     baseArchives,
@@ -332,7 +337,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     openNewScheduleDialog
   } = archive;
 
-  const { saveStatus, loadStatus, saveNow } = usePlannerSync({
+  const { saveStatus, loadStatus, saveNow, conflict, keepMine } = usePlannerSync({
     schedule,
     commitSchedule: applyScheduleFromServer,
     activeArchiveId,
@@ -340,6 +345,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     isReadOnly: archive.isReadOnly,
     serverSyncToken,
     onLockLost: markLockLost,
+    archiveBaseRef,
     showNotice
   });
   saveNowRef.current = saveNow;
@@ -2533,6 +2539,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           Om du fortsätter ersätts aktuella byggstenar och schema med innehållet från filen.
         </p>
       </ConfirmDialog>
+      <ArchiveConflictDialog
+        open={Boolean(conflict)}
+        onReload={archive.reloadActiveArchive}
+        onKeepMine={keepMine}
+        onExport={handleExportJSON}
+      />
       <ArchiveDialogs
         archive={archive}
         currentUsername={user?.username ?? null}
