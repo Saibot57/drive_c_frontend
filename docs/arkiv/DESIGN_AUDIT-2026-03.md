@@ -1,3 +1,8 @@
+> **Arkiverad.** Ögonblicksbild från 2026-03-06. Familjeschemat, kalendern och
+> command center som granskas här (bl.a. `neobrutalism.css`, `FamilySchedule.tsx`,
+> `Calendar.tsx`, `TodoList.tsx`) finns inte längre. Läs som historik, inte som
+> en aktuell lista över problem.
+
 # Invisible Design Audit -- Drive C Frontend
 
 **Datum:** 2026-03-06

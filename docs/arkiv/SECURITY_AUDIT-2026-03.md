@@ -1,3 +1,8 @@
+> **Arkiverad.** Ögonblicksbild från 2026-03-06. Flera av filerna som granskas
+> här (`calendarService.ts`, `scheduleService.ts`, `commandCenterService.ts`,
+> `FamilySchedule.tsx`) finns inte längre. Kontrollera varje
+> punkt mot nuvarande kod innan den behandlas som ett öppet problem.
+
 # Security Audit Report
 **Datum:** 2026-03-06
 **Projekt:** drive_c_frontend (Next.js 14.2)

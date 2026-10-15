@@ -1,7 +1,6 @@
 # Plan: Schemadagar i workspace pekar på schemats id
 
-Status: genomförd 2026-10-13 på grenen claude/nifty-meitner-ojgea2, inte
-sammanslagen med main. Bara frontend, backend hade redan allt som behövs.
+Status: genomförd 2026-10-13 och sammanslagen med main (#221). Bara frontend, backend hade redan allt som behövs.
 
 Genomförandet följer planen. Avvikelser och det som tillkom:
 

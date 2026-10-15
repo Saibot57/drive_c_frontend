@@ -1,7 +1,7 @@
 # Plan: Basscheman och veckoscheman
 
-Status: genomförd 2026-10-09 på grenen ccr-7f332348-59vnfh i båda repona,
-inte sammanslagen med main. Backend först (avsnitt 3.5). Skriven samma dag,
+Status: genomförd 2026-10-09 och sammanslagen med main (frontend #212,
+backend Saibot57/drive_c_backend#31). Backend först (avsnitt 3.5). Skriven samma dag,
 efter att PR #211 (färre knappar och Kronberg) slagits ihop med main. Bygger
 på den nya dialogen Nytt schema därifrån.
 

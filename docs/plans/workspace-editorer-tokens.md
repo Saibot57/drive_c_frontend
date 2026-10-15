@@ -1,7 +1,6 @@
 # Plan: Workspace-editorerna utan hårdkodade färger
 
-Status: genomförd 2026-10-14 på grenen claude/nifty-meitner-ojgea2, inte
-sammanslagen med main. Bara frontend.
+Status: genomförd 2026-10-14 och sammanslagen med main (#222). Bara frontend.
 
 Genomförandet följer planen. Avvikelser och det som tillkom:
 
