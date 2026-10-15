@@ -102,6 +102,8 @@ export function useWorkspaceExport({
         onclone: (clonedDocument) => {
           clonedDocument.documentElement.removeAttribute('data-theme');
           matchFieldsToScreen(clonedDocument);
+          matchCheckboxesToScreen(clonedDocument);
+          matchImageFitToScreen(clonedDocument);
         },
       });
     } finally {
@@ -194,4 +196,81 @@ function matchFieldsToScreen(doc: Document) {
       }
       input.replaceWith(span);
     });
+}
+
+/** Bocken i en ikryssad ruta, i Chromes form. */
+const CHECK_PATH = 'M2.5 6.2 4.8 8.5 9.5 3.6';
+/** Chromes grå för avstängda kryssrutor, uppmätt. */
+const DISABLED_CHECK = '#d1d1d1';
+
+/*
+ * html2canvas ritar kryssrutor i en egen grå stil, oavsett hur webbläsaren
+ * och accent-color visar dem. I klonen byts varje kryssruta på korten mot en
+ * ruta i Chromes form: vit med grå ram, eller ifylld i accentfärgen med en
+ * vit bock. En låst ruta ritas ljusgrå oavsett accent, som Chrome gör.
+ */
+function matchCheckboxesToScreen(doc: Document) {
+  const view = doc.defaultView;
+  if (!view) return;
+
+  doc.querySelectorAll<HTMLInputElement>('.ws-element input[type="checkbox"]').forEach((input) => {
+    const style = view.getComputedStyle(input);
+    const { width, height } = input.getBoundingClientRect();
+    // accent-color: auto är Chromes egen blå. Avstängda rutor är ljusgrå.
+    const accent = input.disabled ? DISABLED_CHECK
+      : style.accentColor === 'auto' ? '#0075ff' : style.accentColor;
+    const frame = input.disabled ? DISABLED_CHECK : '#767676';
+
+    const box = doc.createElement('span');
+    box.className = input.className;
+    Object.assign(box.style, {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxSizing: 'border-box',
+      width: `${width}px`,
+      height: `${height}px`,
+      margin: style.margin,
+      border: `1px solid ${input.checked ? accent : frame}`,
+      borderRadius: '2px',
+      background: input.checked ? accent : '#ffffff',
+    });
+    if (input.checked) {
+      const size = Math.round(width * 0.85);
+      box.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 12 12">`
+        + `<path d="${CHECK_PATH}" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+    input.replaceWith(box);
+  });
+}
+
+/*
+ * html2canvas känner inte till object-fit och sträcker bilden till sin ruta.
+ * En miniatyr med object-fit: cover blir då förvrängd. I klonen blir varje
+ * sådan bild en ruta med bilden som bakgrund, där background-size gör samma
+ * sak som object-fit och background-position som object-position.
+ */
+function matchImageFitToScreen(doc: Document) {
+  const view = doc.defaultView;
+  if (!view) return;
+
+  doc.querySelectorAll<HTMLImageElement>('.ws-element img').forEach((img) => {
+    const style = view.getComputedStyle(img);
+    if (style.objectFit !== 'cover' && style.objectFit !== 'contain') return;
+
+    const { width, height } = img.getBoundingClientRect();
+    const src = (img.currentSrc || img.src).replace(/"/g, '%22');
+    const frame = doc.createElement('div');
+    frame.className = img.className;
+    Object.assign(frame.style, {
+      flexShrink: '0',
+      width: `${width}px`,
+      height: `${height}px`,
+      backgroundImage: `url("${src}")`,
+      backgroundSize: style.objectFit,
+      backgroundPosition: style.objectPosition,
+      backgroundRepeat: 'no-repeat',
+    });
+    img.replaceWith(frame);
+  });
 }
