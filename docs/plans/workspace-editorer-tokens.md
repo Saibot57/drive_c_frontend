@@ -1,6 +1,37 @@
 # Plan: Workspace-editorerna utan hårdkodade färger
 
-Status: plan, skriven 2026-10-13. Inte påbörjad. Bara frontend.
+Status: genomförd 2026-10-14 på grenen claude/nifty-meitner-ojgea2, inte
+sammanslagen med main. Bara frontend.
+
+Genomförandet följer planen. Avvikelser och det som tillkom:
+
+- **De två avstämda valen:** mindmapens rotnod får `--ws-accent-bg` och
+  listans kryssruta `accent-color: var(--ws-accent)`.
+- **`--ws-control-border`, inte `--ws-input-border`.** Fälten använder
+  `#e5e7eb` (= `--ws-border-color`). `#d1d5db` är ramen på knappar, mindmapens
+  noder och hörnknapparna, så namnet säger det.
+- **Två tokens till**, upptäckta i Kronberg-provet:
+  - `--ws-bg-inset` för kanbankolumner och tabellhuvud. `--ws-bg-muted` är
+    samma färg som kortet i Kronberg, så de försvann.
+  - `--ws-field-bg` (= `--ui-paper`) för källformulärets fält, som annars
+    var helvita på det varma pappret.
+  Båda har Neos gamla värde, så Neo är oförändrat.
+- **Neo, förutom de avstämda valen:** tabell, kanban och låsta kort är
+  pixelidentiska. Övriga skillnader är färg utan layoutändring: `#111827`
+  blir `--ws-text` (`#000`), felrött `#b91c1c` blir `--ws-danger` (`#e11d48`)
+  och länkbeskrivningens `#4b5563` blir `--ws-text-muted`.
+- **Commits:** text, mindmap och lista i en commit, tabell och kanban i en,
+  och bild, PDF och länk i en. Inte en per editor.
+- **Gemensamma klasser** utöver planen: `.ws-editor-icon-btn` (tysta
+  ta-bort-knappar), `.ws-editor-add` ("+ Rad"), `.ws-editor-bare-input`,
+  `.ws-media` (bild och PDF laddade) och `.ws-corner-btn`.
+- **Prov:** skärmdump per kort och tillstånd (14 kort plus en länk med
+  miniatyr), före och efter, i Neo och Kronberg, mot en lokal backend.
+  Pixeljämförelse i Neo. Exporten är provad från Kronberg och ritas i Neo
+  som förut.
+- **Fel som fanns före och ligger kvar:** exporten kapar texten i alla
+  `<input>` (html2canvas). Det gäller tabellceller, kanbankort, mindmapnoder
+  och listpunkter i olåsta kort. Det är en egen uppgift.
 
 Filhuvudet i `workspace.css` säger: "allt utseende bor här, inga inline-styles i
 tsx". De nyare korten följer det (`ScheduleDayView`, `WheelRefViewer`,

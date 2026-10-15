@@ -94,19 +94,8 @@ export default function LinkEditor({ content, isLocked, isSelected, onChange, ed
   // ── Empty / editing state ──
   if (!url || editing) {
     return (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.375rem',
-          padding: '0.75rem',
-          overflow: 'auto',
-          ...pointerStyle,
-        }}
-      >
-        <label style={{ fontSize: '0.6875rem', color: '#6b7280' }}>URL</label>
+      <div className="ws-source-form ws-source-form--stacked" style={pointerStyle}>
+        <label className="ws-source-form__label">URL</label>
         <input
           type="text"
           value={urlInput}
@@ -120,57 +109,51 @@ export default function LinkEditor({ content, isLocked, isSelected, onChange, ed
           placeholder="https://…"
           disabled={isLocked}
           autoFocus
-          style={inputStyle}
+          className="ws-source-form__input"
         />
 
-        <label style={{ fontSize: '0.6875rem', color: '#6b7280' }}>Titel (valfritt)</label>
+        <label className="ws-source-form__label">Titel (valfritt)</label>
         <input
           type="text"
           value={titleInput}
           onChange={(e) => setTitleInput(e.target.value)}
           placeholder="Visningstitel"
           disabled={isLocked}
-          style={inputStyle}
+          className="ws-source-form__input"
         />
 
-        <label style={{ fontSize: '0.6875rem', color: '#6b7280' }}>Beskrivning (valfritt)</label>
+        <label className="ws-source-form__label">Beskrivning (valfritt)</label>
         <input
           type="text"
           value={descInput}
           onChange={(e) => setDescInput(e.target.value)}
           placeholder="Kort beskrivning"
           disabled={isLocked}
-          style={inputStyle}
+          className="ws-source-form__input"
         />
 
-        <label style={{ fontSize: '0.6875rem', color: '#6b7280' }}>Thumbnail-URL (valfritt)</label>
+        <label className="ws-source-form__label">Thumbnail-URL (valfritt)</label>
         <input
           type="text"
           value={thumbInput}
           onChange={(e) => setThumbInput(e.target.value)}
           placeholder="https://…/image.png"
           disabled={isLocked}
-          style={inputStyle}
+          className="ws-source-form__input"
         />
 
-        <div style={{ display: 'flex', gap: '0.375rem', marginTop: '0.25rem' }}>
+        <div className="ws-source-form__actions">
           <button
             type="button"
             onClick={handleSave}
             disabled={isLocked || !urlInput.trim()}
-            style={{
-              ...btnStyle,
-              background: '#111827',
-              color: '#ffffff',
-              borderColor: '#111827',
-              cursor: isLocked || !urlInput.trim() ? 'not-allowed' : 'pointer',
-            }}
+            className="ws-source-form__button ws-source-form__button--primary"
           >
             <Check size={12} />
             Spara
           </button>
           {url && (
-            <button type="button" onClick={handleCancel} disabled={isLocked} style={btnStyle}>
+            <button type="button" onClick={handleCancel} disabled={isLocked} className="ws-source-form__button">
               <X size={12} />
               Avbryt
             </button>
@@ -186,116 +169,28 @@ export default function LinkEditor({ content, isLocked, isSelected, onChange, ed
   const showThumb = !!thumbnailUrl && !thumbError;
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        background: '#ffffff',
-        ...pointerStyle,
-      }}
-    >
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-          minHeight: 0,
-          textDecoration: 'none',
-          color: 'inherit',
-        }}
-      >
+    <div className="ws-link" style={pointerStyle}>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="ws-link__anchor">
         {showThumb && (
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              background: '#f3f4f6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-            }}
-          >
+          <div className="ws-link__thumb">
             <img
               src={thumbnailUrl}
               alt=""
               draggable={false}
               onError={() => setThumbError(true)}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-                userSelect: 'none',
-              }}
+              className="ws-link__thumb-img"
             />
           </div>
         )}
 
-        <div
-          style={{
-            padding: '0.5rem 0.625rem',
-            borderTop: showThumb ? '1px solid #e5e7eb' : 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.125rem',
-            minWidth: 0,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              fontSize: '0.6875rem',
-              color: '#6b7280',
-              minWidth: 0,
-            }}
-          >
+        <div className={`ws-link__body${showThumb ? ' ws-link__body--below-thumb' : ''}`}>
+          <div className="ws-link__host">
             <LinkIcon size={11} />
-            <span
-              style={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {host}
-            </span>
-            <ExternalLink size={11} style={{ marginLeft: 'auto', flexShrink: 0 }} />
+            <span className="ws-link__host-name">{host}</span>
+            <ExternalLink size={11} className="ws-link__external" />
           </div>
-          <div
-            style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: '#111827',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {displayTitle}
-          </div>
-          {description && (
-            <div
-              style={{
-                fontSize: '0.75rem',
-                color: '#4b5563',
-                overflow: 'hidden',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-              }}
-            >
-              {description}
-            </div>
-          )}
+          <div className="ws-link__title">{displayTitle}</div>
+          {description && <div className="ws-link__desc">{description}</div>}
         </div>
       </a>
 
@@ -304,22 +199,7 @@ export default function LinkEditor({ content, isLocked, isSelected, onChange, ed
           type="button"
           onClick={startEditing}
           title="Redigera länk"
-          style={{
-            position: 'absolute',
-            top: 4,
-            right: 4,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 24,
-            height: 24,
-            border: '1px solid #d1d5db',
-            borderRadius: '0.25rem',
-            background: 'rgba(255,255,255,0.9)',
-            cursor: 'pointer',
-            color: '#374151',
-            padding: 0,
-          }}
+          className="ws-corner-btn"
         >
           <Pencil size={12} />
         </button>
@@ -327,25 +207,3 @@ export default function LinkEditor({ content, isLocked, isSelected, onChange, ed
     </div>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  fontSize: '0.75rem',
-  padding: '0.375rem 0.5rem',
-  border: '1px solid #e5e7eb',
-  borderRadius: '0.375rem',
-  outline: 'none',
-};
-
-const btnStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '0.25rem',
-  fontSize: '0.75rem',
-  padding: '0.375rem 0.625rem',
-  border: '1px solid #d1d5db',
-  borderRadius: '0.375rem',
-  background: '#f9fafb',
-  cursor: 'pointer',
-  color: '#111827',
-};

@@ -39,8 +39,7 @@ export default function TextEditor({
     },
     editorProps: {
       attributes: {
-        style:
-          'outline: none; font-size: 0.875rem; line-height: 1.6; color: #374151; min-height: 3rem; padding: 0;',
+        class: 'ws-text-editor__content',
       },
     },
   });
@@ -54,19 +53,10 @@ export default function TextEditor({
   if (!editor) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="ws-text-editor">
       {/* Mini toolbar — only when unlocked */}
       {!isLocked && (
-        <div
-          style={{
-            display: 'flex',
-            gap: '2px',
-            padding: '0.25rem 0',
-            marginBottom: '0.25rem',
-            borderBottom: '1px solid #f3f4f6',
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="ws-text-editor__toolbar">
           <ToolbarBtn
             active={editor.isActive('bold')}
             onClick={() => editor.chain().focus().toggleBold().run()}
@@ -126,7 +116,7 @@ export default function TextEditor({
         </div>
       )}
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="ws-text-editor__scroll">
         <EditorContent editor={editor} />
       </div>
     </div>
@@ -151,18 +141,7 @@ function ToolbarBtn({
         onClick();
       }}
       title={title}
-      style={{
-        width: '1.5rem',
-        height: '1.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: 'none',
-        borderRadius: '0.25rem',
-        background: active ? '#e5e7eb' : 'transparent',
-        color: active ? '#111827' : '#6b7280',
-        cursor: 'pointer',
-      }}
+      className={`ws-text-editor__btn${active ? ' ws-text-editor__btn--active' : ''}`}
     >
       {children}
     </button>
