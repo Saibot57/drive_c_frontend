@@ -64,7 +64,7 @@ export function useWorkspaceData() {
   const { state, dispatch } = useWorkspace();
   const { plannerNotice, showNotice, dismissNotice } = usePlannerNotice();
   const { saveStatus, track } = useWorkspaceSync(showNotice);
-  const { pushUndo, undo, clearHistory, canUndo } = useWorkspaceHistory();
+  const { pushUndo, undo, undoEntry, clearHistory, canUndo } = useWorkspaceHistory();
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   // Skrivningen som väntar bakom varje timer, så att den kan skickas i förtid.
   const pendingWrites = useRef<Record<string, () => void>>({});
@@ -995,12 +995,13 @@ export function useWorkspaceData() {
       if (placement) dispatch({ type: 'ADD_PLACEMENT', placement });
     };
 
-    pushUndo({ label: 'borttagningen från ytan', undo: restore });
+    const entry = { label: 'borttagningen från ytan', undo: restore };
+    pushUndo(entry);
     showNotice('Borttaget från ytan.', 'success', {
       durationMs: UNDO_NOTICE_MS,
-      action: { label: 'Ångra', onClick: () => { void restore(); dismissNotice(); } },
+      action: { label: 'Ångra', onClick: () => { void undoEntry(entry); dismissNotice(); } },
     });
-  }, [dispatch, track, pushUndo, showNotice, dismissNotice]);
+  }, [dispatch, track, pushUndo, undoEntry, showNotice, dismissNotice]);
 
   /** Mjuk radering — elementet försvinner från alla ytor tills det återställs. */
   const deleteElement = useCallback(async (elementId: string) => {
@@ -1029,7 +1030,8 @@ export function useWorkspaceData() {
       void loadLibrary();
     };
 
-    pushUndo({ label: 'raderingen', undo: restore });
+    const entry = { label: 'raderingen', undo: restore };
+    pushUndo(entry);
 
     const onSeveral = (element?.surface_count ?? 1) > 1;
     showNotice(
@@ -1039,10 +1041,10 @@ export function useWorkspaceData() {
       'success',
       {
         durationMs: UNDO_NOTICE_MS,
-        action: { label: 'Ångra', onClick: () => { void restore(); dismissNotice(); } },
+        action: { label: 'Ångra', onClick: () => { void undoEntry(entry); dismissNotice(); } },
       },
     );
-  }, [dispatch, track, pushUndo, loadSurfaceElements, loadLibrary, showNotice, dismissNotice]);
+  }, [dispatch, track, pushUndo, undoEntry, loadSurfaceElements, loadLibrary, showNotice, dismissNotice]);
 
   // ── Spegla och kopiera ──
 
