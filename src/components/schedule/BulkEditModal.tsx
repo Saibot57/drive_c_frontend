@@ -27,7 +27,8 @@ import {
   BulkEditField,
   BulkEditPatch,
   bulkPatchChangesAny,
-  sharedFieldValue
+  sharedFieldValue,
+  sharesTimeSlot
 } from '@/utils/bulkEditSchedule';
 import { findColorTrigger } from '@/utils/colorTriggers';
 import { findRoomTrigger } from '@/utils/roomTriggers';
@@ -128,6 +129,9 @@ export function BulkEditModal({
     endTime: sharedFieldValue(entries, 'endTime')
   }), [entries]);
 
+  // Tiden visas bara när alla posterna ligger på samma tid, dag spelar ingen roll.
+  const timeEditable = useMemo(() => sharesTimeSlot(entries), [entries]);
+
   const shiftMinutes = Number.parseInt(time.shift, 10);
 
   const patch = useMemo(() => {
@@ -138,14 +142,14 @@ export function BulkEditModal({
       if (draft.kind === 'edit' && draft.value.trim()) result[field] = draft.value.trim();
     });
     if (color) result.color = color;
-    if (time.mode === 'set' && (time.start || time.end)) {
+    if (timeEditable && time.mode === 'set' && (time.start || time.end)) {
       result.time = { kind: 'set', start: time.start || undefined, end: time.end || undefined };
     }
-    if (time.mode === 'shift' && Number.isFinite(shiftMinutes) && shiftMinutes !== 0) {
+    if (timeEditable && time.mode === 'shift' && Number.isFinite(shiftMinutes) && shiftMinutes !== 0) {
       result.time = { kind: 'shift', minutes: shiftMinutes };
     }
     return result;
-  }, [drafts, color, time, shiftMinutes]);
+  }, [drafts, color, time, shiftMinutes, timeEditable]);
 
   // Knappen är bara aktiv när minst en post faktiskt skulle ändras.
   const canSave = useMemo(() => bulkPatchChangesAny(entries, patch), [entries, patch]);
@@ -341,9 +345,7 @@ export function BulkEditModal({
     if (time.start && !time.end) return 'Posterna flyttas till den starttiden och behåller sin längd.';
     if (!time.start && time.end) return 'Posterna behåller sin start och slutar på den tiden.';
     if (time.start && time.end) return 'Alla posterna får exakt de tiderna, på sina egna dagar.';
-    return shared.startTime === null || shared.endTime === null
-      ? 'Posterna har olika tider. Tomt fält lämnas orört.'
-      : null;
+    return null;
   })();
 
   const listed = entries.slice(0, LISTED_ENTRIES);
@@ -386,62 +388,68 @@ export function BulkEditModal({
           </div>
           {roomHint}
 
-          <fieldset className="space-y-2" aria-label="Tid">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-heading leading-none">Tid</span>
-              <div className="flex gap-1">
-                {modeButton('set', 'Sätt tid')}
-                {modeButton('shift', 'Flytta')}
-              </div>
-            </div>
-            {time.mode === 'set' ? (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="bulk-start">Start</Label>
-                  <Input
-                    id="bulk-start"
-                    type="time"
-                    value={time.start ?? shared.startTime ?? ''}
-                    onChange={event => updateTime({ start: event.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="bulk-end">Slut</Label>
-                  <Input
-                    id="bulk-end"
-                    type="time"
-                    value={time.end ?? shared.endTime ?? ''}
-                    onChange={event => updateTime({ end: event.target.value })}
-                  />
+          {timeEditable ? (
+            <fieldset className="space-y-2" aria-label="Tid">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-heading leading-none">Tid</span>
+                <div className="flex gap-1">
+                  {modeButton('set', 'Sätt tid')}
+                  {modeButton('shift', 'Flytta')}
                 </div>
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="neutral" size="sm" onClick={() => updateTime({
-                  shift: String((Number.isFinite(shiftMinutes) ? shiftMinutes : 0) - 15)
-                })}>
-                  −15
-                </Button>
-                <Input
-                  id="bulk-shift"
-                  aria-label="Flytta antal minuter"
-                  type="number"
-                  step={5}
-                  className="w-24 text-center"
-                  placeholder="0"
-                  value={time.shift}
-                  onChange={event => updateTime({ shift: event.target.value })}
-                />
-                <span className="text-sm">min</span>
-                <Button type="button" variant="neutral" size="sm" onClick={() => updateTime({
-                  shift: String((Number.isFinite(shiftMinutes) ? shiftMinutes : 0) + 15)
-                })}>
-                  +15
-                </Button>
-              </div>
-            )}
-            {timeHint && <p className="text-xs text-gray-600 kron:text-ui-muted">{timeHint}</p>}
-          </fieldset>
+              {time.mode === 'set' ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="bulk-start">Start</Label>
+                    <Input
+                      id="bulk-start"
+                      type="time"
+                      value={time.start ?? shared.startTime ?? ''}
+                      onChange={event => updateTime({ start: event.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="bulk-end">Slut</Label>
+                    <Input
+                      id="bulk-end"
+                      type="time"
+                      value={time.end ?? shared.endTime ?? ''}
+                      onChange={event => updateTime({ end: event.target.value })}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="neutral" size="sm" onClick={() => updateTime({
+                    shift: String((Number.isFinite(shiftMinutes) ? shiftMinutes : 0) - 15)
+                  })}>
+                    −15
+                  </Button>
+                  <Input
+                    id="bulk-shift"
+                    aria-label="Flytta antal minuter"
+                    type="number"
+                    step={5}
+                    className="w-24 text-center"
+                    placeholder="0"
+                    value={time.shift}
+                    onChange={event => updateTime({ shift: event.target.value })}
+                  />
+                  <span className="text-sm">min</span>
+                  <Button type="button" variant="neutral" size="sm" onClick={() => updateTime({
+                    shift: String((Number.isFinite(shiftMinutes) ? shiftMinutes : 0) + 15)
+                  })}>
+                    +15
+                  </Button>
+                </div>
+              )}
+              {timeHint && <p className="text-xs text-gray-600 kron:text-ui-muted">{timeHint}</p>}
+            </fieldset>
+          ) : (
+            <p className="text-xs text-gray-600 kron:text-ui-muted">
+              Posterna ligger på olika tider, så tiden går inte att ändra här.
+            </p>
+          )}
 
           {renderClearableField('category', 'Uppgift', 'input')}
           {renderClearableField('notes', 'Anteckningar', 'textarea')}

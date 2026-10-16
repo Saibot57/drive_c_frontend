@@ -4,8 +4,10 @@ import {
   BulkEditContext,
   bulkPatchChangesAny,
   normalizeBulkPatch,
+  MIXED_TIMES_MESSAGE,
   retimeEntry,
-  sharedFieldValue
+  sharedFieldValue,
+  sharesTimeSlot
 } from '@/utils/bulkEditSchedule';
 import { RestrictionRule, ScheduledEntry } from '@/types/schedule';
 
@@ -187,6 +189,26 @@ describe('applyBulkEdit', () => {
   });
 });
 
+describe('sharesTimeSlot', () => {
+  it('är sann för poster med samma tider på olika dagar', () => {
+    expect(sharesTimeSlot([
+      entry({ instanceId: 'a', day: 'Måndag' }),
+      entry({ instanceId: 'b', day: 'Fredag' })
+    ])).toBe(true);
+  });
+
+  it('är falsk när starten eller slutet skiljer sig', () => {
+    expect(sharesTimeSlot([
+      entry({ instanceId: 'a' }),
+      entry({ instanceId: 'b', startTime: '08:15' })
+    ])).toBe(false);
+    expect(sharesTimeSlot([
+      entry({ instanceId: 'a' }),
+      entry({ instanceId: 'b', endTime: '09:30' })
+    ])).toBe(false);
+  });
+});
+
 describe('normalizeBulkPatch – tid och färg', () => {
   it('släpper en tidsändring som inte ändrar något', () => {
     expect(normalizeBulkPatch({ time: { kind: 'set' } })).toEqual({});
@@ -265,7 +287,7 @@ describe('applyBulkEdit – tid', () => {
   it('sätter samma tider i poster på olika dagar och räknar om längden', () => {
     const schedule = [
       entry({ instanceId: 'a', day: 'Måndag', startTime: '09:00', endTime: '10:00' }),
-      entry({ instanceId: 'b', day: 'Onsdag', startTime: '13:00', endTime: '13:45', duration: 45 })
+      entry({ instanceId: 'b', day: 'Onsdag', startTime: '09:00', endTime: '10:00' })
     ];
     const result = applyBulkEdit(schedule, ['a', 'b'], { time: { kind: 'set', start: '08:15', end: '09:45' } }, noRules);
 
@@ -278,16 +300,39 @@ describe('applyBulkEdit – tid', () => {
 
   it('flyttar varje post lika mycket', () => {
     const schedule = [
-      entry({ instanceId: 'a', startTime: '09:00', endTime: '10:00' }),
-      entry({ instanceId: 'b', startTime: '13:00', endTime: '13:45', duration: 45 })
+      entry({ instanceId: 'a', day: 'Måndag', startTime: '09:00', endTime: '10:00' }),
+      entry({ instanceId: 'b', day: 'Torsdag', startTime: '09:00', endTime: '10:00' })
     ];
     const result = applyBulkEdit(schedule, ['a', 'b'], { time: { kind: 'shift', minutes: 15 } }, noRules);
 
     if (!result.ok) throw new Error('väntade ok');
-    expect(result.schedule.map(e => [e.startTime, e.endTime, e.duration])).toEqual([
-      ['09:15', '10:15', 60],
-      ['13:15', '14:00', 45]
+    expect(result.schedule.map(e => [e.day, e.startTime, e.endTime, e.duration])).toEqual([
+      ['Måndag', '09:15', '10:15', 60],
+      ['Torsdag', '09:15', '10:15', 60]
     ]);
+  });
+
+  it('stoppar en tidsändring när posterna ligger på olika tider', () => {
+    const schedule = [
+      entry({ instanceId: 'a', startTime: '09:00', endTime: '10:00' }),
+      entry({ instanceId: 'b', startTime: '13:00', endTime: '13:45', duration: 45 })
+    ];
+    const set = applyBulkEdit(schedule, ['a', 'b'], { time: { kind: 'set', start: '10:00' } }, noRules);
+    const shift = applyBulkEdit(schedule, ['a', 'b'], { time: { kind: 'shift', minutes: 15 } }, noRules);
+
+    expect(set).toMatchObject({ ok: false, message: MIXED_TIMES_MESSAGE });
+    expect(shift).toMatchObject({ ok: false, message: MIXED_TIMES_MESSAGE });
+  });
+
+  it('låter andra fält ändras i poster på olika tider', () => {
+    const schedule = [
+      entry({ instanceId: 'a', startTime: '09:00', endTime: '10:00' }),
+      entry({ instanceId: 'b', startTime: '13:00', endTime: '13:45', duration: 45 })
+    ];
+    const result = applyBulkEdit(schedule, ['a', 'b'], { room: 'B3' }, noRules);
+
+    if (!result.ok) throw new Error('väntade ok');
+    expect(result.changedCount).toBe(2);
   });
 
   it('nollställer platsen bland samtidiga poster när starten flyttas, men inte annars', () => {
@@ -303,16 +348,16 @@ describe('applyBulkEdit – tid', () => {
     expect(longer.schedule[0].laneOrder).toBe(1);
   });
 
-  it('stoppar allt när en post skulle hamna utanför schemat', () => {
+  it('stoppar allt när posterna skulle hamna utanför schemat', () => {
     const schedule = [
-      entry({ instanceId: 'a', startTime: '09:00', endTime: '10:00' }),
-      entry({ instanceId: 'b', startTime: '16:00', endTime: '17:00' })
+      entry({ instanceId: 'a', day: 'Måndag', startTime: '16:00', endTime: '17:00' }),
+      entry({ instanceId: 'b', day: 'Fredag', startTime: '16:00', endTime: '17:00' })
     ];
     const result = applyBulkEdit(schedule, ['a', 'b'], { time: { kind: 'shift', minutes: 30 } }, noRules);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.entry.instanceId).toBe('b');
+    expect(result.entry.instanceId).toBe('a');
     expect(result.entry.startTime).toBe('16:00');
     expect(result.message).toContain('16:30–17:30');
   });

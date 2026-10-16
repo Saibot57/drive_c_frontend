@@ -10,8 +10,8 @@ export const BULK_TEXT_FIELDS: BulkEditField[] = ['title', 'teacher', 'room', 'n
 /**
  * En tidsändring. `set` skriver samma klockslag i alla poster: bara start
  * flyttar posten och behåller längden, bara slut ändrar längden, båda ger
- * exakt de tiderna. `shift` flyttar varje post lika många minuter, vilket är
- * det enda som säger något för poster som ligger på olika tider.
+ * exakt de tiderna. `shift` flyttar varje post lika många minuter. Båda
+ * kräver att posterna ligger på samma tid, se `sharesTimeSlot`.
  */
 export type BulkTimeChange =
   | { kind: 'set'; start?: string; end?: string }
@@ -71,6 +71,17 @@ export const sharedFieldValue = (
   const first = entries[0][field] ?? '';
   return entries.every(entry => (entry[field] ?? '') === first) ? first : null;
 };
+
+/**
+ * Om alla posterna har samma start- och sluttid, oavsett dag. Tiden går bara
+ * att massredigera då: för poster på olika tider är det oklart vad en ny tid
+ * ska betyda, och en ändring skulle tyst göra dem lika.
+ */
+export const sharesTimeSlot = (entries: ScheduledEntry[]): boolean => (
+  sharedFieldValue(entries, 'startTime') !== null && sharedFieldValue(entries, 'endTime') !== null
+);
+
+export const MIXED_TIMES_MESSAGE = 'Tiden går bara att ändra när alla posterna har samma start- och sluttid.';
 
 const isClock = (value: string) => /^\d{1,2}:\d{2}$/.test(value);
 
@@ -162,7 +173,8 @@ type ChangedEntry = {
  * krock som redan fanns i schemat ska inte kunna stoppa ett salsbyte.
  *
  * Bryter en enda post mot en ämnesregel, eller hamnar den utanför schemat,
- * ändras ingenting alls.
+ * ändras ingenting alls. Detsamma gäller en tidsändring i poster som inte
+ * ligger på samma tid.
  */
 export const applyBulkEdit = (
   schedule: ScheduledEntry[],
@@ -173,6 +185,13 @@ export const applyBulkEdit = (
   const patch = normalizeBulkPatch(rawPatch);
   const fields = BULK_TEXT_FIELDS.filter(field => patch[field] !== undefined);
   const targets = new Set(instanceIds);
+
+  if (patch.time) {
+    const selected = schedule.filter(entry => targets.has(entry.instanceId));
+    if (selected.length > 0 && !sharesTimeSlot(selected)) {
+      return { ok: false, entry: selected[0], message: MIXED_TIMES_MESSAGE };
+    }
+  }
 
   const changed: ChangedEntry[] = [];
 
