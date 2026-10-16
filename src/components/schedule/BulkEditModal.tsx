@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SmartTextInput } from '@/components/ui/SmartTextInput';
 import { Button } from '@/components/ui/button';
+import { ColorPicker } from '@/components/ui/ColorPicker';
 import {
   Dialog,
   DialogContent,
@@ -13,8 +14,21 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  COURSE_COLOR_PALETTE,
+  DEFAULT_COURSE_COLOR,
+  MAX_RECENT_CUSTOM_COLORS,
+  RECENT_CUSTOM_COLORS_KEY
+} from '@/config/plannerConstants';
 import { ColorTriggerRule, RoomTriggerRule, ScheduledEntry } from '@/types/schedule';
-import { BulkEditField, BulkEditPatch, sharedFieldValue } from '@/utils/bulkEditSchedule';
+import {
+  BULK_TEXT_FIELDS,
+  BulkEditField,
+  BulkEditPatch,
+  bulkPatchChangesAny,
+  sharedFieldValue
+} from '@/utils/bulkEditSchedule';
 import { findColorTrigger } from '@/utils/colorTriggers';
 import { findRoomTrigger } from '@/utils/roomTriggers';
 
@@ -34,13 +48,23 @@ type FieldDraft =
 
 type Drafts = Record<BulkEditField, FieldDraft>;
 
-const FIELDS: BulkEditField[] = ['title', 'teacher', 'room'];
-
 const INITIAL_DRAFTS: Drafts = {
   title: { kind: 'keep' },
   teacher: { kind: 'keep' },
-  room: { kind: 'keep' }
+  room: { kind: 'keep' },
+  notes: { kind: 'keep' },
+  category: { kind: 'keep' }
 };
+
+/**
+ * Tiden har två lägen, och bara det valda skrivs. Ett tomt tidsfält eller
+ * noll minuter är orört, precis som ett tomt textfält.
+ */
+type TimeMode = 'set' | 'shift';
+
+type TimeDraft = { mode: TimeMode; start: string | null; end: string | null; shift: string };
+
+const INITIAL_TIME: TimeDraft = { mode: 'set', start: null, end: null, shift: '' };
 
 /** Så många poster räknas upp i dialogen innan resten blir en siffra. */
 const LISTED_ENTRIES = 4;
@@ -54,13 +78,21 @@ type BulkEditModalProps = {
   colorTriggers: ColorTriggerRule[];
   roomTriggers: RoomTriggerRule[];
   /**
-   * Skriver ändringen. Returnerar ett felmeddelande när en ämnesregel stoppade
-   * den — då står dialogen kvar och visar det — annars null.
+   * Skriver ändringen. Returnerar ett felmeddelande när en ämnesregel eller en
+   * ogiltig tid stoppade den — då står dialogen kvar och visar det — annars null.
    */
   onSave: (patch: BulkEditPatch) => string | null;
 };
 
 const plural = (count: number) => `${count} post${count === 1 ? '' : 'er'}`;
+
+const minutesLabel = (minutes: number) => {
+  const abs = Math.abs(minutes);
+  const hours = Math.floor(abs / 60);
+  const rest = abs % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+};
 
 export function BulkEditModal({
   open,
@@ -73,36 +105,50 @@ export function BulkEditModal({
   onSave
 }: BulkEditModalProps) {
   const [drafts, setDrafts] = useState<Drafts>(INITIAL_DRAFTS);
+  const [time, setTime] = useState<TimeDraft>(INITIAL_TIME);
+  const [color, setColor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setDrafts(INITIAL_DRAFTS);
+    setTime(INITIAL_TIME);
+    setColor(null);
     setError(null);
   }, [open]);
 
   const shared = useMemo(() => ({
     title: sharedFieldValue(entries, 'title'),
     teacher: sharedFieldValue(entries, 'teacher'),
-    room: sharedFieldValue(entries, 'room')
+    room: sharedFieldValue(entries, 'room'),
+    notes: sharedFieldValue(entries, 'notes'),
+    category: sharedFieldValue(entries, 'category'),
+    color: sharedFieldValue(entries, 'color'),
+    startTime: sharedFieldValue(entries, 'startTime'),
+    endTime: sharedFieldValue(entries, 'endTime')
   }), [entries]);
+
+  const shiftMinutes = Number.parseInt(time.shift, 10);
 
   const patch = useMemo(() => {
     const result: BulkEditPatch = {};
-    FIELDS.forEach(field => {
+    BULK_TEXT_FIELDS.forEach(field => {
       const draft = drafts[field];
       if (draft.kind === 'clear') result[field] = '';
       if (draft.kind === 'edit' && draft.value.trim()) result[field] = draft.value.trim();
     });
+    if (color) result.color = color;
+    if (time.mode === 'set' && (time.start || time.end)) {
+      result.time = { kind: 'set', start: time.start || undefined, end: time.end || undefined };
+    }
+    if (time.mode === 'shift' && Number.isFinite(shiftMinutes) && shiftMinutes !== 0) {
+      result.time = { kind: 'shift', minutes: shiftMinutes };
+    }
     return result;
-  }, [drafts]);
+  }, [drafts, color, time, shiftMinutes]);
 
   // Knappen är bara aktiv när minst en post faktiskt skulle ändras.
-  const canSave = useMemo(() => (
-    entries.some(entry => (Object.keys(patch) as BulkEditField[]).some(field => (
-      (entry[field] ?? '') !== patch[field]
-    )))
-  ), [entries, patch]);
+  const canSave = useMemo(() => bulkPatchChangesAny(entries, patch), [entries, patch]);
 
   const shownValue = (field: BulkEditField): string => {
     const draft = drafts[field];
@@ -118,6 +164,11 @@ export function BulkEditModal({
 
   const setDraft = (field: BulkEditField, draft: FieldDraft) => {
     setDrafts(prev => ({ ...prev, [field]: draft }));
+    setError(null);
+  };
+
+  const updateTime = (change: Partial<TimeDraft>) => {
+    setTime(prev => ({ ...prev, ...change }));
     setError(null);
   };
 
@@ -155,7 +206,7 @@ export function BulkEditModal({
     );
   })();
 
-  const colorHint = (() => {
+  const titleColorHint = (() => {
     if (!patch.title) return null;
     const trigger = findColorTrigger(patch.title, colorTriggers);
     if (!trigger) return null;
@@ -166,6 +217,23 @@ export function BulkEditModal({
           style={{ backgroundColor: trigger.color }}
         />
         Den nya titeln matchar färgregeln &quot;{trigger.word}&quot;, så posterna får dess färg.
+      </p>
+    );
+  })();
+
+  /**
+   * Färgreglerna vinner när korten ritas, så en vald färg syns inte på poster
+   * vars titel matchar en regel. Samma sak gäller i enkelredigeraren.
+   */
+  const pickedColorHint = (() => {
+    if (!color) return null;
+    const titleFor = (entry: ScheduledEntry) => patch.title ?? entry.title;
+    const ruled = entries.filter(entry => findColorTrigger(titleFor(entry), colorTriggers)).length;
+    if (ruled === 0) return null;
+    return (
+      <p className="text-xs text-gray-600 kron:text-ui-muted">
+        {ruled === entries.length ? 'I alla posterna' : `I ${ruled} av posterna`} styr en färgregel färgen,
+        så där syns inte den valda färgen.
       </p>
     );
   })();
@@ -182,29 +250,60 @@ export function BulkEditModal({
   };
 
   const renderClearableField = (
-    field: 'teacher' | 'room',
+    field: Exclude<BulkEditField, 'title'>,
     label: string,
-    options: string[]
+    control: 'suggest' | 'input' | 'textarea',
+    options: string[] = []
   ) => {
     const isClearing = drafts[field].kind === 'clear';
     const allEmpty = shared[field] === '';
+    const id = `bulk-${field}`;
+
+    const renderControl = () => {
+      if (control === 'textarea') {
+        return (
+          <div className="space-y-1">
+            <Label htmlFor={id}>{label}</Label>
+            <Textarea
+              id={id}
+              rows={3}
+              value={shownValue(field)}
+              placeholder={placeholder(field)}
+              disabled={isClearing}
+              onChange={event => handleChange(field, event.target.value)}
+            />
+          </div>
+        );
+      }
+      if (isClearing || control === 'input') {
+        return (
+          <div className="space-y-1">
+            <Label htmlFor={id}>{label}</Label>
+            <Input
+              id={id}
+              value={shownValue(field)}
+              placeholder={placeholder(field)}
+              disabled={isClearing}
+              onChange={event => handleChange(field, event.target.value)}
+            />
+          </div>
+        );
+      }
+      return (
+        <SmartTextInput
+          fieldId={id}
+          label={label}
+          value={shownValue(field)}
+          options={options}
+          placeholder={placeholder(field)}
+          onChange={value => handleChange(field, value)}
+        />
+      );
+    };
+
     return (
       <div className="space-y-1">
-        {isClearing ? (
-          <div className="space-y-1">
-            <Label htmlFor={`bulk-${field}`}>{label}</Label>
-            <Input id={`bulk-${field}`} value="" placeholder="Töms" disabled />
-          </div>
-        ) : (
-          <SmartTextInput
-            fieldId={`bulk-${field}`}
-            label={label}
-            value={shownValue(field)}
-            options={options}
-            placeholder={placeholder(field)}
-            onChange={value => handleChange(field, value)}
-          />
-        )}
+        {renderControl()}
         <button
           type="button"
           className="text-xs font-semibold underline underline-offset-2 disabled:no-underline disabled:opacity-40"
@@ -219,12 +318,40 @@ export function BulkEditModal({
     );
   };
 
+  const modeButton = (mode: TimeMode, label: string) => (
+    <button
+      type="button"
+      aria-pressed={time.mode === mode}
+      onClick={() => updateTime({ mode })}
+      className={`rounded border-frame border-ui-line px-2 py-0.5 text-xs font-bold transition-colors ${
+        time.mode === mode ? 'bg-ui-ink text-ui-surface' : 'bg-ui-paper hover:bg-gray-100 kron:hover:bg-ui-surface-3'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const timeHint = (() => {
+    if (time.mode === 'shift') {
+      if (!Number.isFinite(shiftMinutes) || shiftMinutes === 0) {
+        return 'Varje post flyttas lika mycket. Minus flyttar tidigare.';
+      }
+      return `Varje post flyttas ${minutesLabel(shiftMinutes)} ${shiftMinutes > 0 ? 'senare' : 'tidigare'}.`;
+    }
+    if (time.start && !time.end) return 'Posterna flyttas till den starttiden och behåller sin längd.';
+    if (!time.start && time.end) return 'Posterna behåller sin start och slutar på den tiden.';
+    if (time.start && time.end) return 'Alla posterna får exakt de tiderna, på sina egna dagar.';
+    return shared.startTime === null || shared.endTime === null
+      ? 'Posterna har olika tider. Tomt fält lämnas orört.'
+      : null;
+  })();
+
   const listed = entries.slice(0, LISTED_ENTRIES);
   const rest = entries.length - listed.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Redigera {plural(entries.length)}</DialogTitle>
           <DialogDescription>
@@ -251,13 +378,99 @@ export function BulkEditModal({
               onChange={event => handleChange('title', event.target.value)}
             />
             {emptiedHint('title')}
-            {colorHint}
+            {titleColorHint}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {renderClearableField('teacher', 'Lärare', teachers)}
-            {renderClearableField('room', 'Rum', rooms)}
+            {renderClearableField('teacher', 'Lärare', 'suggest', teachers)}
+            {renderClearableField('room', 'Rum', 'suggest', rooms)}
           </div>
           {roomHint}
+
+          <fieldset className="space-y-2" aria-label="Tid">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-heading leading-none">Tid</span>
+              <div className="flex gap-1">
+                {modeButton('set', 'Sätt tid')}
+                {modeButton('shift', 'Flytta')}
+              </div>
+            </div>
+            {time.mode === 'set' ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="bulk-start">Start</Label>
+                  <Input
+                    id="bulk-start"
+                    type="time"
+                    value={time.start ?? shared.startTime ?? ''}
+                    onChange={event => updateTime({ start: event.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bulk-end">Slut</Label>
+                  <Input
+                    id="bulk-end"
+                    type="time"
+                    value={time.end ?? shared.endTime ?? ''}
+                    onChange={event => updateTime({ end: event.target.value })}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="neutral" size="sm" onClick={() => updateTime({
+                  shift: String((Number.isFinite(shiftMinutes) ? shiftMinutes : 0) - 15)
+                })}>
+                  −15
+                </Button>
+                <Input
+                  id="bulk-shift"
+                  aria-label="Flytta antal minuter"
+                  type="number"
+                  step={5}
+                  className="w-24 text-center"
+                  placeholder="0"
+                  value={time.shift}
+                  onChange={event => updateTime({ shift: event.target.value })}
+                />
+                <span className="text-sm">min</span>
+                <Button type="button" variant="neutral" size="sm" onClick={() => updateTime({
+                  shift: String((Number.isFinite(shiftMinutes) ? shiftMinutes : 0) + 15)
+                })}>
+                  +15
+                </Button>
+              </div>
+            )}
+            {timeHint && <p className="text-xs text-gray-600 kron:text-ui-muted">{timeHint}</p>}
+          </fieldset>
+
+          {renderClearableField('category', 'Uppgift', 'input')}
+          {renderClearableField('notes', 'Anteckningar', 'textarea')}
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Färg</Label>
+              {color ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold underline underline-offset-2"
+                  onClick={() => { setColor(null); setError(null); }}
+                >
+                  Behåll färgerna
+                </button>
+              ) : (
+                shared.color === null && <span className="text-xs text-ui-muted">Flera färger – orörda tills du väljer</span>
+              )}
+            </div>
+            <ColorPicker
+              value={color ?? shared.color ?? DEFAULT_COURSE_COLOR}
+              onChange={next => { setColor(next); setError(null); }}
+              palette={COURSE_COLOR_PALETTE}
+              recentStorageKey={RECENT_CUSTOM_COLORS_KEY}
+              maxRecent={MAX_RECENT_CUSTOM_COLORS}
+            />
+            {pickedColorHint}
+          </div>
+
           {error && (
             <p role="alert" className="border-frame border-ui-line bg-rose-100 kron:bg-ui-paper px-3 py-2 text-sm font-semibold text-rose-900 kron:text-ui-danger">
               Inget ändrades. {error}

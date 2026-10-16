@@ -1230,8 +1230,9 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   }, [bulkIds.size, contextMenu, isMarqueeActive, isKbPlacementActive, clearBulkIds]);
 
   /**
-   * Svaret ges tillbaka till dialogen: ett stopp från en ämnesregel visas där,
-   * eftersom notisen ligger under dialogens mörka bakgrund.
+   * Svaret ges tillbaka till dialogen: ett stopp från en ämnesregel eller en
+   * tid utanför schemat visas där, eftersom notisen ligger under dialogens
+   * mörka bakgrund.
    */
   const handleBulkSave = useCallback((patch: BulkEditPatch): string | null => {
     const context = {
@@ -1254,8 +1255,12 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       const next = applyBulkEdit(prev, bulkIds, patch, context);
       return next.ok ? next.schedule : prev;
     });
-    // Är schemat låst har commitSchedule redan sagt varför.
+    // Är schemat låst har commitSchedule redan sagt varför, och markeringen
+    // står kvar eftersom ingenting ändrades.
     if (isReadOnlyRef.current) return null;
+    // Ändringen är gjord, så markeringen har tjänat sitt syfte. Ångra tar
+    // tillbaka posterna men inte markeringen.
+    clearBulkIds();
 
     const changed = `Ändrade ${result.changedCount} post${result.changedCount === 1 ? '' : 'er'}.`;
     if (result.warnings.length === 0) {
@@ -1270,7 +1275,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       { durationMs: 7000 }
     );
     return null;
-  }, [restrictions, teacherAvailability, allTeacherNames, schedule, bulkIds, commitSchedule, showNotice]);
+  }, [restrictions, teacherAvailability, allTeacherNames, schedule, bulkIds, commitSchedule, showNotice, clearBulkIds]);
 
   const isBulkContextMenu = Boolean(
     contextMenu && bulkEntries.length > 1 && bulkIds.has(contextMenu.entry.instanceId)
