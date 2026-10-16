@@ -17,6 +17,7 @@ const summary = (id: string, name: string, kind: ScheduleKind = 'week'): Planner
   sharedWith: [],
   lock: null,
   updatedAt: null,
+  version: 0,
   kind,
 });
 
@@ -58,7 +59,7 @@ describe('createScheduleFrom', () => {
     expect(service.getArchiveActivities).toHaveBeenCalledWith('bas');
     expect(result.activities.map(a => a.title)).toEqual(['Svenska', 'Matte']);
     expect(result.activities.map(a => a.id)).not.toContain('a1');
-    expect(service.saveArchiveActivities).toHaveBeenCalledWith('new', result.activities);
+    expect(service.saveArchiveActivities).toHaveBeenCalledWith('new', result.activities, 0);
     expect(result.archive.name).toBe('v.43 sparad');
   });
 

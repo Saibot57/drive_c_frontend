@@ -22,6 +22,21 @@ export class ArchiveLockedError extends Error {
 }
 
 /**
+ * Schemat har sparats någon annanstans sedan det lästes in: en annan flik, en
+ * annan dator eller en kollega som tagit över. Sparningen nekades och ingenting
+ * skrevs. `version` är den version som nu är sparad.
+ */
+export class ArchiveConflictError extends Error {
+  version: number | null;
+
+  constructor(message: string, version: number | null) {
+    super(message);
+    this.name = 'ArchiveConflictError';
+    this.version = version;
+  }
+}
+
+/**
  * Schemat finns inte, eller du når det inte längre. Backend skiljer inte på
  * de två (404 i båda fallen), och för den som läser är det samma sak.
  */
@@ -41,10 +56,20 @@ const unwrap = (payload: any) => (
   payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload
 );
 
-/** Backend svarar 409 när låset sitter hos någon annan. */
+/**
+ * Backend svarar 409 när låset sitter hos någon annan, och när en sparning
+ * bygger på en version som inte längre är den sparade.
+ */
 const assertNotLocked = async (response: Response) => {
   if (response.status !== 409) return;
   const payload = await response.json().catch(() => null);
+  if (payload?.data?.conflict === 'version') {
+    const version = payload.data.version;
+    throw new ArchiveConflictError(
+      payload?.error || 'Schemat har ändrats någon annanstans.',
+      typeof version === 'number' ? version : null,
+    );
+  }
   throw new ArchiveLockedError(
     payload?.error || 'Någon annan har schemat öppet.',
     payload?.data?.lockedBy || 'Någon annan',
@@ -157,13 +182,19 @@ export const plannerService = {
     };
   },
 
+  /**
+   * Ersätter schemats poster. `baseVersion` är versionen vyn lästes in eller
+   * senast sparades som. Kastar ArchiveConflictError om schemat hunnit ändras
+   * och ArchiveLockedError om någon annan har låset.
+   */
   async saveArchiveActivities(
     archiveId: string,
     activities: PlannerActivity[],
+    baseVersion: number | null,
   ): Promise<ArchiveActivitiesResult> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/activities`, {
       method: 'PUT',
-      body: JSON.stringify({ activities }),
+      body: JSON.stringify({ activities, baseVersion }),
     });
     await assertNotLocked(response);
     if (!response.ok) {

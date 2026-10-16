@@ -55,6 +55,12 @@ export interface PlannerArchiveSummary {
   lock: ArchiveLock | null;
   updatedAt: string | null;
   /**
+   * Räknas upp av varje sparning. En sparning anger versionen den bygger på,
+   * och backend nekar den om schemat hunnit ändras i en annan flik eller på en
+   * annan dator. Saknas från en backend äldre än migration 021.
+   */
+  version?: number;
+  /**
    * Saknas från en backend som är äldre än basschemana. Läs den med
    * `isBaseSchedule` i `utils/scheduleKind`, som räknar det som veckoschema.
    */

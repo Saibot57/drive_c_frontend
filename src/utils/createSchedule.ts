@@ -48,7 +48,8 @@ export type CreateScheduleService = {
   getPlannerActivities: () => Promise<PlannerActivity[]>;
   saveArchiveActivities: (
     archiveId: string,
-    activities: PlannerActivity[]
+    activities: PlannerActivity[],
+    baseVersion: number | null
   ) => Promise<{ archive?: PlannerArchiveSummary; activities: PlannerActivity[] }>;
   releaseArchiveLock: (archiveId: string) => Promise<void>;
 };
@@ -98,7 +99,8 @@ export const createScheduleFrom = async ({
 
   let archive = created;
   if (activities.length > 0) {
-    const result = await service.saveArchiveActivities(created.id, activities);
+    // Schemat skapades nyss, så ingen annan kan ha hunnit spara i det.
+    const result = await service.saveArchiveActivities(created.id, activities, created.version ?? null);
     archive = result.archive ?? created;
   }
 

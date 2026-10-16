@@ -15,6 +15,7 @@ import {
   resolveWeekSource
 } from '@/utils/createSchedule';
 import { isBaseSchedule, partitionSchedules, scheduleKindLabel, scheduleKindOf } from '@/utils/scheduleKind';
+import type { ArchiveBase } from '@/hooks/usePlannerSync';
 
 /**
  * Varför schemat inte går att ändra just nu, eller null när det går.
@@ -35,6 +36,11 @@ type UseArchiveManagerParams = {
    * fram, så den skapas efteråt och hakas på här genom en ref.
    */
   saveNowRef: MutableRefObject<(() => Promise<boolean>) | null>;
+  /**
+   * Versionen vyn bygger på (se ArchiveBase i usePlannerSync). Sätts här när
+   * ett schema läses in eller skapas, och av usePlannerSync när det sparats.
+   */
+  archiveBaseRef: MutableRefObject<ArchiveBase | null>;
 };
 
 const weekPattern = /^v\.?\s*(\d+)$/i;
@@ -84,7 +90,8 @@ export const useArchiveManager = ({
   commitSchedule,
   mapPlannerActivitiesToSchedule,
   showNotice,
-  saveNowRef
+  saveNowRef,
+  archiveBaseRef
 }: UseArchiveManagerParams) => {
   const [archives, setArchives] = useState<PlannerArchiveSummary[]>([]);
   const [activeArchiveId, setActiveArchiveId] = useState<string | null>(null);
@@ -279,19 +286,40 @@ export const useArchiveManager = ({
 
   const loadArchiveEntries = useCallback(async (archiveId: string) => {
     const { archive, activities } = await plannerService.getArchiveActivities(archiveId);
+    // Versionen följer med posterna den hör till, och sätts i samma steg.
+    archiveBaseRef.current = { archiveId, version: archive?.version ?? null };
     commitSchedule(() => mapPlannerActivitiesToSchedule(activities), { clearHistory: true });
     setServerSyncToken(token => token + 1);
     upsertArchive(archive);
     return archive;
-  }, [commitSchedule, mapPlannerActivitiesToSchedule, upsertArchive]);
+  }, [archiveBaseRef, commitSchedule, mapPlannerActivitiesToSchedule, upsertArchive]);
+
+  /**
+   * Läser om det öppna schemat utan att spara först. Används när en sparning
+   * nekats för att schemat ändrats någon annanstans och användaren väljer den
+   * sparade versionen framför sin egen.
+   */
+  const reloadActiveArchive = useCallback(async (): Promise<boolean> => {
+    const archiveId = activeArchiveIdRef.current;
+    if (!archiveId) return false;
+    try {
+      await loadArchiveEntries(archiveId);
+      return true;
+    } catch (error) {
+      console.error('Archive reload failed', error);
+      showNotice('Kunde inte läsa in schemat. Försök igen.', 'error');
+      return false;
+    }
+  }, [loadArchiveEntries, showNotice]);
 
   /** Tömmer rutnätet när det öppna schemat försvunnit. Inget sparas någonstans. */
   const closeActiveSchedule = useCallback(() => {
+    archiveBaseRef.current = null;
     setActiveArchiveId(null);
     setIsEditingBase(false);
     commitSchedule(() => [], { clearHistory: true });
     setServerSyncToken(token => token + 1);
-  }, [commitSchedule]);
+  }, [archiveBaseRef, commitSchedule]);
 
   const handleLoadWeek = useCallback(async (archiveId: string) => {
     const previousId = activeArchiveIdRef.current;
@@ -504,6 +532,7 @@ export const useArchiveManager = ({
       });
 
       upsertArchive(result.archive);
+      archiveBaseRef.current = { archiveId: result.archive.id, version: result.archive.version ?? null };
       if (result.releasedArchiveId) {
         setArchives(prev => prev.map(existing => (
           existing.id === result.releasedArchiveId ? { ...existing, lock: null } : existing
@@ -530,6 +559,7 @@ export const useArchiveManager = ({
       setIsCreatingSchedule(false);
     }
   }, [
+    archiveBaseRef,
     commitSchedule,
     isCreatingSchedule,
     mapPlannerActivitiesToSchedule,
@@ -671,6 +701,7 @@ export const useArchiveManager = ({
     handleChangeKind,
     handleTakeOverLock,
     markLockLost,
+    reloadActiveArchive,
     deleteArchive,
     setDeleteArchive,
     handleLoadWeek,
