@@ -7,7 +7,7 @@ Bevis togs fram med tillfälliga tester som nu är borttagna. För klienthookarn
 
 ## Status 2026-10-16
 
-Kontrollerat mot `main` i båda repona: frontend `1897fec`, backend `783f479`.
+Kontrollerat mot `main` i båda repona: frontend `1897fec`, backend `783f479`. Uppdaterat 2026-10-17 mot frontend `2cf6c2c` och backend `07ce889` (F2, F13 och F19).
 
 | Fynd | Åtgärdat i |
 |---|---|
@@ -15,6 +15,9 @@ Kontrollerat mot `main` i båda repona: frontend `1897fec`, backend `783f479`.
 | F3 | Frontend #226 (`3897dda`) och backend #36 (`bfc6f4f`, migration 021): version på schemat, 409 vid inaktuell flik och en konfliktruta |
 | F5 | Frontend #224 (`3424944`): raderingarna i `workspaceService` returnerar `true` |
 | F22 | Frontend #224 (`4d9fecb`): notisens "Ångra" och Ctrl+Z kör samma ångring högst en gång |
+| F2 | Frontend #228 (`d5660e4`): kalendern har högst en sparning i flykt per dag (`src/utils/calendarSaveQueue.ts`). Det som skrivs under tiden skickas sammanslaget efteråt, så en äldre text kan inte läggas tillbaka i kön eller landa sist. Undantag: vid `beforeunload` skickas det väntande direkt med keepalive |
+| F13 | Backend #37 (`7c1635a`) och frontend #229 (`d556fcf`). Backend kontrollerar `title`, `teacher`, `room`, `day`, `color` och `category` mot kolumnlängden och svarar 400 med post och fält, både för `/archives/<id>/activities` och `/activities/sync`. Frontend har `maxLength` i formulären, visar serverns 400-text som notis även vid autospar, och `endTimeAfter` ger aldrig sluttid före start. **Reservation:** backend avvisar inte sluttid före start utan loggar en varning, så att gamla poster inte låser veckan. De läks vid nästa sparning från klienten |
+| F19 | Backend #37 (`22c7edb`): `MAX_NOTE_DOCUMENT_BYTES` är nu `64 * 1024 - 1` |
 
 Övriga fynd är oförändrade i koden. F4 väntar fortfarande på kontroll av `planner_archive`, `planner_archive_share`, `planner_course` och `sql_mode` i produktionen.
 
@@ -35,7 +38,7 @@ Kontrollerat mot `main` i båda repona: frontend `1897fec`, backend `783f479`.
 | ID | Allv. | Status | Repo | Fil:rad | Rubrik |
 |---|---|---|---|---|---|
 | F1 | Kritisk | **Åtgärdat** (Bevisat) | FE | `src/hooks/usePlannerSync.ts:250` | En ändring som görs medan en sparning pågår sparas aldrig, och indikatorn visar "Sparat" |
-| F2 | Kritisk | Bevisat | FE | `src/hooks/useCalendarAutosave.ts:69` | En äldre misslyckad sparning läggs tillbaka i kön och skriver över nyare text |
+| F2 | Kritisk | **Åtgärdat** (Bevisat) | FE | `src/hooks/useCalendarAutosave.ts:69` | En äldre misslyckad sparning läggs tillbaka i kön och skriver över nyare text |
 | F3 | Kritisk | **Åtgärdat** (Bevisat) | BE+FE | `api/planner_routes.py:320`, `:571` | Samma användare i två flikar eller på två enheter skriver tyst över ett delat schema |
 | F4 | Medel | Delvis motbevisat¹ | BE | `migrations/versions/011_…py:82`, `models/planner_models.py` | Migrationerna ger `utf8mb3` för planner-tabellerna, men produktionen har `utf8mb4` för `planner_activity`. Övriga tabeller är overifierade |
 | F5 | Hög | **Åtgärdat** (Bevisat) | FE | `src/app/workspace/_feature/hooks/useWorkspaceData.ts:974`, `:1008`, `:313` | Lyckade raderingar tolkas som fel eftersom `void`-svaret blir `undefined` |
@@ -46,13 +49,13 @@ Kontrollerat mot `main` i båda repona: frontend `1897fec`, backend `783f479`.
 | F10 | Hög | Bevisat | FE | `usePlannerSync.ts:245`, `useArchiveManager.ts:148` | Ett misslyckat autospar försöker aldrig igen och visar ingen notis. Byter man schema försvinner ändringen |
 | F11 | Medel | Bevisat | FE | `usePlannerSync.ts:217` | Ett tömt schema sparas aldrig: posterna kommer tillbaka och indikatorn säger "Sparat" |
 | F12 | Hög | Bevisat² / Spårat | FE | `useThemeWheelSync.ts:199`, `useWorkspaceData.ts:85`, `useCalendarAutosave.ts:57` | Inget ordningsskydd: två sparningar av samma resurs kan vara i flykt samtidigt |
-| F13 | Hög | Bevisat (MariaDB) | BE+FE | `api/planner_routes.py:184-208` | Längd och sluttid valideras inte: hela veckan avvisas, eller titeln kapas tyst och längden blir negativ |
+| F13 | Hög | **Åtgärdat med reservation** (Bevisat (MariaDB)) | BE+FE | `api/planner_routes.py:184-208` | Längd och sluttid valideras inte: hela veckan avvisas, eller titeln kapas tyst och längden blir negativ |
 | F14 | Medel | Spårat | FE | `src/services/authService.ts:74` | Vid 401 sker en omedelbar hård omdirigering, och allt osparat kastas |
 | F15 | Medel | Spårat | FE | `src/hooks/useCalendarData.ts:48`, `:76` | Månadshämtningen kan skriva över lokalt inskriven text |
 | F16 | Medel | Spårat | FE | `src/components/schedule/PublicLinkControl.tsx:92`, `:165` | Publika länkens färg- och salsregler skrivs över från en annan enhets localStorage |
 | F17 | Medel | Spårat | BE | `services/db_retry.py:49` | Deterministiska `OperationalError` körs om tre gånger. Retry dubblerar ingenting (verifierat) |
 | F18 | Låg | Spårat | BE | `api/month_calendar_routes.py:199-214` | Två första sparningar för samma dag ger `IntegrityError` och 500 |
-| F19 | Låg | Bevisat (MariaDB) | BE | `models/month_calendar_models.py:36` | Taket 65 536 byte är en byte större än `TEXT`: anteckningen försvinner tyst |
+| F19 | Låg | **Åtgärdat** (Bevisat (MariaDB)) | BE | `models/month_calendar_models.py:36` | Taket 65 536 byte är en byte större än `TEXT`: anteckningen försvinner tyst |
 | F20 | Medel | Spårat | BE | `timestamp_migration.py`, `migration.py`, `update_data.py` | Skript som inte är idempotenta, eller som ger "admin" andras rader |
 | F21 | Medel | Spårat | BE | `app.py:185`, `init_db.py:12` | `create_all()` vid varje uppstart skapar tabeller förbi Alembic, med fel teckenuppsättning |
 | F22 | Låg | **Åtgärdat** (Spårat) | FE | `useWorkspaceData.ts:979`, `:996` | "Ångra" i notisen följt av Ctrl+Z lägger tillbaka kortet två gånger (döljs i dag av F5) |
