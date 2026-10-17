@@ -47,14 +47,32 @@ före push.
 - **Workspace-korten** får sitt utseende från `workspace.css` (`--ws-*`),
   inte från inline-`style` eller Tailwind-grått.
 - **localStorage-nycklar** är versionerade (`app.theme.v1`,
-  `lessonLab.state.v1`). Byt version när formatet ändras, läs gamla data
-  defensivt (se `sanitize*`-funktionerna) och svälj fel från lagringen.
+  `lessonLab.state.v1`). Läs gamla data defensivt (se `sanitize*`-
+  funktionerna) och svälj fel från lagringen. Byts nyckeln måste den gamla
+  läsas och föras över, annars försvinner användarens listor och regler tyst.
 - **Veckodagar** är svenska strängar: `PLANNER_DAYS` i
   `src/config/plannerConstants.ts`.
 - **Tester** skrivs för logik i `utils/` och `services/`. Ren logik bryts ut
   ur komponenter för att gå att testa. Fixturer för schemat ligger i
   `src/components/schedule/__fixtures__/` och körs av
-  `scheduleFixtures.test.ts`.
+  `scheduleFixtures.test.ts`. Bara `*.test.ts` körs, inte `*.test.tsx`. En
+  hook testas med `// @vitest-environment jsdom` överst i filen och en egen
+  `renderHook` (se `usePlannerSync.test.ts`); det finns inget testbibliotek
+  för React.
+- **Nyckelstil i API:t** följer featuren: Workspace och Kalender skickar
+  snake_case (`position_x`, `quick_text`), Schema, Temakalender och Arbetslag
+  camelCase (`startTime`, `startWeek`, `updatedAt`). Typerna som speglar
+  backend skrivs för hand (`types/schedule.ts`, `workspace.types.ts`) och
+  ändras i samma veva som backendens serializer.
+- **Sparning** har en modell per feature, och skillnaderna är avsiktliga:
+  Schema sparar hela veckan med version och 409 (`usePlannerSync`), Arbetslag
+  har en kö med version (`utils/labPlanStore.ts`), Kalender en kö per dag
+  (`utils/calendarSaveQueue.ts`) och Workspace ett anrop per ändring
+  (`useWorkspaceData`). Ett dokument som flera kan redigera följer Schema
+  eller Arbetslag. Ingen sparning får lämna det som väntar när sidan stängs.
+- **Nedladdning** går via `downloadBlob` (`utils/download.ts`). Att anropa
+  `URL.revokeObjectURL` direkt efter klicket avbryter nedladdningen i vissa
+  webbläsare.
 
 ## Fällor
 
@@ -66,8 +84,20 @@ före push.
   `usePlannerSync`, `useThemeWheelSync`, `useCalendarAutosave`) med olika
   beteende. Läs den som gäller innan du ändrar hur något sparas.
 - Backend lägger inte till nya kolumner av sig själv. Ett nytt fält som ska
-  sparas kräver en alembic-migration i backend, och den ska vara deployad
-  innan frontend som skickar fältet når `main`.
+  sparas kräver en alembic-migration i backend. **Ordningen mellan backend
+  och frontend beror på migrationen**: oftast backend först, men `021` krävde
+  frontend först. Den står i historiken i backendens `DEPLOY.md`, och en ny
+  migration ska skriva in sin ordning där.
+- **Schemat:** allt användaren ändrar går via `commitSchedule` i
+  `NewSchedulePlanner.tsx`, som stoppar ändringar i läsläge.
+  `applyScheduleFromServer` är bara till för inläsningar från servern; en ny
+  redigeringsväg som använder den går förbi läsläget.
+- **En ny dold schemainställning** ska även in i JSON-backupen
+  (`handleExportJSON`, `handleImportJSON` och `handleConfirmImport` i
+  `NewSchedulePlanner.tsx`), annars försvinner den vid återställning.
+  `selectionDefaults`, `pasteProtect` och `exportExcludes` saknas där i dag.
+- **En ny workspace-elementtyp** måste även in i backendens `VALID_TYPES`
+  (`models/workspace_models.py`), annars avvisas den.
 - `NewSchedulePlanner.tsx` (~2 600 rader) och `useWorkspaceData.ts` är stora
   och ändras ofta. Bryt hellre ut logik till `utils/` med tester än att lägga
   till mer i dem.
