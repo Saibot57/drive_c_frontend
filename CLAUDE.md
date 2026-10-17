@@ -32,6 +32,8 @@ före push.
   Följ mönstret som redan gäller för den feature du ändrar i.
 - `docs/plans/` – planer för större ändringar. Se `docs/plans/README.md`.
 - `docs/arkiv/` – gamla granskningar. Historik, inte aktuella fel.
+- Status för granskningarna 2026-10-15 (säkerhet, dataintegritet, arkitektur)
+  finns i backend-repot: `docs/granskning-status.md`. Se Konventioner.
 
 ## Konventioner
 
@@ -70,6 +72,10 @@ före push.
   (`utils/calendarSaveQueue.ts`) och Workspace ett anrop per ändring
   (`useWorkspaceData`). Ett dokument som flera kan redigera följer Schema
   eller Arbetslag. Ingen sparning får lämna det som väntar när sidan stängs.
+- **Granskningsfynd:** åtgärdar du ett fynd från granskningarna 2026-10-15,
+  uppdatera dess rad i backendens `docs/granskning-status.md` i en commit där,
+  i samma veva som fixen. Rapporterna själva är ögonblicksbilder och ändras
+  inte.
 - **Nedladdning** går via `downloadBlob` (`utils/download.ts`). Att anropa
   `URL.revokeObjectURL` direkt efter klicket avbryter nedladdningen i vissa
   webbläsare.
