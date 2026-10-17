@@ -14,6 +14,20 @@ export const COURSE_COLOR_PALETTE = [
 
 export const DEFAULT_COURSE_COLOR = '#ffffff';
 
+/**
+ * Längsta text i postens fält, samma som kolumnerna i backendens
+ * planner_activity. Längre text avvisas av servern för hela veckan.
+ */
+export const ENTRY_FIELD_MAX_LENGTH = {
+  title: 150,
+  teacher: 150,
+  room: 150,
+  category: 255,
+} as const;
+
+/** Längd för en post vars egen längd saknas eller är orimlig. */
+export const FALLBACK_ENTRY_DURATION_MINUTES = 60;
+
 export const RECENT_CUSTOM_COLORS_KEY = 'planner_recent_custom_colors';
 export const MAX_RECENT_CUSTOM_COLORS = 3;
 export const MANUAL_COURSES_KEY = 'planner_manual_courses_v1';

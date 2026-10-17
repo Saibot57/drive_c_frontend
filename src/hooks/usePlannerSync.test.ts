@@ -113,6 +113,22 @@ describe('usePlannerSync', () => {
     h.unmount();
   });
 
+  it('visar varför autosparet misslyckades', async () => {
+    const showNotice = vi.fn();
+    save.mockRejectedValueOnce(new Error('Kunde inte spara schemat. Post 1: title har 151 tecken, högst 150 får plats'));
+    const h = renderHook({ ...props, showNotice });
+
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+
+    expect(h.result.current.saveStatus).toBe('error');
+    expect(showNotice).toHaveBeenCalledWith(
+      'Kunde inte spara schemat. Post 1: title har 151 tecken, högst 150 får plats',
+      'error',
+    );
+    h.unmount();
+  });
+
   it('skickar null när versionen gäller ett annat schema', async () => {
     baseRef.current = { archiveId: 'v34', version: 7 };
     save.mockResolvedValueOnce(archive(1));

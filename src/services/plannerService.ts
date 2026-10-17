@@ -198,7 +198,10 @@ export const plannerService = {
     });
     await assertNotLocked(response);
     if (!response.ok) {
-      throw new Error('Kunde inte spara schemat.');
+      // Ett 400 säger vilken post som inte gick att spara, till exempel en för
+      // lång titel. Övriga fel kan bära serverns interna text och visas inte.
+      const payload = response.status === 400 ? await response.json().catch(() => null) : null;
+      throw new Error(payload?.error ? `Kunde inte spara schemat. ${payload.error}` : 'Kunde inte spara schemat.');
     }
     const result = unwrap(await response.json());
     return {

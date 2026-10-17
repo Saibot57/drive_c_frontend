@@ -22,6 +22,17 @@ describe('sanitizeScheduleImport', () => {
     expect(entry.instanceId).toBe('x1');
   });
 
+  it('räknar om en sluttid som inte ligger efter starten', () => {
+    const [backwards, zero, negative] = sanitizeScheduleImport([
+      { title: 'Bakvänd', startTime: '10:00', endTime: '09:00', duration: 45 },
+      { title: 'Noll', startTime: '10:00', endTime: '10:00' },
+      { title: 'Negativ', startTime: '10:00', endTime: '09:00', duration: -60 },
+    ]);
+    expect([backwards.endTime, backwards.duration]).toEqual(['10:45', 45]);
+    expect([zero.endTime, zero.duration]).toEqual(['11:00', 60]);
+    expect([negative.endTime, negative.duration]).toEqual(['11:00', 60]);
+  });
+
   it('ger en tom lista för annat än en lista', () => {
     expect(sanitizeScheduleImport(null as unknown as any[])).toEqual([]);
   });

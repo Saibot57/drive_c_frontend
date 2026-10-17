@@ -3,10 +3,11 @@
 import { useCallback, useState } from 'react';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
-import { PLANNER_DAYS } from '@/config/plannerConstants';
+import { FALLBACK_ENTRY_DURATION_MINUTES, PLANNER_DAYS } from '@/config/plannerConstants';
 import {
   START_HOUR,
   END_HOUR,
+  endTimeAfter,
   minutesToTime,
   snapTime,
   SNAP_MINUTES,
@@ -52,7 +53,7 @@ export function useKeyboardPlacement({
     ? {
         day: PLANNER_DAYS[kbPlacement.dayIndex],
         startTime: minutesToTime(kbPlacement.timeMinutes),
-        endTime: minutesToTime(kbPlacement.timeMinutes + kbPlacement.course.duration),
+        endTime: endTimeAfter(kbPlacement.timeMinutes, kbPlacement.course.duration, FALLBACK_ENTRY_DURATION_MINUTES),
         duration: kbPlacement.course.duration,
         color: kbPlacement.course.color,
         title: kbPlacement.course.title,
@@ -141,7 +142,7 @@ export function useKeyboardPlacement({
               if (!kbPlacement) return;
               const day = PLANNER_DAYS[kbPlacement.dayIndex];
               const startTime = minutesToTime(kbPlacement.timeMinutes);
-              const endTime = minutesToTime(kbPlacement.timeMinutes + kbPlacement.course.duration);
+              const endTime = endTimeAfter(kbPlacement.timeMinutes, kbPlacement.course.duration, FALLBACK_ENTRY_DURATION_MINUTES);
 
               const verdict = validatePlacement({
                 title: kbPlacement.course.title,

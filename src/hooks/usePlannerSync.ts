@@ -260,6 +260,7 @@ export const usePlannerSync = ({
         showNotice(error.message, 'warning');
       } else {
         console.error('Save failed', error);
+        showNotice(error instanceof Error ? error.message : 'Kunde inte spara schemat.', 'error');
       }
       return false;
     } finally {
@@ -314,6 +315,9 @@ export const usePlannerSync = ({
       }
       console.error('Autosave failed', error);
       setSaveStatus('error');
+      // Utan notis syntes bara "Ej sparat", och en post som servern avvisar
+      // (till exempel en för lång titel) gick inte att hitta.
+      showNotice(error instanceof Error ? error.message : 'Kunde inte spara schemat.', 'error');
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
