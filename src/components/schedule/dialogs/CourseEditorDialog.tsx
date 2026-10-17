@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { COURSE_COLOR_PALETTE, MAX_RECENT_CUSTOM_COLORS, RECENT_CUSTOM_COLORS_KEY } from '@/config/plannerConstants';
+import { COURSE_COLOR_PALETTE, ENTRY_FIELD_MAX_LENGTH, MAX_RECENT_CUSTOM_COLORS, RECENT_CUSTOM_COLORS_KEY } from '@/config/plannerConstants';
 import { generateBoxColor } from '@/config/colorManagement';
 import { SmartTextInput } from '@/components/ui/SmartTextInput';
 import { Button } from '@/components/ui/button';
@@ -52,19 +52,20 @@ export function CourseEditorDialog({
         {course && (
           <form onSubmit={onSave} onKeyDown={submitOnCtrlEnter(onSave)} className="space-y-3">
             <Label>Titel</Label>
-            <Input value={course.title} onChange={e => {
+            <Input value={course.title} maxLength={ENTRY_FIELD_MAX_LENGTH.title} onChange={e => {
               const val = e.target.value;
               let col = course.color;
               if (!manualColor && val.length > 1) col = generateBoxColor(val);
               onCourseChange({ ...course, title: val, color: col });
             }} autoFocus />
-            <Label>Standardlängd (min)</Label> <Input type="number" value={course.duration} onChange={e => onCourseChange({ ...course, duration: parseInt(e.target.value) })} />
+            <Label>Standardlängd (min)</Label> <Input type="number" min={1} value={course.duration} onChange={e => onCourseChange({ ...course, duration: parseInt(e.target.value) })} />
             <div className="grid grid-cols-2 gap-2">
               <SmartTextInput
                 fieldId="course-teacher"
                 label="Lärare"
                 value={course.teacher}
                 options={teachers}
+                maxLength={ENTRY_FIELD_MAX_LENGTH.teacher}
                 onChange={teacher => onCourseChange({ ...course, teacher })}
               />
               <SmartTextInput
@@ -72,6 +73,7 @@ export function CourseEditorDialog({
                 label="Rum"
                 value={course.room}
                 options={rooms}
+                maxLength={ENTRY_FIELD_MAX_LENGTH.room}
                 onChange={room => onCourseChange({ ...course, room })}
               />
             </div>

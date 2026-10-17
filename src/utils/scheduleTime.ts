@@ -18,6 +18,19 @@ export const minutesToTime = (totalMinutes: number): string => {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 };
 
+/** Dygnets sista minut. En sluttid efter den blir "24:00", som inte är ett klockslag. */
+const LAST_MINUTE_OF_DAY = 23 * 60 + 59;
+
+/**
+ * Sluttid för en post som börjar `startMinutes` och är `duration` minuter.
+ * En saknad, noll eller negativ längd ersätts med `fallback`, och tiden kapas
+ * vid 23:59, så att sluttiden alltid är ett giltigt klockslag efter starten.
+ */
+export const endTimeAfter = (startMinutes: number, duration: number, fallback = 60): string => {
+  const length = Number.isFinite(duration) && duration > 0 ? duration : fallback;
+  return minutesToTime(Math.min(startMinutes + length, LAST_MINUTE_OF_DAY));
+};
+
 /** Räknar ut höjd och topp-position för ett block */
 export const getPositionStyles = (start: string, duration: number) => {
   const startMin = timeToMinutes(start);

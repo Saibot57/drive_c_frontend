@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   COURSE_COLOR_PALETTE,
   DEFAULT_COURSE_COLOR,
+  ENTRY_FIELD_MAX_LENGTH,
   MAX_RECENT_CUSTOM_COLORS,
   RECENT_CUSTOM_COLORS_KEY
 } from '@/config/plannerConstants';
@@ -48,6 +49,11 @@ type FieldDraft =
   | { kind: 'clear' };
 
 type Drafts = Record<BulkEditField, FieldDraft>;
+
+/** Längsta text fältet får ha. Anteckningar har ingen gräns. */
+const maxLengthOf = (field: BulkEditField): number | undefined => (
+  field === 'notes' ? undefined : ENTRY_FIELD_MAX_LENGTH[field]
+);
 
 const INITIAL_DRAFTS: Drafts = {
   title: { kind: 'keep' },
@@ -288,6 +294,7 @@ export function BulkEditModal({
               value={shownValue(field)}
               placeholder={placeholder(field)}
               disabled={isClearing}
+              maxLength={maxLengthOf(field)}
               onChange={event => handleChange(field, event.target.value)}
             />
           </div>
@@ -300,6 +307,7 @@ export function BulkEditModal({
           value={shownValue(field)}
           options={options}
           placeholder={placeholder(field)}
+          maxLength={maxLengthOf(field)}
           onChange={value => handleChange(field, value)}
         />
       );
@@ -376,6 +384,7 @@ export function BulkEditModal({
             <Input
               id="bulk-title"
               value={shownValue('title')}
+              maxLength={ENTRY_FIELD_MAX_LENGTH.title}
               placeholder={placeholder('title')}
               onChange={event => handleChange('title', event.target.value)}
             />

@@ -4,6 +4,7 @@ import React from 'react';
 import {
   COURSE_COLOR_PALETTE,
   DEFAULT_COURSE_COLOR,
+  ENTRY_FIELD_MAX_LENGTH,
   MAX_RECENT_CUSTOM_COLORS,
   RECENT_CUSTOM_COLORS_KEY,
 } from '@/config/plannerConstants';
@@ -50,7 +51,7 @@ export function EntryEditorDialog({
           <form onSubmit={onSave} onKeyDown={submitOnCtrlEnter(onSave)} className="space-y-3">
             <div>
               <Label>Titel</Label>
-              <Input value={entry.title} onChange={e => onEntryChange({ ...entry, title: e.target.value })} autoFocus />
+              <Input value={entry.title} maxLength={ENTRY_FIELD_MAX_LENGTH.title} onChange={e => onEntryChange({ ...entry, title: e.target.value })} autoFocus />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div><Label>Start</Label><Input type="time" value={entry.startTime} onChange={e => onEntryChange({ ...entry, startTime: e.target.value })} /></div>
@@ -62,6 +63,7 @@ export function EntryEditorDialog({
                 label="Lärare"
                 value={entry.teacher}
                 options={teachers}
+                maxLength={ENTRY_FIELD_MAX_LENGTH.teacher}
                 onChange={teacher => onEntryChange({ ...entry, teacher })}
               />
               <SmartTextInput
@@ -69,6 +71,7 @@ export function EntryEditorDialog({
                 label="Rum"
                 value={entry.room}
                 options={rooms}
+                maxLength={ENTRY_FIELD_MAX_LENGTH.room}
                 onChange={room => onEntryChange({ ...entry, room })}
               />
             </div>
@@ -89,6 +92,7 @@ export function EntryEditorDialog({
                 id="entry-category"
                 placeholder="Klistra in uppgiftslänk eller skriv en kort markering"
                 value={entry.category ?? ''}
+                maxLength={ENTRY_FIELD_MAX_LENGTH.category}
                 onChange={e => onEntryChange({ ...entry, category: e.target.value })}
               />
             </div>

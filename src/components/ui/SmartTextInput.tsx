@@ -12,6 +12,7 @@ type SmartTextInputProps = {
   fieldId: string;
   label: string;
   placeholder?: string;
+  maxLength?: number;
 };
 
 const normalizeAutofillValue = (value: string) => (
@@ -33,7 +34,8 @@ export function SmartTextInput({
   minChars = 3,
   fieldId,
   label,
-  placeholder
+  placeholder,
+  maxLength
 }: SmartTextInputProps) {
   const normalizedOptions = useMemo(() => (
     options.map(option => ({
@@ -83,6 +85,7 @@ export function SmartTextInput({
           onChange={event => handleChange(event.target.value)}
           onBlur={() => onChange(value.replace(/,\s*$/, ''))}
           placeholder={placeholder}
+          maxLength={maxLength}
         />
       </div>
     </div>

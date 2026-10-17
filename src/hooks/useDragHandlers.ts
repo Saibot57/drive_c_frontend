@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { v4 as uuidv4 } from 'uuid';
+import { FALLBACK_ENTRY_DURATION_MINUTES } from '@/config/plannerConstants';
 import { GhostPlacement } from '@/types/plannerUI';
 import { PlannerCourse, ScheduledEntry } from '@/types/schedule';
 import { moveInLane, resolveLaneDrop } from '@/utils/scheduleLayout';
@@ -100,9 +101,12 @@ export const useDragHandlers = ({
     const targetDay = over.id as string;
     const type = active.data.current?.type;
 
-    const itemDuration = type === 'course'
-      ? (active.data.current?.course.duration || 60)
-      : active.data.current?.entry.duration;
+    const rawDuration = Number(type === 'course'
+      ? active.data.current?.course.duration
+      : active.data.current?.entry.duration);
+    // En byggsten kan ha fått längden 0 eller negativ i formuläret, och då
+    // hamnade sluttiden före starten.
+    const itemDuration = rawDuration > 0 ? rawDuration : FALLBACK_ENTRY_DURATION_MINUTES;
 
     let totalMinutes: number;
 
