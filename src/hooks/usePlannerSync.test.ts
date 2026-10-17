@@ -205,6 +205,33 @@ describe('usePlannerSync', () => {
     h.unmount();
   });
 
+  it('sparar ett schema som tömts (F11)', async () => {
+    save.mockResolvedValueOnce(archive(4)).mockResolvedValueOnce(archive(5));
+    const h = renderHook(props);
+
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+    // Veckans sista post tas bort. Förr stod det "Sparat", men servern
+    // behöll posten, och den kom tillbaka vid nästa omladdning.
+    h.rerender({ schedule: [] });
+    await autosave();
+
+    expect(sentTitles()).toEqual([['Matte'], []]);
+    expect(sentVersions()).toEqual([3, 4]);
+    expect(h.result.current.saveStatus).toBe('saved');
+    h.unmount();
+  });
+
+  it('skriver inget när ett tomt schema är oförändrat', async () => {
+    const h = renderHook(props);
+    await autosave();
+    h.rerender({ serverSyncToken: 1 });
+    await autosave();
+
+    expect(save).not.toHaveBeenCalled();
+    h.unmount();
+  });
+
   it('sparar en ändring som görs medan en annan sparning pågår (F1)', async () => {
     let finishFirst!: (value: unknown) => void;
     save

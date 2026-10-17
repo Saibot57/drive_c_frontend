@@ -26,6 +26,10 @@ export function workspaceReducer(
     case 'SET_ACTIVE_SURFACE':
       return { ...state, activeSurfaceId: action.surfaceId, selectedElementId: null };
     case 'SET_PLACEMENTS':
+      // Ett svar som kommer efter att användaren bytt yta hör inte till vyn.
+      // Utan spärren visades den förra ytans kort, och en borttagning eller
+      // flytt i vyn ändrade dem (F6 i granskningen av dataintegritet).
+      if (action.surfaceId !== undefined && action.surfaceId !== state.activeSurfaceId) return state;
       return { ...state, placements: action.placements };
     case 'SET_ELEMENT':
       return {
@@ -52,9 +56,12 @@ export function workspaceReducer(
         placements: state.placements.filter((p) => p.id !== action.placementId),
       };
     case 'ADD_PLACEMENT':
+      if (action.placement.surface_id !== state.activeSurfaceId) return state;
       return { ...state, placements: [...state.placements, action.placement] };
-    case 'ADD_PLACEMENTS':
-      return { ...state, placements: [...state.placements, ...action.placements] };
+    case 'ADD_PLACEMENTS': {
+      const onActive = action.placements.filter((p) => p.surface_id === state.activeSurfaceId);
+      return { ...state, placements: [...state.placements, ...onActive] };
+    }
     case 'SET_VIEWPORT':
       return { ...state, viewport: { ...state.viewport, ...action.viewport } };
     case 'SELECT_ELEMENT':
