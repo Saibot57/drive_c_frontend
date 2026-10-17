@@ -81,7 +81,8 @@ export interface WorkspaceState {
 export type WorkspaceAction =
   | { type: 'SET_SURFACES'; surfaces: Surface[] }
   | { type: 'SET_ACTIVE_SURFACE'; surfaceId: string }
-  | { type: 'SET_PLACEMENTS'; placements: SurfaceElement[] }
+  /** Med `surfaceId` gäller svaret bara om den ytan fortfarande är aktiv. */
+  | { type: 'SET_PLACEMENTS'; placements: SurfaceElement[]; surfaceId?: string }
   | { type: 'SET_ELEMENT'; element: WorkspaceElement }
   | { type: 'SET_ELEMENTS'; elements: WorkspaceElement[] }
   | { type: 'SET_LIBRARY'; elements: WorkspaceElement[] }

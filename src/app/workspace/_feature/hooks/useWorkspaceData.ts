@@ -169,7 +169,7 @@ export function useWorkspaceData() {
       workspaceService.getSurfaceElements(surfaceId),
     );
     if (!placements) return;
-    dispatch({ type: 'SET_PLACEMENTS', placements });
+    dispatch({ type: 'SET_PLACEMENTS', surfaceId, placements });
     dispatch({
       type: 'SET_ELEMENTS',
       elements: placements.filter((p) => p.element).map((p) => p.element!),
