@@ -279,7 +279,9 @@ export const usePlannerSync = ({
   const performAutosave = useCallback(async () => {
     if (loadStatus !== 'loaded') return;
     if (!activeArchiveId) return;
-    if (schedule.length === 0) return;
+    // Ett tomt schema sparas också: att ta bort veckans sista post är en
+    // ändring. Mot att skriva tomt efter en misslyckad inläsning skyddar
+    // loadStatus, och mot att skriva en nyss inläst vecka signaturen nedan.
     // Läsläge: den andres arbete ska inte skrivas över av en autospar härifrån.
     if (isReadOnly) return;
     // Användaren har inte valt än. Det som skrivs under tiden ligger kvar i vyn.
