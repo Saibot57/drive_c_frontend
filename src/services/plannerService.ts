@@ -8,6 +8,8 @@ import type {
 } from '@/types/schedule';
 
 import { API_URL } from '@/config/api';
+import { HttpStatusError } from '@/utils/saveRetry';
+import { withKeepalive } from '@/utils/keepalive';
 const PLANNER_API_URL = `${API_URL}/planner`;
 
 /** Kastas när någon annan har schemat öppet, så anroparen kan gå i läsläge. */
@@ -186,22 +188,35 @@ export const plannerService = {
    * Ersätter schemats poster. `baseVersion` är versionen vyn lästes in eller
    * senast sparades som. Kastar ArchiveConflictError om schemat hunnit ändras
    * och ArchiveLockedError om någon annan har låset.
+   *
+   * `keepalive` när sidan lämnas (se utils/keepalive.ts). `releaseLock` när
+   * fliken stängs eller planeraren lämnas: servern sparar och släpper låset i
+   * samma steg, så att ett släpp som landar före sparningen inte låter
+   * sparningen ta tillbaka låset. En äldre backend ignorerar flaggan.
    */
   async saveArchiveActivities(
     archiveId: string,
     activities: PlannerActivity[],
     baseVersion: number | null,
+    options: { keepalive?: boolean; releaseLock?: boolean } = {},
   ): Promise<ArchiveActivitiesResult> {
-    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/activities`, {
-      method: 'PUT',
-      body: JSON.stringify({ activities, baseVersion }),
-    });
+    const body = JSON.stringify(
+      options.releaseLock ? { activities, baseVersion, releaseLock: true } : { activities, baseVersion }
+    );
+    const response = await withKeepalive(body, Boolean(options.keepalive), keepalive => (
+      fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/activities`, { method: 'PUT', body, keepalive })
+    ));
     await assertNotLocked(response);
     if (!response.ok) {
       // Ett 400 säger vilken post som inte gick att spara, till exempel en för
       // lång titel. Övriga fel kan bära serverns interna text och visas inte.
+      // Statusen följer med, så att autosparet bara försöker igen när felet
+      // kan gå över.
       const payload = response.status === 400 ? await response.json().catch(() => null) : null;
-      throw new Error(payload?.error ? `Kunde inte spara schemat. ${payload.error}` : 'Kunde inte spara schemat.');
+      throw new HttpStatusError(
+        payload?.error ? `Kunde inte spara schemat. ${payload.error}` : 'Kunde inte spara schemat.',
+        response.status,
+      );
     }
     const result = unwrap(await response.json());
     return {

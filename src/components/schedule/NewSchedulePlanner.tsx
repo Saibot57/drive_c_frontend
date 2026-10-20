@@ -300,8 +300,10 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   // usePlannerSync behöver det arkivhanteraren räknar fram och skapas därför
-  // efter den. Arkivhanteraren når dess saveNow genom den här refen.
+  // efter den. Arkivhanteraren når dess saveNow och saveFailedTransiently
+  // genom de här refarna.
   const saveNowRef = useRef<(() => Promise<boolean>) | null>(null);
+  const saveFailedTransientlyRef = useRef<(() => boolean) | null>(null);
   // Versionen vyn bygger på. Arkivhanteraren sätter den vid inläsning och
   // usePlannerSync efter varje sparning; se ArchiveBase.
   const archiveBaseRef = useRef<ArchiveBase | null>(null);
@@ -310,6 +312,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     mapPlannerActivitiesToSchedule,
     showNotice,
     saveNowRef,
+    saveFailedTransientlyRef,
     archiveBaseRef
   });
   const {
@@ -335,7 +338,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     openNewScheduleDialog
   } = archive;
 
-  const { saveStatus, loadStatus, saveNow, conflict, keepMine } = usePlannerSync({
+  const { saveStatus, loadStatus, saveNow, saveFailedTransiently, conflict, keepMine } = usePlannerSync({
     schedule,
     commitSchedule: applyScheduleFromServer,
     activeArchiveId,
@@ -347,6 +350,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     showNotice
   });
   saveNowRef.current = saveNow;
+  saveFailedTransientlyRef.current = saveFailedTransiently;
 
   /**
    * Varför schemat inte går att ändra, eller null. Ett schema som inte gick
