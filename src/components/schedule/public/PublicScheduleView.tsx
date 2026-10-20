@@ -14,6 +14,7 @@ import {
   ParticipantChoice,
   sanitizeChoice,
 } from '@/utils/publicScheduleFilter';
+import { clearCachedSchedule, readCachedSchedule, writeCachedSchedule } from '@/utils/publicScheduleCache';
 import { exportSchedule } from '@/utils/schedulePdf';
 import MyLessonsDialog from './MyLessonsDialog';
 import PublicDayList from './PublicDayList';
@@ -100,6 +101,8 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
   const [isStale, setIsStale] = useState(false);
   const etagRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
+  /** Något schema visas redan, hämtat nu eller ur den sparade kopian. */
+  const hasPayloadRef = useRef(false);
   const [choice, setChoice] = useState<ParticipantChoice | null>(null);
   const [isChoiceOpen, setIsChoiceOpen] = useState(false);
 
@@ -122,7 +125,9 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
       const result = await fetchPublicSchedule(token, etagRef.current);
       if (result.status === 'ok') {
         etagRef.current = result.etag;
+        hasPayloadRef.current = true;
         setPayload(result.payload);
+        writeCachedSchedule(token, result.payload);
         setState('ready');
         setIsStale(false);
       } else if (result.status === 'unchanged') {
@@ -130,12 +135,26 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
       } else if (result.status === 'not-found') {
         // Länken är avstängd eller bytt. Släng det vi visade — ett schema som
         // står kvar efter att läraren dragit tillbaka länken vore missvisande.
+        // Den sparade kopian rensas av samma skäl.
         etagRef.current = null;
+        hasPayloadRef.current = false;
+        clearCachedSchedule(token);
         setPayload(null);
         setState('not-found');
       } else {
+        // Fel eller 429. Visas inget schema än tar vi den senast sparade
+        // kopian, så att ett kort avbrott hos servern inte ger en tom sida.
         setIsStale(true);
-        setState(current => (current === 'loading' ? 'error' : current));
+        if (!hasPayloadRef.current) {
+          const cached = readCachedSchedule(token);
+          if (cached) {
+            hasPayloadRef.current = true;
+            setPayload(cached);
+            setState('ready');
+          } else {
+            setState(current => (current === 'loading' ? 'error' : current));
+          }
+        }
       }
     } finally {
       inFlightRef.current = false;
@@ -236,11 +255,11 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
         {subheading && (
           <p className="text-sm font-bold uppercase tracking-wide text-ui-muted">{subheading}</p>
         )}
-        {updated && (
+        {(updated || isStale) && (
           <p className="mt-0.5 text-sm text-gray-600 kron:text-ui-muted" role="status">
-            Uppdaterad {updated}
+            {updated && <>Uppdaterad {updated}</>}
             {isStale && (
-              <span className="ml-2 inline-flex items-center gap-1 text-amber-700">
+              <span className={`${updated ? 'ml-2 ' : ''}inline-flex items-center gap-1 text-amber-700`}>
                 <RefreshCw size={12} /> kunde inte kontrollera just nu
               </span>
             )}
