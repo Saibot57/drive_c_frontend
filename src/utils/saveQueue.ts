@@ -22,9 +22,16 @@ export type SaveQueueEvent<R> = {
 };
 
 export type SaveQueueOptions<T, R> = {
+  /** Fördröjningen när `schedule` inte anger någon egen. */
   delayMs: number;
   save: (key: string, value: T, options: { keepalive: boolean }) => Promise<R>;
   onEvent: (event: SaveQueueEvent<R>) => void;
+  /**
+   * Om ett värde som inte kom fram ska ligga kvar och skickas igen. Svarar
+   * den nej, till exempel för ett fel som inte går över, släpps bara det
+   * värdet; ett nyare som väntar bakom det skickas som vanligt.
+   */
+  retainOnError?: (error: unknown) => boolean;
 };
 
 export type FlushResult = { ok: true } | { ok: false; error: unknown };
@@ -39,7 +46,12 @@ type Entry<T> = {
   error: unknown;
 };
 
-export function createSaveQueue<T, R>({ delayMs, save, onEvent }: SaveQueueOptions<T, R>) {
+export function createSaveQueue<T, R>({
+  delayMs,
+  save,
+  onEvent,
+  retainOnError = () => true,
+}: SaveQueueOptions<T, R>) {
   const entries = new Map<string, Entry<T>>();
 
   const entry = (key: string): Entry<T> => {
@@ -95,7 +107,7 @@ export function createSaveQueue<T, R>({ delayMs, save, onEvent }: SaveQueueOptio
         e.inFlight = null;
         if (entries.get(key) !== e) return;
         // Det som inte kom fram läggs tillbaka, om inget nyare har kommit.
-        if (!e.hasPending) {
+        if (!e.hasPending && retainOnError(error)) {
           e.pending = value;
           e.hasPending = true;
         }
@@ -123,8 +135,8 @@ export function createSaveQueue<T, R>({ delayMs, save, onEvent }: SaveQueueOptio
   };
 
   return {
-    /** Nytt värde. Skickas när det varit stilla i `delayMs`. */
-    schedule(key: string, value: T) {
+    /** Nytt värde. Skickas när det varit stilla i `delay` (standard `delayMs`). */
+    schedule(key: string, value: T, delay = delayMs) {
       const e = entry(key);
       e.pending = value;
       e.hasPending = true;
@@ -132,7 +144,7 @@ export function createSaveQueue<T, R>({ delayMs, save, onEvent }: SaveQueueOptio
       e.timer = setTimeout(() => {
         e.timer = null;
         void pump(key);
-      }, delayMs);
+      }, delay);
       if (!e.inFlight) emit(key, e, 'pending');
     },
 

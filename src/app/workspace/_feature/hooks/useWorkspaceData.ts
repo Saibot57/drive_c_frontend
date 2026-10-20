@@ -7,6 +7,8 @@ import { useWorkspaceSync } from './useWorkspaceSync';
 import { useWorkspaceHistory } from './useWorkspaceHistory';
 import { themeWheelService } from '@/services/themeWheelService';
 import { workspaceService } from '../services/workspaceService';
+import { createSaveQueue, type SaveQueue } from '@/utils/saveQueue';
+import { isTransientSaveError } from '@/utils/saveRetry';
 import { buildWheelParts, type WheelPartMode } from '../utils/wheelExplode';
 import { DAY_RULER_WIDTH, buildScheduleDays } from '../utils/scheduleDayImport';
 import type { PlannerActivity } from '@/types/schedule';
@@ -60,18 +62,54 @@ const SIZE_BY_TYPE: Partial<Record<ElementType, { w: number; h: number }>> = {
   heading: { w: HEADING_DEFAULT_WIDTH, h: HEADING_INITIAL_HEIGHT },
 };
 
+/** En skrivning i kön: notisens etikett och anropet som skickar den. */
+type QueuedWrite = {
+  label: string;
+  send: (options: { keepalive: boolean }) => Promise<unknown>;
+};
+
 export function useWorkspaceData() {
   const { state, dispatch } = useWorkspace();
   const { plannerNotice, showNotice, dismissNotice } = usePlannerNotice();
   const { saveStatus, track } = useWorkspaceSync(showNotice);
   const { pushUndo, undo, undoEntry, clearHistory, canUndo } = useWorkspaceHistory();
-  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  // Skrivningen som väntar bakom varje timer, så att den kan skickas i förtid.
-  const pendingWrites = useRef<Record<string, () => void>>({});
-
   // Senaste kända state, för closures som annars skulle läsa en gammal render.
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  /*
+   * Skrivningarna går genom en kö med en nyckel per resurs och fält, till
+   * exempel `content-<element>` och `pos-<placering>` (utils/saveQueue.ts).
+   * Varje nyckel har högst en skrivning i flykt, och det som ändras under
+   * tiden skickas efteråt. Förr kunde en ny skrivning starta medan den förra
+   * var på väg, och den som landade sist på servern vann (dataintegritet F12).
+   */
+  const trackRef = useRef(track);
+  trackRef.current = track;
+  const queueRef = useRef<SaveQueue<QueuedWrite, void>>();
+  queueRef.current ??= createSaveQueue<QueuedWrite, void>({
+    delayMs: DEBOUNCE_CONTENT_MS,
+    save: async (_key, write, options) => {
+      // track visar notisen och håller indikatorn. Felet skickas vidare, så
+      // att kön vet att skrivningen inte kom fram.
+      let failure: unknown = null;
+      const ok = await trackRef.current(write.label, async () => {
+        try {
+          await write.send(options);
+        } catch (error) {
+          failure = error;
+          throw error;
+        }
+        return true;
+      });
+      if (ok === null) throw failure;
+    },
+    onEvent: () => undefined,
+    // Ett nätfel eller 5xx ligger kvar och skickas vid nästa ändring eller när
+    // fliken döljs. Ett avvisat anrop (404, 413) skulle bara ge samma svar.
+    retainOnError: isTransientSaveError,
+  });
+  const queue = queueRef.current;
 
   /**
    * Fördröjd skrivning. Position och storlek ändras många gånger i sekunden
@@ -80,43 +118,41 @@ export function useWorkspaceData() {
   const debounced = useCallback((
     key: string,
     label: string,
-    fn: () => Promise<unknown>,
+    send: QueuedWrite['send'],
     delay: number,
   ) => {
-    if (timers.current[key]) clearTimeout(timers.current[key]);
-    const run = () => {
-      delete timers.current[key];
-      delete pendingWrites.current[key];
-      void track(label, async () => {
-        await fn();
-        return true;
-      });
-    };
-    pendingWrites.current[key] = run;
-    timers.current[key] = setTimeout(run, delay);
-  }, [track]);
+    queue.schedule(key, { label, send }, delay);
+  }, [queue]);
+
+  /**
+   * Skriver direkt, men genom samma nyckel som de fördröjda skrivningarna. En
+   * väntande skrivning för samma kort ersätts i stället för att landa efter,
+   * och en som är i flykt väntas in först.
+   */
+  const writeNow = useCallback((key: string, label: string, send: QueuedWrite['send']) => {
+    queue.schedule(key, { label, send });
+    return queue.flush(key);
+  }, [queue]);
 
   /*
-   * Skickar allt som väntar när sidan göms, stängs eller workspace lämnas.
-   * Annars försvann den sista panoreringen eller skrivningen om fönstret
-   * stängdes inom fördröjningen.
+   * Skickar allt som väntar när sidan göms, stängs eller workspace lämnas,
+   * med keepalive så att anropet överlever att sidan stängs. Vid pagehide
+   * hinner inget vänta in en skrivning i flykt, så det skickas bredvid.
    */
   useEffect(() => {
-    const flush = () => {
-      Object.values(timers.current).forEach(clearTimeout);
-      Object.values(pendingWrites.current).forEach((run) => run());
-    };
     const onVisibility = () => {
-      if (document.visibilityState === 'hidden') flush();
+      if (document.visibilityState === 'hidden') void queue.flushAll({ keepalive: true });
     };
+    const onPageHide = () => { void queue.flushAll({ keepalive: true, immediate: true }); };
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pagehide', flush);
+    window.addEventListener('pagehide', onPageHide);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pagehide', flush);
-      flush();
+      window.removeEventListener('pagehide', onPageHide);
+      void queue.flushAll({ keepalive: true });
+      queue.dispose();
     };
-  }, []);
+  }, [queue]);
 
   // ── Vy ──
 
@@ -643,11 +679,12 @@ export function useWorkspaceData() {
     ) => {
       dispatch({ type: 'SET_ELEMENT', element: { ...element, content } });
       dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: size });
-      await track(label, async () => {
-        await workspaceService.updateElement(elementId, { content });
-        await workspaceService.updatePlacement(placementId, size);
-        return true;
-      });
+      await Promise.all([
+        writeNow(`content-${elementId}`, label, (options) =>
+          workspaceService.updateElement(elementId, { content }, options)),
+        writeNow(`size-${placementId}`, label, (options) =>
+          workspaceService.updatePlacement(placementId, size, options)),
+      ]);
     };
 
     await apply(
@@ -660,7 +697,7 @@ export function useWorkspaceData() {
       label: after.straight ? 'uträtningen' : 'tillbakaböjningen',
       undo: () => apply(before, beforeSize, 'ångra'),
     });
-  }, [dispatch, track, pushUndo]);
+  }, [dispatch, writeNow, pushUndo]);
 
   /**
    * Visar eller döljer timlinjalen på ett schemadagskort.
@@ -689,11 +726,12 @@ export function useWorkspaceData() {
     ) => {
       dispatch({ type: 'SET_ELEMENT', element: { ...element, content } });
       dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: size });
-      await track(label, async () => {
-        await workspaceService.updateElement(elementId, { content });
-        await workspaceService.updatePlacement(placementId, size);
-        return true;
-      });
+      await Promise.all([
+        writeNow(`content-${elementId}`, label, (options) =>
+          workspaceService.updateElement(elementId, { content }, options)),
+        writeNow(`size-${placementId}`, label, (options) =>
+          workspaceService.updatePlacement(placementId, size, options)),
+      ]);
     };
 
     await apply(after, afterSize, after.showRuler ? 'visa linjalen' : 'dölja linjalen');
@@ -701,7 +739,7 @@ export function useWorkspaceData() {
       label: after.showRuler ? 'den visade linjalen' : 'den dolda linjalen',
       undo: () => apply(before, beforeSize, 'ångra'),
     });
-  }, [dispatch, track, pushUndo]);
+  }, [dispatch, writeNow, pushUndo]);
 
   /**
    * Skriver om innehållet i ett eller flera element från deras källa.
@@ -729,10 +767,9 @@ export function useWorkspaceData() {
         const element = stateRef.current.elements[elementId];
         if (element) dispatch({ type: 'SET_ELEMENT', element: { ...element, content } });
       });
-      await track(label, () =>
-        Promise.all(next.map(({ elementId, content }) =>
-          workspaceService.updateElement(elementId, { content }))),
-      );
+      await Promise.all(next.map(({ elementId, content }) =>
+        writeNow(`content-${elementId}`, label, (options) =>
+          workspaceService.updateElement(elementId, { content }, options))));
     };
 
     await write(items, 'uppdatera från källan');
@@ -750,7 +787,7 @@ export function useWorkspaceData() {
         'återställa innehållet',
       ),
     });
-  }, [dispatch, track, pushUndo, showNotice]);
+  }, [dispatch, writeNow, pushUndo, showNotice]);
 
   const updateElementContent = useCallback((elementId: string, content: unknown) => {
     const current = stateRef.current.elements[elementId];
@@ -774,11 +811,11 @@ export function useWorkspaceData() {
     // Innehållsändringar hamnar medvetet inte i ångra-stacken: redigerarna är
     // textfält och contenteditable som har webbläsarens egen ångring, och två
     // konkurrerande Ctrl+Z hade tagit ut varandra.
-    debounced(`content-${elementId}`, 'spara innehållet', () =>
+    debounced(`content-${elementId}`, 'spara innehållet', (options) =>
       workspaceService.updateElement(elementId, {
         content,
         ...(headingTitle ? { title: headingTitle } : {}),
-      }), DEBOUNCE_CONTENT_MS);
+      }, options), DEBOUNCE_CONTENT_MS);
   }, [dispatch, debounced]);
 
   const updateElementTitle = useCallback((elementId: string, title: string) => {
@@ -786,8 +823,8 @@ export function useWorkspaceData() {
     if (!current) return;
     const previous = current.title;
     dispatch({ type: 'SET_ELEMENT', element: { ...current, title } });
-    debounced(`title-${elementId}`, 'spara namnet', () =>
-      workspaceService.updateElement(elementId, { title }), DEBOUNCE_CONTENT_MS);
+    debounced(`title-${elementId}`, 'spara namnet', (options) =>
+      workspaceService.updateElement(elementId, { title }, options), DEBOUNCE_CONTENT_MS);
 
     if (previous !== title) {
       pushUndo({
@@ -801,15 +838,15 @@ export function useWorkspaceData() {
 
   const movePlacement = useCallback((placementId: string, x: number, y: number) => {
     dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: { position_x: x, position_y: y } });
-    debounced(`pos-${placementId}`, 'spara positionen', () =>
-      workspaceService.updatePlacement(placementId, { position_x: x, position_y: y }),
+    debounced(`pos-${placementId}`, 'spara positionen', (options) =>
+      workspaceService.updatePlacement(placementId, { position_x: x, position_y: y }, options),
       DEBOUNCE_POSITION_MS);
   }, [dispatch, debounced]);
 
   const resizePlacement = useCallback((placementId: string, width: number, height: number) => {
     dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: { width, height } });
-    debounced(`size-${placementId}`, 'spara storleken', () =>
-      workspaceService.updatePlacement(placementId, { width, height }),
+    debounced(`size-${placementId}`, 'spara storleken', (options) =>
+      workspaceService.updatePlacement(placementId, { width, height }, options),
       DEBOUNCE_POSITION_MS);
   }, [dispatch, debounced]);
 
@@ -845,16 +882,16 @@ export function useWorkspaceData() {
     const previous = target.z_index;
     const next = top + 1;
     dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: { z_index: next } });
-    debounced(`z-${placementId}`, 'ändra staplingsordningen', () =>
-      workspaceService.updatePlacement(placementId, { z_index: next }),
+    debounced(`z-${placementId}`, 'ändra staplingsordningen', (options) =>
+      workspaceService.updatePlacement(placementId, { z_index: next }, options),
       DEBOUNCE_POSITION_MS);
 
     pushUndo({
       label: 'staplingsordningen',
       undo: () => {
         dispatch({ type: 'UPDATE_PLACEMENT', placementId, changes: { z_index: previous } });
-        debounced(`z-${placementId}`, 'ändra staplingsordningen', () =>
-          workspaceService.updatePlacement(placementId, { z_index: previous }),
+        debounced(`z-${placementId}`, 'ändra staplingsordningen', (options) =>
+          workspaceService.updatePlacement(placementId, { z_index: previous }, options),
           DEBOUNCE_POSITION_MS);
       },
     });

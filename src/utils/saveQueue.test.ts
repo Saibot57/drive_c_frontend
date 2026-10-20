@@ -68,6 +68,44 @@ describe('createSaveQueue', () => {
     expect(sent()).toEqual(['v1', 'v2']);
   });
 
+  it('ett anrop kan ange sin egen fördröjning', async () => {
+    const { queue, sent } = setup();
+    queue.schedule('A', 'snabb', 300);
+    queue.schedule('B', 'standard');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(sent()).toEqual(['snabb']);
+    await vi.advanceTimersByTimeAsync(DELAY - 300);
+    expect(sent()).toEqual(['snabb', 'standard']);
+  });
+
+  it('ett fel som inte ska behållas släpper bara det värdet', async () => {
+    const calls: { value: string; reject: (e: Error) => void; resolve: () => void }[] = [];
+    const queue = createSaveQueue<string, string>({
+      delayMs: DELAY,
+      save: (_key, value) => new Promise<string>((resolve, reject) => {
+        calls.push({ value, reject, resolve: () => resolve(value) });
+      }),
+      onEvent: () => undefined,
+      retainOnError: error => (error as Error).message !== 'avvisad',
+    });
+
+    queue.schedule('A', 'för stor');
+    await vi.advanceTimersByTimeAsync(DELAY);
+    calls[0].reject(new Error('avvisad'));
+    await settle();
+    expect(queue.isIdle('A')).toBe(true);
+
+    // Ett nyare värde som väntade bakom ett avvisat skickas ändå.
+    queue.schedule('A', 'v1');
+    await vi.advanceTimersByTimeAsync(DELAY);
+    queue.schedule('A', 'v2');
+    calls[1].reject(new Error('avvisad'));
+    await settle();
+    void queue.flush('A');
+    await settle();
+    expect(calls.map(c => c.value)).toEqual(['för stor', 'v1', 'v2']);
+  });
+
   it('olika nycklar väntar inte på varandra', async () => {
     const { queue, sent } = setup();
     queue.schedule('A', 'a1');

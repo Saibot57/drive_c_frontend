@@ -17,6 +17,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  // Som Next: JSX kompileras utan att React behöver importeras. Utan det kan
+  // en hooktest inte rendera en provider skriven i .tsx.
+  esbuild: {
+    jsx: 'automatic',
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
