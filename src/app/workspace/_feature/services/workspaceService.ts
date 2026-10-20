@@ -1,5 +1,7 @@
 import { fetchWithAuth } from '@/services/authService';
 import { API_URL } from '@/config/api';
+import { HttpStatusError } from '@/utils/saveRetry';
+import { withKeepalive } from '@/utils/keepalive';
 import type {
   Surface,
   WorkspaceElement,
@@ -15,15 +17,19 @@ interface ApiEnvelope<T> {
   error: string | null;
 }
 
+/**
+ * Statusen följer med felet, så att en skrivning som servern avvisat (404,
+ * 413) inte skickas igen, medan ett nätfel eller 5xx kan göra det.
+ */
 async function unwrap<T>(res: Response): Promise<T> {
   let json: ApiEnvelope<T>;
   try {
     json = await res.json();
   } catch {
-    throw new Error(`Server svarade med HTTP ${res.status} och ogiltigt JSON.`);
+    throw new HttpStatusError(`Server svarade med HTTP ${res.status} och ogiltigt JSON.`, res.status);
   }
   if (!json.success) {
-    throw new Error(json.error ?? `API-fel (HTTP ${res.status}).`);
+    throw new HttpStatusError(json.error ?? `API-fel (HTTP ${res.status}).`, res.status);
   }
   return json.data;
 }
@@ -96,11 +102,16 @@ export const workspaceService = {
     return unwrap<WorkspaceElement>(res);
   },
 
-  async updateElement(id: string, data: { title?: string; content?: unknown }): Promise<WorkspaceElement> {
-    const res = await fetchWithAuth(`${BASE}/elements/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+  /** `keepalive` när sidan stängs, se utils/keepalive.ts. */
+  async updateElement(
+    id: string,
+    data: { title?: string; content?: unknown },
+    options: { keepalive?: boolean } = {},
+  ): Promise<WorkspaceElement> {
+    const body = JSON.stringify(data);
+    const res = await withKeepalive(body, Boolean(options.keepalive), keepalive => (
+      fetchWithAuth(`${BASE}/elements/${id}`, { method: 'PUT', body, keepalive })
+    ));
     return unwrap<WorkspaceElement>(res);
   },
 
@@ -157,11 +168,12 @@ export const workspaceService = {
   async updatePlacement(
     placementId: string,
     data: Partial<Pick<SurfaceElement, 'position_x' | 'position_y' | 'width' | 'height' | 'is_locked' | 'is_on_canvas' | 'z_index'>>,
+    options: { keepalive?: boolean } = {},
   ): Promise<SurfaceElement> {
-    const res = await fetchWithAuth(`${BASE}/placements/${placementId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    const body = JSON.stringify(data);
+    const res = await withKeepalive(body, Boolean(options.keepalive), keepalive => (
+      fetchWithAuth(`${BASE}/placements/${placementId}`, { method: 'PUT', body, keepalive })
+    ));
     return unwrap<SurfaceElement>(res);
   },
 
