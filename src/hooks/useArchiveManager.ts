@@ -16,6 +16,7 @@ import {
 } from '@/utils/createSchedule';
 import { isBaseSchedule, partitionSchedules, scheduleKindLabel, scheduleKindOf } from '@/utils/scheduleKind';
 import type { ArchiveBase } from '@/hooks/usePlannerSync';
+import { waitForLeaveSave } from '@/utils/leaveSave';
 
 /**
  * Varför schemat inte går att ändra just nu, eller null när det går.
@@ -36,6 +37,11 @@ type UseArchiveManagerParams = {
    * fram, så den skapas efteråt och hakas på här genom en ref.
    */
   saveNowRef: MutableRefObject<(() => Promise<boolean>) | null>;
+  /**
+   * usePlannerSync:s saveFailedTransiently, på samma sätt: om senaste
+   * misslyckade sparningen kan gå över (nät eller 5xx).
+   */
+  saveFailedTransientlyRef: MutableRefObject<(() => boolean) | null>;
   /**
    * Versionen vyn bygger på (se ArchiveBase i usePlannerSync). Sätts här när
    * ett schema läses in eller skapas, och av usePlannerSync när det sparats.
@@ -91,6 +97,7 @@ export const useArchiveManager = ({
   mapPlannerActivitiesToSchedule,
   showNotice,
   saveNowRef,
+  saveFailedTransientlyRef,
   archiveBaseRef
 }: UseArchiveManagerParams) => {
   const [archives, setArchives] = useState<PlannerArchiveSummary[]>([]);
@@ -148,17 +155,32 @@ export const useArchiveManager = ({
     }
   }, []);
 
-  /** Sparar det som inte hunnit sparas. Varnar men stoppar inte om det misslyckas. */
-  const saveBeforeSwitching = useCallback(async () => {
-    if (!activeArchiveIdRef.current) return;
+  /**
+   * Sparar det som inte hunnit sparas. Svarar false när bytet ska stoppas:
+   * ett nätfel eller 5xx kan gå över, och ett byte skulle ersätta det osparade
+   * schemat (dataintegritet F10). Vid konflikt, förlorat lås eller en vecka
+   * som servern avvisar går vyn ändå inte att spara härifrån, och då byts
+   * schemat med en varning som förut.
+   */
+  const saveBeforeSwitching = useCallback(async (): Promise<boolean> => {
+    if (!activeArchiveIdRef.current) return true;
     const saved = await (saveNowRef.current?.() ?? Promise.resolve(true));
-    if (!saved) showNotice('Den senaste ändringen sparades inte.', 'warning');
-  }, [saveNowRef, showNotice]);
+    if (saved) return true;
+    if (saveFailedTransientlyRef.current?.()) {
+      showNotice('Ändringen kunde inte sparas, så schemat byttes inte. Försök igen.', 'error');
+      return false;
+    }
+    showNotice('Den senaste ändringen sparades inte.', 'warning');
+    return true;
+  }, [saveFailedTransientlyRef, saveNowRef, showNotice]);
 
   // --- Uppstart ---
 
   useEffect(() => {
     const start = async () => {
+      // Lämnades planeraren nyss sparas det sista fortfarande. Inläsningen och
+      // låset ska komma efter, annars bygger vyn på en gammal version.
+      await waitForLeaveSave();
       let list: PlannerArchiveSummary[] = [];
       try {
         list = await plannerService.listArchives();
@@ -323,7 +345,7 @@ export const useArchiveManager = ({
 
   const handleLoadWeek = useCallback(async (archiveId: string) => {
     const previousId = activeArchiveIdRef.current;
-    await saveBeforeSwitching();
+    if (!(await saveBeforeSwitching())) return;
     try {
       const loaded = await loadArchiveEntries(archiveId);
       setActiveArchiveId(archiveId);
@@ -520,7 +542,7 @@ export const useArchiveManager = ({
     const kind = newScheduleKind;
     setIsCreatingSchedule(true);
     try {
-      await saveBeforeSwitching();
+      if (!(await saveBeforeSwitching())) return;
       // Schemat läggs upp direkt i backend, så namnet finns kvar efter en
       // omladdning även innan den första posten är på plats.
       const result = await createScheduleFrom({

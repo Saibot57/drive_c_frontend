@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ThemeArea, ThemeBlock, ThemeWheel, ThemeWheelSummary } from '@/types/themeWheel';
 import { themeWheelService } from '@/services/themeWheelService';
 import { isoWeekYear } from '@/utils/dateSv';
+import { createSaveQueue, type SaveQueue, type SaveQueueEvent } from '@/utils/saveQueue';
+import { isTransientSaveError } from '@/utils/saveRetry';
 import { AUTOSAVE_DELAY_MS } from '@/config/plannerConstants';
 import {
   ACTIVE_THEME_WHEEL_KEY,
@@ -85,6 +87,9 @@ const readLocalDraft = (): ThemeWheel | null => {
   }
 };
 
+/** Biblioteket är en enda resurs och har en enda nyckel i sin kö. */
+const AREAS_KEY = 'areas';
+
 type UseThemeWheelSyncParams = {
   wheel: ThemeWheel;
   commit: (updater: (prev: ThemeWheel) => ThemeWheel, options?: { clearHistory?: boolean }) => void;
@@ -110,6 +115,8 @@ export const useThemeWheelSync = ({
   const syncedWheelRef = useRef<string | null>(null);
   const syncedAreasRef = useRef<string | null>(null);
   const activeIdRef = useRef<string>('');
+  const wheelRef = useRef(wheel);
+  wheelRef.current = wheel;
   // React StrictMode kör effekter två gånger i utvecklingsläge. Utan den här
   // spärren kan båda körningarna se ett tomt konto och skapa var sitt hjul.
   const bootstrapStartedRef = useRef(false);
@@ -188,65 +195,134 @@ export const useThemeWheelSync = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Autosparning av hjulet ---
+  // --- Autosparning ---
+  //
+  // Hjulen och biblioteket sparas genom var sin kö (utils/saveQueue.ts). Kön
+  // håller det senaste värdet och har högst ett anrop i flykt per hjul. Förr
+  // var autosparet en timer i effekten nedan, och effektens cleanup kastade
+  // ändringen vid hjulbyte och när sidan lämnades (dataintegritet F8). Två
+  // sparningar av samma hjul kunde dessutom vara i flykt samtidigt, och den
+  // som landade sist på servern vann (F12).
+
+  // Köernas händelser behöver det senaste av commit och showNotice.
+  const onWheelEventRef = useRef<(event: SaveQueueEvent<ThemeWheel>) => void>(() => undefined);
+  const onAreasEventRef = useRef<(event: SaveQueueEvent<ThemeArea[]>) => void>(() => undefined);
+
+  const wheelQueueRef = useRef<SaveQueue<ThemeWheel, ThemeWheel>>();
+  wheelQueueRef.current ??= createSaveQueue<ThemeWheel, ThemeWheel>({
+    delayMs: AUTOSAVE_DELAY_MS,
+    save: (id, next, { keepalive }) => themeWheelService.updateWheel(id, next, { keepalive }),
+    onEvent: event => onWheelEventRef.current(event),
+  });
+  const wheelQueue = wheelQueueRef.current;
+
+  const areaQueueRef = useRef<SaveQueue<ThemeArea[], ThemeArea[]>>();
+  areaQueueRef.current ??= createSaveQueue<ThemeArea[], ThemeArea[]>({
+    delayMs: AUTOSAVE_DELAY_MS,
+    save: (_key, areas, { keepalive }) => themeWheelService.syncAreas(areas, { keepalive }),
+    onEvent: event => onAreasEventRef.current(event),
+  });
+  const areaQueue = areaQueueRef.current;
+
+  onWheelEventRef.current = ({ key, status, error, saved }) => {
+    if (status === 'saving') {
+      setSaveStatus('saving');
+      return;
+    }
+    if (status === 'error') {
+      console.error('Kunde inte spara temakalendern', error);
+      setSaveStatus('error');
+      showNotice(error instanceof Error ? error.message : 'Kunde inte spara hjulet.', 'error');
+      return;
+    }
+    if (!saved) return;
+    setWheels(prev => prev.map(item => (
+      item.id === saved.id
+        ? { ...item, name: saved.name, weekCount: saved.weekCount, startWeek: saved.startWeek }
+        : item
+    )));
+    // Väntar något nyare för hjulet är svaret redan inaktuellt. Och är ett
+    // annat hjul öppet nu gäller jämförelsen det hjulet, inte det här.
+    if (status !== 'saved' || key !== activeIdRef.current) return;
+    syncedWheelRef.current = snapshotOf(saved);
+    // Servern kan ha justerat namnet för att undvika en krock.
+    if (saved.name !== wheelRef.current.name) {
+      commit(prev => (prev.id === saved.id ? { ...prev, name: saved.name } : prev));
+    }
+    if (!wheelQueue.hasUnsaved()) setSaveStatus('saved');
+  };
+
+  onAreasEventRef.current = ({ status, error, saved }) => {
+    if (status === 'error') {
+      console.error('Kunde inte spara biblioteket', error);
+      showNotice(error instanceof Error ? error.message : 'Kunde inte spara biblioteket.', 'error');
+      return;
+    }
+    if (status === 'saved' && saved) syncedAreasRef.current = areasSnapshot(saved);
+  };
 
   useEffect(() => {
     if (loadStatus !== 'loaded' || !wheel.id) return;
-
-    const snapshot = snapshotOf(wheel);
-    if (snapshot === syncedWheelRef.current) return;
-
-    const timer = window.setTimeout(async () => {
-      setSaveStatus('saving');
-      try {
-        const saved = await themeWheelService.updateWheel(wheel.id, wheel);
-        syncedWheelRef.current = snapshotOf(saved);
-        setSaveStatus('saved');
-        // Servern kan ha justerat namnet för att undvika en krock.
-        if (saved.name !== wheel.name) {
-          commit(prev => (prev.id === saved.id ? { ...prev, name: saved.name } : prev));
-        }
-        setWheels(prev => prev.map(item => (
-          item.id === saved.id
-            ? { ...item, name: saved.name, weekCount: saved.weekCount, startWeek: saved.startWeek }
-            : item
-        )));
-      } catch (error) {
-        console.error('Kunde inte spara temakalendern', error);
-        setSaveStatus('error');
-        showNotice(
-          error instanceof Error ? error.message : 'Kunde inte spara hjulet.',
-          'error'
-        );
-      }
-    }, AUTOSAVE_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [commit, loadStatus, showNotice, wheel]);
-
-  // --- Autosparning av biblioteket ---
+    // Väntar något eller är något i flykt får kön alltid det senaste, även
+    // när det är lika med det som senast sparades: en ångring tillbaka medan
+    // en sparning är i flykt måste också skickas.
+    if (wheelQueue.isIdle(wheel.id) && snapshotOf(wheel) === syncedWheelRef.current) return;
+    wheelQueue.schedule(wheel.id, wheel);
+  }, [loadStatus, wheel, wheelQueue]);
 
   useEffect(() => {
     if (loadStatus !== 'loaded') return;
+    if (areaQueue.isIdle(AREAS_KEY) && areasSnapshot(manualAreas) === syncedAreasRef.current) return;
+    areaQueue.schedule(AREAS_KEY, manualAreas);
+  }, [areaQueue, loadStatus, manualAreas]);
 
-    const snapshot = areasSnapshot(manualAreas);
-    if (snapshot === syncedAreasRef.current) return;
+  // Det som väntar skickas när sidan lämnas. Vid sidbyte inom appen
+  // avmonteras hooken. På iPad och mobiler kommer pagehide ofta inte alls när
+  // fliken stängs eller appen byts, så en dold flik sparar också.
+  useEffect(() => {
+    const flushAll = (options: { keepalive: boolean; immediate?: boolean }) => {
+      void wheelQueue.flushAll(options);
+      void areaQueue.flushAll(options);
+    };
+    const onPageHide = () => flushAll({ keepalive: true, immediate: true });
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushAll({ keepalive: true });
+    };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (wheelQueue.hasUnsaved() || areaQueue.hasUnsaved()) event.preventDefault();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('visibilitychange', onVisibility);
+      flushAll({ keepalive: true });
+      wheelQueue.dispose();
+      areaQueue.dispose();
+    };
+  }, [areaQueue, wheelQueue]);
 
-    const timer = window.setTimeout(async () => {
-      try {
-        const saved = await themeWheelService.syncAreas(manualAreas);
-        syncedAreasRef.current = areasSnapshot(saved);
-      } catch (error) {
-        console.error('Kunde inte spara biblioteket', error);
-        showNotice(
-          error instanceof Error ? error.message : 'Kunde inte spara biblioteket.',
-          'error'
-        );
-      }
-    }, AUTOSAVE_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [loadStatus, manualAreas, showNotice]);
+  /**
+   * Sparar det öppna hjulet innan ett annat öppnas. Svarar false när bytet
+   * ska stoppas: ett nätfel eller 5xx kan gå över, och ett byte skulle kasta
+   * ändringen. Ett fel som inte går över (400, 409) får inte låsa fast
+   * användaren i hjulet. Notisen har redan visats, och ändringen släpps.
+   */
+  const saveBeforeSwitching = useCallback(async (): Promise<boolean> => {
+    const id = activeIdRef.current;
+    if (!id) return true;
+    const result = await wheelQueue.flush(id);
+    if (result.ok) return true;
+    if (isTransientSaveError(result.error)) {
+      showNotice('Ändringen i hjulet kunde inte sparas, så hjulet byttes inte. Försök igen.', 'error');
+      return false;
+    }
+    wheelQueue.forget(id);
+    setSaveStatus('idle');
+    return true;
+  }, [showNotice, wheelQueue]);
 
   // --- Åtgärder ---
 
@@ -266,14 +342,16 @@ export const useThemeWheelSync = ({
   const selectWheel = useCallback(async (id: string) => {
     if (id === wheel.id) return;
     await withBusy(async () => {
+      if (!(await saveBeforeSwitching())) return null;
       const full = await themeWheelService.getWheel(id);
       adopt(full);
       return full;
     });
-  }, [adopt, wheel.id, withBusy]);
+  }, [adopt, saveBeforeSwitching, wheel.id, withBusy]);
 
   const createWheel = useCallback(async (name: string, startWeek: number, startYear: number) => {
     await withBusy(async () => {
+      if (!(await saveBeforeSwitching())) return null;
       const created = await themeWheelService.createWheel({
         ...emptyWheel(),
         name,
@@ -285,34 +363,39 @@ export const useThemeWheelSync = ({
       showNotice(`"${created.name}" skapades.`, 'success');
       return created;
     });
-  }, [adopt, refreshWheels, showNotice, withBusy]);
+  }, [adopt, refreshWheels, saveBeforeSwitching, showNotice, withBusy]);
 
   /** Lägger en inläst JSON-fil som ett nytt hjul, utan att röra det aktiva. */
   const importWheel = useCallback(async (imported: ThemeWheel) => {
     await withBusy(async () => {
+      if (!(await saveBeforeSwitching())) return null;
       const created = await themeWheelService.createWheel(imported);
       adopt(created);
       await refreshWheels();
       showNotice(`"${created.name}" importerades.`, 'success');
       return created;
     });
-  }, [adopt, refreshWheels, showNotice, withBusy]);
+  }, [adopt, refreshWheels, saveBeforeSwitching, showNotice, withBusy]);
 
   const duplicateWheel = useCallback(async (
     id: string,
     options: { name?: string; startWeek?: number; startYear?: number }
   ) => {
     await withBusy(async () => {
+      // Kopian görs på servern, så en ändring som väntar måste dit först.
+      if (!(await saveBeforeSwitching())) return null;
       const copy = await themeWheelService.duplicateWheel(id, options);
       adopt(copy);
       await refreshWheels();
       showNotice(`"${copy.name}" skapades som kopia.`, 'success');
       return copy;
     });
-  }, [adopt, refreshWheels, showNotice, withBusy]);
+  }, [adopt, refreshWheels, saveBeforeSwitching, showNotice, withBusy]);
 
   const deleteWheel = useCallback(async (id: string) => {
     await withBusy(async () => {
+      // Det som väntar för hjulet skulle annars skickas till ett id som inte finns.
+      wheelQueue.forget(id);
       await themeWheelService.deleteWheel(id);
       const list = await refreshWheels();
       // Raderades det aktiva hjulet måste något annat väljas, annars sparar
@@ -329,7 +412,7 @@ export const useThemeWheelSync = ({
       showNotice('Hjulet togs bort.', 'success');
       return true;
     });
-  }, [adopt, refreshWheels, showNotice, withBusy]);
+  }, [adopt, refreshWheels, showNotice, wheelQueue, withBusy]);
 
   const shareWheel = useCallback(async (id: string, toUsername: string) => {
     const result = await withBusy(() => themeWheelService.shareWheel(id, toUsername));

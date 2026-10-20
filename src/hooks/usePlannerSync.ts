@@ -7,6 +7,8 @@ import { ArchiveConflictError, ArchiveLockedError, plannerService } from '@/serv
 import { PlannerActivity, ScheduledEntry } from '@/types/schedule';
 import { sanitizeScheduleImport } from '@/utils/scheduleImport';
 import { minutesToTime, timeToMinutes } from '@/utils/scheduleTime';
+import { isTransientSaveError, retryDelay } from '@/utils/saveRetry';
+import { trackLeaveSave } from '@/utils/leaveSave';
 
 /** Så länge Spara nu väntar på en sparning som redan pågår. */
 const SAVE_NOW_TIMEOUT_MS = 15000;
@@ -136,6 +138,17 @@ export const usePlannerSync = ({
    */
   const [conflict, setConflict] = useState<ArchiveConflict | null>(null);
   const conflictRef = useRef<ArchiveConflict | null>(null);
+  /** Sparningen som är i flykt, så att sparningen vid sidbyte kan vänta in den. */
+  const inFlightRef = useRef<Promise<unknown> | null>(null);
+  /**
+   * Nya försök efter ett fel som kan gå över (dataintegritet F10). Räknaren
+   * nollas först när en sparning lyckas, så en ny ändring under ett avbrott
+   * fortsätter där väntan var.
+   */
+  const retryTimerRef = useRef<number | null>(null);
+  const retryAttemptRef = useRef(0);
+  /** Om senaste misslyckade sparningen kan gå över. Arkivhanteraren frågar före ett byte. */
+  const lastFailureTransientRef = useRef(false);
 
   // Väntar in arkivhanteraren och laddar sedan en gång. Efter det byter
   // handleLoadWeek schema, så den här ska inte köra om.
@@ -180,6 +193,11 @@ export const usePlannerSync = ({
     // Det som lästs in är det som är sparat, så en konflikt är därmed löst.
     conflictRef.current = null;
     setConflict(null);
+    // Och ett försök som väntar gällde det som nu är ersatt.
+    if (retryTimerRef.current !== null) window.clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+    retryAttemptRef.current = 0;
+    lastFailureTransientRef.current = false;
     // Ett schema som lästs in från servern efter ett misslyckat första försök
     // gör att sidan går att arbeta i igen. Vid 0 har inget lästs in än.
     if (serverSyncToken > 0) setLoadStatus('loaded');
@@ -194,22 +212,31 @@ export const usePlannerSync = ({
    * Skriver hela schemat till det öppna schemat. Kastar ArchiveLockedError när
    * någon annan hunnit ta låset.
    */
-  const pushSchedule = useCallback(async () => {
-    if (!activeArchiveId) return;
-    const payload = mapScheduleToPlannerActivities(schedule);
-    const base = archiveBaseRef.current;
-    // Utan en version för just det här schemat skickas null, och backend
-    // nekar hellre än gissar.
-    const baseVersion = base?.archiveId === activeArchiveId ? base.version : null;
-    const result = await plannerService.saveArchiveActivities(activeArchiveId, payload, baseVersion);
-    // Har ett annat schema hunnit läsas in medan sparningen pågick hör
-    // versionen inte längre till det som visas, och får inte ersätta dess.
-    if (!archiveBaseRef.current || archiveBaseRef.current.archiveId === activeArchiveId) {
-      archiveBaseRef.current = { archiveId: activeArchiveId, version: result.archive?.version ?? null };
-    }
-    // Ingen avstämning. Posternas id är stabila, och klienten har redan
-    // exakt det som sparades.
-    lastSavedSignatureRef.current = JSON.stringify(payload);
+  const pushSchedule = useCallback((options: { keepalive?: boolean } = {}): Promise<void> => {
+    if (!activeArchiveId) return Promise.resolve();
+    const push = async () => {
+      const payload = mapScheduleToPlannerActivities(schedule);
+      const base = archiveBaseRef.current;
+      // Utan en version för just det här schemat skickas null, och backend
+      // nekar hellre än gissar.
+      const baseVersion = base?.archiveId === activeArchiveId ? base.version : null;
+      const result = await plannerService.saveArchiveActivities(activeArchiveId, payload, baseVersion, options);
+      // Har ett annat schema hunnit läsas in medan sparningen pågick hör
+      // versionen inte längre till det som visas, och får inte ersätta dess.
+      if (!archiveBaseRef.current || archiveBaseRef.current.archiveId === activeArchiveId) {
+        archiveBaseRef.current = { archiveId: activeArchiveId, version: result.archive?.version ?? null };
+      }
+      // Ingen avstämning. Posternas id är stabila, och klienten har redan
+      // exakt det som sparades.
+      lastSavedSignatureRef.current = JSON.stringify(payload);
+    };
+    // Hela sparningen, med versionen från svaret, är i flykt tills den är klar.
+    const pushed = push();
+    inFlightRef.current = pushed;
+    void pushed.finally(() => {
+      if (inFlightRef.current === pushed) inFlightRef.current = null;
+    }).catch(() => undefined);
+    return pushed;
   }, [activeArchiveId, archiveBaseRef, schedule]);
 
   /** Autosparet tystnar och användaren får välja i dialogen. */
@@ -223,7 +250,49 @@ export const usePlannerSync = ({
     conflictRef.current = next;
     setConflict(next);
     setSaveStatus('error');
+    lastFailureTransientRef.current = false;
   }, [activeArchiveId]);
+
+  /** Den senaste performAutosave; se nedan. Nya försök och händelser går genom den. */
+  const performAutosaveRef = useRef<(options?: { keepalive?: boolean }) => Promise<void>>(async () => undefined);
+
+  const cancelRetry = useCallback(() => {
+    if (retryTimerRef.current !== null) window.clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+  }, []);
+
+  /** Sparningen lyckades. Ett väntande försök behövs inte längre. */
+  const markSaved = useCallback(() => {
+    cancelRetry();
+    retryAttemptRef.current = 0;
+    lastFailureTransientRef.current = false;
+    setSaveStatus('saved');
+  }, [cancelRetry]);
+
+  /**
+   * Ett fel som inte är konflikt eller förlorat lås. Kan det gå över görs ett
+   * nytt försök med växande väntan. Notisen visas vid första felet i en
+   * följd, inte vid varje försök. `notify` tvingar fram notisen, för Spara nu.
+   */
+  const handleSaveError = useCallback((error: unknown, notify: boolean) => {
+    console.error('Save failed', error);
+    setSaveStatus('error');
+    const transient = isTransientSaveError(error);
+    lastFailureTransientRef.current = transient;
+    if (notify || retryAttemptRef.current === 0) {
+      // Utan notis syntes bara "Ej sparat", och en post som servern avvisar
+      // (till exempel en för lång titel) gick inte att hitta.
+      showNotice(error instanceof Error ? error.message : 'Kunde inte spara schemat.', 'error');
+    }
+    if (!transient) return;
+    cancelRetry();
+    const delay = retryDelay(retryAttemptRef.current);
+    retryAttemptRef.current += 1;
+    retryTimerRef.current = window.setTimeout(() => {
+      retryTimerRef.current = null;
+      void performAutosaveRef.current();
+    }, delay);
+  }, [cancelRetry, showNotice]);
 
   /**
    * Sparar det som inte sparats ännu, direkt i stället för efter autosparets
@@ -239,44 +308,47 @@ export const usePlannerSync = ({
     // anrop som aldrig svarar inte ska låsa knappen för alltid.
     const waitUntil = Date.now() + SAVE_NOW_TIMEOUT_MS;
     while (isSavingRef.current) {
-      if (Date.now() > waitUntil) return false;
+      if (Date.now() > waitUntil) {
+        // Svaret dröjer, och det kan gå över.
+        lastFailureTransientRef.current = true;
+        return false;
+      }
       await new Promise(resolve => window.setTimeout(resolve, 50));
     }
     if (scheduleSignature(schedule) === lastSavedSignatureRef.current) return true;
 
+    cancelRetry();
     isSavingRef.current = true;
     setIsSaving(true);
     setSaveStatus('saving');
     try {
       await pushSchedule();
-      setSaveStatus('saved');
+      markSaved();
       return true;
     } catch (error) {
       setSaveStatus('error');
       if (error instanceof ArchiveConflictError) {
         enterConflict(error);
       } else if (error instanceof ArchiveLockedError) {
+        lastFailureTransientRef.current = false;
         onLockLost(error.holder);
         showNotice(error.message, 'warning');
       } else {
-        console.error('Save failed', error);
-        showNotice(error instanceof Error ? error.message : 'Kunde inte spara schemat.', 'error');
+        handleSaveError(error, true);
       }
       return false;
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [activeArchiveId, enterConflict, isReadOnly, loadStatus, onLockLost, pushSchedule, schedule, showNotice]);
+  }, [activeArchiveId, cancelRetry, enterConflict, handleSaveError, isReadOnly, loadStatus, markSaved, onLockLost, pushSchedule, schedule, showNotice]);
 
   /**
-   * Den senaste performAutosave. En sparning som köats medan en annan pågick
-   * körs genom den här, så att den ser schemat som det ser ut nu och inte som
-   * det såg ut när den första sparningen startade (granskningens F1).
+   * En sparning som köats medan en annan pågick körs genom performAutosaveRef,
+   * så att den ser schemat som det ser ut nu och inte som det såg ut när den
+   * första sparningen startade (granskningens F1). Nya försök likaså.
    */
-  const performAutosaveRef = useRef<() => Promise<void>>(async () => undefined);
-
-  const performAutosave = useCallback(async () => {
+  const performAutosave = useCallback(async (options: { keepalive?: boolean } = {}) => {
     if (loadStatus !== 'loaded') return;
     if (!activeArchiveId) return;
     // Ett tomt schema sparas också: att ta bort veckans sista post är en
@@ -295,13 +367,14 @@ export const usePlannerSync = ({
       return;
     }
 
+    cancelRetry();
     isSavingRef.current = true;
     setIsSaving(true);
     setSaveStatus('saving');
 
     try {
-      await pushSchedule();
-      setSaveStatus('saved');
+      await pushSchedule(options);
+      markSaved();
     } catch (error) {
       if (error instanceof ArchiveConflictError) {
         enterConflict(error);
@@ -311,15 +384,12 @@ export const usePlannerSync = ({
         // Någon tog över medan sidan stod öppen. Autosparet tystnar och
         // användaren får veta i stället för att fortsätta skriva i blindo.
         setSaveStatus('error');
+        lastFailureTransientRef.current = false;
         onLockLost(error.holder);
         showNotice(error.message, 'warning');
         return;
       }
-      console.error('Autosave failed', error);
-      setSaveStatus('error');
-      // Utan notis syntes bara "Ej sparat", och en post som servern avvisar
-      // (till exempel en för lång titel) gick inte att hitta.
-      showNotice(error instanceof Error ? error.message : 'Kunde inte spara schemat.', 'error');
+      handleSaveError(error, false);
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -330,7 +400,7 @@ export const usePlannerSync = ({
         }, 0);
       }
     }
-  }, [activeArchiveId, enterConflict, isReadOnly, loadStatus, onLockLost, pushSchedule, schedule, showNotice]);
+  }, [activeArchiveId, cancelRetry, enterConflict, handleSaveError, isReadOnly, loadStatus, markSaved, onLockLost, pushSchedule, schedule, showNotice]);
   performAutosaveRef.current = performAutosave;
 
   /**
@@ -352,18 +422,127 @@ export const usePlannerSync = ({
 
   useEffect(() => {
     if (loadStatus !== 'loaded') return;
+    // En ny ändring, ett schemabyte eller läsläge: det väntande försöket
+    // gällde det som var, och den vanliga fördröjningen tar över.
+    cancelRetry();
     const timeout = window.setTimeout(() => {
       performAutosave();
     }, AUTOSAVE_DELAY_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [activeArchiveId, loadStatus, performAutosave, schedule]);
+  }, [activeArchiveId, cancelRetry, loadStatus, performAutosave, schedule]);
+
+  // --- När sidan lämnas (dataintegritet F9) ---
+
+  /**
+   * Om något i vyn inte är sparat. Används av varningen vid stängning, som
+   * också gäller en sparning som är på väg: hinner en annan flik spara
+   * först nekas den, och då är det de senaste ändringarna som försvinner.
+   */
+  const hasUnsavedRef = useRef<() => boolean>(() => false);
+  hasUnsavedRef.current = () => (
+    loadStatus === 'loaded' && !isReadOnly && Boolean(activeArchiveId) && (
+      isSavingRef.current
+      || conflictRef.current !== null
+      || scheduleSignature(schedule) !== lastSavedSignatureRef.current
+    )
+  );
+
+  /** Signaturen som senast skickades när sidan lämnades, så att den inte skickas två gånger. */
+  const leaveSignatureRef = useRef<string | null>(null);
+
+  /**
+   * Sparar det som inte sparats när fliken stängs eller planeraren lämnas,
+   * och låter servern släppa låset i samma steg (`releaseLock`).
+   * Arkivhanteraren skickar dessutom sitt vanliga släpp; med flaggan spelar
+   * det ingen roll vilket som landar först.
+   *
+   * `immediate` vid stängning: då hinner ingenting vänta in en sparning som
+   * redan är i flykt, så den här skickas bredvid, på samma version. Landar
+   * den andra först nekas den här med 409, och ändringarna sedan dess
+   * försvinner. Versionen gissas inte, för om den andra själv nekats skulle
+   * en gissning skriva över en annan fliks arbete (F3). Varningen vid
+   * stängning täcker fallet. Vid sidbyte inom appen lever sidan vidare, och
+   * då väntas sparningen i flykt in först.
+   */
+  const leaveRef = useRef<(immediate: boolean) => void>(() => undefined);
+  leaveRef.current = (immediate) => {
+    if (loadStatus !== 'loaded' || isReadOnly || !activeArchiveId) return;
+    if (conflictRef.current) return;
+    cancelRetry();
+    const archiveId = activeArchiveId;
+    const payload = mapScheduleToPlannerActivities(schedule);
+    const signature = JSON.stringify(payload);
+
+    const send = async () => {
+      if (signature === lastSavedSignatureRef.current || signature === leaveSignatureRef.current) return;
+      leaveSignatureRef.current = signature;
+      const base = archiveBaseRef.current;
+      const baseVersion = base?.archiveId === archiveId ? base.version : null;
+      const result = await plannerService.saveArchiveActivities(
+        archiveId, payload, baseVersion, { keepalive: true, releaseLock: true }
+      );
+      // Sidan kan komma tillbaka ur webbläsarens cache efter pagehide.
+      if (!archiveBaseRef.current || archiveBaseRef.current.archiveId === archiveId) {
+        archiveBaseRef.current = { archiveId, version: result.archive?.version ?? null };
+        lastSavedSignatureRef.current = signature;
+      }
+    };
+
+    const inFlight = inFlightRef.current;
+    const done = immediate || !inFlight ? send() : inFlight.catch(() => undefined).then(send);
+    trackLeaveSave(done.catch(error => {
+      leaveSignatureRef.current = null;
+      console.error('Saving on leave failed', error);
+    }));
+  };
+
+  useEffect(() => {
+    const onPageHide = () => leaveRef.current(true);
+    // På iPad och mobiler kommer pagehide ofta inte när fliken stängs eller
+    // appen byts. En dold flik sparar därför direkt, men behåller låset.
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        void performAutosaveRef.current({ keepalive: true });
+        return;
+      }
+      if (retryTimerRef.current !== null) {
+        cancelRetry();
+        void performAutosaveRef.current();
+      }
+    };
+    const onOnline = () => {
+      if (retryTimerRef.current === null) return;
+      cancelRetry();
+      void performAutosaveRef.current();
+    };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedRef.current()) event.preventDefault();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('visibilitychange', onVisibility);
+      cancelRetry();
+      // Sidbyte inom appen avmonterar planeraren.
+      leaveRef.current(false);
+    };
+  }, [cancelRetry]);
+
+  /** Se lastFailureTransientRef. */
+  const saveFailedTransiently = useCallback(() => lastFailureTransientRef.current, []);
 
   return {
     isSaving,
     saveStatus,
     loadStatus,
     saveNow,
+    saveFailedTransiently,
     conflict,
     keepMine
   };

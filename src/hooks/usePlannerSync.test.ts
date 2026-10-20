@@ -258,4 +258,288 @@ describe('usePlannerSync', () => {
     expect(h.result.current.saveStatus).toBe('saved');
     h.unmount();
   });
+
+  // --- Dataintegritet F9: sparning när sidan lämnas ---
+
+  const sentOptions = () => save.mock.calls.map(call => call[3]);
+
+  const hide = () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    visibility.mockRestore();
+  };
+
+  it('sparar vid stängning och låter servern släppa låset (F9)', async () => {
+    save.mockResolvedValue(archive(4));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Sista ändringen')] });
+    await act(async () => { vi.advanceTimersByTime(400); });
+
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    await settle();
+
+    expect(sentTitles()).toEqual([['Sista ändringen']]);
+    expect(sentVersions()).toEqual([3]);
+    expect(sentOptions()).toEqual([{ keepalive: true, releaseLock: true }]);
+    // Autosparets sekund skickar inte samma vecka en gång till.
+    await autosave();
+    expect(save).toHaveBeenCalledTimes(1);
+    h.unmount();
+  });
+
+  it('sparar när fliken döljs, utan att släppa låset (F9)', async () => {
+    save.mockResolvedValue(archive(4));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await act(async () => { vi.advanceTimersByTime(400); });
+
+    hide();
+    await settle();
+
+    expect(sentTitles()).toEqual([['Matte']]);
+    expect(sentOptions()).toEqual([{ keepalive: true }]);
+    expect(h.result.current.saveStatus).toBe('saved');
+    h.unmount();
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('sparar när planeraren lämnas inom appen (F9)', async () => {
+    save.mockResolvedValue(archive(4));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await act(async () => { vi.advanceTimersByTime(400); });
+
+    h.unmount();
+    await settle();
+
+    expect(sentTitles()).toEqual([['Matte']]);
+    expect(sentOptions()).toEqual([{ keepalive: true, releaseLock: true }]);
+  });
+
+  it('väntar in en sparning i flykt innan den sparar vid sidbyte (F9)', async () => {
+    let finishFirst!: (value: unknown) => void;
+    save
+      .mockImplementationOnce(() => new Promise(resolve => { finishFirst = resolve; }))
+      .mockResolvedValue(archive(5));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'A')] });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    h.rerender({ schedule: [entry('a', 'A'), entry('b', 'B')] });
+
+    h.unmount();
+    await settle();
+    expect(save).toHaveBeenCalledTimes(1);
+
+    await act(async () => { finishFirst(archive(4)); });
+    await settle();
+
+    expect(sentTitles()).toEqual([['A'], ['A', 'B']]);
+    // Bygger på versionen den första sparningen gav, inte en gissning.
+    expect(sentVersions()).toEqual([3, 4]);
+    expect(sentOptions()[1]).toEqual({ keepalive: true, releaseLock: true });
+  });
+
+  it('sparar ett tömt schema vid stängning (F9 och F11)', async () => {
+    save.mockResolvedValueOnce(archive(4)).mockResolvedValueOnce(archive(5));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+    h.rerender({ schedule: [] });
+
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    await settle();
+
+    expect(sentTitles()).toEqual([['Matte'], []]);
+    expect(sentVersions()).toEqual([3, 4]);
+    h.unmount();
+  });
+
+  it('skickar inget när sidan lämnas och allt är sparat', async () => {
+    save.mockResolvedValue(archive(4));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    hide();
+    h.unmount();
+    await settle();
+
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('skickar inget när sidan lämnas i läsläge', async () => {
+    const h = renderHook({ ...props, isReadOnly: true });
+    h.rerender({ schedule: [entry('a', 'Någon annans')] });
+
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    h.unmount();
+    await settle();
+
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('varnar vid stängning när något inte är sparat', async () => {
+    let finish!: (value: unknown) => void;
+    save.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const h = renderHook(props);
+    const closing = () => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+
+    expect(closing()).toBe(false);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    // Väntar på autosparet.
+    expect(closing()).toBe(true);
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    // En sparning är på väg. Hinner en annan flik spara först förloras den.
+    expect(closing()).toBe(true);
+    await act(async () => { finish(archive(4)); });
+    await settle();
+    expect(closing()).toBe(false);
+    h.unmount();
+  });
+
+  // --- Dataintegritet F10: nya försök efter ett misslyckat autospar ---
+
+  it('försöker igen efter ett nätfel (F10)', async () => {
+    const showNotice = vi.fn();
+    save.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValue(archive(4));
+    const h = renderHook({ ...props, showNotice });
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+    expect(h.result.current.saveStatus).toBe('error');
+
+    await act(async () => { vi.advanceTimersByTime(1999); });
+    expect(save).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(1); });
+    await settle();
+
+    expect(sentTitles()).toEqual([['Matte'], ['Matte']]);
+    expect(h.result.current.saveStatus).toBe('saved');
+    expect(showNotice).toHaveBeenCalledTimes(1);
+    h.unmount();
+  });
+
+  it('fortsätter försöka under ett långt avbrott, som oftast var 30:e sekund (F10)', async () => {
+    const showNotice = vi.fn();
+    save.mockRejectedValue(new TypeError('Failed to fetch'));
+    const h = renderHook({ ...props, showNotice });
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+
+    // 2, 4, 8, 16 och sedan 30 s mellan försöken.
+    for (const wait of [2000, 4000, 8000, 16000, 30000, 30000]) {
+      const before = save.mock.calls.length;
+      await act(async () => { vi.advanceTimersByTime(wait - 1); });
+      expect(save).toHaveBeenCalledTimes(before);
+      await act(async () => { vi.advanceTimersByTime(1); });
+      await settle();
+      expect(save).toHaveBeenCalledTimes(before + 1);
+    }
+    // En notis, inte en per försök.
+    expect(showNotice).toHaveBeenCalledTimes(1);
+
+    save.mockResolvedValue(archive(4));
+    await act(async () => { vi.advanceTimersByTime(30000); });
+    await settle();
+    expect(h.result.current.saveStatus).toBe('saved');
+    h.unmount();
+  });
+
+  it('försöker igen direkt när nätet kommer tillbaka (F10)', async () => {
+    save.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValue(archive(4));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+
+    act(() => { window.dispatchEvent(new Event('online')); });
+    await settle();
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(h.result.current.saveStatus).toBe('saved');
+    h.unmount();
+  });
+
+  it('ett nytt försök sparar ett tömt schema (F10 och F11)', async () => {
+    save
+      .mockResolvedValueOnce(archive(4))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValue(archive(5));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+    h.rerender({ schedule: [] });
+    await autosave();
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    await settle();
+
+    expect(sentTitles()).toEqual([['Matte'], [], []]);
+    expect(h.result.current.saveStatus).toBe('saved');
+    h.unmount();
+  });
+
+  it('en ny ändring tar över från det väntande försöket (F10)', async () => {
+    save.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValue(archive(4));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+    await act(async () => { vi.advanceTimersByTime(500); });
+    h.rerender({ schedule: [entry('a', 'Matte'), entry('b', 'Bild')] });
+    await autosave();
+
+    expect(sentTitles()).toEqual([['Matte'], ['Matte', 'Bild']]);
+    await act(async () => { vi.advanceTimersByTime(60000); });
+    await settle();
+    expect(save).toHaveBeenCalledTimes(2);
+    h.unmount();
+  });
+
+  it('försöker inte igen när servern avvisar veckan (F10)', async () => {
+    save.mockRejectedValue(Object.assign(new Error('Kunde inte spara schemat. För lång titel.'), { status: 400 }));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'x'.repeat(200))] });
+    await autosave();
+    await act(async () => { vi.advanceTimersByTime(120000); });
+    await settle();
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(h.result.current.saveStatus).toBe('error');
+    h.unmount();
+  });
+
+  it('försöker inte igen efter byte till ett annat schema (F10)', async () => {
+    save.mockRejectedValue(new TypeError('Failed to fetch'));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+    await autosave();
+
+    baseRef.current = { archiveId: 'v36', version: 1 };
+    h.rerender({ activeArchiveId: 'v36', schedule: [], serverSyncToken: 1 });
+    await act(async () => { vi.advanceTimersByTime(120000); });
+    await settle();
+
+    expect(save).toHaveBeenCalledTimes(1);
+    h.unmount();
+  });
+
+  it('säger om Spara nu misslyckades av ett fel som kan gå över', async () => {
+    save
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockRejectedValueOnce(Object.assign(new Error('För lång titel.'), { status: 400 }));
+    const h = renderHook(props);
+    h.rerender({ schedule: [entry('a', 'Matte')] });
+
+    let saved: boolean | undefined;
+    await act(async () => { saved = await h.result.current.saveNow(); });
+    expect(saved).toBe(false);
+    expect(h.result.current.saveFailedTransiently()).toBe(true);
+
+    await act(async () => { saved = await h.result.current.saveNow(); });
+    expect(saved).toBe(false);
+    expect(h.result.current.saveFailedTransiently()).toBe(false);
+    h.unmount();
+  });
 });
