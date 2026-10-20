@@ -23,11 +23,6 @@ const getToken = (): string | null => {
   return null;
 };
 
-const authHeader = (): HeadersInit => {
-  const token = getToken();
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
-};
-
 export const storeAuth = ({ token, user }: AuthSession) => {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
@@ -44,37 +39,90 @@ export const clearStoredAuth = () => {
   localStorage.removeItem(AUTH_USER_KEY);
 };
 
-// Enhanced fetch with authentication
+/**
+ * Inloggning som gått ut (dataintegritet F14). Förut skickade ett 401 sidan
+ * till /login, och allt som väntade på att sparas försvann med sidan. Nu
+ * väntar anropet i stället medan AuthProvider visar en inloggningsruta, och
+ * skickas om med den nya token. Sidan ligger kvar, så alla sparköer behåller
+ * det som väntar. Ett 401 kommer innan servern skrivit något, så versionerna
+ * i schemat och arbetslaget stämmer fortfarande när anropet körs om.
+ */
+let relogin: { promise: Promise<void>; resolve: () => void } | null = null;
+const sessionListeners = new Set<(expired: boolean) => void>();
+
+/** Om en inloggning väntar efter ett 401. */
+export const isSessionExpired = (): boolean => relogin !== null;
+
+/** Anropas med true när inloggningen gått ut och false när den är tillbaka. */
+export const onSessionExpiredChange = (listener: (expired: boolean) => void): (() => void) => {
+  sessionListeners.add(listener);
+  return () => { sessionListeners.delete(listener); };
+};
+
+/** Väntar tills någon loggat in igen. Flera samtidiga 401 delar på en inloggning. */
+const waitForLogin = (): Promise<void> => {
+  if (!relogin) {
+    let resolve!: () => void;
+    const promise = new Promise<void>(r => { resolve = r; });
+    relogin = { promise, resolve };
+    // En omladdning medan rutan visas ska fortfarande hamna på /login.
+    clearStoredAuth();
+    sessionListeners.forEach(listener => listener(true));
+  }
+  return relogin.promise;
+};
+
+/**
+ * Loggar in igen efter ett 401 och släpper anropen som väntar. Bara samma
+ * användare får logga in här: det som väntar hör till det kontot och får
+ * inte sparas i ett annat.
+ */
+export const reauthenticate = async (
+  username: string,
+  password: string,
+  expectedUserId: string,
+): Promise<AuthSession> => {
+  const session = await login(username, password);
+  if (session.user.id !== expectedUserId) {
+    throw new Error('Här går det bara att logga in som samma användare. Logga ut för att byta konto.');
+  }
+  storeAuth(session);
+  const waiting = relogin;
+  relogin = null;
+  sessionListeners.forEach(listener => listener(false));
+  waiting?.resolve();
+  return session;
+};
+
+/** fetch med inloggningens token. Vid 401 väntar anropet på en ny inloggning, se ovan. */
 export const fetchWithAuth = async (
   url: string, 
   options: RequestInit = {}
 ): Promise<Response> => {
-  // Get auth headers
-  const headers = authHeader();
-  
-  // Merge with existing headers
-  const mergedHeaders = {
-    ...headers,
-    'Content-Type': 'application/json',
-    ...options.headers
-  };
-  
-  // Create the fetch request with merged headers
-  const response = await fetch(url, {
-    ...options,
-    headers: mergedHeaders
+  const send = (token: string | null, init: RequestInit) => fetch(url, {
+    ...init,
+    headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      'Content-Type': 'application/json',
+      ...init.headers,
+    },
   });
-  
-  // Handle 401 Unauthorized responses (token expired or invalid)
-  if (response.status === 401) {
-    clearStoredAuth();
-    
-    // Redirect to login page if in browser context
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
+
+  let token = getToken();
+  let response = await send(token, options);
+
+  // Även ett anrop med keepalive väntar: det skickas också när fliken bara
+  // döljs, och ett 401 där skulle annars släppa ändringen. Stängs sidan
+  // försvinner det som förut.
+  while (response.status === 401 && typeof window !== 'undefined') {
+    // Har någon loggat in sedan anropet skickades räcker det att skicka om.
+    const current = getToken();
+    if (!current || current === token) await waitForLogin();
+    token = getToken();
+    // Sidan lever, eftersom någon just loggade in, så keepalive behövs inte.
+    response = await send(token, { ...options, keepalive: false });
   }
-  
+
   return response;
 };
 

@@ -136,10 +136,10 @@ const stubPublicLink = (url: string, method: string, body: BodyInit | null | und
  * Stubbar backend så planeraren går att titta på utan inloggning.
  *
  * Ingen token sätts: `fetchWithAuth` lägger bara till en Authorization-header
- * om det finns en, och omdirigeringen till /login kommer från dess
- * 401-hantering. Med fetch stubbad till 200 behövs ingen token – och `authToken`
- * är nyckeln `AuthContext` läser, så en påhittad token här hade fått den
- * riktiga appen att tro att du var inloggad i samma webbläsare.
+ * om det finns en, och inloggningsrutan kommer från dess 401-hantering.
+ * Med fetch stubbad till 200 behövs ingen token – och `authToken` är nyckeln
+ * `AuthContext` läser, så en påhittad token här hade fått den riktiga appen
+ * att tro att du var inloggad i samma webbläsare.
  *
  * Följden av att inte vara inloggad: `useAuth().user` är null, så knappen
  * "Lämna schemat" i delningsrutan ritas inte här. Den kräver den riktiga appen.
