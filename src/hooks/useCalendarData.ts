@@ -37,17 +37,19 @@ export function useCalendarData(year: number, month: number) {
   // Månader vars intervall redan hämtats. Räcker som cachenyckel eftersom
   // matrisen för en given månad alltid är samma 42 dagar.
   const fetched = useRef(new Set<string>());
-  // Dagar med lokala ändringar som inte får skrivas över av ett svar som var
-  // på väg när användaren skrev.
+  // Dagar som ändrats i den här fliken. En hämtning får inte skriva över dem.
+  //
+  // Markeringen tas aldrig bort (dataintegritet F15). Förr togs den bort när en
+  // sparning lyckats. En hämtning som startat före sparningen och läst servern
+  // innan den gick igenom kunde då landa efter och lägga tillbaka den gamla
+  // texten, även när inget mer väntade. Fliken skriver själv, så dess värde är
+  // minst lika nytt som serverns. En annan enhets ändring av samma dag syns
+  // därför först efter omladdning, som för månader som redan hämtats.
   const dirty = useRef(new Set<DateKey>());
   const requestId = useRef(0);
 
   const autosave = useCalendarAutosave({
-    onSave: async (key, patch, keepalive) => {
-      const result = await monthCalendarService.patchDay(key, patch, keepalive);
-      dirty.current.delete(key);
-      return result;
-    },
+    onSave: (key, patch, keepalive) => monthCalendarService.patchDay(key, patch, keepalive),
   });
 
   // ─── Hämtning ──────────────────────────────────────────────────────────────
