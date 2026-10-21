@@ -24,6 +24,7 @@ import {
   Plus,
   Redo2,
   RefreshCw,
+  Settings,
   Square,
   Trash2,
   Undo2,
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
+import { EmploymentPanel } from '@/components/lesson-lab/LabEmployment';
 import { ColorSwatch, CommitInput, TeamBadge, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
 import { LabExportMenu } from '@/components/lesson-lab/LabExportMenu';
 import { LabPlansPanel, PlanLoading, PlanNotices, PlanSaveStatus } from '@/components/lesson-lab/LabPlans';
@@ -68,6 +70,7 @@ import {
   LAB_DAYS,
   labWarnings,
   lessonMinutes,
+  LoadSpread,
   mergeLesson,
   nextTeamNumber,
   reassignTeam,
@@ -75,6 +78,8 @@ import {
   sortLessons,
   sortTeams,
   splitLesson,
+  TeacherLoad,
+  teacherLoads,
   teacherTeachingMinutes,
   teamsInLesson,
 } from '@/utils/lessonLab';
@@ -128,7 +133,7 @@ const classColor = (className: string) => CLASS_COLORS[className] ?? '#e5e7eb';
 /** Höjd per minut på tidsaxeln. En lektion på 75 minuter rymmer tid, lag och bemanning. */
 const PX_PER_MINUTE = 1.4;
 
-/** Avvikelse från snittet som markeras i lärarraden. */
+/** Avvikelse från det förväntade enligt tjänstgöringsgraden som markeras i lärarraden. */
 const DEVIATION_MINUTES = 120;
 
 type DragData =
@@ -331,17 +336,18 @@ export default function LessonLab() {
     t.id,
     (tema.get(t.id) ?? 0) + (source.fixed.get(t.id)?.total ?? 0),
   ])), [state.teachers, tema, source.fixed]);
-  const spread = useMemo(() => {
-    const values = Array.from(totals.values());
-    if (values.length === 0) return null;
-    return { min: Math.min(...values), max: Math.max(...values), avg: values.reduce((a, b) => a + b, 0) / values.length };
-  }, [totals]);
+  // Tiden i förhållande till tjänstgöringsgraden: snitt per heltid och vad var och en borde ha.
+  const spread = useMemo(() => teacherLoads(state.teachers, totals), [state.teachers, totals]);
+  const balance = useMemo(
+    () => new Map(Array.from(spread?.loads ?? [], ([id, load]) => [id, load.diff])),
+    [spread]
+  );
 
   const status = useMemo(
     () => planStatus(state, lessons, labWarnings(state, lessons, source.busy), source.busy),
     [state, lessons, source.busy]
   );
-  const fixes = useMemo(() => staffingFixes(state, lessons, totals, source.busy), [state, lessons, totals, source.busy]);
+  const fixes = useMemo(() => staffingFixes(state, lessons, balance, source.busy), [state, lessons, balance, source.busy]);
   const timeline = useMemo(() => timelineFor(lessons), [lessons]);
 
   // En lärare som tagits bort kan inte stå i fokus.
@@ -571,7 +577,6 @@ export default function LessonLab() {
                   status={status}
                   spread={spread}
                   fixes={fixes}
-                  totals={totals}
                   open={issuesOpen}
                   onOpenChange={setIssuesOpen}
                   quietTight={quietTight}
@@ -618,7 +623,7 @@ export default function LessonLab() {
                   lessons={lessons}
                   fixed={source.fixed}
                   tema={tema}
-                  avg={spread?.avg ?? 0}
+                  spread={spread}
                   commit={commit}
                   onFocus={id => setFocusId(current => (current === id ? null : id))}
                   onNewTeam={() => commit(current => newTeam(current).state)}
@@ -1078,7 +1083,7 @@ function Teams({
   lessons,
   fixed,
   tema,
-  avg,
+  spread,
   commit,
   onFocus,
   onNewTeam,
@@ -1087,14 +1092,15 @@ function Teams({
   lessons: LabLesson[];
   fixed: Map<string, FixedHours>;
   tema: Map<string, number>;
-  /** Snittet av lärarnas tid per vecka, i minuter. */
-  avg: number;
+  /** Lärarnas tid i förhållande till tjänstgöringsgraden. */
+  spread: LoadSpread | null;
   commit: (change: (current: LabState) => LabState) => void;
   onFocus: (teacherId: string) => void;
   onNewTeam: () => void;
 }) {
   const { state, focusId } = view;
   const focusName = state.teachers.find(t => t.id === focusId)?.name;
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Mest tid först, så att det syns vem som har mycket och vem som har lite.
   const rows = state.teachers
     .filter(t => !t.resource)
@@ -1104,7 +1110,8 @@ function Teams({
       return { teacher, fixedMinutes, temaMinutes, total: fixedMinutes + temaMinutes };
     })
     .sort((a, b) => b.total - a.total || a.teacher.name.localeCompare(b.teacher.name, 'sv'));
-  const max = Math.max(1, ...rows.map(r => r.total));
+  // Skalan rymmer både tiden och strecket för det förväntade.
+  const max = Math.max(1, ...rows.map(r => Math.max(r.total, spread?.loads.get(r.teacher.id)?.expected ?? 0)));
 
   return (
     <section className="mt-6 grid gap-4">
@@ -1115,13 +1122,31 @@ function Teams({
             <span className="h-2.5 w-3.5 rounded-sm border border-black bg-gray-400" aria-hidden /> fasta pass i schemat
             <span className="ml-2 h-2.5 w-3.5 rounded-sm border border-black bg-black" aria-hidden /> tema
           </span>
-          {rows.length > 0 && <span className="text-xs font-bold">Snitt {formatHours(avg)}</span>}
+          {rows.length > 0 && spread && (
+            <span className="text-xs font-bold" title="Allas tid delad på allas tjänstgöringsgrader">
+              Snitt per heltid {formatHours(spread.perFullTime)}
+            </span>
+          )}
+          <Button
+            variant="neutral"
+            size="icon"
+            className="sp-btn h-7 w-7"
+            onClick={() => setSettingsOpen(open => !open)}
+            aria-expanded={settingsOpen}
+            title="Inställningar: tjänstgöringsgrad"
+            aria-label="Inställningar för lärarna"
+          >
+            <Settings size={14} />
+          </Button>
           <span className="text-xs text-gray-600 kron:text-ui-muted sm:ml-auto">
             {focusName
               ? <>Visar <b>{focusName}</b>: lag, dagar och lektioner. Klicka igen för att släppa.</>
               : 'Klicka på en lärare för att se lärarens lag och lektioner.'}
           </span>
         </div>
+        {settingsOpen && (
+          <EmploymentPanel state={state} spread={spread} commit={commit} onClose={() => setSettingsOpen(false)} />
+        )}
         <div className="flex flex-wrap gap-2">
           {rows.map(row => (
             <TeacherChip
@@ -1135,7 +1160,7 @@ function Teams({
                   fixedMinutes={row.fixedMinutes}
                   temaMinutes={row.temaMinutes}
                   max={max}
-                  avg={avg}
+                  load={spread?.loads.get(row.teacher.id)}
                   fixed={fixed.get(row.teacher.id)}
                   inverted={focusId === row.teacher.id}
                 />
@@ -1228,31 +1253,41 @@ function TeacherChip({
 
 /**
  * Lärarens timmar per vecka som en stapel: grått för fasta pass i arkivet och
- * svart för temat, skalad mot den som har mest. Avviker läraren mycket från
- * snittet står skillnaden efter. Uppdelningen står i verktygstipset.
+ * svart för temat, skalad mot den som har mest. Strecket är vad läraren borde
+ * ha enligt tjänstgöringsgraden, och avviker läraren mycket från det står
+ * skillnaden efter. Uppdelningen står i verktygstipset.
  */
-function HourBar({ fixedMinutes, temaMinutes, max, avg, fixed, inverted }: {
+function HourBar({ fixedMinutes, temaMinutes, max, load, fixed, inverted }: {
   fixedMinutes: number;
   temaMinutes: number;
   max: number;
-  avg: number;
+  load?: TeacherLoad;
   fixed?: FixedHours;
   inverted: boolean;
 }) {
   const total = fixedMinutes + temaMinutes;
-  const diff = total - avg;
+  const employment = load?.employment ?? 100;
+  const diff = load?.diff ?? 0;
   const breakdown = [
     ...(fixed?.parts ?? []).map(part => `${part.label} ${formatHours(part.minutes)}`),
     `tema ${formatHours(temaMinutes)}`,
   ].join(' + ');
+  const expected = load ? ` Förväntat ${formatHours(load.expected)} (${employment} %).` : '';
   return (
     <span
       className="flex items-center gap-1.5"
-      title={`${breakdown} = ${formatHours(total)} per vecka. Temat räknas i klasspass: en satt lärare får hela lektionen, annars delas lagets klasser på dem som kan den dagen.`}
+      title={`${breakdown} = ${formatHours(total)} per vecka.${expected} Temat räknas i klasspass: en satt lärare får hela lektionen, annars delas lagets klasser på dem som kan den dagen.`}
     >
-      <span className={cn('flex h-2.5 w-24 overflow-hidden rounded-sm border-[1.5px]', inverted ? 'border-white' : 'border-black')} aria-hidden>
+      {employment < 100 && <span className="text-[11px] font-normal tabular-nums">{employment} %</span>}
+      <span className={cn('relative flex h-2.5 w-24 overflow-hidden rounded-sm border-[1.5px]', inverted ? 'border-white' : 'border-black')} aria-hidden>
         <span className="h-full bg-gray-400" style={{ width: `${(fixedMinutes / max) * 100}%` }} />
         <span className={cn('h-full', inverted ? 'bg-ui-paper' : 'bg-black')} style={{ width: `${(temaMinutes / max) * 100}%` }} />
+        {load && (
+          <span
+            className="absolute inset-y-0 w-[3px] -translate-x-1/2 bg-amber-400"
+            style={{ left: `${Math.min(100, (load.expected / max) * 100)}%` }}
+          />
+        )}
       </span>
       <span className="w-11 text-right font-mono text-xs tabular-nums">{formatHours(total)}</span>
       {Math.abs(diff) >= DEVIATION_MINUTES && (
@@ -1261,7 +1296,7 @@ function HourBar({ fixedMinutes, temaMinutes, max, avg, fixed, inverted }: {
             'rounded border-[1.5px] px-1 text-[11px] font-bold',
             diff > 0 ? 'border-blue-900 bg-blue-100 text-blue-950' : 'border-orange-800 bg-orange-100 text-orange-900'
           )}
-          title={`${formatHours(Math.abs(diff))} ${diff > 0 ? 'över' : 'under'} snittet`}
+          title={`${formatHours(Math.abs(diff))} ${diff > 0 ? 'över' : 'under'} det förväntade för ${employment} %`}
         >
           {diff > 0 ? '+' : '−'}{formatHours(Math.abs(diff))}
         </span>

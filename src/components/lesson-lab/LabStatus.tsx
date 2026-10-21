@@ -4,7 +4,7 @@ import React from 'react';
 import { AlertTriangle, Check, ChevronDown, ChevronUp, Minus, UserPlus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LabState } from '@/types/lessonLab';
-import { formatHours, LabWarning } from '@/utils/lessonLab';
+import { formatHours, LabWarning, LoadSpread, TeacherLoad } from '@/utils/lessonLab';
 import type { PlanStatus, StaffingFix } from '@/utils/lessonLabView';
 
 /**
@@ -21,7 +21,6 @@ export function StatusBar({
   status,
   spread,
   fixes,
-  totals,
   open,
   onOpenChange,
   quietTight,
@@ -31,10 +30,9 @@ export function StatusBar({
 }: {
   state: LabState;
   status: PlanStatus;
-  /** Lärartid per vecka i minuter: lägst, högst och snitt. `null` utan lärare. */
-  spread: { min: number; max: number; avg: number } | null;
+  /** Lärartid per vecka: lägst, högst, snitt per heltid och var och ens förväntade. `null` utan lärare. */
+  spread: LoadSpread | null;
   fixes: StaffingFix[];
-  totals: Map<string, number>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Pass utan marginal är minimerade till en liten gul ikon. */
@@ -89,8 +87,8 @@ export function StatusBar({
           </span>
         ))}
         {spread && (
-          <span className={cn(pill, 'bg-ui-paper sm:ml-auto')} title="Lärarnas tid per vecka: fasta pass i schemat plus temat">
-            Lärartid {formatHours(spread.min)} – {formatHours(spread.max)} · snitt {formatHours(spread.avg)}
+          <span className={cn(pill, 'bg-ui-paper sm:ml-auto')} title="Lärarnas tid per vecka: fasta pass i schemat plus temat. Snittet räknas per heltid, efter tjänstgöringsgraden.">
+            Lärartid {formatHours(spread.min)} – {formatHours(spread.max)} · snitt per heltid {formatHours(spread.perFullTime)}
           </span>
         )}
       </div>
@@ -123,7 +121,7 @@ export function StatusBar({
             <div key={`${fix.teamId}-${fix.day}`} className="flex flex-wrap items-center gap-3 border-t-frame border-ui-line bg-sky-50 px-4 py-3 text-sm text-sky-950">
               <span className="flex-1">
                 <b>{team(fix.teamId)?.name ?? 'Laget'}</b> har för få lärare på {fix.day.toLowerCase()} ({fix.lessonIds.length} {fix.lessonIds.length === 1 ? 'pass' : 'pass'}).{' '}
-                {name(fix.teacherId)} kan då och har {formatHours(totals.get(fix.teacherId) ?? 0)} i veckan.
+                {name(fix.teacherId)} kan då och {loadText(spread?.loads.get(fix.teacherId))}.
               </span>
               <button
                 type="button"
@@ -185,6 +183,13 @@ function IssueButton({ count, singular, plural, tone, open, onClick }: {
   );
 }
 
+/** Lärarens tid i förslagen: timmarna och, vid deltid, det förväntade. */
+const loadText = (load: TeacherLoad | undefined) => {
+  if (!load) return 'har ingen tid i veckan';
+  const hours = `har ${formatHours(load.total)} i veckan`;
+  return load.employment < 100 ? `${hours} (${load.employment} %, förväntat ${formatHours(load.expected)})` : hours;
+};
+
 /** Kort hjälp i stället för instruktionstexten som stod i verktygsraden. */
 export function HelpPanel({ onClose }: { onClose: () => void }) {
   return (
@@ -202,7 +207,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
         <li><b>Dagarna:</b> grå lärare kan inte den dagen. Klicka på + för att lägga till, × för att ta bort.</li>
         <li><b>Lagen:</b> dra en lärare in i ett lag. Klicka på en medlem för att ta bort den.</li>
         <li><b>Fokus:</b> klicka på en lärare i lärarraden för att se lärarens lag, dagar och lektioner.</li>
-        <li><b>Timmar:</b> grått är fasta pass i schemat (matte m.m.), svart är temat.</li>
+        <li><b>Timmar:</b> grått är fasta pass i schemat (matte m.m.), svart är temat. Gula strecket är vad läraren borde ha enligt tjänstgöringsgraden, som ställs in med kugghjulet. +/− visar skillnad på minst 2 h.</li>
         <li><b>Upplägg</b> sparas av sig själva. <b>Schemat</b> ger lektionernas tider och lärarnas fasta pass.</li>
         <li><b>Ångra</b> med Ctrl+Z, gör om med Ctrl+Shift+Z.</li>
         <li><b>JSON</b> laddar ner upplägget med regler och timmar, för att låta en AI föreslå alternativ.</li>

@@ -15,6 +15,7 @@ import {
   presentClasses,
   sortLessons,
   sortTeams,
+  teacherLoads,
   teacherTeachingMinutes,
   teamSummaries,
   teamsInLesson,
@@ -46,7 +47,7 @@ const README = [
   'Modellen: Varje lektion i `state.template` går samtidigt för alla klasser i `state.classes`, utom klasserna i `absentClasses`. Varje närvarande klass behöver en egen lärare hela lektionen, så en lektion med tre klasser kräver tre lärare samtidigt.',
   'Arbetslag: En hel lektion (`split: false`) ägs av ett lag i `teamId`. En delad lektion (`split: true`) har ett lag per klass i `classTeams`. Ett lag behöver minst lika många tillgängliga medlemmar som klasser det äger i lektionen. Tillgänglig betyder att lektionens dag finns i lärarens `days` och att läraren inte har ett fast pass samtidigt (`summary.teachers[].fixedLessons`).',
   'Lärare: `resource: true` betyder resurs, t.ex. studiecoach. En resurs kan inte sitta i ett lag eller ha en klass. `classTeachers` sätter en viss lärare på en klass. Den används sällan, och utan den fördelas klasserna på lagets tillgängliga medlemmar.',
-  'Timmar: `summary.teachers[].temaMinutes` räknas i klasspass. En satt lärare får hela lektionen. Övriga klasser delas jämnt på lagets tillgängliga medlemmar, men ingen får mer än lektionens längd från samma lektion. `fixedMinutes` är lärarens fasta pass i schemaarkivet (matte, studieverkstad m.m.). `totalMinutes` är summan per vecka. Målet är oftast en jämn och rimlig fördelning mellan lärarna.',
+  'Timmar: `summary.teachers[].temaMinutes` räknas i klasspass. En satt lärare får hela lektionen. Övriga klasser delas jämnt på lagets tillgängliga medlemmar, men ingen får mer än lektionens längd från samma lektion. `fixedMinutes` är lärarens fasta pass i schemaarkivet (matte, studieverkstad m.m.). `totalMinutes` är summan per vecka. `employment` är tjänstgöringsgraden i procent (saknas den i `state` är det heltid). `expectedMinutes` är snittet per heltid gånger graden, alltså vad läraren borde ha, och `diffMinutes` skillnaden mot det. Målet är oftast att var och en ligger nära sitt förväntade, inte att alla har lika mycket.',
   'Varningar: `summary.warnings` är det appen själv flaggar. `error` går inte att genomföra, `warn` bör ses över och `info` är ofullständigt.',
   'Vad som kan ändras: lagens medlemmar (`teams[].memberIds`), vilket lag som äger varje lektion eller klass (`teamId`, `split`, `classTeams`), och nya eller borttagna lag. Lektionernas dagar och tider kommer från schemaarkivet. Det gör även de fasta passen. Lärarnas dagar (`days`) är fakta om när de kan arbeta. Ändra inte de här sakerna om inte användaren ber om det.',
   'Att lämna ett alternativ: Svara med ett komplett `state`-objekt i samma format som här. Behåll befintliga id:n. Ett nytt lag behöver ett nytt unikt `id`, ett unikt heltal i `number`, ett `name` och en färg (`color`, t.ex. "#fde68a"). Filen kan läsas in i Arbetslags detaljplan som ett nytt upplägg, antingen som hela den här filen eller bara `state`. `summary` behöver inte skickas tillbaka. Den räknas om av appen.',
@@ -68,6 +69,11 @@ export const buildLabExport = ({
   const busy: BusyMap | undefined = activities ? busyFromArchive(activities, state.teachers, state.classes) : undefined;
   const fixed = activities ? fixedHoursByTeacher(activities, state.teachers, state.classes) : new Map<string, FixedHours>();
   const tema = teacherTeachingMinutes(state, lessons, busy);
+  const totals = new Map(state.teachers.filter(t => !t.resource).map(t => [
+    t.id,
+    (tema.get(t.id) ?? 0) + (fixed.get(t.id)?.total ?? 0),
+  ]));
+  const spread = teacherLoads(state.teachers, totals);
 
   const teacherName = new Map(state.teachers.map(t => [t.id, t.name]));
   const teamsById = new Map(state.teams.map(t => [t.id, t]));
@@ -81,16 +87,20 @@ export const buildLabExport = ({
     const fixedHours = fixed.get(teacher.id);
     const temaMinutes = round(tema.get(teacher.id) ?? 0);
     const fixedMinutes = fixedHours?.total ?? 0;
+    const load = spread?.loads.get(teacher.id);
     return {
       id: teacher.id,
       name: teacher.name,
       resource: teacher.resource,
+      employment: load?.employment ?? null,
       availableDays: teacher.days,
       teams: sortTeams(state.teams.filter(t => t.memberIds.includes(teacher.id))).map(t => ({ number: t.number, name: t.name })),
       fixedLessons: busy?.get(teacher.id) ?? [],
       fixedMinutes: { total: fixedMinutes, parts: fixedHours?.parts ?? [] },
       temaMinutes,
       totalMinutes: round(fixedMinutes + temaMinutes),
+      expectedMinutes: load ? round(load.expected) : null,
+      diffMinutes: load ? round(load.diff) : null,
     };
   });
 

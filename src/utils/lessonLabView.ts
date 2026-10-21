@@ -228,12 +228,15 @@ export type StaffingFix = {
 
 /**
  * Förslag när ett lag har för få lärare en dag: den lärare utanför laget som
- * kan alla de lektionerna och har minst tid sedan tidigare.
+ * kan alla de lektionerna och ligger mest under sin tid sedan tidigare.
+ * `balance` är lärarens tid minus det förväntade enligt tjänstgöringsgraden
+ * (`teacherLoads`), så att en deltidare inte föreslås bara för att den har
+ * färre timmar.
  */
 export const staffingFixes = (
   state: LabState,
   lessons: LabLesson[],
-  totals: Map<string, number>,
+  balance: Map<string, number>,
   busy?: BusyMap
 ): StaffingFix[] => {
   const short = new Map<string, { teamId: string; day: LabDay; lessons: LabLesson[] }>();
@@ -251,7 +254,7 @@ export const staffingFixes = (
     const candidates = state.teachers
       .filter(t => !t.resource && !team?.memberIds.includes(t.id) && availableOn(t, day)
         && affected.every(l => !busyDuring(busy, t.id, l)))
-      .sort((a, b) => (totals.get(a.id) ?? 0) - (totals.get(b.id) ?? 0) || a.name.localeCompare(b.name, 'sv'));
+      .sort((a, b) => (balance.get(a.id) ?? 0) - (balance.get(b.id) ?? 0) || a.name.localeCompare(b.name, 'sv'));
     return candidates.length ? [{ teamId, day, lessonIds: affected.map(l => l.id), teacherId: candidates[0].id }] : [];
   });
 };

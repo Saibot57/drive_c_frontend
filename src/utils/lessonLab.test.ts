@@ -12,7 +12,9 @@ import {
   setTeamNumber,
   sortTeams,
   splitLesson,
+  teacherLoads,
   teacherTeachingMinutes,
+  withEmployment,
   fillFromTeam,
   isBeforeLunch,
   labWarnings,
@@ -91,6 +93,17 @@ describe('parseLabState', () => {
       template: [lesson('a', { start: '10:00', end: '09:00' }), lesson('b', { start: '8:30' }), lesson('c')],
     })!;
     expect(parsed.template.map(l => l.id)).toEqual(['c']);
+  });
+
+  it('behåller tjänstgöringsgrad under heltid och släpper resten', () => {
+    const grades: unknown[] = [50, 79.6, 100, 0, 140, '80', null];
+    const parsed = parseLabState({
+      ...LAB_SEED,
+      teachers: grades.map((employment, i) => ({ id: `t${i}`, name: `L${i}`, days: [], resource: false, employment })),
+    })!;
+    expect(parsed.teachers.map(t => t.employment)).toEqual([50, 80, undefined, undefined, undefined, undefined, undefined]);
+    // Heltid skrivs inte ut, så att äldre upplägg ser likadana ut efter tvätten.
+    expect('employment' in parsed.teachers[2]).toBe(false);
   });
 });
 
@@ -354,6 +367,41 @@ describe('teacherTeachingMinutes', () => {
 
   it('skriver timmar med en decimal', () => {
     expect([60, 90, 40, 0].map(formatHours)).toEqual(['1 h', '1,5 h', '0,7 h', '0 h']);
+  });
+});
+
+describe('teacherLoads', () => {
+  const teacher = (id: string, employment?: number, resource = false) => ({ id, name: id, days: [], resource, ...(employment && { employment }) });
+
+  it('jämför med snittet per heltid gånger graden', () => {
+    // 58 h på 2,9 heltider ger 20 h per heltid.
+    const teachers = [teacher('a', 50), teacher('b', 60), teacher('c', 80), teacher('d')];
+    const totals = new Map([['a', 11 * 60], ['b', 12 * 60], ['c', 16 * 60], ['d', 19 * 60]]);
+    const spread = teacherLoads(teachers, totals)!;
+    expect(spread.perFullTime).toBeCloseTo(20 * 60);
+    expect(spread.loads.get('a')).toMatchObject({ total: 11 * 60, employment: 50 });
+    expect(spread.loads.get('a')!.expected).toBeCloseTo(10 * 60);
+    expect(spread.loads.get('a')!.diff).toBeCloseTo(60);
+    expect(spread.loads.get('d')!.diff).toBeCloseTo(-60);
+    expect([spread.min, spread.max]).toEqual([11 * 60, 19 * 60]);
+  });
+
+  it('är vanligt snitt när alla har heltid', () => {
+    const spread = teacherLoads([teacher('a'), teacher('b')], new Map([['a', 600], ['b', 900]]))!;
+    expect(spread.perFullTime).toBe(750);
+    expect(spread.loads.get('b')!.diff).toBe(150);
+  });
+
+  it('räknar inte resurser eller lärare utan total', () => {
+    const spread = teacherLoads([teacher('a'), teacher('r', undefined, true), teacher('x')], new Map([['a', 600], ['r', 900]]))!;
+    expect(Array.from(spread.loads.keys())).toEqual(['a']);
+    expect(teacherLoads([teacher('x')], new Map())).toBeNull();
+  });
+
+  it('sätter och tar bort graden', () => {
+    expect(withEmployment(teacher('a'), 60).employment).toBe(60);
+    expect('employment' in withEmployment(teacher('a', 60), 100)).toBe(false);
+    expect('employment' in withEmployment(teacher('a', 60), Number.NaN)).toBe(false);
   });
 });
 

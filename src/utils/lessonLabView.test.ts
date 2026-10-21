@@ -169,9 +169,9 @@ describe('planStatus och staffingFixes', () => {
     expect(status.tight.map(l => l.id)).toEqual(['m1', 'm2']);
   });
 
-  it('föreslår den som kan och har minst tid, aldrig en resurs', () => {
-    const totals = new Map([['t-camilla', 300], ['t-armine', 120]]);
-    expect(staffingFixes(s, lessons, totals)).toEqual([
+  it('föreslår den som kan och ligger mest under sin tid, aldrig en resurs', () => {
+    const balance = new Map([['t-camilla', 60], ['t-armine', -120]]);
+    expect(staffingFixes(s, lessons, balance)).toEqual([
       { teamId: 'g4', day: 'Torsdag', lessonIds: ['r1', 'r2'], teacherId: 't-armine' },
     ]);
   });
