@@ -207,7 +207,8 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
         <li><b>Dagarna:</b> grå lärare kan inte den dagen. Klicka på + för att lägga till, × för att ta bort.</li>
         <li><b>Lagen:</b> dra en lärare in i ett lag. Klicka på en medlem för att ta bort den.</li>
         <li><b>Fokus:</b> klicka på en lärare i lärarraden för att se lärarens lag, dagar och lektioner.</li>
-        <li><b>Timmar:</b> grått är fasta pass i schemat (matte m.m.), svart är temat. Gula strecket är vad läraren borde ha enligt tjänstgöringsgraden, som ställs in med kugghjulet. +/− visar skillnad på minst 2 h.</li>
+        <li><b>Timmar:</b> grått är fasta pass i schemat (matte m.m.), svart är temat. Stapeln mäts mot vad läraren borde ha enligt tjänstgöringsgraden (gula strecket), som ställs in med kugghjulet. Från 2 h skillnad blir den en färgad bricka.</li>
+        <li><b>Lärarraden:</b> dra en lärare till en annan för att byta plats. Ordningen sparas i webbläsaren.</li>
         <li><b>Upplägg</b> sparas av sig själva. <b>Schemat</b> ger lektionernas tider och lärarnas fasta pass.</li>
         <li><b>Ångra</b> med Ctrl+Z, gör om med Ctrl+Shift+Z.</li>
         <li><b>JSON</b> laddar ner upplägget med regler och timmar, för att låta en AI föreslå alternativ.</li>

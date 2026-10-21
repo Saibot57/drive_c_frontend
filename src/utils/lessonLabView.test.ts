@@ -3,11 +3,14 @@ import { LAB_SEED } from '@/config/lessonLabSeed';
 import type { LabDay, LabLesson, LabState } from '@/types/lessonLab';
 import { BusyMap, labWarnings } from '@/utils/lessonLab';
 import {
+  applyTeacherOrder,
   canTeachLesson,
   classGroups,
   dayLunch,
   lessonReserve,
   lessonStaffing,
+  moveTeacher,
+  parseTeacherOrder,
   placeLessons,
   planStatus,
   staffingFixes,
@@ -174,5 +177,28 @@ describe('planStatus och staffingFixes', () => {
     expect(staffingFixes(s, lessons, balance)).toEqual([
       { teamId: 'g4', day: 'Torsdag', lessonIds: ['r1', 'r2'], teacherId: 't-armine' },
     ]);
+  });
+});
+
+describe('lärarradens ordning', () => {
+  const items = ['a', 'b', 'c', 'd'].map(id => ({ id }));
+
+  it('läser bara strängar, utan dubbletter', () => {
+    expect(parseTeacherOrder(['a', 2, 'b', 'a', null])).toEqual(['a', 'b']);
+    expect(parseTeacherOrder('a')).toEqual([]);
+  });
+
+  it('följer den sparade ordningen och lägger nya lärare sist', () => {
+    expect(applyTeacherOrder(items, ['c', 'borta', 'a']).map(i => i.id)).toEqual(['c', 'a', 'b', 'd']);
+    expect(applyTeacherOrder(items, []).map(i => i.id)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('flyttar efter målet framåt och före målet bakåt', () => {
+    expect(moveTeacher(['a', 'b', 'c', 'd'], 'a', 'c')).toEqual(['b', 'c', 'a', 'd']);
+    expect(moveTeacher(['a', 'b', 'c', 'd'], 'd', 'b')).toEqual(['a', 'd', 'b', 'c']);
+    // Ingen flytt ger samma lista tillbaka, så att ingen egen ordning sparas i onödan.
+    const ids = ['a', 'b'];
+    expect(moveTeacher(ids, 'a', 'a')).toBe(ids);
+    expect(moveTeacher(ids, 'x', 'a')).toBe(ids);
   });
 });

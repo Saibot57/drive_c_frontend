@@ -85,11 +85,14 @@ import {
 } from '@/utils/lessonLab';
 import { FixedHours, lessonsFromArchive } from '@/utils/lessonLabArchive';
 import {
+  applyTeacherOrder,
   canTeachLesson,
   classGroups,
   dayLunch,
   lessonReserve,
   lessonStaffing,
+  moveTeacher,
+  parseTeacherOrder,
   placeLessons,
   planStatus,
   StaffingFix,
@@ -151,6 +154,11 @@ const lessonElementId = (lessonId: string) => `lab-lesson-${lessonId}`;
 /** Om pass utan marginal är nedtonade, per webbläsare. */
 const QUIET_TIGHT_KEY = 'lessonLab.quietTight.v1';
 
+/** Lärarradens ordning, per webbläsare. Saknas den sorteras raden på skillnad mot förväntat. */
+const TEACHER_ORDER_KEY = 'lessonLab.teacherOrder.v1';
+/** Släppmål på varje bricka i lärarraden: släppt där byter lärarna plats. */
+const TEACHER_SLOT_PREFIX = 'teacher-slot:';
+
 const NO_COLOR_TRIGGERS: ColorTriggerRule[] = [];
 const NO_ROOM_TRIGGERS: RoomTriggerRule[] = [];
 
@@ -196,6 +204,12 @@ export default function LessonLab() {
   const setQuietTight = (quiet: boolean) => {
     setQuietTightState(quiet);
     writeStored(QUIET_TIGHT_KEY, quiet);
+  };
+  const [teacherOrder, setTeacherOrderState] = useState<string[]>([]);
+  useEffect(() => { setTeacherOrderState(readStored(TEACHER_ORDER_KEY, parseTeacherOrder, [])); }, []);
+  const setTeacherOrder = (order: string[]) => {
+    setTeacherOrderState(order);
+    writeStored(TEACHER_ORDER_KEY, order);
   };
   const flashTimer = useRef<number | null>(null);
   useEffect(() => () => { if (flashTimer.current) window.clearTimeout(flashTimer.current); }, []);
@@ -348,6 +362,13 @@ export default function LessonLab() {
     [state, lessons, source.busy]
   );
   const fixes = useMemo(() => staffingFixes(state, lessons, balance, source.busy), [state, lessons, balance, source.busy]);
+  // Lärarraden: den egna ordningen, annars mest över sitt förväntade först.
+  const rowIds = useMemo(() => {
+    const byBalance = state.teachers
+      .filter(t => !t.resource)
+      .sort((a, b) => (balance.get(b.id) ?? 0) - (balance.get(a.id) ?? 0) || a.name.localeCompare(b.name, 'sv'));
+    return applyTeacherOrder(byBalance, teacherOrder).map(t => t.id);
+  }, [state.teachers, balance, teacherOrder]);
   const timeline = useMemo(() => timelineFor(lessons), [lessons]);
 
   // En lärare som tagits bort kan inte stå i fokus.
@@ -390,6 +411,14 @@ export default function LessonLab() {
     const data = event.active.data.current as DragData | undefined;
     const overId = event.over?.id ? String(event.over.id) : null;
     if (!data || !overId) return;
+
+    // En lärare släppt på en annan i lärarraden byter plats med den.
+    if (overId.startsWith(TEACHER_SLOT_PREFIX)) {
+      if (data.kind !== 'teacher') return;
+      const moved = moveTeacher(rowIds, data.teacherId, overId.slice(TEACHER_SLOT_PREFIX.length));
+      if (moved !== rowIds) setTeacherOrder(moved);
+      return;
+    }
 
     const classes = state.classes;
     const onTeam = overId.startsWith('team:') ? overId.slice(5) : null;
@@ -624,6 +653,9 @@ export default function LessonLab() {
                   fixed={source.fixed}
                   tema={tema}
                   spread={spread}
+                  rowIds={rowIds}
+                  customOrder={teacherOrder.length > 0}
+                  onResetOrder={() => setTeacherOrder([])}
                   commit={commit}
                   onFocus={id => setFocusId(current => (current === id ? null : id))}
                   onNewTeam={() => commit(current => newTeam(current).state)}
@@ -1084,6 +1116,9 @@ function Teams({
   fixed,
   tema,
   spread,
+  rowIds,
+  customOrder,
+  onResetOrder,
   commit,
   onFocus,
   onNewTeam,
@@ -1094,6 +1129,11 @@ function Teams({
   tema: Map<string, number>;
   /** Lärarnas tid i förhållande till tjänstgöringsgraden. */
   spread: LoadSpread | null;
+  /** Lärarradens lärare i tur och ordning. */
+  rowIds: string[];
+  /** Ordningen är dragen för hand, inte sorterad. */
+  customOrder: boolean;
+  onResetOrder: () => void;
   commit: (change: (current: LabState) => LabState) => void;
   onFocus: (teacherId: string) => void;
   onNewTeam: () => void;
@@ -1101,17 +1141,10 @@ function Teams({
   const { state, focusId } = view;
   const focusName = state.teachers.find(t => t.id === focusId)?.name;
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Mest tid först, så att det syns vem som har mycket och vem som har lite.
-  const rows = state.teachers
-    .filter(t => !t.resource)
-    .map(teacher => {
-      const fixedMinutes = fixed.get(teacher.id)?.total ?? 0;
-      const temaMinutes = tema.get(teacher.id) ?? 0;
-      return { teacher, fixedMinutes, temaMinutes, total: fixedMinutes + temaMinutes };
-    })
-    .sort((a, b) => b.total - a.total || a.teacher.name.localeCompare(b.teacher.name, 'sv'));
-  // Skalan rymmer både tiden och strecket för det förväntade.
-  const max = Math.max(1, ...rows.map(r => Math.max(r.total, spread?.loads.get(r.teacher.id)?.expected ?? 0)));
+  const rows = rowIds.flatMap(id => {
+    const teacher = state.teachers.find(t => t.id === id);
+    return teacher ? [teacher] : [];
+  });
 
   return (
     <section className="mt-6 grid gap-4">
@@ -1121,6 +1154,7 @@ function Teams({
           <span className="flex items-center gap-1.5 text-xs text-gray-700 kron:text-ui-ink-2">
             <span className="h-2.5 w-3.5 rounded-sm border border-black bg-gray-400" aria-hidden /> fasta pass i schemat
             <span className="ml-2 h-2.5 w-3.5 rounded-sm border border-black bg-black" aria-hidden /> tema
+            <span className="ml-2 h-3 w-[3px] bg-amber-400" aria-hidden /> förväntat enligt grad
           </span>
           {rows.length > 0 && spread && (
             <span className="text-xs font-bold" title="Allas tid delad på allas tjänstgöringsgrader">
@@ -1141,30 +1175,28 @@ function Teams({
           <span className="text-xs text-gray-600 kron:text-ui-muted sm:ml-auto">
             {focusName
               ? <>Visar <b>{focusName}</b>: lag, dagar och lektioner. Klicka igen för att släppa.</>
-              : 'Klicka på en lärare för att se lärarens lag och lektioner.'}
+              : 'Klicka på en lärare för att se lärarens lag och lektioner. Dra för att flytta.'}
+            {customOrder && (
+              <button type="button" onClick={onResetOrder} className="ml-2 font-semibold underline" title="Glöm den egna ordningen och sortera på skillnad mot förväntat">
+                Sortera på skillnad
+              </button>
+            )}
           </span>
         </div>
         {settingsOpen && (
           <EmploymentPanel state={state} spread={spread} commit={commit} onClose={() => setSettingsOpen(false)} />
         )}
-        <div className="flex flex-wrap gap-2">
-          {rows.map(row => (
-            <TeacherChip
-              key={row.teacher.id}
-              teacher={row.teacher}
-              teams={teamsOf(state, row.teacher.id)}
-              active={focusId === row.teacher.id}
-              onClick={() => onFocus(row.teacher.id)}
-              hours={(
-                <HourBar
-                  fixedMinutes={row.fixedMinutes}
-                  temaMinutes={row.temaMinutes}
-                  max={max}
-                  load={spread?.loads.get(row.teacher.id)}
-                  fixed={fixed.get(row.teacher.id)}
-                  inverted={focusId === row.teacher.id}
-                />
-              )}
+        <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))]">
+          {rows.map(teacher => (
+            <LoadChip
+              key={teacher.id}
+              teacher={teacher}
+              teams={teamsOf(state, teacher.id)}
+              fixed={fixed.get(teacher.id)}
+              temaMinutes={tema.get(teacher.id) ?? 0}
+              load={spread?.loads.get(teacher.id)}
+              active={focusId === teacher.id}
+              onClick={() => onFocus(teacher.id)}
             />
           ))}
         </div>
@@ -1180,30 +1212,21 @@ function Teams({
 /**
  * En lärare att dra: till en dag (blir tillgänglig), till ett arbetslag
  * (blir medlem). Samma lärare kan stå på flera ställen, därför eget `dragId`.
- * Ikonerna efter namnet är lagen läraren är med i, med lagets siffra. De visas
- * bara i lärarraden med timmarna, inte i veckodagarna. Där går läraren
- * också att klicka på för fokus.
+ * Lärarraden med timmarna har en egen bricka, `LoadChip`.
  */
 function TeacherChip({
   teacher,
   dragId = `teacher:${teacher.id}`,
   size = 'md',
-  teams = [],
   active = false,
-  hours,
-  onClick,
   onRemove,
   removeLabel,
 }: {
   teacher: LabTeacher;
   dragId?: string;
   size?: 'sm' | 'md';
-  /** Arbetslagen läraren är med i, i sifferordning. */
-  teams?: LabTeam[];
   /** Läraren står i fokus. */
   active?: boolean;
-  hours?: React.ReactNode;
-  onClick?: () => void;
   onRemove?: () => void;
   removeLabel?: string;
 }) {
@@ -1216,9 +1239,7 @@ function TeacherChip({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      onClick={onClick}
-      aria-pressed={onClick ? active : undefined}
-      title={`Tillgänglig: ${teacher.days.map(d => d.slice(0, 3).toLowerCase()).join(', ') || 'inga dagar'}${onClick ? '. Klicka för fokus, dra till en dag eller ett lag.' : ''}`}
+      title={`Tillgänglig: ${teacher.days.map(d => d.slice(0, 3).toLowerCase()).join(', ') || 'inga dagar'}`}
       className={cn(
         'flex cursor-grab touch-none items-center gap-1 rounded-full border-frame border-ui-line font-bold active:cursor-grabbing',
         size === 'sm' ? 'px-2 py-0.5 text-xs' : 'gap-2 px-3 py-1 text-sm shadow-frame-sm',
@@ -1228,12 +1249,6 @@ function TeacherChip({
       )}
     >
       {teacher.name}
-      {teams.length > 0 && (
-        <span className="flex gap-0.5">
-          {teams.map(team => <TeamBadge key={team.id} team={team} size="sm" />)}
-        </span>
-      )}
-      {hours}
       {onRemove && (
         <button
           type="button"
@@ -1252,56 +1267,102 @@ function TeacherChip({
 }
 
 /**
- * Lärarens timmar per vecka som en stapel: grått för fasta pass i arkivet och
- * svart för temat, skalad mot den som har mest. Strecket är vad läraren borde
- * ha enligt tjänstgöringsgraden, och avviker läraren mycket från det står
- * skillnaden efter. Uppdelningen står i verktygstipset.
+ * En lärare i lärarraden: lagen, graden, timmarna per vecka och skillnaden mot
+ * det förväntade enligt tjänstgöringsgraden. Stapeln mäts mot var och ens
+ * förväntade, så strecket står på samma ställe för alla och en stapel förbi
+ * strecket är över. Grått är fasta pass i arkivet, svart temat.
+ *
+ * Brickan dras som en lärare (till en dag eller ett lag) och är också ett
+ * släppmål: en lärare släppt här byter plats i raden.
  */
-function HourBar({ fixedMinutes, temaMinutes, max, load, fixed, inverted }: {
-  fixedMinutes: number;
-  temaMinutes: number;
-  max: number;
-  load?: TeacherLoad;
+function LoadChip({ teacher, teams, fixed, temaMinutes, load, active, onClick }: {
+  teacher: LabTeacher;
+  /** Arbetslagen läraren är med i, i sifferordning. */
+  teams: LabTeam[];
   fixed?: FixedHours;
-  inverted: boolean;
+  temaMinutes: number;
+  load?: TeacherLoad;
+  /** Läraren står i fokus. */
+  active: boolean;
+  onClick: () => void;
 }) {
+  const drag = useDraggable({
+    id: `teacher:${teacher.id}`,
+    data: { kind: 'teacher', teacherId: teacher.id } satisfies DragData,
+  });
+  const drop = useDroppable({ id: `${TEACHER_SLOT_PREFIX}${teacher.id}` });
+  const setRef = (node: HTMLElement | null) => { drag.setNodeRef(node); drop.setNodeRef(node); };
+  const dragged = drop.active?.data.current as DragData | undefined;
+  const dropHere = drop.isOver && dragged?.kind === 'teacher' && dragged.teacherId !== teacher.id;
+
+  const fixedMinutes = fixed?.total ?? 0;
   const total = fixedMinutes + temaMinutes;
   const employment = load?.employment ?? 100;
   const diff = load?.diff ?? 0;
+  const over = diff > 0;
+  // Det förväntade är tre fjärdedelar av stapeln; resten rymmer det som är över.
+  const scale = load && load.expected > 0 ? 75 / load.expected : 0;
+  const fixedWidth = Math.min(100, fixedMinutes * scale);
+  const temaWidth = Math.min(100, total * scale) - fixedWidth;
   const breakdown = [
     ...(fixed?.parts ?? []).map(part => `${part.label} ${formatHours(part.minutes)}`),
     `tema ${formatHours(temaMinutes)}`,
   ].join(' + ');
   const expected = load ? ` Förväntat ${formatHours(load.expected)} (${employment} %).` : '';
+  const diffText = `${over ? '+' : '−'}${formatHours(Math.abs(diff))}`;
+
   return (
-    <span
-      className="flex items-center gap-1.5"
-      title={`${breakdown} = ${formatHours(total)} per vecka.${expected} Temat räknas i klasspass: en satt lärare får hela lektionen, annars delas lagets klasser på dem som kan den dagen.`}
-    >
-      {employment < 100 && <span className="text-[11px] font-normal tabular-nums">{employment} %</span>}
-      <span className={cn('relative flex h-2.5 w-24 overflow-hidden rounded-sm border-[1.5px]', inverted ? 'border-white' : 'border-black')} aria-hidden>
-        <span className="h-full bg-gray-400" style={{ width: `${(fixedMinutes / max) * 100}%` }} />
-        <span className={cn('h-full', inverted ? 'bg-ui-paper' : 'bg-black')} style={{ width: `${(temaMinutes / max) * 100}%` }} />
-        {load && (
-          <span
-            className="absolute inset-y-0 w-[3px] -translate-x-1/2 bg-amber-400"
-            style={{ left: `${Math.min(100, (load.expected / max) * 100)}%` }}
-          />
-        )}
-      </span>
-      <span className="w-11 text-right font-mono text-xs tabular-nums">{formatHours(total)}</span>
-      {Math.abs(diff) >= DEVIATION_MINUTES && (
-        <span
-          className={cn(
-            'rounded border-[1.5px] px-1 text-[11px] font-bold',
-            diff > 0 ? 'border-blue-900 bg-blue-100 text-blue-950' : 'border-orange-800 bg-orange-100 text-orange-900'
-          )}
-          title={`${formatHours(Math.abs(diff))} ${diff > 0 ? 'över' : 'under'} det förväntade för ${employment} %`}
-        >
-          {diff > 0 ? '+' : '−'}{formatHours(Math.abs(diff))}
-        </span>
+    <div
+      ref={setRef}
+      {...drag.attributes}
+      {...drag.listeners}
+      onClick={onClick}
+      aria-pressed={active}
+      title={`${breakdown} = ${formatHours(total)} per vecka.${expected} Tillgänglig: ${teacher.days.map(d => d.slice(0, 3).toLowerCase()).join(', ') || 'inga dagar'}. Klicka för fokus. Dra till en dag eller ett lag, eller till en annan lärare för att byta plats.`}
+      className={cn(
+        'grid cursor-grab touch-none grid-cols-[minmax(0,1fr)_100px_64px] items-center gap-x-2.5 rounded-full border-frame border-ui-line px-4 py-1.5 shadow-frame-sm active:cursor-grabbing',
+        active ? 'bg-black text-white shadow-[2px_2px_0_0_#facc15]' : 'bg-ui-paper',
+        drag.isDragging && 'opacity-40',
+        dropHere && 'outline outline-[3px] outline-offset-2 outline-amber-400'
       )}
-    </span>
+    >
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-[15px] font-bold">{teacher.name}</span>
+        <span className="flex items-center gap-0.5">
+          {teams.map(team => <TeamBadge key={team.id} team={team} size="sm" />)}
+          {employment < 100 && <span className="ml-1 text-[11px] tabular-nums">{employment} %</span>}
+        </span>
+      </span>
+      <span className={cn('relative flex h-3 overflow-hidden rounded-sm border-[1.5px]', active ? 'border-white' : 'border-black')} aria-hidden>
+        <span className="h-full bg-gray-400" style={{ width: `${fixedWidth}%` }} />
+        <span className={cn('h-full', active ? 'bg-ui-paper' : 'bg-black')} style={{ width: `${temaWidth}%` }} />
+        {load && <span className="absolute inset-y-0 left-[75%] w-[3px] -translate-x-1/2 bg-amber-400" />}
+      </span>
+      <span className="flex flex-col items-end gap-0.5">
+        <span className="font-mono text-xs font-semibold tabular-nums">{formatHours(total)}</span>
+        {load && (Math.abs(diff) >= DEVIATION_MINUTES ? (
+          <span
+            className={cn(
+              'rounded border-[1.5px] px-1 text-[11px] font-bold',
+              over ? 'border-blue-900 bg-blue-100 text-blue-950' : 'border-orange-800 bg-orange-100 text-orange-900'
+            )}
+            title={`${formatHours(Math.abs(diff))} ${over ? 'över' : 'under'} det förväntade för ${employment} %`}
+          >
+            {diffText}
+          </span>
+        ) : (
+          <span
+            className={cn(
+              'font-mono text-[11px] tabular-nums',
+              active ? (over ? 'text-blue-200' : 'text-orange-200') : (over ? 'text-blue-900' : 'text-orange-800')
+            )}
+            title={`${formatHours(Math.abs(diff))} ${over ? 'över' : 'under'} det förväntade för ${employment} %`}
+          >
+            {diffText}
+          </span>
+        ))}
+      </span>
+    </div>
   );
 }
 

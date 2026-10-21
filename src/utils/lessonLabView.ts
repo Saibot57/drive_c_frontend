@@ -258,3 +258,32 @@ export const staffingFixes = (
     return candidates.length ? [{ teamId, day, lessonIds: affected.map(l => l.id), teacherId: candidates[0].id }] : [];
   });
 };
+
+// ── Lärarradens ordning ──
+
+/** Sparad ordning ur localStorage: id:n i tur och ordning, inget annat. */
+export const parseTeacherOrder = (raw: unknown): string[] =>
+  Array.isArray(raw) ? Array.from(new Set(raw.filter((id): id is string => typeof id === 'string'))) : [];
+
+/**
+ * Lärarna i den sparade ordningen. Den som saknas i ordningen, t.ex. en ny
+ * lärare, kommer sist i den ordning den hade. Id:n utan lärare hoppas över.
+ */
+export const applyTeacherOrder = <T extends { id: string }>(items: T[], order: string[]): T[] => {
+  const rank = new Map(order.map((id, index) => [id, index]));
+  const placed = items.filter(item => rank.has(item.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  return [...placed, ...items.filter(item => !rank.has(item.id))];
+};
+
+/**
+ * Flyttar `id` till `targetId`s plats, som i en sorterbar lista: dras läraren
+ * framåt hamnar den efter målet, bakåt före.
+ */
+export const moveTeacher = (ids: string[], id: string, targetId: string): string[] => {
+  const from = ids.indexOf(id);
+  const to = ids.indexOf(targetId);
+  if (from < 0 || to < 0 || from === to) return ids;
+  const next = ids.filter(other => other !== id);
+  next.splice(to, 0, id);
+  return next;
+};
