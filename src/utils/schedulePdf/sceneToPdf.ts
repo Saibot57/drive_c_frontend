@@ -79,19 +79,34 @@ export type PdfOptions = {
   compress?: boolean;
 };
 
-export const sceneToPdf = (scene: ScheduleScene, options: PdfOptions = {}): jsPDF => {
-  const t = scene.transform;
-  const doc = new jsPDF({
-    unit: 'pt',
-    // Digitalt läge har inget pappersformat — sidan *är* schemat.
-    format: t.mode === 'digital' ? [t.pageWidthPt, t.pageHeightPt] : t.mode,
-    // jsPDF kastar om formatet för att matcha orienteringen, så den måste
-    // följa sidans faktiska proportioner och inte antas vara liggande.
-    orientation: t.pageWidthPt >= t.pageHeightPt ? 'landscape' : 'portrait',
-    compress: options.compress ?? true,
-  });
+const pageFormat = (t: SceneTransform) => ({
+  // Digitalt läge har inget pappersformat — sidan *är* schemat.
+  format: t.mode === 'digital' ? [t.pageWidthPt, t.pageHeightPt] : t.mode,
+  // jsPDF kastar om formatet för att matcha orienteringen, så den måste
+  // följa sidans faktiska proportioner och inte antas vara liggande.
+  orientation: t.pageWidthPt >= t.pageHeightPt ? 'landscape' as const : 'portrait' as const,
+});
 
-  for (const node of scene.nodes) drawNode(doc, node, t);
+/**
+ * En sida per scen, var och en med scenens eget format och orientering, så
+ * att digitalt läge får rätt mått på varje sida.
+ */
+export const scenesToPdf = (scenes: ScheduleScene[], options: PdfOptions = {}): jsPDF => {
+  if (scenes.length === 0) throw new Error('scenesToPdf behöver minst en scen.');
+  const first = pageFormat(scenes[0].transform);
+  const doc = new jsPDF({ unit: 'pt', ...first, compress: options.compress ?? true });
+
+  scenes.forEach((scene, index) => {
+    const t = scene.transform;
+    if (index > 0) {
+      const { format, orientation } = pageFormat(t);
+      doc.addPage(format, orientation);
+    }
+    for (const node of scene.nodes) drawNode(doc, node, t);
+  });
 
   return doc;
 };
+
+export const sceneToPdf = (scene: ScheduleScene, options: PdfOptions = {}): jsPDF =>
+  scenesToPdf([scene], options);

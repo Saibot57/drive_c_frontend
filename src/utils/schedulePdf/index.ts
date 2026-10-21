@@ -11,7 +11,7 @@ import { ScheduleExportInput } from '@/types/scheduleExport';
 import { downloadBlob, toFileSlug } from '@/utils/download';
 import { buildScene } from './buildScene';
 import { createJsPdfMeasurer } from './jspdfMeasurer';
-import { sceneToPdf } from './sceneToPdf';
+import { sceneToPdf, scenesToPdf } from './sceneToPdf';
 import { sceneToRaster } from './sceneToPng';
 import { sceneToSvg } from './sceneToSvg';
 
@@ -55,6 +55,28 @@ export const exportSchedule = async (
   return {
     truncatedInstanceIds: scene.truncatedInstanceIds,
     isLowScale: scene.transform.isLowScale,
+    filename,
+  };
+};
+
+/**
+ * Flera scheman i en PDF, ett per sida, till exempel ett per lärare. Bara PDF:
+ * en bild är en fil, och många nedladdningar i rad stoppas av webbläsaren.
+ * Filnamnet byggs ur `naming`, eftersom sidornas rubriker är olika.
+ */
+export const exportScheduleBook = (
+  inputs: ScheduleExportInput[],
+  naming: Pick<ScheduleExportInput, 'archiveName' | 'pageMode'>
+): ExportOutcome => {
+  const measure = createJsPdfMeasurer();
+  const scenes = inputs.map(input => buildScene(input, measure));
+  const filename = buildExportFilename(naming, 'pdf');
+
+  downloadBlob(scenesToPdf(scenes).output('blob'), filename);
+
+  return {
+    truncatedInstanceIds: scenes.flatMap(scene => scene.truncatedInstanceIds),
+    isLowScale: scenes.some(scene => scene.transform.isLowScale),
     filename,
   };
 };
