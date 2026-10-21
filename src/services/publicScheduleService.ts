@@ -3,7 +3,7 @@ import type { PublicSchedulePayload } from '@/types/schedule';
 
 /**
  * Läser en publik schemalänk. Vanlig `fetch` med flit: `fetchWithAuth` rensar
- * inloggningen och skickar till /login vid 401, och den här sidan besöks av
+ * inloggningen och väntar på en ny vid 401, och den här sidan besöks av
  * deltagare som aldrig haft något konto. Ingen Authorization skickas heller —
  * en inloggad lärare som öppnar länken ska se exakt det deltagarna ser.
  */

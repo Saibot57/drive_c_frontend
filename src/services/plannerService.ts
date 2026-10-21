@@ -297,7 +297,7 @@ export const plannerService = {
   // --- Publika länkar ---
   //
   // Läsningen av en publik länk ligger inte här utan i publicScheduleService:
-  // den får inte gå via fetchWithAuth, som skickar till /login vid 401.
+  // den får inte gå via fetchWithAuth, som väntar på en ny inloggning vid 401.
 
   async listPublicLinks(): Promise<PlannerPublicLink[]> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/public-links`);

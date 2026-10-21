@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as authService from '@/services/authService';
 import type { AuthSession, User } from '@/services/authService';
+import SessionExpiredDialog from '@/components/SessionExpiredDialog';
 
 // Define the auth context type
 interface AuthContextType {
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   // Check for existing auth on component mount
   useEffect(() => {
@@ -41,6 +43,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     setIsLoading(false);
   }, []);
+
+  // Inloggningen har gått ut mitt i arbetet (dataintegritet F14). Rutan visas
+  // ovanpå sidan, så att det som väntar på att sparas ligger kvar.
+  useEffect(() => authService.onSessionExpiredChange(expired => {
+    setSessionExpired(expired);
+    if (expired) return;
+    const stored = authService.readStoredAuth();
+    if (stored) {
+      setToken(stored.token);
+      setUser(stored.user);
+    }
+  }), []);
+
+  // Utan känd användare finns inget konto att logga in i igen; då gäller
+  // det som förut, inloggningssidan.
+  useEffect(() => {
+    if (sessionExpired && !user) window.location.href = '/login';
+  }, [sessionExpired, user]);
 
   // Sparar inloggningen både i state och i localStorage.
   const startSession = (session: AuthSession) => {
@@ -98,7 +118,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {sessionExpired && user && <SessionExpiredDialog user={user} />}
+    </AuthContext.Provider>
+  );
 };
 
 // Custom hook to use the auth context
