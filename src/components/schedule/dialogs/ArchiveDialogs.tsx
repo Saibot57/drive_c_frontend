@@ -13,10 +13,12 @@ type ArchiveDialogsProps = {
   currentUsername: string | null;
   /** Autosparningen står på fel, så det öppna schemat på servern är inaktuellt. */
   saveFailed: boolean;
+  /** Mapparna som syns i panelen. Tom när det inte finns några, eller backend saknar dem. */
+  folderNames: string[];
 };
 
 /** Dialogerna för sparade scheman: ta bort, dela och skapa nytt. */
-export function ArchiveDialogs({ archive, currentUsername, saveFailed }: ArchiveDialogsProps) {
+export function ArchiveDialogs({ archive, currentUsername, saveFailed, folderNames }: ArchiveDialogsProps) {
   const { deleteArchive, newScheduleSource, activeArchiveId } = archive;
   const sourceIsOpenSchedule = newScheduleSource.kind === 'archive'
     && newScheduleSource.id === activeArchiveId;
@@ -61,6 +63,9 @@ export function ArchiveDialogs({ archive, currentUsername, saveFailed }: Archive
         onNameChange={archive.setNewScheduleName}
         source={newScheduleSource}
         onSourceChange={archive.setNewScheduleSource}
+        folder={archive.newScheduleFolder}
+        onFolderChange={archive.setNewScheduleFolder}
+        folderNames={folderNames}
         baseArchives={archive.baseArchives}
         weekArchives={archive.weekArchives}
         legacyMainCount={archive.legacyMainCount}

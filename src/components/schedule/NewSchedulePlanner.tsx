@@ -29,13 +29,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { uiTint } from "@/components/ui/tints";
 import { ActiveLamp } from "@/components/ui/ActiveLamp";
-import { Label } from "@/components/ui/label";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
   DEFAULT_COURSE_COLOR,
   PLANNER_DAYS
 } from '@/config/plannerConstants';
-import { PlannerArchiveSummary, PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
+import { PlannerCourse, ScheduledEntry, RestrictionRule, PersistedPlannerState } from '@/types/schedule';
 import { ContextMenuState, PlannerNoticeTone } from '@/types/plannerUI';
 import {
   START_HOUR, END_HOUR, PIXELS_PER_MINUTE,
@@ -61,7 +60,7 @@ import { DraggableSourceCard } from '@/components/schedule/DraggableSourceCard';
 import { ScheduledEventCard } from '@/components/schedule/ScheduledEventCard';
 import { PlanningBlockCard, PlanningDayOffLabel } from '@/components/schedule/PlanningBlockCard';
 import { DayColumn } from '@/components/schedule/DayColumn';
-import { ArchiveCard } from '@/components/schedule/ArchiveCard';
+import { ScheduleArchiveList } from '@/components/schedule/ScheduleArchiveList';
 import { CategoryDebugPanel } from '@/components/schedule/CategoryDebugPanel';
 import { HiddenSettingsDialog } from '@/components/schedule/settings/HiddenSettingsDialog';
 import { ArchiveDialogs } from '@/components/schedule/dialogs/ArchiveDialogs';
@@ -84,6 +83,7 @@ import { HiddenSettingsDraft, useHiddenSettings } from '@/hooks/useHiddenSetting
 import { usePlannerSections } from '@/hooks/usePlannerSections';
 import { useCourseManager } from '@/hooks/useCourseManager';
 import { ReadOnlyReason, useArchiveManager } from '@/hooks/useArchiveManager';
+import { useScheduleFolders } from '@/hooks/useScheduleFolders';
 import { isBaseSchedule } from '@/utils/scheduleKind';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildCourseDedupeKey, deriveCoursesFromSchedule, sanitizeManualCourses } from '@/utils/courseUtils';
@@ -119,8 +119,6 @@ type PlannerExportOutcome = {
 // --- Helper: Conflict Check & Filtering ---
 
 /** Det som sägs när en ändring stoppas, efter skälet till att schemat är spärrat. */
-/** Rubrikerna Basscheman och Veckoscheman i högerpanelen. */
-const scheduleSectionLabel = 'block text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]';
 
 /** Ett urval låser schemat utan att arkivet är låst, därför ett eget skäl. */
 type PlannerReadOnlyReason = ReadOnlyReason | 'selection';
@@ -338,6 +336,19 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleShareWeek,
     openNewScheduleDialog
   } = archive;
+
+  // Mapparna i högerpanelen. Korten står i den ordning `panelArchives` har,
+  // och tangentnavigeringen räknar på den.
+  const folders = useScheduleFolders({
+    archives: archive.archives,
+    baseArchives,
+    weekArchives,
+    upsertArchives: archive.upsertArchives,
+    showNotice
+  });
+  // En meny eller mappdialog i panelen är öppen. Tangentnavigeringen lyssnar
+  // på hela fönstret och skulle annars flytta markeringen bakom den.
+  const [isArchiveOverlayOpen, setIsArchiveOverlayOpen] = useState(false);
 
   const { saveStatus, loadStatus, saveNow, saveFailedTransiently, conflict, keepMine } = usePlannerSync({
     schedule,
@@ -1303,7 +1314,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   } = useScheduleKeyboardNav({
     courses,
     schedule: gridSchedule,
-    sortedArchives,
+    sortedArchives: folders.panelArchives,
     filterQuery,
     isSidebarCollapsed,
     isRightSidebarCollapsed,
@@ -1352,7 +1363,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     // Ramen äger piltangenterna och Enter så länge den är uppe. Massredigeringens
     // dialog pausar dem också: med fokus på en av dess knappar hade `d` eller
     // Delete annars nått den tangentbordsmarkerade posten bakom dialogen.
-    isSuspended: isMarqueeActive || isBulkEditOpen,
+    isSuspended: isMarqueeActive || isBulkEditOpen || isArchiveOverlayOpen,
     advancedFilterMatch: filterMatch,
   });
 
@@ -1491,22 +1502,6 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         </div>
       )}
     </>
-  );
-
-  const renderArchiveCard = (archive: PlannerArchiveSummary) => (
-    <ArchiveCard
-      key={archive.id}
-      archive={archive}
-      index={sortedArchives.indexOf(archive)}
-      isActive={activeArchiveId === archive.id}
-      activeZone={activeZone}
-      selectedArchiveIndex={selectedArchiveIndex}
-      onLoad={handleLoadWeek}
-      onDuplicate={handleDuplicateWeek}
-      onShare={handleShareWeek}
-      onDelete={handleDeleteWeek}
-      onChangeKind={handleChangeKind}
-    />
   );
 
   return (
@@ -2235,39 +2230,21 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     <Plus size={14} className="mr-2"/> Nytt veckoschema
                   </Button>
 
-                  <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                    {/* Basscheman överst: de är få och ändras sällan, och under
-                        en termins veckor skulle de försvinna. Ordningen här och
-                        i sortedArchives måste vara densamma, eftersom
-                        tangentnavigeringen räknar på platsen. */}
-                    <div className="flex items-center justify-between">
-                      <Label className={scheduleSectionLabel}>Basscheman</Label>
-                      <Button
-                        size="sm"
-                        variant="neutral"
-                        onClick={() => openNewScheduleDialog('base')}
-                        className="h-7 w-7 p-0 sp-btn"
-                        aria-label="Nytt basschema"
-                        title="Nytt basschema"
-                      >
-                        <Plus size={14} />
-                      </Button>
-                    </div>
-                    {baseArchives.length === 0 ? (
-                      <p className="text-xs text-ui-muted">
-                        Inga basscheman ännu. Gör om ett schema med Gör till basschema, eller skapa ett med +.
-                      </p>
-                    ) : (
-                      baseArchives.map(archive => renderArchiveCard(archive))
-                    )}
-
-                    <Label className={`${scheduleSectionLabel} pt-3`}>Veckoscheman</Label>
-                    {weekArchives.length === 0 ? (
-                      <p className="text-sm text-ui-muted italic">Inga veckoscheman ännu.</p>
-                    ) : (
-                      weekArchives.map(archive => renderArchiveCard(archive))
-                    )}
-                  </div>
+                  <ScheduleArchiveList
+                    baseArchives={baseArchives}
+                    weekArchives={weekArchives}
+                    folders={folders}
+                    activeArchiveId={activeArchiveId}
+                    activeZone={activeZone}
+                    selectedArchiveIndex={selectedArchiveIndex}
+                    onLoad={handleLoadWeek}
+                    onDuplicate={handleDuplicateWeek}
+                    onShare={handleShareWeek}
+                    onDelete={handleDeleteWeek}
+                    onChangeKind={handleChangeKind}
+                    onNewSchedule={openNewScheduleDialog}
+                    onOverlayChange={setIsArchiveOverlayOpen}
+                  />
                 </div>
               )}
            </div>
@@ -2543,6 +2520,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         archive={archive}
         currentUsername={user?.username ?? null}
         saveFailed={saveStatus === 'error'}
+        folderNames={folders.foldersSupported ? folders.folderNames : []}
       />
       <ConfirmDialog
         open={Boolean(deleteCourseName)}

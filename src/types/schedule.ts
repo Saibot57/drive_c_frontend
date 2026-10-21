@@ -65,6 +65,12 @@ export interface PlannerArchiveSummary {
    * `isBaseSchedule` i `utils/scheduleKind`, som räknar det som veckoschema.
    */
   kind?: ScheduleKind;
+  /**
+   * Mappen ägaren lagt schemat i, eller null. Alla som har schemat ser samma
+   * mapp. Saknas helt från en backend äldre än migration 022, och då visas
+   * inga mappar (`foldersSupported` i `utils/scheduleFolders`).
+   */
+  folder?: string | null;
 }
 
 // --- Nya typer för Schema-planeraren (Timeline Version) ---

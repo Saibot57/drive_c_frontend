@@ -15,6 +15,7 @@ import {
   resolveWeekSource
 } from '@/utils/createSchedule';
 import { isBaseSchedule, partitionSchedules, scheduleKindLabel, scheduleKindOf } from '@/utils/scheduleKind';
+import { defaultFolderForNewSchedule } from '@/utils/scheduleFolders';
 import type { ArchiveBase } from '@/hooks/usePlannerSync';
 import { waitForLeaveSave } from '@/utils/leaveSave';
 
@@ -133,6 +134,16 @@ export const useArchiveManager = ({
       next[index] = archive;
       return next;
     });
+  }, []);
+
+  /** Som upsertArchive, för flera scheman i ett svar (mapparna). */
+  const upsertArchives = useCallback((updated: PlannerArchiveSummary[]) => {
+    if (updated.length === 0) return;
+    const byId = new Map(updated.map(archive => [archive.id, archive]));
+    setArchives(prev => [
+      ...prev.map(existing => byId.get(existing.id) ?? existing),
+      ...updated.filter(archive => !prev.some(existing => existing.id === archive.id))
+    ]);
   }, []);
 
   const refreshArchives = useCallback(async () => {
@@ -467,6 +478,8 @@ export const useArchiveManager = ({
 
   const [newScheduleName, setNewScheduleName] = useState('');
   const [newScheduleSource, setNewScheduleSource] = useState<NewScheduleSource>({ kind: 'empty' });
+  /** Mappen dialogen skapar schemat i. Gäller bara veckoscheman. */
+  const [newScheduleFolder, setNewScheduleFolder] = useState<string | null>(null);
   /** Sorten på schemat dialogen skapar. */
   const [newScheduleKind, setNewScheduleKind] = useState<ScheduleKind>('week');
   /** Schemat som dupliceras, eller null för Nytt veckoschema och Nytt basschema. */
@@ -508,18 +521,27 @@ export const useArchiveManager = ({
     } else {
       setNewScheduleSource({ kind: 'empty' });
     }
+    setNewScheduleFolder(kind === 'week'
+      ? defaultFolderForNewSchedule({
+          duplicateOf: null,
+          activeWeekArchive: activeArchive && !isBaseSchedule(activeArchive) ? activeArchive : null
+        })
+      : null);
     setNewScheduleKind(kind);
     setDuplicateOf(null);
     setNewScheduleName('');
     rememberSourceRef.current = kind === 'week';
     loadLegacyMainCount();
     setIsNewScheduleDialogOpen(true);
-  }, [baseArchives, loadLegacyMainCount]);
+  }, [activeArchive, baseArchives, loadLegacyMainCount]);
 
   /** Duplicera på ett schemakort: samma dialog, med kortet som källa och sort. */
   const handleDuplicateWeek = useCallback((archive: PlannerArchiveSummary) => {
     setNewScheduleSource({ kind: 'archive', id: archive.id });
     setNewScheduleKind(scheduleKindOf(archive));
+    setNewScheduleFolder(isBaseSchedule(archive)
+      ? null
+      : defaultFolderForNewSchedule({ duplicateOf: archive, activeWeekArchive: null }));
     setDuplicateOf(archive);
     setNewScheduleName(`${archive.name} (kopia)`);
     rememberSourceRef.current = false;
@@ -540,6 +562,7 @@ export const useArchiveManager = ({
 
     const source = newScheduleSource;
     const kind = newScheduleKind;
+    const folder = kind === 'week' ? newScheduleFolder : null;
     setIsCreatingSchedule(true);
     try {
       if (!(await saveBeforeSwitching())) return;
@@ -548,6 +571,7 @@ export const useArchiveManager = ({
       const result = await createScheduleFrom({
         name: trimmed,
         kind,
+        folder,
         source,
         previousArchiveId: activeArchiveIdRef.current,
         service: plannerService
@@ -585,6 +609,7 @@ export const useArchiveManager = ({
     commitSchedule,
     isCreatingSchedule,
     mapPlannerActivitiesToSchedule,
+    newScheduleFolder,
     newScheduleKind,
     newScheduleName,
     newScheduleSource,
@@ -705,6 +730,7 @@ export const useArchiveManager = ({
 
   return {
     archives,
+    upsertArchives,
     baseArchives,
     weekArchives,
     sortedArchives,
@@ -743,6 +769,8 @@ export const useArchiveManager = ({
     setNewScheduleName,
     newScheduleSource,
     setNewScheduleSource,
+    newScheduleFolder,
+    setNewScheduleFolder,
     newScheduleKind,
     duplicateOf,
     legacyMainCount,

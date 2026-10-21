@@ -1,7 +1,29 @@
 # Plan: Mappar för veckoscheman
 
-Status: planerad 2026-10-21. Inget genomfört. Backend först (avsnitt 3.6).
-Frågorna besvarades samma dag (avsnitt 13).
+Status: genomförd 2026-10-21, inte sammanslagen med main (backend
+Saibot57/drive_c_backend#48). Backend först (avsnitt 3.6). Frågorna
+besvarades samma dag (avsnitt 13).
+
+Genomförandet följer planen. Avvikelser och det som tillkom:
+
+- Nyckeln i localStorage heter `app.schedule_folders_expanded.v1`
+  (`SCHEDULE_FOLDERS_EXPANDED_KEY` i `plannerConstants.ts`), som de andra
+  nycklarna i planeraren, och inte `app.schedule_folders_expanded.v1`.
+- `foldersSupported` ligger i `utils/scheduleFolders.ts`, inte i
+  `plannerService`. Den läser bara arkivlistan.
+- Knappen Ny mapp syns bara när användaren har egna veckoscheman. Annars
+  finns inget att lägga i en mapp.
+- Ett namnbyte visar ingen notis. Det nya namnet syns direkt i panelen.
+- Tangentnavigeringen lyssnar på hela fönstret, så den pausas medan en
+  ⋯-meny eller mappdialog i panelen är öppen (`isArchiveOverlayOpen` i
+  `NewSchedulePlanner.tsx`).
+- Kortets knappar hålls synliga medan dess meny är öppen. Annars försvann
+  knappen menyn hänger på när pekaren lämnade kortet.
+- Provat mot en lokal backend med migrationen och två användare, i Neo och
+  Kronberg: Ny mapp med flera scheman, flytt med kortets meny, in- och
+  utfällning, lampan för det öppna schemat i en hopfälld mapp, namnbyte, Ta
+  bort mapp, Duplicera med förvald mapp, mottagarens vy och pilarna förbi en
+  hopfälld mapp. Lint, typkontroll, enhetstester och bygget går igenom.
 
 Högerpanelen Scheman visar alla veckoscheman i en platt lista. Efter en halv
 termin är den längre än skärmen: v.35–v.47, en introvecka och kopior, och
@@ -228,7 +250,7 @@ Ren logik, utan React:
 Den egna hooken behövs eftersom `useArchiveManager.ts` redan är 755 rader
 (arkitektur F17). Hooken:
 
-- Håller **utfällda** mappnamn i `schedulePanel.expandedFolders.v1`
+- Håller **utfällda** mappnamn i `app.schedule_folders_expanded.v1`
   (localStorage, en lista med namn). Det som inte står i listan är hopfällt,
   så en mapp man aldrig sett börjar hopfälld. Fel från lagringen sväljs.
 - Har `moveArchives(ids, folder)` och `renameFolder(from, to)`. Båda väntar på
