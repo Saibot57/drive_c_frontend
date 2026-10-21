@@ -189,30 +189,3 @@ const loadText = (load: TeacherLoad | undefined) => {
   const hours = `har ${formatHours(load.total)} i veckan`;
   return load.employment < 100 ? `${hours} (${load.employment} %, förväntat ${formatHours(load.expected)})` : hours;
 };
-
-/** Kort hjälp i stället för instruktionstexten som stod i verktygsraden. */
-export function HelpPanel({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="sp-card mb-4 p-4 text-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-bold">Så funkar Arbetslag</h2>
-        <button type="button" onClick={onClose} className="rounded p-1 hover:bg-black/10" aria-label="Stäng hjälpen">
-          <X size={14} />
-        </button>
-      </div>
-      <ul className="grid gap-x-8 gap-y-1.5 md:grid-cols-2">
-        <li><b>Lektioner:</b> dra en lektion till ett arbetslag. Laget behöver en lärare per klass.</li>
-        <li><b>Dela:</b> ger klasserna var sitt lag. Dra sedan en klass till ett lag. <b>Slå ihop</b> gör lektionen hel igen.</li>
-        <li><b>Bemanning:</b> &rdquo;3 klasser · 4 kan&rdquo; står på varje lektion. Röd: laget har för få lärare. Orange &rdquo;0 reserv&rdquo;: ingen lärare i hela skolan är ledig att hoppa in.</li>
-        <li><b>Dagarna:</b> grå lärare kan inte den dagen. Klicka på + för att lägga till, × för att ta bort.</li>
-        <li><b>Lagen:</b> dra en lärare in i ett lag. Klicka på en medlem för att ta bort den.</li>
-        <li><b>Fokus:</b> klicka på en lärare i lärarraden för att se lärarens lag, dagar och lektioner.</li>
-        <li><b>Timmar:</b> grått är fasta pass i schemat (matte m.m.), svart är temat. Stapeln mäts mot vad läraren borde ha enligt tjänstgöringsgraden (gula strecket), som ställs in med kugghjulet. Från 2 h skillnad blir den en färgad bricka.</li>
-        <li><b>Lärarraden:</b> dra en lärare till en annan för att byta plats. Ordningen sparas i webbläsaren.</li>
-        <li><b>Upplägg</b> sparas av sig själva. <b>Schemat</b> ger lektionernas tider och lärarnas fasta pass.</li>
-        <li><b>Ångra</b> med Ctrl+Z, gör om med Ctrl+Shift+Z.</li>
-        <li><b>JSON</b> laddar ner upplägget med regler och timmar, för att låta en AI föreslå alternativ.</li>
-      </ul>
-    </div>
-  );
-}

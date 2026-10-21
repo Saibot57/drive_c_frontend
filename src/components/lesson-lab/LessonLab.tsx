@@ -19,7 +19,6 @@ import {
   ChevronDown,
   Columns3,
   Download,
-  HelpCircle,
   Loader2,
   Plus,
   Redo2,
@@ -37,7 +36,7 @@ import { EmploymentPanel } from '@/components/lesson-lab/LabEmployment';
 import { ColorSwatch, CommitInput, TeamBadge, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
 import { LabExportMenu } from '@/components/lesson-lab/LabExportMenu';
 import { LabPlansPanel, PlanLoading, PlanNotices, PlanSaveStatus } from '@/components/lesson-lab/LabPlans';
-import { HelpPanel, QuietMark, StatusBar } from '@/components/lesson-lab/LabStatus';
+import { QuietMark, StatusBar } from '@/components/lesson-lab/LabStatus';
 import { useLabArchive } from '@/hooks/useLabArchive';
 import { readStored, useLessonLabState, writeStored } from '@/hooks/useLessonLabState';
 import { usePersistentState } from '@/hooks/usePersistentState';
@@ -196,7 +195,6 @@ export default function LessonLab() {
   const [dragging, setDragging] = useState<DragData | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [plansOpen, setPlansOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [quietTight, setQuietTightState] = useState(false);
@@ -568,21 +566,8 @@ export default function LessonLab() {
                 >
                   <Download size={15} /> JSON
                 </Button>
-                <Button
-                  variant="neutral"
-                  size="icon"
-                  className="sp-btn bg-sky-100 hover:bg-sky-200 kron:bg-ui-paper kron:hover:bg-ui-surface-3"
-                  onClick={() => setHelpOpen(open => !open)}
-                  aria-expanded={helpOpen}
-                  title="Så funkar det"
-                  aria-label="Så funkar det"
-                >
-                  <HelpCircle size={16} />
-                </Button>
               </div>
             </div>
-
-            {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
 
             <PlanNotices lab={lab} />
 
