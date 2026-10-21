@@ -44,6 +44,7 @@ import {
 } from '@/utils/scheduleTime';
 import { evaluatePlacement, PlacementCandidate } from '@/utils/scheduleRules';
 import { computePlanningByDay, parsePlanningQuery } from '@/utils/planningTime';
+import { IMAGE_FORMAT_OPTIONS, PDF_PAGE_OPTIONS } from '@/config/scheduleExportFormats';
 import { createColorResolver } from '@/utils/colorTriggers';
 import { createRoomResolver } from '@/utils/roomTriggers';
 import { buildDayLayout, DayLayoutEntry, getLanePeers, stepInLane } from '@/utils/scheduleLayout';
@@ -1707,11 +1708,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                 {isExportMenuOpen && (
                   <div role="menu" className="absolute right-0 z-[100] mt-2 w-56 bg-ui-paper sp-dropdown p-1">
                     <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]">PDF</p>
-                    {([
-                      ['digital', 'PDF – digital', 'Sidan får schemats egna mått – skarp på vilken skärm som helst.'],
-                      ['a4', 'PDF – A4', 'Skalas till exakt en liggande A4.'],
-                      ['a3', 'PDF – A3', 'Skalas till exakt en liggande A3.']
-                    ] as const).map(([mode, label, hint]) => (
+                    {PDF_PAGE_OPTIONS.map(({ mode, label, hint }) => (
                       <button
                         key={mode}
                         type="button"
@@ -1728,11 +1725,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     ))}
                     <div className="my-1 h-px bg-gray-200 kron:bg-ui-hair" role="separator" />
                     <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-ui-muted kron:font-mono kron:font-medium kron:tracking-[0.08em]">Bild</p>
-                    {([
-                      ['png', 'PNG', 'Ritas ur schemadatan i 3x – förhandsvisas inline i chattar.'],
-                      ['jpeg', 'JPG', 'Som PNG men mindre fil.'],
-                      ['svg', 'SVG', 'Äkta vektor som går att öppna i Illustrator, Figma eller Inkscape.']
-                    ] as const).map(([format, label, hint]) => (
+                    {IMAGE_FORMAT_OPTIONS.map(({ format, label, hint }) => (
                       <button
                         key={format}
                         type="button"

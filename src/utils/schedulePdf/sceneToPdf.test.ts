@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildScene } from './buildScene';
 import { createJsPdfMeasurer } from './jspdfMeasurer';
-import { sceneToPdf } from './sceneToPdf';
+import { sceneToPdf, scenesToPdf } from './sceneToPdf';
 import { buildExportFilename } from './index';
 import { toFileSlug } from '@/utils/download';
 import { entry, input, normalWeek } from './__fixtures__/scenes';
@@ -61,6 +61,54 @@ describe('sceneToPdf', () => {
     // `/ProcSet [... /ImageB ...]` står alltid i resursordboken, så det är
     // XObject-bilder man ska leta efter.
     expect(stream).not.toContain('/Subtype /Image');
+  });
+});
+
+describe('scenesToPdf', () => {
+  const pageSize = (doc: ReturnType<typeof scenesToPdf>, page: number) => {
+    doc.setPage(page);
+    return { w: doc.internal.pageSize.getWidth(), h: doc.internal.pageSize.getHeight() };
+  };
+
+  it('lägger varje scen på en egen sida', () => {
+    const doc = scenesToPdf([
+      scene({ schedule: normalWeek(), archiveName: 'Ht26 – Anna', pageMode: 'a4' }),
+      scene({ schedule: [entry()], archiveName: 'Ht26 – Björn', pageMode: 'a4' }),
+      scene({ schedule: [entry()], archiveName: 'Ht26 – Cecilia', pageMode: 'a4' }),
+    ], { compress: false });
+    expect(doc.getNumberOfPages()).toBe(3);
+    const stream = raw(doc);
+    ['Anna', 'Björn', 'Cecilia'].forEach(name => expect(stream).toContain(name));
+  });
+
+  it('ger varje sida pappersformatet på papper', () => {
+    const doc = scenesToPdf([
+      scene({ schedule: normalWeek(), pageMode: 'a3' }),
+      scene({ schedule: [entry({ endTime: '17:00', duration: 540 })], pageMode: 'a3' }),
+    ]);
+    [1, 2].forEach(page => {
+      expect(pageSize(doc, page).w).toBeCloseTo(PAPER.a3.widthPt, 1);
+      expect(pageSize(doc, page).h).toBeCloseTo(PAPER.a3.heightPt, 1);
+    });
+  });
+
+  it('ger varje sida schemats egna mått i digitalt läge', () => {
+    const short = scene({ schedule: [entry()] });
+    const long = scene({ schedule: [entry({ endTime: '17:00', duration: 540 })] });
+    expect(long.heightPx).toBeGreaterThan(short.heightPx);
+    const doc = scenesToPdf([short, long]);
+    expect(pageSize(doc, 1).h).toBeCloseTo(short.heightPx * PX_TO_PT, 1);
+    expect(pageSize(doc, 2).h).toBeCloseTo(long.heightPx * PX_TO_PT, 1);
+  });
+
+  it('ger sidor med samma sluttid samma mått', () => {
+    const short = scene({ schedule: [entry()], extraEndMinutes: 17 * 60 });
+    const long = scene({ schedule: [entry({ endTime: '17:00', duration: 540 })], extraEndMinutes: 17 * 60 });
+    expect(short.heightPx).toBe(long.heightPx);
+  });
+
+  it('vägrar en tom lista', () => {
+    expect(() => scenesToPdf([])).toThrow();
   });
 });
 

@@ -33,13 +33,30 @@ import {
 import { Button } from '@/components/ui/button';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { ColorSwatch, CommitInput, TeamBadge, TeamNumberInput } from '@/components/lesson-lab/LabInputs';
+import { LabExportMenu } from '@/components/lesson-lab/LabExportMenu';
 import { LabPlansPanel, PlanLoading, PlanNotices, PlanSaveStatus } from '@/components/lesson-lab/LabPlans';
 import { HelpPanel, QuietMark, StatusBar } from '@/components/lesson-lab/LabStatus';
 import { useLabArchive } from '@/hooks/useLabArchive';
 import { readStored, useLessonLabState, writeStored } from '@/hooks/useLessonLabState';
+import { usePersistentState } from '@/hooks/usePersistentState';
+import { COLOR_TRIGGERS_KEY, ROOM_TRIGGERS_KEY } from '@/config/plannerConstants';
 import { cn } from '@/lib/utils';
 import { downloadBlob } from '@/utils/download';
 import { buildLabExport, labExportFileName } from '@/utils/labExport';
+import {
+  exportInputsFor,
+  exportTargets,
+  exportTitle,
+  isAllSubject,
+  LabExportSubject,
+  lessonsWithoutPass,
+  pagesFor,
+} from '@/utils/labScheduleExport';
+import { createColorResolver, sanitizeColorTriggers } from '@/utils/colorTriggers';
+import { createRoomResolver, sanitizeRoomTriggers } from '@/utils/roomTriggers';
+import type { ExportFormat } from '@/utils/schedulePdf';
+import type { PageMode } from '@/utils/schedulePdf/theme';
+import type { ColorTriggerRule, RoomTriggerRule } from '@/types/schedule';
 import { isOwnPlan } from '@/utils/labPlans';
 import { isBaseSchedule, optionsWithCurrent } from '@/utils/scheduleKind';
 import type { LabDay, LabLesson, LabState, LabTeacher, LabTeam } from '@/types/lessonLab';
@@ -129,6 +146,11 @@ const lessonElementId = (lessonId: string) => `lab-lesson-${lessonId}`;
 /** Om pass utan marginal är nedtonade, per webbläsare. */
 const QUIET_TIGHT_KEY = 'lessonLab.quietTight.v1';
 
+const NO_COLOR_TRIGGERS: ColorTriggerRule[] = [];
+const NO_ROOM_TRIGGERS: RoomTriggerRule[] = [];
+
+type ExportNotice = { text: string; tone: 'warning' | 'error' };
+
 /** Arbetslagen en lärare är med i, i sifferordning. */
 const teamsOf = (state: LabState, teacherId: string) =>
   sortTeams(state.teams).filter(team => team.memberIds.includes(teacherId));
@@ -173,6 +195,13 @@ export default function LessonLab() {
   const flashTimer = useRef<number | null>(null);
   useEffect(() => () => { if (flashTimer.current) window.clearTimeout(flashTimer.current); }, []);
 
+  // Planerarens färg- och salsregler, ur webbläsarens lagring, så att exporten
+  // ser ut som planerarens. En annan dator har sina egna regler, eller inga.
+  const [colorTriggers] = usePersistentState(COLOR_TRIGGERS_KEY, sanitizeColorTriggers, NO_COLOR_TRIGGERS);
+  const [roomTriggers] = usePersistentState(ROOM_TRIGGERS_KEY, sanitizeRoomTriggers, NO_ROOM_TRIGGERS);
+  const [exporting, setExporting] = useState(false);
+  const [exportNotice, setExportNotice] = useState<ExportNotice | null>(null);
+
   /** Bygger mallen från ett arkiv. Lektioner vid samma tid behåller sina grupper. */
   const buildFromArchive = async (archiveId: string) => {
     const activities = await source.fetchActivities(archiveId);
@@ -199,6 +228,71 @@ export default function LessonLab() {
     });
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     downloadBlob(blob, labExportFileName(lab.activePlan?.name ?? ''));
+  };
+
+  const exportTargetList = useMemo(
+    () => (source.activities ? exportTargets(state, source.activities) : null),
+    [state, source.activities]
+  );
+  const exportDisabledReason = !loaded ? 'Upplägget läses in'
+    : !state.archiveId ? 'Välj ett basschema först. Exporten ritar basschemats pass.'
+    : archiveUnreachable ? 'Basschemat är inte delat med dig, så passen går inte att läsa.'
+    : source.status === 'loading' ? 'Schemat läses in'
+    : !source.activities ? 'Kunde inte läsa schemat.'
+    : null;
+
+  /** Exporten från upplägget: ett lag eller en lärare, eller alla som en PDF. */
+  const runScheduleExport = async (subject: LabExportSubject, format: ExportFormat, pageMode: PageMode) => {
+    const activities = source.activities;
+    if (!activities) return;
+    const { label, pages, skipped } = pagesFor(state, activities, subject);
+    if (pages.length === 0) {
+      setExportNotice({ text: 'Det finns inga pass att exportera.', tone: 'warning' });
+      return;
+    }
+    const inputs = exportInputsFor(pages, {
+      archiveName: source.archiveName,
+      activities,
+      resolveColor: createColorResolver(colorTriggers),
+      resolveRoom: createRoomResolver(roomTriggers),
+      pageMode,
+    });
+    setExporting(true);
+    setExportNotice(null);
+    try {
+      // jsPDF och typsnitten laddas först när någon exporterar, inte med sidan.
+      const { exportSchedule, exportScheduleBook } = await import('@/utils/schedulePdf');
+      const outcome = isAllSubject(subject)
+        ? exportScheduleBook(inputs, { archiveName: exportTitle(source.archiveName, label), pageMode })
+        : await exportSchedule(inputs[0], format);
+
+      const parts: string[] = [];
+      if (skipped.length > 0) parts.push(`Hoppade över ${skipped.join(', ')}, som saknar pass.`);
+      const missing = lessonsWithoutPass(state, activities);
+      if (missing > 0) {
+        parts.push(`${missing} ${missing === 1 ? 'lektion' : 'lektioner'} i upplägget saknar pass i schemat och kom inte med. "Läs om schemat" bredvid Basschema rättar det.`);
+      }
+      if (outcome.truncatedInstanceIds.length > 0) {
+        const byId = new Map(activities.map(a => [a.id, a]));
+        // Två namn räcker för att hitta rätt pass, som i planerarens notis.
+        const named = outcome.truncatedInstanceIds.slice(0, 2)
+          .flatMap(id => {
+            const a = byId.get(id);
+            return a ? [`${a.title} (${a.day} ${a.startTime})`] : [];
+          })
+          .join(', ');
+        const count = outcome.truncatedInstanceIds.length;
+        const rest = count - Math.min(count, 2);
+        parts.push(`Texten rymdes inte i ${count} pass och slutar med "…" i filen: ${named}${rest > 0 ? ` +${rest} till` : ''}.`);
+      }
+      if (outcome.isLowScale) parts.push('Schemat fick krympas för att rymmas på en sida. Prova A3 eller digitalt läge.');
+      if (parts.length > 0) setExportNotice({ text: parts.join(' '), tone: 'warning' });
+    } catch (error) {
+      console.error('Arbetslag: exporten misslyckades', error);
+      setExportNotice({ text: 'Exporten misslyckades. Inget ändrades.', tone: 'error' });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const addUnknownTeachers = () => commit(current => ({
@@ -424,6 +518,12 @@ export default function LessonLab() {
                   <Redo2 size={16} />
                 </Button>
                 <span className="mx-1 h-7 w-0.5 bg-gray-300" aria-hidden />
+                <LabExportMenu
+                  targets={exportTargetList}
+                  disabledReason={exportDisabledReason}
+                  busy={exporting}
+                  onExport={(subject, format, pageMode) => void runScheduleExport(subject, format, pageMode)}
+                />
                 <Button
                   variant="neutral"
                   className="sp-btn gap-1.5 px-3"
@@ -450,6 +550,19 @@ export default function LessonLab() {
             {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
 
             <PlanNotices lab={lab} />
+
+            {exportNotice && (
+              <div
+                className={cn(
+                  'sp-toast mb-4 flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm',
+                  exportNotice.tone === 'error' ? 'bg-rose-50' : 'bg-amber-50'
+                )}
+                role={exportNotice.tone === 'error' ? 'alert' : 'status'}
+              >
+                <span>{exportNotice.text}</span>
+                <button type="button" className="text-xs font-semibold underline" onClick={() => setExportNotice(null)}>Stäng</button>
+              </div>
+            )}
 
             {!loaded ? <PlanLoading lab={lab} /> : (
               <div>
