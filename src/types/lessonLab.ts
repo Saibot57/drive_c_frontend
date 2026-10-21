@@ -21,6 +21,11 @@ export interface LabTeacher {
    * varken sitta i en arbetsgrupp eller ha en klass.
    */
   resource: boolean;
+  /**
+   * Tjänstgöringsgrad i procent, 1–99. Saknas för heltid. Lärartiden jämförs
+   * med vad läraren borde ha i förhållande till graden.
+   */
+  employment?: number;
 }
 
 /** Lärare som tillsammans äger och planerar en eller flera lektioner. */

@@ -64,13 +64,24 @@ const uniqueById = <T extends { id: string }>(items: T[]) => {
   });
 };
 
+/**
+ * Tjänstgöringsgrad som heltal 1–99, eller `undefined` för heltid. Heltid
+ * sparas inte, så att äldre upplägg inte ändras när de läses in.
+ */
+export const cleanEmployment = (value: unknown): number | undefined => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  const percent = Math.round(value);
+  return percent >= 1 && percent < 100 ? percent : undefined;
+};
+
 const cleanTeacher = (raw: unknown): LabTeacher | null => {
   if (!isRecord(raw)) return null;
   const name = str(raw.name).trim();
   if (!name) return null;
   const rawDays = Array.isArray(raw.days) ? raw.days : [];
   const days = LAB_DAYS.filter(day => rawDays.includes(day));
-  return { id: str(raw.id), name, days, resource: raw.resource === true };
+  const employment = cleanEmployment(raw.employment);
+  return { id: str(raw.id), name, days, resource: raw.resource === true, ...(employment !== undefined && { employment }) };
 };
 
 const cleanColor = (value: unknown) => {
@@ -592,6 +603,60 @@ export const teacherTeachingMinutes = (
 /** Timmar med en decimal: "1 h", "1,5 h", "0,7 h". */
 export const formatHours = (minutes: number) =>
   `${(Math.round(minutes / 6) / 10).toLocaleString('sv-SE', { maximumFractionDigits: 1 })} h`;
+
+// ── Tjänstgöringsgrad ──
+
+/** Lärarens tjänstgöringsgrad i procent. Heltid när den inte är satt. */
+export const employmentOf = (teacher: Pick<LabTeacher, 'employment'>) => teacher.employment ?? 100;
+
+/** Läraren med en ny grad. Heltid, eller ett ogiltigt värde, tar bort fältet. */
+export const withEmployment = (teacher: LabTeacher, value: unknown): LabTeacher => {
+  const employment = cleanEmployment(value);
+  const rest = { ...teacher };
+  delete rest.employment;
+  return employment === undefined ? rest : { ...rest, employment };
+};
+
+export type TeacherLoad = {
+  /** Fasta pass plus tema, minuter per vecka. */
+  total: number;
+  employment: number;
+  /** Vad läraren borde ha i förhållande till sin grad. */
+  expected: number;
+  /** `total - expected`: positivt över, negativt under. */
+  diff: number;
+};
+
+export type LoadSpread = {
+  min: number;
+  max: number;
+  /** Lärartid per heltid: allas tid delad på allas grader. */
+  perFullTime: number;
+  loads: Map<string, TeacherLoad>;
+};
+
+/**
+ * Lärarnas tid i förhållande till tjänstgöringsgraden. Snittet räknas per
+ * heltid, viktat: summan av allas tid delad på summan av allas grader. Det
+ * förväntade för en lärare är snittet gånger lärarens grad, så en på 50 %
+ * jämförs med halva heltidssnittet. Resurser och lärare utan total räknas
+ * inte. `null` när det inte finns någon att jämföra.
+ */
+export const teacherLoads = (teachers: LabTeacher[], totals: Map<string, number>): LoadSpread | null => {
+  const counted = teachers.filter(t => !t.resource && totals.has(t.id));
+  if (counted.length === 0) return null;
+  const sum = counted.reduce((s, t) => s + (totals.get(t.id) ?? 0), 0);
+  const fullTimes = counted.reduce((s, t) => s + employmentOf(t) / 100, 0);
+  const perFullTime = sum / fullTimes;
+  const loads = new Map(counted.map(teacher => {
+    const total = totals.get(teacher.id) ?? 0;
+    const employment = employmentOf(teacher);
+    const expected = perFullTime * employment / 100;
+    return [teacher.id, { total, employment, expected, diff: total - expected }];
+  }));
+  const values = counted.map(t => totals.get(t.id) ?? 0);
+  return { min: Math.min(...values), max: Math.max(...values), perFullTime, loads };
+};
 
 // ── Hjälp vid fördelning ──
 

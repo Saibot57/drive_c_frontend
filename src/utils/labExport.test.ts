@@ -65,6 +65,17 @@ describe('buildLabExport', () => {
     expect(data.archive.loaded).toBe(true);
   });
 
+  it('har med tjänstgöringsgraden och det förväntade', () => {
+    const halfTobias = { ...state, teachers: state.teachers.map(t => (t.id === 't-tobias' ? { ...t, employment: 50 } : t)) };
+    const data = buildLabExport({ state: halfTobias, plan, archive: { id: null, name: null, activities: null } });
+    const tobias = data.summary.teachers.find(t => t.id === 't-tobias')!;
+    const victor = data.summary.teachers.find(t => t.id === 't-victor')!;
+    expect([tobias.employment, victor.employment]).toEqual([50, 100]);
+    expect(tobias.expectedMinutes! * 2).toBeCloseTo(victor.expectedMinutes!, 0);
+    expect(tobias.diffMinutes).toBeCloseTo(tobias.totalMinutes - tobias.expectedMinutes!, 0);
+    expect(data.summary.teachers.find(t => t.resource)?.expectedMinutes).toBeNull();
+  });
+
   it('visar när laget har för få lärare för att ett fast pass krockar', () => {
     const data = buildLabExport({ state, plan, archive: { id: 'a1', name: 'HT26', activities: [activity({})] } });
     const [l1] = data.summary.lessons;
