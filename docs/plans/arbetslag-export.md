@@ -1,6 +1,6 @@
 # Export av scheman från Arbetslag
 
-Status: Spec klar 2026-10-21. Inte påbörjad.
+Status: Genomförd 2026-10-21.
 
 ## 1. Bakgrund
 
@@ -54,24 +54,45 @@ Lärarens lags temapass enligt ovan, plus de pass som inte är tema
   (`countedTeachers`, versaler och mellanslag spelar ingen roll), eller
 - lärarfältet räknar upp "Alla" (`isAllTeachersField`).
 
-Ett pass tas bara med en gång även om det träffas flera gånger.
+Ett pass tas bara med en gång även om det träffas flera gånger. En lärare
+i ett lag utan lektioner får alltså bara sina fasta pass och "Alla"-passen.
+
+### Lunch och raster
+
+Gäller både lag och lärare. Ett pass vars titel börjar på "Lunch", "Rast" eller
+"Paus" bedöms bara efter reglerna här, aldrig efter lärarfältet.
+
+- **Lunch** kommer med de dagar laget eller läraren har något annat pass.
+- **Rast och paus** kommer med bara när de ligger *mellan* två av lagets
+  eller lärarens pass samma dag: ett pass slutar senast när rasten börjar och
+  ett annat börjar tidigast när den slutar. En rast före dagens första pass,
+  efter det sista eller en dag utan pass kommer inte med.
+- Lunch och raster räknas inte som pass när menyn avgör om ett lag eller en
+  lärare har något att exportera.
 
 ## 4. Hur det ritas
 
 - Samma renderare som planerarens export (`buildScene` i `utils/schedulePdf`).
   Bara de valda passen skickas in, så kolumnerna räknas om och det bortvalda
   tar ingen plats, som med ett urval i planeraren.
+- **Skalan är basschemats.** Varje sida ritas till basschemats sista sluttid
+  (`extraEndMinutes`), så att sidorna har samma tidsaxel och går att jämföra,
+  på papper och digitalt.
 - **Färg- och salsreglerna** i planerarens Inställningar ("Färg efter ord i
-  titeln", "Sal efter ord i titeln") används, lästa från webbläsarens
-  lagring med samma nycklar som `useHiddenSettings`. Den som exporterar på en
+  titeln", "Sal efter ord i titeln") används, lästa med `usePersistentState`
+  och nycklarna `COLOR_TRIGGERS_KEY` och `ROOM_TRIGGERS_KEY`. Hela
+  `useHiddenSettings` används inte, eftersom den också registrerar
+  kortkommandot till planerarens inställningsdialog. Den som exporterar på en
   annan dator får sina egna regler, eller inga.
 - "Uteslut från nästa print/export" används inte.
 - Passen ritas som de står i arkivet, lärarfältet också. Temapassen i
   basschemat har ingen lärare, så där står ingen. Får ett temapass en lärare i
   arkivet syns den, även om labbet säger något annat. Det byggs inget för det.
-- Rubriken blir arkivets namn och vem schemat gäller: "Ht26 – Lag 3 Skrivande"
-  eller "Ht26 – Anna". Filnamnet följer `buildExportFilename`, till exempel
-  `schema-ht26-anna-a4.pdf` och `schema-ht26-alla-larare-a4.pdf`.
+- Rubriken blir arkivets namn och vem schemat gäller, som planerarens urval:
+  "Ht26 – Lag 3 Skrivande", "Ht26 – Arbetslag 2" (standardnamnet) eller
+  "Ht26 – Anna". Filnamnet följer `buildExportFilename` och `toFileSlug`, som
+  behåller versaler och å, ä, ö: `schema-Ht26-Anna-a4.pdf`. PDF:en med alla
+  får namnet efter valet, `schema-Ht26-Alla-lärare-a4.pdf`.
 
 ## 5. Menyn
 
@@ -79,7 +100,8 @@ En knapp **Exportera** i verktygsraden på Arbetslag, utformad som
 planerarens exportmeny (`NewSchedulePlanner.tsx`, "Exportera"):
 
 1. Välj vem: en lista med *Alla arbetslag*, *Alla lärare*, varje lag och
-   varje lärare.
+   varje lärare. Ett lag eller en lärare utan pass är avstängt i listan,
+   märkt "(inga pass)".
 2. Välj format, samma alternativ och förklaringar som i planeraren:
    PDF digital, A4, A3 och bild PNG, JPG, SVG.
    **Bild går bara för ett lag eller en lärare.** Är *Alla …* valt är
@@ -91,11 +113,16 @@ passen hämtas.
 
 ## 6. Kantfall
 
+Arbetslag har ingen notis som planerarens `showNotice`. Exporten får en egen
+ruta under verktygsraden, i samma stil som `PlanNotices` (`sp-toast`), som
+står kvar tills man stänger den.
+
 - **Lag utan lektioner** eller lärare utan pass hoppas över i *Alla …*.
   Notisen efteråt säger vilka.
 - **Arkivet har ändrats sedan mallen byggdes:** en lektion i mallen utan
   motsvarande pass i arkivet ger inget i exporten. Notisen säger hur många
-  lektioner som saknar pass och att "Läs om arkivet" rättar det.
+  lektioner som saknar pass och att "Läs om schemat" (knappen bredvid
+  Basschema) rättar det.
 - **Text som inte ryms** och för liten skala rapporteras i en notis, som i
   planeraren.
 
@@ -104,19 +131,23 @@ passen hämtas.
 Bara frontend, en PR. Ingen migration och ingen deployordning.
 
 1. **`src/utils/labScheduleExport.ts`** (ren logik, med tester):
-   `entriesForTeam(state, activities, teamId)`,
-   `entriesForTeacher(state, activities, teacherId)` och
-   `exportTargets(state)` (listan i menyn). Bygger på `classTeamId`,
-   `temaTarget`, `fixedActivities`, `countedTeachers`, `isAllTeachersField`
-   och `mapPlannerActivitiesToSchedule`.
-2. **Flersidig PDF** i `utils/schedulePdf`: `sceneToPdf` får kunna lägga en
-   scen på en ny sida i ett befintligt dokument (`addPage` med scenens eget
-   format och orientering, så att digitalt läge får rätt mått per sida), och
-   en `exportScheduleBook(inputs, pageMode)` laddar ner hela dokumentet.
-   Tester för att sidantalet och sidornas mått blir rätt.
+   `activitiesForTeam(state, activities, teamId)`,
+   `activitiesForTeacher(state, activities, teacherId)`,
+   `exportTargets(state, activities)` (listan i menyn), `pagesFor` (sidorna
+   för ett val), `lessonsWithoutPass` och `exportInputsFor` (exportens indata
+   med basschemats skala). Bygger på `classTeamId`, `temaTarget`,
+   `fixedActivities`, `countedTeachers`, `isAllTeachersField` och
+   `mapPlannerActivitiesToSchedule`.
+2. **Flersidig PDF** i `utils/schedulePdf`: `scenesToPdf(scenes)` lägger
+   varje scen på en egen sida (`addPage` med scenens eget format och
+   orientering, så att digitalt läge får rätt mått per sida), och
+   `exportScheduleBook(inputs, naming)` laddar ner hela dokumentet.
+   `sceneToPdf` är en sida som förut. Tester för att sidantalet och sidornas
+   mått blir rätt.
 3. **`src/components/lesson-lab/LabExportMenu.tsx`**: menyn i avsnitt 5.
-   Formatlistan (etiketter och förklaringar) bryts ut till en konstant som
-   både planeraren och Arbetslag använder, så att de inte glider isär.
+   Formatlistan (etiketter och förklaringar) bryts ut till
+   `src/config/scheduleExportFormats.ts`, som både planeraren och Arbetslag
+   använder, så att de inte glider isär.
 4. **Koppling i `LessonLab.tsx`**: knappen i verktygsraden, med
    `source.activities`, `source.archiveName` och reglerna.
 
