@@ -1,7 +1,7 @@
 # Plan: Mappar för veckoscheman
 
 Status: planerad 2026-10-21. Inget genomfört. Backend först (avsnitt 3.6).
-Frågorna i avsnitt 13 är öppna.
+Frågorna besvarades samma dag (avsnitt 13).
 
 Högerpanelen Scheman visar alla veckoscheman i en platt lista. Efter en halv
 termin är den längre än skärmen: v.35–v.47, en introvecka och kopior, och
@@ -39,9 +39,12 @@ och ut.
   läser `updated_at`. En flytt väntar inte heller på låset: den gör ingen
   annan skrivskyddad, till skillnad från att byta sort.
 - **Hopfällt läge är personligt** och sparas per dator i localStorage. Fäller
-  Tobias ihop "HT26" ska den inte fällas ihop hos Anna. På servern hade det
+  Tobias ihop "HT26" ska den inte fällas ihop hos Anna. **En mapp är hopfälld
+  tills man fäller ut den**, även en kollegas nya mapp: mapparna finns för att
+  korta listan, och en utfälld ny mapp hade gjort den längre igen. På servern hade det
   krävt en tabell per användare, vilket är precis det modellen undviker. Det
   går att lägga till senare (avsnitt 12).
+- **Mapparna står överst bland veckoschemana, lösa scheman under dem.**
 - **Mapparna sorteras efter namn**, med siffror i nummerordning
   (`localeCompare(…, 'sv', { numeric: true })`). Egen ordning kräver
   uppgifter per användare och ligger utanför planen.
@@ -212,27 +215,31 @@ Ren logik, utan React:
     veckonummer).
   - Mappnamn jämförs efter trimning, exakt. "HT26" och "ht26" blir två
     mappar, eftersom backend lagrar det som skrivits.
-- `panelOrder(baseArchives, groups, collapsed)` ger listan i den ordning
-  panelen visar den, utan scheman i hopfällda mappar. Tangentnavigeringen och
+- `panelOrder(baseArchives, groups, expanded)` ger listan i den ordning
+  panelen visar den: basscheman, mapparna, lösa scheman. Scheman i
+  hopfällda mappar är inte med. Tangentnavigeringen och
   `ArchiveCard.index` räknar på den (avsnitt 6).
 - `folderNames(weekArchives)` ger alla mappnamn som syns, till menyer och
   dialoger.
-- `sanitizeCollapsedFolders(raw)` läser localStorage defensivt.
+- `sanitizeExpandedFolders(raw)` läser localStorage defensivt.
 
 ### 4.4 hooks/useScheduleFolders.ts (ny)
 
 Den egna hooken behövs eftersom `useArchiveManager.ts` redan är 755 rader
 (arkitektur F17). Hooken:
 
-- Håller hopfällda mappnamn i `schedulePanel.collapsedFolders.v1`
-  (localStorage, en lista med namn). Fel från lagringen sväljs.
+- Håller **utfällda** mappnamn i `schedulePanel.expandedFolders.v1`
+  (localStorage, en lista med namn). Det som inte står i listan är hopfällt,
+  så en mapp man aldrig sett börjar hopfälld. Fel från lagringen sväljs.
 - Har `moveArchives(ids, folder)` och `renameFolder(from, to)`. Båda väntar på
   svaret och för in de returnerade schemana med `upsertArchives`.
   `useArchiveManager` får den funktionen: dagens `upsertArchive`, för en
   lista. Placeringen finns då bara på ett ställe, på schemat i arkivlistan.
-- Ett eget namnbyte flyttar också det hopfällda läget till det nya namnet.
-  Byter en kollega namn på sin mapp syns den som utfälld hos mottagarna, och
-  det får räcka.
+- Ett eget namnbyte flyttar också det utfällda läget till det nya namnet.
+  Byter en kollega namn på sin mapp blir den hopfälld hos mottagarna, och det
+  får räcka.
+- En mapp man själv skapar med Ny mapp börjar också hopfälld. Schemana man
+  lade i den syns på antalet i rubriken.
 - Visar en notis vid fel och skriver inget lokalt förrän servern svarat.
 
 ---
@@ -247,16 +254,13 @@ BASSCHEMAN                            [+]
   Bas ht26
 
 VECKOSCHEMAN                     [mapp+]
-  v.43
-  v.45
-  v.46
   ▸ 📁 HT26 – augusti–oktober    9    ⋯
   ▾ 📁 Introveckor               1    ⋯
       Introvecka HT26
+  v.43
+  v.45
+  v.46
 ```
-
-Exemplet visar lösa scheman överst och mappar under, men ordningen är fråga
-1 i avsnitt 13.
 
 - **Mapprubriken** (`components/schedule/ArchiveFolder.tsx`, ny) är en knapp
   som fäller in och ut. Den har:
@@ -293,7 +297,8 @@ fyra knappar, och mottagaren har kvar Duplicera och Dela.
 - **Gör till basschema** eller **Gör till veckoschema**, flyttad från sin
   egen knapp.
 
-Det ändrar ett beslut i `basscheman.md` (avsnitt 8.1). Se fråga 3 i avsnitt 13.
+Det ändrar ett beslut i `basscheman.md` (avsnitt 8.1), och beslutades 2026-10-21
+(avsnitt 13).
 
 ### 5.2 Ny mapp
 
@@ -475,13 +480,11 @@ Det går, men det är inte nödvändigt för att mapparna ska vara till nytta:
 
 ---
 
-## 13. Öppna frågor
+## 13. Frågor som besvarats
 
-1. **Lösa scheman över eller under mapparna?** Förslag: över. Nya scheman är
-   lösa tills de flyttas, och det är de man arbetar med. Mappar först, som i
-   en filhanterare, går lika lätt att bygga.
-2. **Ska en mapp man inte sett förut vara utfälld eller hopfälld?** Det gäller
-   till exempel en kollegas nya mapp. Förslag: utfälld, så att det syns vad
-   som kom. Den fälls ihop med ett klick och förblir då hopfälld.
-3. **Byt sort in i ⋯-menyn på kortet?** Förslag: ja, annars blir kortet för
-   trångt (avsnitt 5.1). Alternativet är en femte ikonknapp.
+Besvarade av Tobias 2026-10-21.
+
+1. **Lösa scheman över eller under mapparna?** Under. Mapparna står överst.
+2. **Ska en mapp man inte sett förut vara utfälld eller hopfälld?** Hopfälld.
+   Det gäller även en kollegas nya mapp och en mapp man själv just skapat.
+3. **Byt sort in i ⋯-menyn på kortet?** Ja.
