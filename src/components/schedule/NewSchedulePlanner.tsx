@@ -328,6 +328,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     handleEditBase,
     handleFinishEditingBase,
     handleChangeKind,
+    handleRenameArchive,
+    isRenamingArchive,
     handleTakeOverLock,
     markLockLost,
     handleLoadWeek,
@@ -2242,6 +2244,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                     onShare={handleShareWeek}
                     onDelete={handleDeleteWeek}
                     onChangeKind={handleChangeKind}
+                    onRename={handleRenameArchive}
+                    isRenaming={isRenamingArchive}
                     onNewSchedule={openNewScheduleDialog}
                     onOverlayChange={setIsArchiveOverlayOpen}
                   />

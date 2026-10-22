@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FolderPlus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import {
   FolderContentsDialog,
   RenameFolderDialog
 } from '@/components/schedule/dialogs/FolderDialogs';
+import { RenameArchiveDialog } from '@/components/schedule/dialogs/RenameArchiveDialog';
 import type { useScheduleFolders } from '@/hooks/useScheduleFolders';
 import type { ActiveZone } from '@/hooks/useScheduleKeyboardNav';
 import type { PlannerArchiveSummary, ScheduleKind } from '@/types/schedule';
@@ -34,6 +35,9 @@ type ScheduleArchiveListProps = {
   onShare: (archive: PlannerArchiveSummary) => void;
   onDelete: (archive: PlannerArchiveSummary) => void;
   onChangeKind: (archive: PlannerArchiveSummary) => void;
+  /** Byter namn på ett eget schema. Sant när det gick. */
+  onRename: (archive: PlannerArchiveSummary, name: string) => Promise<boolean>;
+  isRenaming: boolean;
   onNewSchedule: (kind: ScheduleKind) => void;
   /** En meny eller mappdialog öppnas eller stängs. Tangentnavigeringen pausas då. */
   onOverlayChange: (open: boolean) => void;
@@ -58,6 +62,8 @@ export function ScheduleArchiveList({
   onShare,
   onDelete,
   onChangeKind,
+  onRename,
+  isRenaming,
   onNewSchedule,
   onOverlayChange
 }: ScheduleArchiveListProps) {
@@ -77,13 +83,23 @@ export function ScheduleArchiveList({
   const [contentsTarget, setContentsTarget] = useState<ContentsTarget>(null);
   const [renameGroup, setRenameGroup] = useState<FolderGroup | null>(null);
   const [deleteGroup, setDeleteGroup] = useState<FolderGroup | null>(null);
+  const [renameArchive, setRenameArchive] = useState<PlannerArchiveSummary | null>(null);
+  /** Namnet är unikt bland ägarens alla scheman, bas och vecka. */
+  const ownArchives = useMemo(
+    () => [...baseArchives, ...weekArchives].filter(archive => archive.isOwner),
+    [baseArchives, weekArchives]
+  );
   const [openMenus, setOpenMenus] = useState(0);
 
   const handleMenuOpenChange = useCallback((open: boolean) => {
     setOpenMenus(count => Math.max(0, count + (open ? 1 : -1)));
   }, []);
 
-  const overlayOpen = openMenus > 0 || contentsTarget !== null || renameGroup !== null || deleteGroup !== null;
+  const overlayOpen = openMenus > 0
+    || contentsTarget !== null
+    || renameGroup !== null
+    || deleteGroup !== null
+    || renameArchive !== null;
   useEffect(() => {
     onOverlayChange(overlayOpen);
   }, [onOverlayChange, overlayOpen]);
@@ -116,6 +132,7 @@ export function ScheduleArchiveList({
       onShare={onShare}
       onDelete={onDelete}
       onChangeKind={onChangeKind}
+      onRename={setRenameArchive}
       folderNames={foldersSupported ? folderNames : null}
       onMoveToFolder={handleMoveToFolder}
       onNewFolderWith={handleNewFolderWith}
@@ -206,6 +223,13 @@ export function ScheduleArchiveList({
         existingNames={folderNames}
         isSaving={isSavingFolders}
         onRename={renameFolder}
+      />
+      <RenameArchiveDialog
+        archive={renameArchive}
+        onClose={() => setRenameArchive(null)}
+        ownArchives={ownArchives}
+        isSaving={isRenaming}
+        onRename={onRename}
       />
       <ConfirmDialog
         open={deleteGroup !== null}
