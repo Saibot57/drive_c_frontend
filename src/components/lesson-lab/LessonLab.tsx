@@ -562,7 +562,7 @@ export default function LessonLab() {
                   className="sp-btn gap-1.5 px-3"
                   onClick={downloadForAi}
                   disabled={!loaded || source.status === 'loading'}
-                  title="Ladda ner upplägget som JSON, med regler, timmar och varningar, för att låta en AI föreslå alternativ"
+                  title="Ladda ner upplägget som JSON, med regler, timmar och varningar."
                 >
                   <Download size={15} /> JSON
                 </Button>
