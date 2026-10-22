@@ -233,7 +233,7 @@ export function HiddenSettingsDialog({
       {/* Nära fullskärm. Kolumnerna scrollar var för sig så fönstret självt
           aldrig behöver scrollas. pt-10 ger plats åt stängkrysset, som annars
           hamnar ovanpå innehållet nu när rubriken är dold. */}
-      <DialogContent className="flex flex-col gap-4 w-[96vw] max-w-none h-[92vh] max-h-[92vh] p-6 pt-10">
+      <DialogContent movable={false} className="flex flex-col gap-4 w-[96vw] max-w-none h-[92vh] max-h-[92vh] p-6 pt-10">
         <DialogTitle className="sr-only">Inställningar</DialogTitle>
 
         <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(240px,1fr)_minmax(420px,2fr)_minmax(300px,1.4fr)]">

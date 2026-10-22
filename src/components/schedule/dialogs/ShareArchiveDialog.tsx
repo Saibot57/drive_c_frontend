@@ -36,7 +36,7 @@ export function ShareArchiveDialog({
 }: ShareArchiveDialogProps) {
   return (
     <Dialog open={Boolean(archive)} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent>
+      <DialogContent positionKey="schema-dela">
         <DialogHeader>
           <DialogTitle>Dela &quot;{archive?.name}&quot;</DialogTitle>
         </DialogHeader>

@@ -5,6 +5,7 @@ import { CalendarDays, ChevronLeft, Loader2, X } from 'lucide-react';
 import { plannerService } from '@/services/plannerService';
 import type { PlannerActivity, PlannerArchiveSummary } from '@/types/schedule';
 import { isBaseSchedule } from '@/utils/scheduleKind';
+import WorkspaceModal from './WorkspaceModal';
 import {
   groupActivitiesByDay,
   orderScheduleSources,
@@ -92,86 +93,84 @@ export default function ScheduleImportModal({ isOpen, onClose, onConfirm }: Sche
   };
 
   return (
-    <div className="ws-overlay-backdrop" onClick={onClose}>
-      <div className="ws-dialog ws-dialog--sm" onClick={(e) => e.stopPropagation()}>
-        <div className="ws-dialog__header">
-          <div className="ws-dialog__title">
-            {step.status === 'days' && (
-              <button className="ws-icon-btn" onClick={() => void loadSources()} aria-label="Tillbaka">
-                <ChevronLeft size={14} />
-              </button>
-            )}
-            <CalendarDays size={14} />
-            {step.status === 'days' ? step.source.label : 'Hämta in schemadagar'}
-          </div>
-          <button className="ws-icon-btn" onClick={onClose} aria-label="Stäng">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="ws-dialog__body">
-          {(step.status === 'loading-sources' || step.status === 'loading-days') && (
-            <p className="ws-dialog__empty">
-              <Loader2 size={14} className="ws-spin" /> Hämtar…
-            </p>
-          )}
-
-          {step.status === 'error' && <p className="ws-dialog__empty">{step.message}</p>}
-
-          {step.status === 'sources' && (
-            step.own.length + step.shared.length === 0 ? (
-              <p className="ws-dialog__empty">Du har inga scheman.</p>
-            ) : (
-              <>
-                {step.own.length > 0 && <div className="ws-sidebar-header">Dina scheman</div>}
-                {step.own.map((archive) => (
-                  <SourceOption key={archive.id} archive={archive} onPick={(source) => void pickSource(source)} />
-                ))}
-                {step.shared.length > 0 && <div className="ws-sidebar-header">Delade med dig</div>}
-                {step.shared.map((archive) => (
-                  <SourceOption key={archive.id} archive={archive} onPick={(source) => void pickSource(source)} />
-                ))}
-              </>
-            )
-          )}
-
+    <WorkspaceModal positionKey="ws-schedule-import" onClose={onClose} className="ws-dialog--sm">
+      <div className="ws-dialog__header" data-dialog-handle="">
+        <div className="ws-dialog__title">
           {step.status === 'days' && (
-            step.counts.size === 0 ? (
-              <p className="ws-dialog__empty">Det här schemat har inga lektioner.</p>
-            ) : (
-              Array.from(step.counts.entries()).map(([day, count]) => (
-                <label key={day} className="ws-day-option">
-                  <input
-                    type="checkbox"
-                    checked={selectedDays.has(day)}
-                    onChange={() => toggleDay(day)}
-                  />
-                  <span className="ws-day-option__name">{day}</span>
-                  <span className="ws-day-option__count">
-                    {count} {count === 1 ? 'lektion' : 'lektioner'}
-                  </span>
-                </label>
-              ))
-            )
+            <button className="ws-icon-btn" onClick={() => void loadSources()} aria-label="Tillbaka">
+              <ChevronLeft size={14} />
+            </button>
           )}
+          <CalendarDays size={14} />
+          {step.status === 'days' ? step.source.label : 'Hämta in schemadagar'}
         </div>
-
-        <div className="ws-dialog__footer">
-          <button className="ws-btn" onClick={onClose}>Avbryt</button>
-          <button
-            className="ws-btn ws-btn--primary"
-            disabled={step.status !== 'days' || selectedDays.size === 0}
-            onClick={() => {
-              if (step.status !== 'days' || selectedDays.size === 0) return;
-              onConfirm(step.activities, Array.from(selectedDays), step.source);
-              onClose();
-            }}
-          >
-            {selectedDays.size === 1 ? 'Hämta in dagen' : `Hämta in ${selectedDays.size} dagar`}
-          </button>
-        </div>
+        <button className="ws-icon-btn" onClick={onClose} aria-label="Stäng">
+          <X size={16} />
+        </button>
       </div>
-    </div>
+
+      <div className="ws-dialog__body">
+        {(step.status === 'loading-sources' || step.status === 'loading-days') && (
+          <p className="ws-dialog__empty">
+            <Loader2 size={14} className="ws-spin" /> Hämtar…
+          </p>
+        )}
+
+        {step.status === 'error' && <p className="ws-dialog__empty">{step.message}</p>}
+
+        {step.status === 'sources' && (
+          step.own.length + step.shared.length === 0 ? (
+            <p className="ws-dialog__empty">Du har inga scheman.</p>
+          ) : (
+            <>
+              {step.own.length > 0 && <div className="ws-sidebar-header">Dina scheman</div>}
+              {step.own.map((archive) => (
+                <SourceOption key={archive.id} archive={archive} onPick={(source) => void pickSource(source)} />
+              ))}
+              {step.shared.length > 0 && <div className="ws-sidebar-header">Delade med dig</div>}
+              {step.shared.map((archive) => (
+                <SourceOption key={archive.id} archive={archive} onPick={(source) => void pickSource(source)} />
+              ))}
+            </>
+          )
+        )}
+
+        {step.status === 'days' && (
+          step.counts.size === 0 ? (
+            <p className="ws-dialog__empty">Det här schemat har inga lektioner.</p>
+          ) : (
+            Array.from(step.counts.entries()).map(([day, count]) => (
+              <label key={day} className="ws-day-option">
+                <input
+                  type="checkbox"
+                  checked={selectedDays.has(day)}
+                  onChange={() => toggleDay(day)}
+                />
+                <span className="ws-day-option__name">{day}</span>
+                <span className="ws-day-option__count">
+                  {count} {count === 1 ? 'lektion' : 'lektioner'}
+                </span>
+              </label>
+            ))
+          )
+        )}
+      </div>
+
+      <div className="ws-dialog__footer">
+        <button className="ws-btn" onClick={onClose}>Avbryt</button>
+        <button
+          className="ws-btn ws-btn--primary"
+          disabled={step.status !== 'days' || selectedDays.size === 0}
+          onClick={() => {
+            if (step.status !== 'days' || selectedDays.size === 0) return;
+            onConfirm(step.activities, Array.from(selectedDays), step.source);
+            onClose();
+          }}
+        >
+          {selectedDays.size === 1 ? 'Hämta in dagen' : `Hämta in ${selectedDays.size} dagar`}
+        </button>
+      </div>
+    </WorkspaceModal>
   );
 }
 

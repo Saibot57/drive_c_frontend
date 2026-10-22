@@ -25,6 +25,15 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
+    // Tangenterna läses i dialogMoveStep (utils/dialogPosition.ts).
+    label: 'Dialoger',
+    shortcuts: [
+      // Med musen dras dialogen i rubriken; dubbelklick lägger den i mitten.
+      { keys: ['Ctrl', '⌘', '←↑↓→'], description: 'Flytta dialogen (Ctrl + Alt utanför Mac)' },
+      { keys: ['Ctrl', '⌘', 'Shift', '←↑↓→'], description: 'Flytta dialogen ett längre steg' },
+    ],
+  },
+  {
     label: 'Schema — Navigering',
     shortcuts: [
       { keys: ['Tab'], description: 'Växla zon (Byggstenar → Schema → Scheman)' },

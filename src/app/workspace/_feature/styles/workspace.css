@@ -32,6 +32,7 @@
   --ws-canvas-bg: var(--sp-bg-grid, #f9fafb);
   --ws-canvas-dot: #d1d5db;
   --ws-overlay: rgba(0, 0, 0, 0.3);
+  --ws-overlay-light: rgba(0, 0, 0, 0.12);
 
   /* Ram */
   --ws-frame-border: var(--sp-border, var(--ui-frame-w) solid var(--ui-line));
@@ -845,6 +846,11 @@
   background: var(--ws-overlay);
 }
 
+/* Dialogen är flyttad för att man vill se vad som ligger under. */
+.ws-overlay-backdrop--light {
+  background: var(--ws-overlay-light);
+}
+
 /* Sökrutan landar en bit ner från toppen i stället för mitt på skärmen. */
 .ws-overlay-backdrop--top {
   z-index: var(--ws-z-overlay);
@@ -860,6 +866,16 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* Flyttbar dialog (useMovableDialog): dras i titelraden. */
+.ws-dialog[data-dialog-movable] {
+  transform: translate(var(--ws-dialog-x, 0px), var(--ws-dialog-y, 0px));
+}
+
+.ws-dialog[data-dialog-movable] [data-dialog-handle] {
+  cursor: move;
+  touch-action: none;
 }
 
 .ws-dialog--sm { width: 20rem; }
@@ -2654,6 +2670,7 @@
   --ws-canvas-bg: var(--ui-bg);
   --ws-canvas-dot: #C9C7C1;
   --ws-overlay: var(--ui-scrim);
+  --ws-overlay-light: var(--ui-scrim-light);
 
   --ws-frame-border: 1px solid var(--ui-line);
   --ws-frame-width: 1px;

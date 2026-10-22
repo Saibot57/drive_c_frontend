@@ -109,7 +109,7 @@ export function LabShareDialog({
 
   return (
     <Dialog open={Boolean(plan)} onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent>
+      <DialogContent positionKey="arbetslag-dela">
         <DialogHeader>
           <DialogTitle>Dela &quot;{plan?.name}&quot;</DialogTitle>
         </DialogHeader>

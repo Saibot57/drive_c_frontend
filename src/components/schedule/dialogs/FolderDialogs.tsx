@@ -100,7 +100,7 @@ export function FolderContentsDialog({
 
   return (
     <Dialog open={Boolean(target)} onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="flex max-h-[85vh] flex-col">
+      <DialogContent positionKey="schema-mapp" className="flex max-h-[85vh] flex-col">
         <DialogHeader>
           <DialogTitle>
             {target?.kind === 'add' ? `Lägg till scheman i ${target.folder}` : 'Ny mapp'}
