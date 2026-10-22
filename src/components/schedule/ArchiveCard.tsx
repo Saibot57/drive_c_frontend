@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, Check, Copy, FolderInput, FolderPlus, Layers, Lock, MoreHorizontal, Share2, Trash2, Users } from 'lucide-react';
+import { CalendarDays, Check, Copy, FolderInput, FolderPlus, Layers, Lock, MoreHorizontal, Pencil, Share2, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -33,6 +33,8 @@ type ArchiveCardProps = {
   onDelete: (archive: PlannerArchiveSummary) => void;
   /** Gör om till basschema eller veckoschema. Bara ägaren ser valet. */
   onChangeKind: (archive: PlannerArchiveSummary) => void;
+  /** Byt namn… i menyn. Bara ägaren ser valet. */
+  onRename: (archive: PlannerArchiveSummary) => void;
   /**
    * Mapparna som syns i panelen, eller null när backend saknar mappar. Bara
    * ägarens veckoscheman kan flyttas.
@@ -56,6 +58,7 @@ export function ArchiveCard({
   onShare,
   onDelete,
   onChangeKind,
+  onRename,
   folderNames,
   onMoveToFolder,
   onNewFolderWith,
@@ -140,9 +143,10 @@ export function ArchiveCard({
         >
           <Share2 size={14}/>
         </Button>
-        {/* Bara ägaren byter sort och mapp, som i backend: båda avgör var
-            schemat syns för alla som har det. De ligger i en meny, eftersom en
-            femte knapp lämnade för lite plats åt namnet. */}
+        {/* Bara ägaren byter namn, sort och mapp, som i backend: namnet är
+            unikt bland ägarens scheman, och sort och mapp avgör var schemat
+            syns för alla som har det. De ligger i en meny, eftersom en femte
+            knapp lämnade för lite plats åt namnet. */}
         {archive.isOwner && (
           <DropdownMenu modal={false} onOpenChange={handleMenuOpenChange}>
             <DropdownMenuTrigger asChild>
@@ -157,6 +161,9 @@ export function ArchiveCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => onRename(archive)}>
+                <Pencil size={14}/> Byt namn…
+              </DropdownMenuItem>
               {canMove && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="gap-2">

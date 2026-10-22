@@ -660,6 +660,32 @@ export const useArchiveManager = ({
     }
   }, [releaseQuietly, saveNowRef, showNotice, upsertArchive]);
 
+  // --- Byta namn ---
+
+  const [isRenamingArchive, setIsRenamingArchive] = useState(false);
+
+  /**
+   * Byter namn på ett eget schema. Sant när det gick, så att dialogen kan
+   * stängas. Ingen sparning först och inget lås: namnet rör inte posterna.
+   * Ingen notis heller, det nya namnet syns direkt i panelen.
+   */
+  const handleRenameArchive = useCallback(async (archive: PlannerArchiveSummary, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+    if (trimmed === archive.name) return true;
+    setIsRenamingArchive(true);
+    try {
+      upsertArchive(await plannerService.renameArchive(archive.id, trimmed));
+      return true;
+    } catch (error) {
+      console.error('Renaming schedule failed', error);
+      showNotice(error instanceof Error ? error.message : 'Kunde inte byta namn på schemat.', 'error');
+      return false;
+    } finally {
+      setIsRenamingArchive(false);
+    }
+  }, [showNotice, upsertArchive]);
+
   // --- Delning ---
 
   const [shareArchive, setShareArchive] = useState<PlannerArchiveSummary | null>(null);
@@ -747,6 +773,8 @@ export const useArchiveManager = ({
     handleEditBase,
     handleFinishEditingBase,
     handleChangeKind,
+    handleRenameArchive,
+    isRenamingArchive,
     handleTakeOverLock,
     markLockLost,
     reloadActiveArchive,

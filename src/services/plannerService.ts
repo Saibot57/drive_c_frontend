@@ -174,6 +174,23 @@ export const plannerService = {
     return unwrap(payload) as PlannerArchiveSummary;
   },
 
+  /**
+   * Byter namn på ett schema. Bara ägaren får. Väntar inte på låset: namnet
+   * rör inte posterna, så den som har schemat öppet sparar vidare. 409 här
+   * betyder att namnet är upptaget, inte att schemat är låst.
+   */
+  async renameArchive(archiveId: string, name: string): Promise<PlannerArchiveSummary> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Kunde inte byta namn på schemat.');
+    }
+    return unwrap(payload) as PlannerArchiveSummary;
+  },
+
   async getArchiveActivities(archiveId: string): Promise<ArchiveActivitiesResult> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives/${archiveId}/activities`);
     if (response.status === 404) {
