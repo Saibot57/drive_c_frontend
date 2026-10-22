@@ -43,7 +43,7 @@ export const resolveWeekSource = (
 };
 
 export type CreateScheduleService = {
-  createArchive: (name: string, kind: ScheduleKind) => Promise<PlannerArchiveSummary>;
+  createArchive: (name: string, kind: ScheduleKind, folder: string | null) => Promise<PlannerArchiveSummary>;
   getArchiveActivities: (archiveId: string) => Promise<{ archive?: PlannerArchiveSummary; activities: PlannerActivity[] }>;
   getPlannerActivities: () => Promise<PlannerActivity[]>;
   saveArchiveActivities: (
@@ -77,12 +77,15 @@ export type CreateScheduleResult = {
 export const createScheduleFrom = async ({
   name,
   kind,
+  folder = null,
   source,
   previousArchiveId,
   service,
 }: {
   name: string;
   kind: ScheduleKind;
+  /** Mappen det nya schemat skapas i, eller null. */
+  folder?: string | null;
   source: NewScheduleSource;
   previousArchiveId: string | null;
   service: CreateScheduleService;
@@ -95,7 +98,7 @@ export const createScheduleFrom = async ({
   }
 
   const activities = sourceActivities.map(activity => ({ ...activity, id: uuidv4() }));
-  const created = await service.createArchive(name, kind);
+  const created = await service.createArchive(name, kind, folder);
 
   let archive = created;
   if (activities.length > 0) {

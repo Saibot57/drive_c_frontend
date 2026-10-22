@@ -27,3 +27,51 @@ describe('saveArchiveActivities', () => {
     await expect(plannerService.saveArchiveActivities('v35', [], 3)).rejects.toThrow(/^Kunde inte spara schemat\.$/);
   });
 });
+
+describe('mappar', () => {
+  const lastBody = (fetchMock: ReturnType<typeof vi.fn>) => JSON.parse(fetchMock.mock.calls[0][1].body);
+
+  it('skickar ingen mapp när ett schema skapas utan', async () => {
+    const fetchMock = respond(201, { success: true, data: { id: 'a1' }, error: null });
+    vi.stubGlobal('fetch', fetchMock);
+    await plannerService.createArchive('v.44', 'week');
+    expect(lastBody(fetchMock)).toEqual({ name: 'v.44', kind: 'week' });
+  });
+
+  it('skickar mappen när ett schema skapas i en', async () => {
+    const fetchMock = respond(201, { success: true, data: { id: 'a1' }, error: null });
+    vi.stubGlobal('fetch', fetchMock);
+    await plannerService.createArchive('v.44', 'week', 'HT26');
+    expect(lastBody(fetchMock)).toEqual({ name: 'v.44', kind: 'week', folder: 'HT26' });
+  });
+
+  it('flyttar och svarar med de ändrade schemana', async () => {
+    const fetchMock = respond(200, { success: true, data: [{ id: 'a1', folder: 'HT26' }], error: null });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(plannerService.moveArchivesToFolder(['a1'], 'HT26')).resolves.toEqual([{ id: 'a1', folder: 'HT26' }]);
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/planner\/folders\/placements$/);
+    expect(fetchMock.mock.calls[0][1].method).toBe('PUT');
+    expect(lastBody(fetchMock)).toEqual({ archiveIds: ['a1'], folder: 'HT26' });
+  });
+
+  it('visar serverns förklaring när flytten nekas', async () => {
+    vi.stubGlobal('fetch', respond(403, {
+      success: false, data: null, error: 'Bara den som äger schemat kan flytta det.',
+    }));
+    await expect(plannerService.moveArchivesToFolder(['a1'], 'HT26'))
+      .rejects.toThrow('Bara den som äger schemat kan flytta det.');
+  });
+
+  it('byter namn på mappen', async () => {
+    const fetchMock = respond(200, { success: true, data: [], error: null });
+    vi.stubGlobal('fetch', fetchMock);
+    await plannerService.renameFolder('HT26', 'Hösten');
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/planner\/folders\/rename$/);
+    expect(lastBody(fetchMock)).toEqual({ from: 'HT26', to: 'Hösten' });
+  });
+
+  it('har ett eget meddelande när namnbytet misslyckas utan förklaring', async () => {
+    vi.stubGlobal('fetch', respond(500, null));
+    await expect(plannerService.renameFolder('HT26', 'Hösten')).rejects.toThrow('Kunde inte byta namn på mappen.');
+  });
+});

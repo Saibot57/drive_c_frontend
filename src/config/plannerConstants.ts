@@ -54,6 +54,8 @@ export const DEFAULT_SELECTION_DEFAULTS = ['Lunch', 'Paus', 'Rast'];
 export const PLANNING_START_TIME_KEY = 'app.planning_start_time.v1';
 export const PLANNING_END_TIME_KEY = 'app.planning_end_time.v1';
 export const SIDEBAR_SECTIONS_KEY = 'app.planner_sections.v1';
+/** Mapparna i högerpanelen som är utfällda. Det som inte står här är hopfällt. */
+export const SCHEDULE_FOLDERS_EXPANDED_KEY = 'app.schedule_folders_expanded.v1';
 /**
  * Kvar för att kunna flytta över den som redan har ett aktivt schema. Namnet
  * duger inte längre som nyckel när ett delat schema kan heta samma sak som ett

@@ -196,6 +196,21 @@ describe('sorten på det nya schemat', () => {
       previousArchiveId: null,
       service,
     });
-    expect(service.createArchive).toHaveBeenCalledWith('Bas HT26', 'base');
+    expect(service.createArchive).toHaveBeenCalledWith('Bas HT26', 'base', null);
+  });
+});
+
+describe('mappen för det nya schemat', () => {
+  it('skickas med när schemat skapas', async () => {
+    const service = makeService();
+    await createScheduleFrom({
+      name: 'v.44',
+      kind: 'week',
+      folder: 'HT26',
+      source: { kind: 'empty' },
+      previousArchiveId: null,
+      service,
+    });
+    expect(service.createArchive).toHaveBeenCalledWith('v.44', 'week', 'HT26');
   });
 });

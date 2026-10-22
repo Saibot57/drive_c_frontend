@@ -140,10 +140,15 @@ export const plannerService = {
     return Array.isArray(archives) ? (archives as PlannerArchiveSummary[]) : [];
   },
 
-  async createArchive(name: string, kind: ScheduleKind = 'week'): Promise<PlannerArchiveSummary> {
+  async createArchive(
+    name: string,
+    kind: ScheduleKind = 'week',
+    folder: string | null = null
+  ): Promise<PlannerArchiveSummary> {
     const response = await fetchWithAuth(`${PLANNER_API_URL}/archives`, {
       method: 'POST',
-      body: JSON.stringify({ name, kind }),
+      // Utan mapp skickas ingen nyckel, så att en äldre backend inte får något nytt.
+      body: JSON.stringify(folder ? { name, kind, folder } : { name, kind }),
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
@@ -292,6 +297,39 @@ export const plannerService = {
       const payload = await response.json().catch(() => null);
       throw new Error(payload?.error || 'Kunde inte ta bort delningen.');
     }
+  },
+
+  // --- Mappar ---
+  //
+  // En mapp är `folder` på schemat. Bara ägaren flyttar, och alla som har
+  // schemat ser samma mapp. Båda anropen svarar med de ändrade schemana.
+
+  /** Lägger egna scheman i en mapp, eller tar ut dem med null. */
+  async moveArchivesToFolder(archiveIds: string[], folder: string | null): Promise<PlannerArchiveSummary[]> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/folders/placements`, {
+      method: 'PUT',
+      body: JSON.stringify({ archiveIds, folder }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || 'Kunde inte flytta schemat.');
+    }
+    const archives = unwrap(payload);
+    return Array.isArray(archives) ? (archives as PlannerArchiveSummary[]) : [];
+  },
+
+  /** Byter namn på mappen för de egna schemana. Andras mappar rörs inte. */
+  async renameFolder(from: string, to: string): Promise<PlannerArchiveSummary[]> {
+    const response = await fetchWithAuth(`${PLANNER_API_URL}/folders/rename`, {
+      method: 'POST',
+      body: JSON.stringify({ from, to }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || 'Kunde inte byta namn på mappen.');
+    }
+    const archives = unwrap(payload);
+    return Array.isArray(archives) ? (archives as PlannerArchiveSummary[]) : [];
   },
 
   // --- Publika länkar ---

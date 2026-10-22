@@ -19,6 +19,11 @@ type NewScheduleDialogProps = {
   onNameChange: (value: string) => void;
   source: NewScheduleSource;
   onSourceChange: (value: NewScheduleSource) => void;
+  /** Mappen ett nytt veckoschema skapas i, eller null. */
+  folder: string | null;
+  onFolderChange: (value: string | null) => void;
+  /** Mapparna som syns i panelen. Fältet visas bara när det finns några. */
+  folderNames: string[];
   /** Basscheman, egna före delade. */
   baseArchives: PlannerArchiveSummary[];
   /** Veckoscheman, egna före delade. Bara ett nytt basschema kan utgå från dem. */
@@ -55,6 +60,9 @@ export function NewScheduleDialog({
   onNameChange,
   source,
   onSourceChange,
+  folder,
+  onFolderChange,
+  folderNames,
   baseArchives,
   weekArchives,
   legacyMainCount,
@@ -67,6 +75,8 @@ export function NewScheduleDialog({
     ? `Duplicera ${duplicateOf.name}`
     : kind === 'base' ? 'Nytt basschema' : 'Nytt veckoschema';
   const showLegacyMain = (legacyMainCount ?? 0) > 0;
+  // Mappar finns bara för veckoscheman.
+  const showFolder = kind === 'week' && folderNames.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,6 +145,20 @@ export function NewScheduleDialog({
               </p>
             )}
           </div>
+          {showFolder && (
+            <div>
+              <Label htmlFor="new-schedule-folder">Mapp</Label>
+              <select
+                id="new-schedule-folder"
+                value={folder ?? ''}
+                onChange={(e) => onFolderChange(e.target.value || null)}
+                className="sp-input h-10 w-full rounded-base border-frame border-ui-line bg-ui-paper px-2 text-sm"
+              >
+                <option value="">Utan mapp</option>
+                {folderNames.map(name => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="neutral" type="button" onClick={() => onOpenChange(false)}>Avbryt</Button>
             <Button type="submit" disabled={!name.trim() || nameExists || isCreating}>Skapa</Button>
