@@ -361,7 +361,7 @@ export function BulkEditModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent positionKey="schema-massredigering" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Redigera {plural(entries.length)}</DialogTitle>
           <DialogDescription>

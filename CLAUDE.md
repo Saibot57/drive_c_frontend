@@ -76,6 +76,11 @@ före push.
   uppdatera dess rad i backendens `docs/granskning-status.md` i en commit där,
   i samma veva som fixen. Rapporterna själva är ögonblicksbilder och ändras
   inte.
+- **Dialoger** går att flytta (dra i rubriken, Ctrl+Cmd+pil) och minns sin
+  plats under sin rubrik så länge sidan är öppen (`useMovableDialog`). En
+  dialog vars rubrik ändras, t.ex. `Dela "X"`, behöver `positionKey`; en
+  dialog som täcker skärmen får `movable={false}`. Workspace-dialoger byggs
+  med `WorkspaceModal`.
 - **Nedladdning** går via `downloadBlob` (`utils/download.ts`). Att anropa
   `URL.revokeObjectURL` direkt efter klicket avbryter nedladdningen i vissa
   webbläsare.

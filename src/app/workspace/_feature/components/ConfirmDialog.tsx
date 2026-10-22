@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
+import WorkspaceModal from './WorkspaceModal';
 
 interface ConfirmDialogProps {
   title: string;
@@ -22,32 +23,30 @@ export default function ConfirmDialog({
   onClose,
 }: ConfirmDialogProps) {
   return (
-    <div className="ws-overlay-backdrop" onClick={onClose}>
-      <div className="ws-dialog ws-dialog--sm" onClick={(e) => e.stopPropagation()}>
-        <div className="ws-dialog__header">
-          <div className="ws-dialog__title">
-            {danger && <AlertTriangle size={14} className="ws-dialog__title-warn" />}
-            {title}
-          </div>
-        </div>
-
-        <p className="ws-dialog__text">{body}</p>
-
-        <div className="ws-dialog__footer">
-          <button className="ws-btn" onClick={onClose} autoFocus>
-            Avbryt
-          </button>
-          <button
-            className={`ws-btn ${danger ? 'ws-btn--danger' : 'ws-btn--primary'}`}
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-          >
-            {confirmLabel}
-          </button>
+    <WorkspaceModal positionKey="ws-confirm" onClose={onClose} className="ws-dialog--sm">
+      <div className="ws-dialog__header" data-dialog-handle="">
+        <div className="ws-dialog__title">
+          {danger && <AlertTriangle size={14} className="ws-dialog__title-warn" />}
+          {title}
         </div>
       </div>
-    </div>
+
+      <p className="ws-dialog__text">{body}</p>
+
+      <div className="ws-dialog__footer">
+        <button className="ws-btn" onClick={onClose} autoFocus>
+          Avbryt
+        </button>
+        <button
+          className={`ws-btn ${danger ? 'ws-btn--danger' : 'ws-btn--primary'}`}
+          onClick={() => {
+            onConfirm();
+            onClose();
+          }}
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </WorkspaceModal>
   );
 }

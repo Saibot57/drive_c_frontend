@@ -49,6 +49,8 @@
   --ui-danger-fg: #000000;
   --ui-warning-bg: #fde68a;
   --ui-scrim: rgba(0, 0, 0, 0.8);
+  /* Bakom en dialog som flyttats undan: det under ska gå att läsa. */
+  --ui-scrim-light: rgba(0, 0, 0, 0.3);
   --ui-focus: #000000;
 
   --ui-course-mix: 100%;
@@ -98,6 +100,7 @@
   --ui-danger-fg: #FFFFFF;
   --ui-warning-bg: #EFE3C8;
   --ui-scrim: rgba(31, 32, 34, 0.28);
+  --ui-scrim-light: rgba(31, 32, 34, 0.12);
   --ui-focus: #1F2022;
 
   /* Kursfärgen blandas med en varm grå i samma ljushet, inte med papperet:
