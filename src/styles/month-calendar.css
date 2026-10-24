@@ -155,8 +155,20 @@
   z-index: 4;
 }
 
+/* ── Radytan ───────────────────────────────────────────────────────────────
+ * Allt under datumhuvudet. Den delas i --mc-rows lika höga rader (4–7, sätts
+ * på .mc-grid): ett band, en textrad och en linje per rad. Radytan är
+ * container, så att textens radhöjd kan räknas ur dess höjd med cqh.
+ */
+.mc-lines {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  container-type: size;
+}
+
 /* ── Bandlager ─────────────────────────────────────────────────────────────
- * Ligger bakom innehållet och är genomsläppligt för klick i normalläge.
+ * Ligger bakom texten och är genomsläppligt för klick i normalläge.
  * Först när highlighter-läget är på blir banden träffbara.
  */
 .mc-bands {
@@ -169,6 +181,7 @@
 }
 
 .mc-band {
+  position: relative;
   flex: 1;
   min-height: 0;
   border: none;
@@ -178,6 +191,22 @@
      något ritas ut. */
   border-radius: 3px 7px 4px 8px / 6px 3px 7px 4px;
   transition: background-color 120ms ease;
+}
+
+/* Skrivlinjen under varje rad. Den hör till bandet, så linjerna följer antalet
+   och hamnar exakt där raderna går. Den sista linjen vore cellens kant. */
+.mc-band::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--mc-rule);
+}
+
+.mc-band:last-child::after {
+  display: none;
 }
 
 .mc-root--painting .mc-bands {
@@ -209,9 +238,8 @@
   cursor: cell;
 }
 
-/* Datumhuvudet ligger över bandlagret och förblir klickbart även när man målar.
-   Själva raden är genomsläpplig — annars hade den täckt hela översta bandet och
-   gjort det omålbart. Bara knappen och markören tar emot klick. */
+/* Datumhuvudet ligger ovanför radytan och förblir klickbart även när man
+   målar. Bara knappen och markören tar emot klick. */
 .mc-dayhead {
   position: relative;
   z-index: 2;
@@ -261,33 +289,27 @@
 }
 
 /* ── Snabbtext ─────────────────────────────────────────────────────────────
- * Skrivlinjerna är CSS, inte en bild — de skalar med radhöjden och kostar
- * ingenting i export.
+ * Radhöjden är radytans höjd delad med antalet rader, och textstorleken följer
+ * radhöjden. Ingen utfyllnad upptill eller nertill — då glider raderna isär
+ * från banden. Linjerna ritas av banden, inte här.
  */
 .mc-quicktext {
-  position: relative;
+  --mc-row: calc(100cqh / var(--mc-rows, 5));
+  position: absolute;
+  inset: 0;
   z-index: 1;
-  flex: 1;
-  min-height: 0;
   width: 100%;
+  height: 100%;
   resize: none;
   border: none;
   outline: none;
   background: transparent;
-  padding: 0.1rem 0.4rem 0.3rem;
+  padding: 0 0.4rem;
   font: inherit;
-  font-size: 0.72rem;
-  line-height: 1.15rem;
+  font-size: clamp(0.5rem, calc(var(--mc-row) * 0.58), 1.1rem);
+  line-height: var(--mc-row);
   color: var(--sp-text);
   overflow: hidden;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 1.1rem,
-    var(--mc-rule) 1.1rem,
-    var(--mc-rule) calc(1.1rem + 1px)
-  );
-  background-position: 0 0.15rem;
 }
 
 .mc-quicktext:focus {
@@ -302,16 +324,23 @@
   cursor: inherit;
 }
 
-/* Toningen antyder att texten fortsätter utan att kapa sparad data. */
+/* Toningen antyder att texten fortsätter utan att kapa sparad data. Den syns
+   bara när en radbruten rad inte får plats — annars skulle den tona bort
+   sista raden. */
 .mc-fade {
+  display: none;
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 1rem;
+  height: 0.6rem;
   z-index: 1;
   pointer-events: none;
   background: linear-gradient(to bottom, rgba(253, 252, 248, 0), var(--mc-paper));
+}
+
+.mc-cell--overflowing .mc-fade {
+  display: block;
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────────────────*/
@@ -478,10 +507,6 @@
 
   .mc-grid {
     grid-template-columns: 1.9rem repeat(7, minmax(0, 1fr));
-  }
-
-  .mc-quicktext {
-    font-size: 0.65rem;
   }
 }
 

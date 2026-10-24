@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import monthCalendarService, {
   emptyDay,
   type CalendarDayData,
+  type CalendarSettingsData,
   type DayPatch,
   type Highlight,
   type NoteDocument,
@@ -15,7 +16,8 @@ import {
   type DateKey,
   type DayCell,
 } from '@/utils/calendarDates';
-import { DEFAULT_BANDS } from '@/config/monthCalendarConstants';
+import { DEFAULT_BANDS, MIN_BANDS } from '@/config/monthCalendarConstants';
+import { countTextRows, minRowsFor } from '@/utils/calendarRows';
 import useCalendarAutosave from '@/hooks/useCalendarAutosave';
 
 /**
@@ -28,6 +30,10 @@ import useCalendarAutosave from '@/hooks/useCalendarAutosave';
 export function useCalendarData(year: number, month: number) {
   const [days, setDays] = useState<Map<DateKey, CalendarDayData>>(new Map());
   const [bandCount, setBandCount] = useState(DEFAULT_BANDS);
+  // Serverns lägsta antal räknas över alla dagar, även i månader som inte
+  // hämtats. Den kan vara inaktuell tills den hämtas om, se refreshBandLimits.
+  const [serverMinBands, setServerMinBands] = useState(MIN_BANDS);
+  const [bandError, setBandError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -51,6 +57,7 @@ export function useCalendarData(year: number, month: number) {
   const autosave = useCalendarAutosave({
     onSave: (key, patch, keepalive) => monthCalendarService.patchDay(key, patch, keepalive),
   });
+  const flushAll = autosave.flushAll;
 
   // ─── Hämtning ──────────────────────────────────────────────────────────────
 
@@ -92,18 +99,23 @@ export function useCalendarData(year: number, month: number) {
     return () => controller.abort();
   }, [year, month, range.start, range.end]);
 
+  const applySettings = useCallback((s: CalendarSettingsData) => {
+    setBandCount(s.highlight_band_count);
+    setServerMinBands(s.min_highlight_band_count ?? MIN_BANDS);
+  }, []);
+
   // Inställningar hämtas en gång.
   useEffect(() => {
     const controller = new AbortController();
     monthCalendarService
       .getSettings(controller.signal)
-      .then((s) => setBandCount(s.highlight_band_count))
+      .then(applySettings)
       .catch(() => {
-        // Bandantalet är kosmetiskt — faller tillbaka på default utan att
-        // störa användaren med ett felmeddelande.
+        // Faller tillbaka på default utan att störa användaren med ett
+        // felmeddelande. Servern stoppar ändå ett för lågt antal.
       });
     return () => controller.abort();
-  }, []);
+  }, [applySettings]);
 
   // ─── Läsning ───────────────────────────────────────────────────────────────
 
@@ -140,19 +152,51 @@ export function useCalendarData(year: number, month: number) {
     return autosave.saveNow(key, { highlights });
   }, [applyLocal, autosave]);
 
+  // Dagar som ändrats här kan ha fler rader än servern hunnit se.
+  const minBandCount = useMemo(() => {
+    let used = 0;
+    for (const key of Array.from(dirty.current)) {
+      const day = days.get(key);
+      if (day) used = Math.max(used, countTextRows(day.quick_text));
+    }
+    return Math.max(serverMinBands, minRowsFor(used));
+  }, [days, serverMinBands]);
+
+  /**
+   * Hämtar om det lägsta antalet. Har en dag fått färre rader här, eller på en
+   * annan enhet, vet bara servern om ett lägre antal går att välja nu. Väntande
+   * text spolas först så att servern räknar på den.
+   */
+  const refreshBandLimits = useCallback(async () => {
+    try {
+      await flushAll();
+      applySettings(await monthCalendarService.getSettings());
+    } catch {
+      // Gränsen i listan står kvar; servern avgör ändå vid bytet.
+    }
+  }, [flushAll, applySettings]);
+
   const changeBandCount = useCallback(async (count: number) => {
     const previous = bandCount;
     setBandCount(count); // optimistiskt
+    setBandError(null);
     try {
-      await monthCalendarService.patchSettings(count);
-    } catch {
+      applySettings(await monthCalendarService.patchSettings(count));
+    } catch (e) {
       setBandCount(previous);
+      // Serverns 400 säger vilken dag som stoppar. Ett nätverksfel (TypeError)
+      // har bara webbläsarens engelska text.
+      setBandError(
+        e instanceof Error && !(e instanceof TypeError)
+          ? e.message
+          : 'Kunde inte ändra antalet rader.',
+      );
+      void refreshBandLimits();
     }
-  }, [bandCount]);
+  }, [bandCount, applySettings, refreshBandLimits]);
 
   // Väntande text spolas vid månadsbyte, så att en halvskriven cell inte
   // ligger kvar osparad medan användaren bläddrar vidare.
-  const flushAll = autosave.flushAll;
   useEffect(() => {
     return () => {
       void flushAll();
@@ -166,7 +210,10 @@ export function useCalendarData(year: number, month: number) {
     loading,
     loadError,
     bandCount,
+    minBandCount,
+    bandError,
     changeBandCount,
+    refreshBandLimits,
     setQuickText,
     setNoteDocument,
     setHighlights,

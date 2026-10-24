@@ -31,6 +31,11 @@ export interface CalendarDayData {
 
 export interface CalendarSettingsData {
   highlight_band_count: number;
+  /**
+   * Lägsta antal som går att välja: den dag som har flest textrader. Saknas
+   * mot en äldre backend.
+   */
+  min_highlight_band_count?: number;
 }
 
 /** Partiell uppdatering — bara medskickade fält rörs på servern. */

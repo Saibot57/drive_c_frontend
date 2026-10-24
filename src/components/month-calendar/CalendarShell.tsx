@@ -39,7 +39,10 @@ export default function CalendarShell() {
     loading,
     loadError,
     bandCount,
+    minBandCount,
+    bandError,
     changeBandCount,
+    refreshBandLimits,
     setQuickText,
     setNoteDocument,
     setHighlights,
@@ -118,6 +121,8 @@ export default function CalendarShell() {
         mode={mode}
         activeColor={activeColor}
         bandCount={bandCount}
+        minBandCount={minBandCount}
+        bandError={bandError}
         saveStatus={saveStatus}
         onPrev={() => goMonth(-1)}
         onNext={() => goMonth(1)}
@@ -129,6 +134,7 @@ export default function CalendarShell() {
         }}
         onErase={() => setMode((m) => (m === 'erase' ? 'paint' : 'erase'))}
         onBandCount={changeBandCount}
+        onBandFocus={() => void refreshBandLimits()}
       />
 
       <div className="mc-body">

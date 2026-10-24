@@ -71,7 +71,14 @@ export default function MonthGrid({
 
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
-    <div className="mc-grid" role="grid" aria-label="Månadskalender" onKeyDown={onKeyDown}>
+    <div
+      className="mc-grid"
+      role="grid"
+      aria-label="Månadskalender"
+      onKeyDown={onKeyDown}
+      // Radhöjd, textstorlek och linjer räknas fram ur antalet i CSS.
+      style={{ '--mc-rows': bandCount } as React.CSSProperties}
+    >
       <div className="mc-corner" role="presentation" />
       {SV_WEEKDAYS_SHORT.map((d) => (
         <div key={d} className="mc-weekday" role="columnheader">

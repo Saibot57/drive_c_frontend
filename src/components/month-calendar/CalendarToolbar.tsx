@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Cloud, CloudOff, Highlighter, Loader2 } from
 
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import type { HighlightColor } from '@/services/monthCalendarService';
+import { MAX_BANDS, MIN_BANDS } from '@/config/monthCalendarConstants';
 import { formatMonthTitle } from '@/utils/calendarDates';
 import type { SaveStatus } from '@/hooks/useCalendarAutosave';
 import HighlighterPalette from './HighlighterPalette';
@@ -15,6 +16,8 @@ interface Props {
   mode: HighlighterMode;
   activeColor: HighlightColor;
   bandCount: number;
+  minBandCount: number;
+  bandError: string | null;
   saveStatus: SaveStatus;
   onPrev: () => void;
   onNext: () => void;
@@ -23,6 +26,7 @@ interface Props {
   onColor: (c: HighlightColor) => void;
   onErase: () => void;
   onBandCount: (n: number) => void;
+  onBandFocus: () => void;
 }
 
 export default function CalendarToolbar({
@@ -31,6 +35,8 @@ export default function CalendarToolbar({
   mode,
   activeColor,
   bandCount,
+  minBandCount,
+  bandError,
   saveStatus,
   onPrev,
   onNext,
@@ -39,7 +45,10 @@ export default function CalendarToolbar({
   onColor,
   onErase,
   onBandCount,
+  onBandFocus,
 }: Props) {
+  const rowOptions = Array.from({ length: MAX_BANDS - MIN_BANDS + 1 }, (_, i) => MIN_BANDS + i);
+
   return (
     <header className="mc-toolbar">
       <div className="flex flex-wrap items-center gap-3 px-4 py-2">
@@ -71,6 +80,37 @@ export default function CalendarToolbar({
           Markera
         </button>
 
+        {/* Raderna är både textrader och överstrykningsband. */}
+        <label
+          className="flex items-center gap-1.5 text-xs font-semibold"
+          title={
+            minBandCount > MIN_BANDS
+              ? `En dag har ${minBandCount} rader text. Ta bort rader där för att välja färre.`
+              : undefined
+          }
+        >
+          Rader
+          <select
+            className="mc-btn"
+            value={bandCount}
+            onFocus={onBandFocus}
+            onChange={(e) => onBandCount(Number(e.target.value))}
+            aria-label="Antal rader per dag"
+            aria-describedby={bandError ? 'mc-band-error' : undefined}
+          >
+            {rowOptions.map((n) => (
+              <option key={n} value={n} disabled={n < minBandCount && n !== bandCount}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        {bandError && (
+          <span id="mc-band-error" role="alert" className="text-xs font-semibold text-red-600 kron:text-ui-danger">
+            {bandError}
+          </span>
+        )}
+
         {/* Sparstatus bor bara här, inte också i sidebaren. */}
         <div className="ml-auto flex items-center gap-1.5 text-xs text-ui-muted" aria-live="polite">
           {saveStatus === 'saving' && (
@@ -99,10 +139,8 @@ export default function CalendarToolbar({
           <HighlighterPalette
             mode={mode}
             activeColor={activeColor}
-            bandCount={bandCount}
             onColor={onColor}
             onErase={onErase}
-            onBandCount={onBandCount}
           />
         </div>
       )}
