@@ -25,6 +25,7 @@ import { sanitizeRoomTriggers } from '@/utils/roomTriggers';
 import { sanitizeExcludeList } from '@/utils/exportExclusions';
 import { sanitizePlanningMinGap, sanitizePlanningTime } from '@/utils/planningTime';
 import { sanitizeTeacherAvailability } from '@/utils/scheduleRules';
+import { HIDDEN_SETTING_KEYS, ImportedHiddenSettings } from '@/utils/plannerBackup';
 
 /**
  * Allt debugmenyn sparar, som ett namngivet objekt. Tidigare var det nio
@@ -132,14 +133,41 @@ export const useHiddenSettings = () => {
   }, [persistExportExcludes]);
 
   /**
-   * Sätter listorna vid import utan att röra spärrarna. Skiljer sig från
-   * handleHiddenSettingsSave med flit: den beskär tillgängligheten mot
-   * lärarlistan, vilket vid en import skulle slänga precis det som importeras.
+   * Sätter inställningarna ur en importerad JSON-backup. Bara de som står i
+   * filen ändras. Skiljer sig från handleHiddenSettingsSave med flit: den
+   * beskär tillgängligheten mot lärarlistan, vilket vid en import skulle
+   * slänga precis det som importeras.
    */
-  const applyTeachersAndRooms = useCallback((nextTeachers: unknown, nextRooms: unknown) => {
-    persistTeachers(nextTeachers);
-    persistRooms(nextRooms);
-  }, [persistTeachers, persistRooms]);
+  const applyImportedSettings = useCallback((imported: ImportedHiddenSettings) => {
+    const persist: Record<keyof HiddenSettingsDraft, (next: unknown) => void> = {
+      teachers: persistTeachers,
+      rooms: persistRooms,
+      teacherAvailability: persistAvailability,
+      colorTriggers: persistColorTriggers,
+      roomTriggers: persistRoomTriggers,
+      planningMinGap: persistPlanningMinGap,
+      exportExcludes: persistExportExcludes,
+      pasteProtect: persistPasteProtect,
+      selectionDefaults: persistSelectionDefaults,
+      planningStartMinutes: persistPlanningStart,
+      planningEndMinutes: persistPlanningEnd,
+    };
+    for (const key of HIDDEN_SETTING_KEYS) {
+      if (key in imported) persist[key](imported[key]);
+    }
+  }, [
+    persistTeachers,
+    persistRooms,
+    persistAvailability,
+    persistColorTriggers,
+    persistRoomTriggers,
+    persistPlanningMinGap,
+    persistExportExcludes,
+    persistPasteProtect,
+    persistSelectionDefaults,
+    persistPlanningStart,
+    persistPlanningEnd
+  ]);
 
   const handleHiddenSettingsSave = useCallback((next: HiddenSettingsDraft) => {
     persistTeachers(next.teachers);
@@ -179,12 +207,7 @@ export const useHiddenSettings = () => {
     planningEndMinutes,
     isLoaded,
     /** Används när ett schema importeras från JSON. */
-    applyTeacherAvailability: persistAvailability,
-    applyTeachersAndRooms,
-    applyColorTriggers: persistColorTriggers,
-    applyRoomTriggers: persistRoomTriggers,
-    applyPlanningMinGap: persistPlanningMinGap,
-    applyPlanningFrame,
+    applyImportedSettings,
     clearExportExcludes,
     isHiddenSettingsOpen,
     setIsHiddenSettingsOpen,
