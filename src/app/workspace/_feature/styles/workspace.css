@@ -424,6 +424,16 @@
   border-style: dashed;
 }
 
+/* En bild ska synas som den är. Typfärgen och det streckade upplåsta läget
+   ritas inte; om kortet är låst syns på knappen i hörnet när man pekar på det. */
+.ws-element--plain::before {
+  content: none;
+}
+
+.ws-element--plain.ws-element--unlocked {
+  border-style: solid;
+}
+
 /* Innehållsytan. Modifierarna följer elementtypen: bild, PDF och länk
    ritar ända ut i kanten, notislappen har sin egen inre padding. */
 .ws-element__content {
