@@ -311,4 +311,20 @@ describe('useThemeWheelSync', () => {
     expect(h.result.wheel.id).toBe('B');
     expect(service.updateWheel).not.toHaveBeenCalled();
   });
+
+  it('laddar inte upp ett gammalt lokalt utkast i ett konto utan hjul (dataintegritet F24)', async () => {
+    // Nyckeln var inte knuten till någon användare. På en delad dator hamnade
+    // utkastet i det konto som först öppnade temakalendern.
+    window.localStorage.setItem('theme_wheel_draft_v1', JSON.stringify({ ...wheelA, name: 'Någon annans' }));
+    service.listWheels.mockResolvedValue([]);
+    service.createWheel.mockImplementation(async (wheel: ThemeWheel) => ({ ...wheel, id: 'N' }));
+
+    const h = renderWheelSync();
+    await settle();
+    h.unmount();
+
+    expect(service.createWheel).toHaveBeenCalledTimes(1);
+    expect((service.createWheel.mock.calls[0][0] as ThemeWheel).name).toBe('Nytt tema');
+    expect(h.result.wheel.name).toBe('Nytt tema');
+  });
 });
