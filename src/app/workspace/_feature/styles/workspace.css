@@ -424,14 +424,15 @@
   border-style: dashed;
 }
 
-/* En bild ska synas som den är. Typfärgen och det streckade upplåsta läget
-   ritas inte; om kortet är låst syns på knappen i hörnet när man pekar på det. */
-.ws-element--plain::before {
-  content: none;
+/* En bild ska synas som den är: ingen ram, ingen typfärg och inget streckat
+   upplåst läge. Om kortet är låst syns på knappen i hörnet när man pekar på
+   det. */
+.ws-element--plain {
+  border: none;
 }
 
-.ws-element--plain.ws-element--unlocked {
-  border-style: solid;
+.ws-element--plain::before {
+  content: none;
 }
 
 /* Innehållsytan. Modifierarna följer elementtypen: bild, PDF och länk
@@ -1738,6 +1739,37 @@
 }
 
 .ws-corner-btn:disabled {
+  cursor: not-allowed;
+}
+
+/* Valet mellan Drives mindre version och hela filen, nere i bildens hörn. */
+.ws-media__resolution {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--ws-control-border);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--ws-bg) 90%, transparent);
+  font-size: var(--ws-font-xs);
+}
+
+.ws-media__resolution-option {
+  padding: 0.125rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--ws-text-muted);
+  cursor: pointer;
+}
+
+.ws-media__resolution-option[aria-pressed='true'] {
+  background: var(--ws-bg-hover);
+  color: var(--ws-text);
+  font-weight: 600;
+}
+
+.ws-media__resolution-option:disabled {
   cursor: not-allowed;
 }
 

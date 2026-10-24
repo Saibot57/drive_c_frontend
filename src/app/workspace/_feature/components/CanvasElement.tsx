@@ -55,7 +55,7 @@ const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link', 'wheel_ref
 const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link', 'wheel_ref', 'schedule_day'];
 /** Ritas utan kort: formen är elementet, och rektangeln runt den var en lögn. */
 const BARE_TYPES: ElementType[] = ['wheel_part', 'heading'];
-/** Bilden är innehållet: ingen typfärgslist och ingen streckad ram när kortet är upplåst. */
+/** Bilden är innehållet: ingen ram och ingen typfärgslist. */
 const PLAIN_TYPES: ElementType[] = ['image'];
 
 /**

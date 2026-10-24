@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, FileText, Loader2, AlertCircle } from 'lucide-react';
 import type { PdfContent } from '../../types/pdf.types';
-import { parseSource, fetchPdfBytes } from '../../services/pdfProxyService';
+import { parseSource, fetchPdfBytes, unknownLinkMessage } from '../../services/pdfProxyService';
 
 // pdfjs-dist types are imported lazily inside the effect to keep the main
 // workspace bundle free of pdf.js for users who don't open PDFs.
@@ -218,7 +218,7 @@ export default function PdfViewer({ content, isLocked, isSelected, onChange }: P
   const handleLoadUrl = useCallback(() => {
     const parsed = parseSource(urlInput);
     if (!parsed) {
-      setError('Okänt länkformat. Klistra in en Google Drive-, OneDrive- eller direkt PDF-länk.');
+      setError(unknownLinkMessage(urlInput, 'PDF-länk'));
       return;
     }
     setError(null);
@@ -253,7 +253,7 @@ export default function PdfViewer({ content, isLocked, isSelected, onChange }: P
       <div ref={containerRef} className="ws-source-form ws-source-form--centered" style={pointerStyle}>
         <FileText size={28} strokeWidth={1.5} />
         <div className="ws-source-form__hint">
-          Klistra in en delningslänk till en PDF (Google Drive, OneDrive eller direkt URL).
+          Klistra in en delningslänk till en PDF (Google Drive eller direkt URL).
         </div>
         <input
           type="text"

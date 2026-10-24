@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageIcon, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import type { ImageContent } from '../../types/image.types';
-import { parseSource, fetchImageBytes } from '../../services/imageProxyService';
+import {
+  DEFAULT_IMAGE_RESOLUTION,
+  type ImageContent,
+  type ImageResolution,
+} from '../../types/image.types';
+import { parseSource, fetchImageBytes, unknownLinkMessage } from '../../services/imageProxyService';
+
+const RESOLUTION_OPTIONS: { value: ImageResolution; label: string; title: string }[] = [
+  { value: 'preview', label: 'Mindre', title: 'Drives mindre version laddar snabbare' },
+  { value: 'full', label: 'Full storlek', title: 'Hela filen, i full upplösning' },
+];
 
 interface ImageViewerProps {
   content: ImageContent;
@@ -14,6 +23,7 @@ interface ImageViewerProps {
 
 export default function ImageViewer({ content, isLocked, isSelected, onChange }: ImageViewerProps) {
   const source = content?.source ?? null;
+  const resolution = content?.resolution ?? DEFAULT_IMAGE_RESOLUTION;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const blobUrlRef = useRef<string | null>(null);
@@ -37,7 +47,7 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
 
     (async () => {
       try {
-        const blob = await fetchImageBytes(source);
+        const blob = await fetchImageBytes(source, resolution);
         if (cancelled) return;
 
         // Revoke previous blob URL
@@ -62,7 +72,7 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
     return () => {
       cancelled = true;
     };
-  }, [source]);
+  }, [source, resolution]);
 
   // ── Cleanup blob URL on unmount ──
   useEffect(() => {
@@ -77,12 +87,17 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
   const handleLoadUrl = useCallback(() => {
     const parsed = parseSource(urlInput);
     if (!parsed) {
-      setError('Okänt länkformat. Klistra in en Google Drive-, OneDrive- eller direkt bildlänk.');
+      setError(unknownLinkMessage(urlInput, 'bildlänk'));
       return;
     }
     setError(null);
-    onChange({ source: parsed, fileName: undefined });
-  }, [urlInput, onChange]);
+    onChange({ source: parsed, fileName: undefined, resolution: content?.resolution });
+  }, [urlInput, onChange, content?.resolution]);
+
+  const handleResolution = useCallback((next: ImageResolution) => {
+    if (next === resolution) return;
+    onChange({ ...content, resolution: next });
+  }, [content, resolution, onChange]);
 
   const handleClearSource = useCallback(() => {
     setUrlInput('');
@@ -101,7 +116,7 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
       <div ref={containerRef} className="ws-source-form ws-source-form--centered" style={pointerStyle}>
         <ImageIcon size={28} strokeWidth={1.5} />
         <div className="ws-source-form__hint">
-          Klistra in en delningslänk till en bild (Google Drive, OneDrive eller direkt URL).
+          Klistra in en delningslänk till en bild (Google Drive eller direkt URL).
         </div>
         <input
           type="text"
@@ -173,6 +188,25 @@ export default function ImageViewer({ content, isLocked, isSelected, onChange }:
           />
         )}
       </div>
+
+      {/* Mindre version eller hela filen. Bara Drive har en mindre version. */}
+      {isSelected && source.kind === 'gdrive' && !loading && (
+        <div className="ws-media__resolution" role="group" aria-label="Bildens storlek">
+          {RESOLUTION_OPTIONS.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={resolution === option.value}
+              onClick={() => handleResolution(option.value)}
+              disabled={isLocked}
+              title={option.title}
+              className="ws-media__resolution-option"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Change-image button — only visible when selected */}
       {isSelected && blobUrl && !loading && !error && (
