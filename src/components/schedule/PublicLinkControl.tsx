@@ -17,6 +17,7 @@ import {
 } from '@/types/schedule';
 import { PlannerNoticeTone } from '@/types/plannerUI';
 import { parseExcludeList } from '@/utils/exportExclusions';
+import { displayConfigFor, rulesSignature } from '@/utils/publicLinkRules';
 import { partitionSchedules } from '@/utils/scheduleKind';
 
 type Props = {
@@ -33,18 +34,15 @@ type Props = {
 const publicUrlFor = (token: string) =>
   typeof window === 'undefined' ? `/s/${token}` : `${window.location.origin}/s/${token}`;
 
-const rulesSignature = (colorTriggers: ColorTriggerRule[], roomTriggers: RoomTriggerRule[]) =>
-  JSON.stringify([colorTriggers, roomTriggers]);
-
 /**
  * Knappen och dialogen för den publika länken: en fast adress deltagarna har
  * som bokmärke, och som läraren pekar om mot veckans schema.
  *
  * Färg- och salsreglerna bor i den här webbläsarens localStorage, så en kopia
- * följer med länken. Den skickas när länken skapas eller pekas om, och när
- * reglerna ändras under sessionen — men *inte* bara för att planeraren
- * laddats. Annars skulle en dator utan reglerna tyst skriva över länkens färger
- * med tomma listor så fort den öppnade planeraren.
+ * följer med länken. Den skickas när länken skapas och när reglerna ändras
+ * under sessionen — men *inte* bara för att planeraren laddats eller länken
+ * pekas om. Annars skulle en dator utan reglerna tyst skriva över länkens
+ * färger med tomma listor (dataintegritet F16, se displayConfigFor).
  */
 export default function PublicLinkControl({
   archives,
@@ -89,10 +87,20 @@ export default function PublicLinkControl({
     });
   }, []);
 
-  const displayConfigWith = useCallback(
-    (hiddenTitles: string[]) => ({ hiddenTitles, colorTriggers, roomTriggers }),
-    [colorTriggers, roomTriggers]
-  );
+  // Sätts längre ner av regelspeglingen. Läses bara i handlingarna.
+  const baselineRef = useRef<string | null>(null);
+  const signature = rulesSignature({ colorTriggers, roomTriggers });
+
+  /** Reglerna har ändrats på den här enheten sedan planeraren laddades. */
+  const rulesChangedHere = () => baselineRef.current !== null && signature !== baselineRef.current;
+
+  const displayConfigWith = (hiddenTitles: string[], saved: PlannerPublicLink | null) =>
+    displayConfigFor(
+      hiddenTitles,
+      saved?.displayConfig ?? null,
+      { colorTriggers, roomTriggers },
+      rulesChangedHere(),
+    );
 
   const run = useCallback(async (action: () => Promise<void>) => {
     setIsBusy(true);
@@ -116,9 +124,6 @@ export default function PublicLinkControl({
 
   // --- Regelspegling ---
 
-  const signature = rulesSignature(colorTriggers, roomTriggers);
-  const baselineRef = useRef<string | null>(null);
-
   useEffect(() => {
     if (!settingsLoaded) return;
     if (baselineRef.current === null) {
@@ -128,6 +133,7 @@ export default function PublicLinkControl({
     if (signature === baselineRef.current || !links || links.length === 0) return;
 
     const timer = window.setTimeout(() => {
+      const previous = baselineRef.current;
       baselineRef.current = signature;
       void Promise.all(links.map(item =>
         plannerService.updatePublicLink(item.id, {
@@ -139,7 +145,12 @@ export default function PublicLinkControl({
         })
       ))
         .then(updated => setLinks(updated))
-        .catch(() => showNotice('Kunde inte föra över färg- och salsreglerna till den publika länken.', 'warning'));
+        .catch(() => {
+          // Reglerna räknas fortfarande som ändrade här, så nästa ompekning
+          // eller sparning tar dem med.
+          baselineRef.current = previous;
+          showNotice('Kunde inte föra över färg- och salsreglerna till den publika länken.', 'warning');
+        });
     }, 1000);
     return () => window.clearTimeout(timer);
   }, [signature, settingsLoaded, links, colorTriggers, roomTriggers, showNotice]);
@@ -156,7 +167,7 @@ export default function PublicLinkControl({
   const handleCreate = () => run(async () => {
     const created = await plannerService.createPublicLink({
       archiveId: activeArchiveId,
-      displayConfig: displayConfigWith([]),
+      displayConfig: displayConfigWith([], null),
     });
     replaceLink(created);
     resetDrafts(created);
@@ -164,14 +175,12 @@ export default function PublicLinkControl({
 
   const handlePoint = (archiveId: string | null) => update({
     archiveId,
-    // Veckobytet är det man gör varje vecka, så reglerna följer med här — då
-    // hinner de aldrig bli mer än en vecka inaktuella.
-    displayConfig: displayConfigWith(link?.displayConfig.hiddenTitles ?? []),
+    displayConfig: displayConfigWith(link?.displayConfig.hiddenTitles ?? [], link),
   });
 
   const handleSaveDetails = () => update({
     label: labelDraft.trim() || null,
-    displayConfig: displayConfigWith(parseExcludeList(hiddenDraft)),
+    displayConfig: displayConfigWith(parseExcludeList(hiddenDraft), link),
   });
 
   const handleRotate = () => run(async () => {
