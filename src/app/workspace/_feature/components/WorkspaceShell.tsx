@@ -513,8 +513,8 @@ function WorkspaceInner() {
 
   /**
    * Ctrl+Z ligger i useUndoHotkey. Resten här. useHotkeys hoppar över
-   * inmatningsfält som standard, så Delete raderar aldrig ett element medan
-   * man skriver i det.
+   * inmatningsfält som standard, så Delete och Backspace raderar aldrig ett
+   * element medan man skriver i det.
    */
   useHotkeys(
     [
@@ -531,6 +531,13 @@ function WorkspaceInner() {
       },
       {
         key: 'Delete',
+        handler: () => {
+          if (state.selectedElementId) requestDeleteElement(state.selectedElementId);
+        },
+      },
+      // Mac-tangentbord har ingen Delete-tangent; där heter den Backspace.
+      {
+        key: 'Backspace',
         handler: () => {
           if (state.selectedElementId) requestDeleteElement(state.selectedElementId);
         },
