@@ -187,4 +187,12 @@ export interface PersistedPlannerState {
   /** Arbetsdagens gränser i planeringsvyn, minuter från midnatt. `null` = standard. */
   planningStartMinutes?: number | null;
   planningEndMinutes?: number | null;
+  /**
+   * Titlar som är ikryssade i ett nytt urval, som inte tar emot inklistrade
+   * anteckningar och som nästa export hoppar över. Saknades till och med
+   * version 12 (arkitektur F10).
+   */
+  selectionDefaults?: string[];
+  pasteProtect?: string[];
+  exportExcludes?: string[];
 }

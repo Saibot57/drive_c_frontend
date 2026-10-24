@@ -103,10 +103,10 @@ före push.
   `NewSchedulePlanner.tsx`, som stoppar ändringar i läsläge.
   `applyScheduleFromServer` är bara till för inläsningar från servern; en ny
   redigeringsväg som använder den går förbi läsläget.
-- **En ny dold schemainställning** ska även in i JSON-backupen
-  (`handleExportJSON`, `handleImportJSON` och `handleConfirmImport` i
-  `NewSchedulePlanner.tsx`), annars försvinner den vid återställning.
-  `selectionDefaults`, `pasteProtect` och `exportExcludes` saknas där i dag.
+- **En ny dold schemainställning** läggs i `HiddenSettingsDraft`
+  (`useHiddenSettings.ts`). Typfelen visar sedan var den ska in: listan i
+  `utils/plannerBackup.ts`, importen i `applyImportedSettings` och exporten i
+  `handleExportJSON`. Då följer den med JSON-backupen.
 - **En ny workspace-elementtyp** måste även in i backendens `VALID_TYPES`
   (`models/workspace_models.py`), annars avvisas den.
 - `NewSchedulePlanner.tsx` (~2 600 rader) och `useWorkspaceData.ts` är stora

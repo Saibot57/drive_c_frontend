@@ -80,6 +80,8 @@ import {
 import { usePlannerNotice } from '@/hooks/usePlannerNotice';
 import { useUndoableState } from '@/hooks/useUndoableState';
 import { HiddenSettingsDraft, useHiddenSettings } from '@/hooks/useHiddenSettings';
+import { ImportedHiddenSettings, pickHiddenSettings } from '@/utils/plannerBackup';
+import { downloadBlob } from '@/utils/download';
 import { usePlannerSections } from '@/hooks/usePlannerSections';
 import { useCourseManager } from '@/hooks/useCourseManager';
 import { ReadOnlyReason, useArchiveManager } from '@/hooks/useArchiveManager';
@@ -240,12 +242,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     planningStartMinutes,
     planningEndMinutes,
     isLoaded: hiddenSettingsLoaded,
-    applyTeacherAvailability,
-    applyTeachersAndRooms,
-    applyColorTriggers,
-    applyRoomTriggers,
-    applyPlanningMinGap,
-    applyPlanningFrame,
+    applyImportedSettings,
     clearExportExcludes,
     isHiddenSettingsOpen,
     setIsHiddenSettingsOpen,
@@ -277,14 +274,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     courses: PlannerCourse[];
     schedule: ScheduledEntry[];
     restrictions?: RestrictionRule[];
-    teachers?: unknown;
-    rooms?: unknown;
-    teacherAvailability?: unknown;
-    colorTriggers?: unknown;
-    roomTriggers?: unknown;
-    planningMinGap?: unknown;
-    planningStartMinutes?: unknown;
-    planningEndMinutes?: unknown;
+    settings: ImportedHiddenSettings;
   } | null>(null);
   const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -897,30 +887,30 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // --- JSON Import/Export Handlers ---
 
   const handleExportJSON = () => {
-    const dataToSave: PersistedPlannerState = {
-      version: 12,
-      timestamp: new Date().toISOString(),
-      courses,
-      schedule,
-      restrictions,
+    // Typen kräver varje dold inställning, så en ny kan inte glömmas här.
+    const settings: HiddenSettingsDraft = {
       teachers,
       rooms,
       teacherAvailability,
       colorTriggers,
       roomTriggers,
       planningMinGap,
+      exportExcludes,
+      pasteProtect,
+      selectionDefaults,
       planningStartMinutes,
       planningEndMinutes
     };
+    const dataToSave: PersistedPlannerState = {
+      version: 13,
+      timestamp: new Date().toISOString(),
+      courses,
+      schedule,
+      restrictions,
+      ...settings
+    };
     const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `schema-backup-v5-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `schema-backup-v5-${new Date().toISOString().slice(0, 10)}.json`);
   };
 
   const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -936,14 +926,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
             courses: sanitizeManualCourses(parsed.courses),
             schedule: sanitizeScheduleImport(parsed.schedule),
             restrictions: parsed.restrictions,
-            teachers: parsed.teachers,
-            rooms: parsed.rooms,
-            teacherAvailability: parsed.teacherAvailability,
-            colorTriggers: parsed.colorTriggers,
-            roomTriggers: parsed.roomTriggers,
-            planningMinGap: parsed.planningMinGap,
-            planningStartMinutes: parsed.planningStartMinutes,
-            planningEndMinutes: parsed.planningEndMinutes
+            settings: pickHiddenSettings(parsed)
           });
           setIsImportConfirmOpen(true);
         } else {
@@ -964,41 +947,11 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     if (pendingImportData.restrictions) {
       setRestrictions(pendingImportData.restrictions);
     }
-    // Före listorna: spärrarna hänger på lärarnamnen, och utan namnen i listan
-    // rensas de bort första gången mottagaren sparar debugmenyn.
-    if (pendingImportData.teachers !== undefined || pendingImportData.rooms !== undefined) {
-      applyTeachersAndRooms(pendingImportData.teachers, pendingImportData.rooms);
-    }
-    if (pendingImportData.teacherAvailability) {
-      applyTeacherAvailability(pendingImportData.teacherAvailability);
-    }
-    if (pendingImportData.colorTriggers) {
-      applyColorTriggers(pendingImportData.colorTriggers);
-    }
-    if (pendingImportData.roomTriggers) {
-      applyRoomTriggers(pendingImportData.roomTriggers);
-    }
-    if (pendingImportData.planningMinGap !== undefined) {
-      applyPlanningMinGap(pendingImportData.planningMinGap);
-    }
-    if (
-      pendingImportData.planningStartMinutes !== undefined
-      || pendingImportData.planningEndMinutes !== undefined
-    ) {
-      applyPlanningFrame(
-        pendingImportData.planningStartMinutes,
-        pendingImportData.planningEndMinutes
-      );
-    }
+    applyImportedSettings(pendingImportData.settings);
     setIsImportConfirmOpen(false);
     setPendingImportData(null);
   }, [
-    applyColorTriggers,
-    applyRoomTriggers,
-    applyPlanningFrame,
-    applyPlanningMinGap,
-    applyTeacherAvailability,
-    applyTeachersAndRooms,
+    applyImportedSettings,
     commitSchedule,
     pendingImportData,
     setManualCourses
