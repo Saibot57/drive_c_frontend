@@ -3,25 +3,21 @@
 import { Check, Eraser } from 'lucide-react';
 
 import type { HighlightColor } from '@/services/monthCalendarService';
-import { HIGHLIGHT_PALETTE, MAX_BANDS, MIN_BANDS } from '@/config/monthCalendarConstants';
+import { HIGHLIGHT_PALETTE } from '@/config/monthCalendarConstants';
 import type { HighlighterMode } from './types';
 
 interface Props {
   mode: HighlighterMode;
   activeColor: HighlightColor;
-  bandCount: number;
   onColor: (c: HighlightColor) => void;
   onErase: () => void;
-  onBandCount: (n: number) => void;
 }
 
 export default function HighlighterPalette({
   mode,
   activeColor,
-  bandCount,
   onColor,
   onErase,
-  onBandCount,
 }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Överstrykning">
@@ -61,22 +57,6 @@ export default function HighlighterPalette({
         <Eraser size={14} />
         Sudda
       </button>
-
-      <label className="ml-1 flex items-center gap-1 text-xs font-semibold">
-        Band
-        <select
-          className="mc-btn"
-          value={bandCount}
-          onChange={(e) => onBandCount(Number(e.target.value))}
-          aria-label="Antal band per dag"
-        >
-          {Array.from({ length: MAX_BANDS - MIN_BANDS + 1 }, (_, i) => MIN_BANDS + i).map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-      </label>
     </div>
   );
 }
