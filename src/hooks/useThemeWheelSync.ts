@@ -10,7 +10,6 @@ import { AUTOSAVE_DELAY_MS } from '@/config/plannerConstants';
 import {
   ACTIVE_THEME_WHEEL_KEY,
   DEFAULT_WEEK_COUNT,
-  THEME_WHEEL_DRAFT_KEY,
 } from '@/config/themeWheelConstants';
 
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -74,17 +73,6 @@ const emptyWheel = (): ThemeWheel => {
     holidayWeeks: [],
     blocks: [],
   };
-};
-
-const readLocalDraft = (): ThemeWheel | null => {
-  try {
-    const raw = window.localStorage.getItem(THEME_WHEEL_DRAFT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ThemeWheel;
-    return parsed && Array.isArray(parsed.blocks) ? parsed : null;
-  } catch {
-    return null;
-  }
 };
 
 /** Biblioteket är en enda resurs och har en enda nyckel i sin kö. */
@@ -169,14 +157,11 @@ export const useThemeWheelSync = ({
           return;
         }
 
-        // Inget i molnet ännu. Ett lokalt utkast från innan synken fanns
-        // flyttas upp en gång, annars börjar vi på ett tomt hjul.
-        const draft = readLocalDraft();
-        const created = await themeWheelService.createWheel(draft ?? emptyWheel());
-        if (draft) {
-          window.localStorage.removeItem(THEME_WHEEL_DRAFT_KEY);
-          showNotice('Ditt lokala hjul flyttades till molnet.', 'success');
-        }
+        // Inget i molnet ännu: börja på ett tomt hjul. Ett lokalt utkast från
+        // före synken laddas inte längre upp. Nyckeln var inte knuten till
+        // någon användare, så utkastet kunde hamna i fel konto på en delad
+        // dator (dataintegritet F24).
+        const created = await themeWheelService.createWheel(emptyWheel());
         adopt(created);
         setWheels(await themeWheelService.listWheels());
         setLoadStatus('loaded');

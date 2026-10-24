@@ -52,11 +52,6 @@ export const TEXT_MIN_EXTENT = 22;
 export const THEME_WHEEL_RECENT_COLORS_KEY = 'theme_wheel_recent_colors_v1';
 export const MAX_RECENT_CUSTOM_COLORS = 3;
 export const ACTIVE_THEME_WHEEL_KEY = 'active_theme_wheel_id';
-/**
- * Utkastet som sparades lokalt innan molnsynken fanns. Läses en sista gång
- * och flyttas upp till servern, sedan tas nyckeln bort.
- */
-export const THEME_WHEEL_DRAFT_KEY = 'theme_wheel_draft_v1';
 
 /**
  * Platshållaren som visas medan hjulet hämtas. Riktiga värden kommer från
