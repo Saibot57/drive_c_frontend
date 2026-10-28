@@ -3,6 +3,7 @@ import { ScheduledEntry } from '@/types/schedule';
 import {
   classifyPass,
   describeChoice,
+  ENGLISH_OPTIONS,
   filterForParticipant,
   isMathOptionSelected,
   MathCourse,
@@ -96,11 +97,26 @@ const toEntries = (rows: [string, string, string, string][]): ScheduledEntry[] =
 
 const week = toEntries(V40);
 
+/**
+ * V. 40 med ett engelskblock på torsdagens sista pass, där studieverkstaden
+ * annars ligger ensam. Blocket är påhittat; titlarna är som i schemat okt 2026.
+ */
+const weekWithEnglish = [
+  ...week,
+  ...toEntries([
+    ['Torsdag', '14:45', '15:45', 'Engelska 1'],
+    ['Torsdag', '14:45', '15:45', 'Engelska 2'],
+    ['Torsdag', '14:45', '15:45', 'Engelska Grund'],
+  ]).map(entry => ({ ...entry, id: `eng-${entry.id}`, instanceId: `eng-${entry.instanceId}` })),
+];
+
 /** Alla mattesvar som går att ge i dialogen: en kurs, ingen, eller Matte 1 + Matte 2. */
 const MATH_ANSWERS: MathCourse[][] = [['grund'], ['1'], ['2'], [], ['1', '2']];
 
 const ALL_CHOICES: ParticipantChoice[] = TEMA_OPTIONS.flatMap(tema =>
-  MATH_ANSWERS.map(math => ({ tema: tema.value, math }))
+  MATH_ANSWERS.flatMap(math =>
+    ENGLISH_OPTIONS.map(english => ({ tema: tema.value, math, english: english.value }))
+  )
 );
 
 const titlesAt = (entries: ScheduledEntry[], day: string, startTime: string) =>
@@ -121,6 +137,19 @@ describe('classifyPass', () => {
     expect(classifyPass('Matte 2')).toEqual({ kind: 'math', course: '2' });
   });
 
+  it('matchar engelskkurserna tolerant', () => {
+    expect(classifyPass('Engelska 1')).toEqual({ kind: 'english', course: '1' });
+    expect(classifyPass('engelska  GRUND')).toEqual({ kind: 'english', course: 'grund' });
+    expect(classifyPass('Eng 2')).toEqual({ kind: 'english', course: '2' });
+    expect(classifyPass('Eng2')).toEqual({ kind: 'english', course: '2' });
+  });
+
+  it('räknar inte "Engelska 10" eller "Engelskt drama" som en engelskkurs', () => {
+    expect(classifyPass('Engelska 10').kind).toBe('common');
+    expect(classifyPass('Engelskt drama').kind).toBe('common');
+    expect(classifyPass('Engelska').kind).toBe('common');
+  });
+
   it('räknar inte "Ma 10" eller "Mat" som en mattekurs', () => {
     expect(classifyPass('Ma 10').kind).toBe('common');
     expect(classifyPass('Mat och hälsa').kind).toBe('common');
@@ -133,9 +162,12 @@ describe('classifyPass', () => {
   });
 });
 
-describe('filterForParticipant på v. 40', () => {
-  it.each(ALL_CHOICES)('ger aldrig två pass samtidigt ($tema, [$math])', choice => {
-    const mine = filterForParticipant(week, choice);
+describe.each([
+  ['v. 40', week],
+  ['v. 40 med engelska', weekWithEnglish],
+])('filterForParticipant, hela veckan (%s)', (_name, schedule) => {
+  it.each(ALL_CHOICES)('ger aldrig två pass samtidigt ($tema, [$math], Engelska $english)', choice => {
+    const mine = filterForParticipant(schedule, choice);
     for (const a of mine) {
       for (const b of mine) {
         if (a === b || a.day !== b.day) continue;
@@ -147,10 +179,10 @@ describe('filterForParticipant på v. 40', () => {
     }
   });
 
-  it.each(ALL_CHOICES)('lämnar ingen lucka där gruppen har pass ($tema, [$math])', choice => {
-    const mine = filterForParticipant(week, choice);
+  it.each(ALL_CHOICES)('lämnar ingen lucka där gruppen har pass ($tema, [$math], Engelska $english)', choice => {
+    const mine = filterForParticipant(schedule, choice);
     // Ma 2 är ett tillval: den som inte läser det ska inte ha något då.
-    const required = week.filter(entry => {
+    const required = schedule.filter(entry => {
       const kind = classifyPass(entry.title);
       return !(kind.kind === 'math' && kind.course === '2');
     });
@@ -160,15 +192,18 @@ describe('filterForParticipant på v. 40', () => {
       expect(covered, `${slot.day} ${slot.startTime} (${slot.title}) saknas`).toBe(true);
     }
   });
+});
+
+describe('filterForParticipant på v. 40', () => {
 
   it('visar bara den egna temaklassen', () => {
-    const mine = filterForParticipant(week, { tema: 'oliv', math: ['1'] });
+    const mine = filterForParticipant(week, { tema: 'oliv', math: ['1'], english: '1' });
     expect(titlesAt(mine, 'Måndag', '08:30')).toEqual(['Tema Oliv']);
     expect(titlesAt(mine, 'Fredag', '12:30')).toEqual(['Tema Oliv']);
   });
 
   it('Matte Grund: Ma Grund i matteblocket, studieverkstad bara när den ligger ensam', () => {
-    const mine = filterForParticipant(week, { tema: 'rosa', math: ['grund'] });
+    const mine = filterForParticipant(week, { tema: 'rosa', math: ['grund'], english: '1' });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Ma Grund']);
     expect(titlesAt(mine, 'Tisdag', '14:45')).toEqual(['Ma Grund']);
     expect(titlesAt(mine, 'Fredag', '08:30')).toEqual(['Ma Grund']);
@@ -177,14 +212,14 @@ describe('filterForParticipant på v. 40', () => {
   });
 
   it('Matte 1: Ma 1 i matteblocket', () => {
-    const mine = filterForParticipant(week, { tema: 'grund', math: ['1'] });
+    const mine = filterForParticipant(week, { tema: 'grund', math: ['1'], english: '1' });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Ma 1']);
     expect(titlesAt(mine, 'Fredag', '08:30')).toEqual(['Ma 1']);
     expect(titlesAt(mine, 'Fredag', '14:45')).toEqual([]);
   });
 
   it('Matte 2: studieverkstad i matteblocket och egna Ma 2-pass', () => {
-    const mine = filterForParticipant(week, { tema: 'grund', math: ['2'] });
+    const mine = filterForParticipant(week, { tema: 'grund', math: ['2'], english: '1' });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Studieverkstad']);
     expect(titlesAt(mine, 'Tisdag', '14:45')).toEqual(['Studieverkstad']);
     expect(titlesAt(mine, 'Fredag', '08:30')).toEqual(['Studieverkstad']);
@@ -193,7 +228,7 @@ describe('filterForParticipant på v. 40', () => {
   });
 
   it('Matte 1 + Matte 2: Ma 1 i matteblocket och Ma 2-passen, ingen studieverkstad då', () => {
-    const mine = filterForParticipant(week, { tema: 'rosa', math: ['1', '2'] });
+    const mine = filterForParticipant(week, { tema: 'rosa', math: ['1', '2'], english: '1' });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Ma 1']);
     expect(titlesAt(mine, 'Tisdag', '14:45')).toEqual(['Ma 1']);
     expect(titlesAt(mine, 'Fredag', '08:30')).toEqual(['Ma 1']);
@@ -203,13 +238,13 @@ describe('filterForParticipant på v. 40', () => {
   });
 
   it('Läser ingen matte: studieverkstad, inga Ma-pass', () => {
-    const mine = filterForParticipant(week, { tema: 'oliv', math: [] });
+    const mine = filterForParticipant(week, { tema: 'oliv', math: [], english: '1' });
     expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Studieverkstad']);
     expect(titlesAt(mine, 'Torsdag', '14:45')).toEqual(['Studieverkstad']);
     expect(mine.some(entry => classifyPass(entry.title).kind === 'math')).toBe(false);
   });
 
-  it.each(ALL_CHOICES)('behåller det gemensamma ($tema, [$math])', choice => {
+  it.each(ALL_CHOICES)('behåller det gemensamma ($tema, [$math], Engelska $english)', choice => {
     const titles = filterForParticipant(week, choice).map(entry => entry.title);
     expect(titles.filter(title => title === 'Lunch')).toHaveLength(5);
     expect(titles.filter(title => title === 'Paus')).toHaveLength(9);
@@ -221,6 +256,28 @@ describe('filterForParticipant på v. 40', () => {
     for (const choice of ALL_CHOICES) {
       expect(filterForParticipant(withTrip, choice).some(entry => entry.title === 'Utflykt')).toBe(true);
     }
+  });
+});
+
+describe('filterForParticipant med engelska', () => {
+  it('visar bara den egna engelskkursen', () => {
+    const mine = filterForParticipant(weekWithEnglish, { tema: 'oliv', math: ['1'], english: 'grund' });
+    expect(titlesAt(mine, 'Torsdag', '14:45')).toEqual(['Engelska Grund']);
+  });
+
+  it('döljer studieverkstaden när den egna engelskkursen går samtidigt', () => {
+    for (const english of ENGLISH_OPTIONS) {
+      const mine = filterForParticipant(weekWithEnglish, { tema: 'rosa', math: [], english: english.value });
+      expect(titlesAt(mine, 'Torsdag', '14:45')).toEqual([english.label]);
+    }
+  });
+
+  it('visar alla engelskpass för ett val sparat innan engelskan fanns', () => {
+    const mine = filterForParticipant(weekWithEnglish, { tema: 'rosa', math: ['1'], english: null });
+    expect(titlesAt(mine, 'Torsdag', '14:45')).toEqual([
+      'Studieverkstad', 'Engelska 1', 'Engelska 2', 'Engelska Grund',
+    ]);
+    expect(titlesAt(mine, 'Tisdag', '10:15')).toEqual(['Ma 1']);
   });
 });
 
@@ -260,13 +317,25 @@ describe('toggleMathOption', () => {
 
 describe('sanitizeChoice', () => {
   it('godtar ett giltigt val', () => {
-    expect(sanitizeChoice({ tema: 'rosa', math: [] })).toEqual({ tema: 'rosa', math: [] });
-    expect(sanitizeChoice({ tema: 'oliv', math: ['2', '1'] })).toEqual({ tema: 'oliv', math: ['1', '2'] });
+    expect(sanitizeChoice({ tema: 'rosa', math: [], english: '2' }))
+      .toEqual({ tema: 'rosa', math: [], english: '2' });
+    expect(sanitizeChoice({ tema: 'oliv', math: ['2', '1'], english: 'grund' }))
+      .toEqual({ tema: 'oliv', math: ['1', '2'], english: 'grund' });
   });
 
   it('läser val sparade innan flervalet fanns', () => {
-    expect(sanitizeChoice({ tema: 'oliv', math: '1' })).toEqual({ tema: 'oliv', math: ['1'] });
-    expect(sanitizeChoice({ tema: 'oliv', math: 'ingen' })).toEqual({ tema: 'oliv', math: [] });
+    expect(sanitizeChoice({ tema: 'oliv', math: '1' })).toEqual({ tema: 'oliv', math: ['1'], english: null });
+    expect(sanitizeChoice({ tema: 'oliv', math: 'ingen' })).toEqual({ tema: 'oliv', math: [], english: null });
+  });
+
+  it('behåller tema och matte i ett val sparat innan engelskan fanns', () => {
+    expect(sanitizeChoice({ tema: 'rosa', math: ['1', '2'] }))
+      .toEqual({ tema: 'rosa', math: ['1', '2'], english: null });
+  });
+
+  it('släpper en okänd engelskkurs men behåller resten', () => {
+    expect(sanitizeChoice({ tema: 'rosa', math: ['1'], english: '3' }))
+      .toEqual({ tema: 'rosa', math: ['1'], english: null });
   });
 
   it('avvisar skräp ur lagringen', () => {
@@ -285,8 +354,16 @@ describe('sanitizeChoice', () => {
 
 describe('describeChoice', () => {
   it('skriver valet som det står i dialogen', () => {
-    expect(describeChoice({ tema: 'oliv', math: ['1'] })).toBe('Tema Oliv · Matte 1');
-    expect(describeChoice({ tema: 'oliv', math: ['1', '2'] })).toBe('Tema Oliv · Matte 1 + Matte 2');
-    expect(describeChoice({ tema: 'grund', math: [] })).toBe('Tema Grund · Läser ingen matte');
+    expect(describeChoice({ tema: 'oliv', math: ['1'], english: '2' }))
+      .toBe('Tema Oliv · Matte 1 · Engelska 2');
+    expect(describeChoice({ tema: 'oliv', math: ['1', '2'], english: 'grund' }))
+      .toBe('Tema Oliv · Matte 1 + Matte 2 · Engelska Grund');
+    expect(describeChoice({ tema: 'grund', math: [], english: '1' }))
+      .toBe('Tema Grund · Läser ingen matte · Engelska 1');
+  });
+
+  it('säger det när engelskan inte är vald', () => {
+    expect(describeChoice({ tema: 'rosa', math: ['1'], english: null }))
+      .toBe('Tema Rosa · Matte 1 · Engelska: inte vald');
   });
 });

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
+  ENGLISH_OPTIONS,
+  EnglishCourse,
   isMathOptionSelected,
   MATH_OPTIONS,
   MathCourse,
@@ -21,13 +23,15 @@ type Props = {
 };
 
 /**
- * De två frågorna bakom "Vill du bara se de lektioner du ska gå på?".
+ * De tre frågorna bakom "Vill du bara se de lektioner du ska gå på?".
  * Reglerna för vad svaren betyder bor i `publicScheduleFilter.ts`.
  */
 export default function MyLessonsDialog({ open, onOpenChange, current, onChoose }: Props) {
   const [tema, setTema] = useState<TemaClass | null>(current?.tema ?? null);
   /** `null` = obesvarad, tom lista = läser ingen matte. */
   const [math, setMath] = useState<MathCourse[] | null>(current?.math ?? null);
+  /** `null` = obesvarad, även i ett val sparat innan engelskan fanns. */
+  const [english, setEnglish] = useState<EnglishCourse | null>(current?.english ?? null);
 
   // Varje gång dialogen öppnas utgår den från det sparade valet, inte från
   // något man klickade i och sedan avbröt förra gången.
@@ -35,9 +39,10 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
     if (!open) return;
     setTema(current?.tema ?? null);
     setMath(current?.math ?? null);
+    setEnglish(current?.english ?? null);
   }, [open, current]);
 
-  const canSubmit = tema !== null && math !== null;
+  const canSubmit = tema !== null && math !== null && english !== null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,7 +55,7 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
           className="space-y-5"
           onSubmit={event => {
             event.preventDefault();
-            if (tema && math) onChoose({ tema, math });
+            if (tema && math && english) onChoose({ tema, math, english });
           }}
         >
           <fieldset>
@@ -91,6 +96,23 @@ export default function MyLessonsDialog({ open, onOpenChange, current, onChoose 
             <p className="mt-1.5 text-xs text-gray-600 kron:text-ui-muted">
               Läser du ingen matte går du till Studieverkstad när de andra har matte.
             </p>
+          </fieldset>
+
+          {/* Inget "läser ingen engelska": alla läser en kurs (arbetslaget). */}
+          <fieldset>
+            <legend className="mb-2 font-bold">Vilken engelskkurs läser du?</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {ENGLISH_OPTIONS.map(option => (
+                <OptionTile
+                  key={option.value}
+                  type="radio"
+                  name="english"
+                  label={option.label}
+                  checked={english === option.value}
+                  onToggle={() => setEnglish(option.value)}
+                />
+              ))}
+            </div>
           </fieldset>
 
           <div className="flex flex-wrap justify-end gap-2 pt-1">

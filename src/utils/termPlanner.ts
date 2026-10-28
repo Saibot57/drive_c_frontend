@@ -58,6 +58,8 @@ export const columnForTitle = (title: string): StatColumn => {
       return kind.course === 'grund' ? 'maGrund' : kind.course === '1' ? 'ma1' : 'ma2';
     case 'studieverkstad':
       return 'studieverkstad';
+    // Engelskan har ingen egen kolumn i statistiken.
+    case 'english':
     case 'common':
       return 'ovrigt';
   }
