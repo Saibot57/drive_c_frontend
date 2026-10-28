@@ -3,9 +3,9 @@ import { checkOverlap } from '@/utils/scheduleTime';
 
 /**
  * "Mina lektioner" på den publika schemalänken: vilka pass en deltagare ska se
- * utifrån temaklass och mattekurs.
+ * utifrån temaklass, mattekurs och engelskkurs.
  *
- * Schemat är byggt av två parallella block:
+ * Schemat är byggt av tre parallella block:
  *
  * - **Tema.** Tema Grund, Tema Oliv och Tema Rosa går samtidigt i varsin sal.
  *   Man ser sin egen klass.
@@ -13,6 +13,8 @@ import { checkOverlap } from '@/utils/scheduleTime';
  *   läser matte går till Studieverkstad. Ma 2 har egna pass (onsdag och fredag
  *   eftermiddag i v. 40) och går till Studieverkstad under matteblocket — så
  *   har arbetslaget bestämt, det går inte att läsa ut ur schemat.
+ * - **Engelska.** Engelska Grund, Engelska 1 och Engelska 2 går samtidigt.
+ *   Alla läser engelska och ingen mer än en kurs (arbetslaget, okt 2026).
  *
  * Någon enstaka läser både Matte 1 och Matte 2, så mattesvaret är en lista.
  * Det är den enda kombinationen som förekommer: Ma Grund och Ma 1 går
@@ -25,7 +27,7 @@ import { checkOverlap } from '@/utils/scheduleTime';
  *
  * Titlarna matchas tolerant: skiftläge och extra mellanslag spelar ingen roll
  * ("Ma  Grund" förekom i v. 40), och "Ma2 (tillval)", "Ma 2" och "Matte 2"
- * räknas som samma kurs.
+ * räknas som samma kurs. Engelskan skrivs "Engelska 1" eller "Eng 1".
  */
 
 export type TemaClass = 'grund' | 'oliv' | 'rosa';
@@ -33,10 +35,17 @@ export type MathCourse = 'grund' | '1' | '2';
 /** Ett svarsalternativ i dialogen. "ingen" är den tomma kurslistan. */
 export type MathOption = MathCourse | 'ingen';
 
+export type EnglishCourse = 'grund' | '1' | '2';
+
 export type ParticipantChoice = {
   tema: TemaClass;
   /** Kurserna deltagaren läser. Tom = läser ingen matte. */
   math: MathCourse[];
+  /**
+   * `null` i ett val som sparades innan engelskan fanns i dialogen. Då visas
+   * alla engelskpass, tills deltagaren svarar — dialogen kräver ett svar.
+   */
+  english: EnglishCourse | null;
 };
 
 export const TEMA_OPTIONS: { value: TemaClass; label: string }[] = [
@@ -52,9 +61,16 @@ export const MATH_OPTIONS: { value: MathOption; label: string }[] = [
   { value: 'ingen', label: 'Läser ingen matte' },
 ];
 
+export const ENGLISH_OPTIONS: { value: EnglishCourse; label: string }[] = [
+  { value: 'grund', label: 'Engelska Grund' },
+  { value: '1', label: 'Engelska 1' },
+  { value: '2', label: 'Engelska 2' },
+];
+
 type PassKind =
   | { kind: 'tema'; tema: TemaClass }
   | { kind: 'math'; course: MathCourse }
+  | { kind: 'english'; course: EnglishCourse }
   | { kind: 'studieverkstad' }
   | { kind: 'common' };
 
@@ -63,6 +79,7 @@ const normalize = (title: string) =>
 
 const TEMA_PATTERN = /^tema (grund|oliv|rosa)\b/;
 const MATH_PATTERN = /^(?:ma|matte|matematik) ?(grund|1|2)\b/;
+const ENGLISH_PATTERN = /^(?:engelska|eng) ?(grund|1|2)\b/;
 const STUDIEVERKSTAD_PATTERN = /^studieverkstad\b/;
 
 export const classifyPass = (title: string): PassKind => {
@@ -74,6 +91,9 @@ export const classifyPass = (title: string): PassKind => {
   const math = text.match(MATH_PATTERN);
   if (math) return { kind: 'math', course: math[1] as MathCourse };
 
+  const english = text.match(ENGLISH_PATTERN);
+  if (english) return { kind: 'english', course: english[1] as EnglishCourse };
+
   if (STUDIEVERKSTAD_PATTERN.test(text)) return { kind: 'studieverkstad' };
 
   return { kind: 'common' };
@@ -83,7 +103,8 @@ export const classifyPass = (title: string): PassKind => {
  * Passen deltagaren ska se, i ursprunglig ordning.
  *
  * Studieverkstaden avgörs av vad som går samtidigt, inte av en tabell över
- * tider: den döljs bara för den vars egen mattekurs pågår parallellt. Då blir
+ * tider: den döljs bara för den vars egen matte- eller engelskkurs pågår
+ * parallellt. Då blir
  * torsdagens ensamma studieverkstad synlig för alla, och en studieverkstad som
  * flyttas nästa vecka följer med utan att något behöver ändras här.
  */
@@ -92,6 +113,9 @@ export const filterForParticipant = (
   choice: ParticipantChoice
 ): ScheduledEntry[] => {
   const kinds = new Map(entries.map(entry => [entry.instanceId, classifyPass(entry.title)]));
+  const isOwnCourse = (kind: PassKind) =>
+    (kind.kind === 'math' && choice.math.includes(kind.course))
+    || (kind.kind === 'english' && kind.course === choice.english);
 
   return entries.filter(entry => {
     const kind = kinds.get(entry.instanceId)!;
@@ -102,11 +126,11 @@ export const filterForParticipant = (
         return kind.tema === choice.tema;
       case 'math':
         return choice.math.includes(kind.course);
+      case 'english':
+        return choice.english === null || kind.course === choice.english;
       case 'studieverkstad': {
         const ownCourseAtSameTime = entries.some(other => {
-          const otherKind = kinds.get(other.instanceId)!;
-          return otherKind.kind === 'math'
-            && choice.math.includes(otherKind.course)
+          return isOwnCourse(kinds.get(other.instanceId)!)
             && other.day === entry.day
             && checkOverlap(entry.startTime, entry.endTime, other.startTime, other.endTime);
         });
@@ -162,7 +186,11 @@ export const toggleMathOption = (
 export const isMathOptionSelected = (current: MathCourse[] | null, option: MathOption) =>
   current !== null && (option === 'ingen' ? current.length === 0 : current.includes(option));
 
-/** "Tema Oliv · Matte 1 + Matte 2" — för raden som talar om vad som visas. */
+/**
+ * "Tema Oliv · Matte 1 + Matte 2 · Engelska 1" — för raden som talar om vad
+ * som visas. Ett äldre val utan engelska säger det, så att man ser varför alla
+ * engelskpass står kvar.
+ */
 export const describeChoice = (choice: ParticipantChoice) => {
   const tema = TEMA_OPTIONS.find(option => option.value === choice.tema)?.label ?? choice.tema;
   const math = choice.math.length === 0
@@ -170,16 +198,21 @@ export const describeChoice = (choice: ParticipantChoice) => {
     : choice.math
       .map(course => MATH_OPTIONS.find(option => option.value === course)?.label ?? course)
       .join(' + ');
-  return `Tema ${tema} · ${math}`;
+  const english = choice.english === null
+    ? 'Engelska: inte vald'
+    : ENGLISH_OPTIONS.find(option => option.value === choice.english)?.label ?? choice.english;
+  return `Tema ${tema} · ${math} · ${english}`;
 };
 
 /**
  * Tvättar ett sparat val. Webbläsarens lagring kan innehålla vad som helst —
  * och val sparade före flerval har en enda sträng i `math` ("1", "ingen").
+ * Val sparade innan engelskan fanns saknar `english`; de behåller tema och
+ * matte och får `english: null`, så att ingen tappar sitt val.
  */
 export const sanitizeChoice = (input: unknown): ParticipantChoice | null => {
   if (!input || typeof input !== 'object') return null;
-  const { tema, math } = input as Record<string, unknown>;
+  const { tema, math, english } = input as Record<string, unknown>;
   if (!TEMA_OPTIONS.some(option => option.value === tema)) return null;
 
   const rawCourses = typeof math === 'string'
@@ -194,5 +227,7 @@ export const sanitizeChoice = (input: unknown): ParticipantChoice | null => {
   const combinable = courses.every((a, i) => courses.slice(i + 1).every(b => canCombine(a, b)));
   if (!combinable) return null;
 
-  return { tema: tema as TemaClass, math: courses };
+  const englishCourse = ENGLISH_OPTIONS.find(option => option.value === english)?.value ?? null;
+
+  return { tema: tema as TemaClass, math: courses, english: englishCourse };
 };
