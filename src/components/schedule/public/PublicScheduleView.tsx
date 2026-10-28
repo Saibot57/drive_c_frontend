@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Filter, RefreshCw } from 'lucide-react';
+import { CalendarDays, Download, Filter, List, RefreshCw } from 'lucide-react';
 import { mapPlannerActivitiesToSchedule } from '@/hooks/usePlannerSync';
 import { fetchPublicSchedule, parseServerTimestamp } from '@/services/publicScheduleService';
 import { PublicSchedulePayload } from '@/types/schedule';
@@ -16,6 +16,14 @@ import {
 } from '@/utils/publicScheduleFilter';
 import { clearCachedSchedule, readCachedSchedule, writeCachedSchedule } from '@/utils/publicScheduleCache';
 import { exportSchedule } from '@/utils/schedulePdf';
+import {
+  isPhoneScreen,
+  PublicViewMode,
+  readScreenSignals,
+  readStoredViewMode,
+  resolveViewMode,
+  writeStoredViewMode,
+} from '@/utils/publicViewMode';
 import MyLessonsDialog from './MyLessonsDialog';
 import PublicDayList from './PublicDayList';
 import PublicTimeGrid from './PublicTimeGrid';
@@ -89,7 +97,8 @@ type Props = {
   token: string;
   /**
    * Dagslistan i stället för rutnätets dagsschema på mobilen. Standard; av
-   * bara med `?vy=dagsschema`. Bredare skärmar får rutnätet oavsett.
+   * bara med `?vy=dagsschema`. Större skärmar får rutnätet, och deltagarens
+   * eget val i vyväxlaren går före båda.
    */
   listOnMobile?: boolean;
 };
@@ -110,6 +119,29 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
   // har ingen lagring, och den första klientrenderingen måste matcha dess.
   useEffect(() => {
     setChoice(readStoredChoice());
+  }, []);
+
+  /** `null` tills sidan monterats; då väljer CSS på fönsterbredden som förut. */
+  const [isPhone, setIsPhone] = useState<boolean | null>(null);
+  const [storedMode, setStoredMode] = useState<PublicViewMode | null>(null);
+
+  useEffect(() => {
+    setStoredMode(readStoredViewMode());
+    const update = () => setIsPhone(isPhoneScreen(readScreenSignals()));
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
+
+  const viewMode = isPhone === null ? null : resolveViewMode(storedMode, isPhone, listOnMobile);
+
+  const chooseViewMode = useCallback((mode: PublicViewMode) => {
+    setStoredMode(mode);
+    writeStoredViewMode(mode);
   }, []);
 
   const applyChoice = useCallback((next: ParticipantChoice | null) => {
@@ -304,13 +336,21 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
         onChoose={applyChoice}
       />
 
+      {payload.archiveName && <ViewModeSwitch mode={viewMode} onChange={chooseViewMode} />}
+
       {!payload.archiveName ? (
         <Notice title="Inget schema publicerat just nu">
           Titta in igen senare. Sidan uppdateras av sig själv.
         </Notice>
+      ) : viewMode === 'lista' ? (
+        <PublicDayList entries={visible} resolveColor={resolveColor} resolveRoom={resolveRoom} />
+      ) : viewMode === 'rutnat' ? (
+        <PublicTimeGrid entries={visible} resolveColor={resolveColor} resolveRoom={resolveRoom} />
       ) : listOnMobile ? (
+        // Innan sidan monterats finns varken skärmen eller det sparade valet.
         // `sm` är 640 px, samma gräns där rutnätet går från tre dagar till en.
-        // Båda ritas och CSS väljer, så ingen vy hoppar vid laddning.
+        // Båda ritas och CSS väljer, så en vanlig telefon inte hoppar mellan
+        // vyerna vid laddning.
         <>
           <div className="sm:hidden">
             <PublicDayList entries={visible} resolveColor={resolveColor} resolveRoom={resolveRoom} />
@@ -336,6 +376,45 @@ export default function PublicScheduleView({ token, listOnMobile = true }: Props
         </button>
       )}
     </Shell>
+  );
+}
+
+const VIEW_OPTIONS: { mode: PublicViewMode; label: string; icon: typeof List }[] = [
+  { mode: 'lista', label: 'Lista', icon: List },
+  { mode: 'rutnat', label: 'Schema', icon: CalendarDays },
+];
+
+/**
+ * Deltagarens väg ut när sidan gissar fel på skärmen. Ritas redan innan
+ * sidan monterats, med inget valt, så att den inte knuffar ner schemat när
+ * den dyker upp.
+ */
+function ViewModeSwitch({
+  mode,
+  onChange,
+}: {
+  mode: PublicViewMode | null;
+  onChange: (mode: PublicViewMode) => void;
+}) {
+  return (
+    <div role="group" aria-label="Visa schemat som" className="mb-3 flex justify-end gap-1.5">
+      {VIEW_OPTIONS.map(({ mode: option, label, icon: Icon }) => {
+        const isActive = option === mode;
+        return (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={isActive}
+            onClick={() => onChange(option)}
+            className={`inline-flex items-center gap-1.5 rounded border-frame border-ui-line px-3 py-1.5 text-sm font-bold ${
+              isActive ? 'bg-black text-white' : 'bg-ui-paper text-black'
+            }`}
+          >
+            <Icon size={14} aria-hidden /> {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
