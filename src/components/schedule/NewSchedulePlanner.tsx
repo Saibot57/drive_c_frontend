@@ -69,6 +69,7 @@ import { ArchiveConflictDialog } from '@/components/schedule/dialogs/ArchiveConf
 import { CourseEditorDialog } from '@/components/schedule/dialogs/CourseEditorDialog';
 import { EntryEditorDialog } from '@/components/schedule/dialogs/EntryEditorDialog';
 import { BulkEditModal } from '@/components/schedule/BulkEditModal';
+import { BulkSelectionToolbar } from '@/components/schedule/BulkSelectionToolbar';
 import { FindReplacePanel } from '@/components/schedule/FindReplacePanel';
 import { applyBulkEdit, BulkEditPatch } from '@/utils/bulkEditSchedule';
 import {
@@ -1250,6 +1251,20 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     return null;
   }, [restrictions, teacherAvailability, allTeacherNames, schedule, bulkIds, commitSchedule, showNotice, clearBulkIds]);
 
+  /**
+   * Pennan i verktygsraden. En ensam post öppnar den vanliga dialogen, som kan
+   * mer än massredigeringen. Markeringen har då gjort sitt och tas bort.
+   */
+  const handleBulkToolbarEdit = useCallback(() => {
+    if (bulkEntries.length === 1) {
+      setEditingEntry(bulkEntries[0]);
+      setIsEntryModalOpen(true);
+      clearBulkIds();
+      return;
+    }
+    setIsBulkEditOpen(true);
+  }, [bulkEntries, clearBulkIds]);
+
   const isBulkContextMenu = Boolean(
     contextMenu && bulkEntries.length > 1 && bulkIds.has(contextMenu.entry.instanceId)
   );
@@ -2233,6 +2248,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
            </div>
         )}
       </DragOverlay>
+
+      <BulkSelectionToolbar
+        canvasRef={scheduleCanvasRef}
+        selectedIds={bulkIds}
+        enabled={!isBulkEditOpen && !contextMenu && !activeDragItem && !isMarqueeActive && !isKbPlacementActive}
+        onEdit={handleBulkToolbarEdit}
+        onCancel={clearBulkIds}
+      />
 
       {contextMenu && isBulkContextMenu && (
         <>
