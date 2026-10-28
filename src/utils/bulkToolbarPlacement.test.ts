@@ -37,11 +37,34 @@ describe('isGatheredSelection', () => {
     expect(isGatheredSelection(lanes, [fourthLane])).toBe(true);
   });
 
-  it('är spridd när ett omarkerat kort står mellan de markerade', () => {
+  it('är spridd när omarkerade kort fyller rutan mellan de markerade', () => {
     const monday = box(50, 200, 150, 260);
     const friday = box(850, 600, 950, 660);
-    const tuesday = box(220, 300, 320, 360);
-    expect(isGatheredSelection([monday, friday], [tuesday])).toBe(false);
+    const between = [box(220, 300, 320, 360), box(400, 200, 500, 500), box(600, 400, 700, 600)];
+    expect(isGatheredSelection([monday, friday], between)).toBe(false);
+  });
+
+  it('är samlad när en enstaka omarkerad post ligger mitt i en markerad dag', () => {
+    // Onsdag: tre spår 08:30, rast, tre spår 10:00, lunch (omarkerad),
+    // klubben, rast och en lektion. Ett fjärde spår står utanför rutan.
+    const selected = [
+      box(0, 0, 160, 270), box(180, 0, 340, 270), box(360, 0, 520, 270),
+      box(0, 280, 520, 330),
+      box(0, 340, 160, 665), box(180, 340, 340, 665), box(360, 340, 520, 665),
+      box(0, 900, 520, 1340),
+      box(0, 1350, 520, 1400),
+      box(0, 1410, 520, 1625),
+    ];
+    const lunch = box(0, 675, 520, 890);
+    const fourthLane = box(540, 0, 700, 665);
+    expect(isGatheredSelection(selected, [lunch, fourthLane])).toBe(true);
+  });
+
+  it('är spridd när två poster samma dag har flera omarkerade emellan', () => {
+    const first = box(0, 0, 100, 100);
+    const last = box(0, 500, 100, 600);
+    const between = [box(0, 110, 100, 210), box(0, 220, 100, 320), box(0, 330, 100, 490)];
+    expect(isGatheredSelection([first, last], between)).toBe(false);
   });
 
   it('räknar inte kanter som bara nuddar', () => {
@@ -68,7 +91,8 @@ describe('placeBulkToolbar', () => {
 
   it('lägger raden mitt i nederkanten när markeringen är spridd', () => {
     const selected = [box(50, 200, 150, 260), box(850, 600, 950, 660)];
-    expect(placeBulkToolbar(selected, [box(220, 300, 320, 360)], viewport, bar)).toEqual(bottomCenter);
+    const between = [box(220, 300, 320, 360), box(400, 200, 500, 500)];
+    expect(placeBulkToolbar(selected, between, viewport, bar)).toEqual(bottomCenter);
   });
 
   it('centrerar på den del som syns när markeringen är delvis utrullad', () => {
