@@ -6,6 +6,7 @@ import type { Surface } from '../types/workspace.types';
 import type { SaveStatus } from '../hooks/useWorkspaceSync';
 import SaveIndicator from './SaveIndicator';
 import { moveId } from '../utils/surfaceOrder';
+import { useContextMenuPlacement } from '@/hooks/useContextMenuPlacement';
 
 /** Så långt pekaren ska röra sig innan ett klick blir en dragning. */
 const TAB_DRAG_THRESHOLD_PX = 5;
@@ -118,6 +119,7 @@ export default function TopToolbar({
   const exportRef = useRef<HTMLDivElement>(null);
   const tabMenuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const tabMenuStyle = useContextMenuPlacement(tabMenuRef, tabContextMenu, tabContextMenu?.surfaceId);
 
   useEffect(() => {
     if (renamingId && renameInputRef.current) {
@@ -206,7 +208,7 @@ export default function TopToolbar({
         <div
           ref={tabMenuRef}
           className="ws-popover ws-popover--narrow"
-          style={{ left: tabContextMenu.x, top: tabContextMenu.y }}
+          style={tabMenuStyle}
         >
           <button
             className="ws-menu-item"

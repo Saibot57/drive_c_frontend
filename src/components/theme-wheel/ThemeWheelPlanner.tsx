@@ -29,6 +29,7 @@ import { parseWheelFile, useThemeWheelExport } from '@/hooks/useThemeWheelExport
 import { useWheelInteraction } from '@/hooks/useWheelInteraction';
 import { usePlannerNotice } from '@/hooks/usePlannerNotice';
 import { useHotkeys } from '@/hooks/useHotkeys';
+import { useContextMenuPlacement } from '@/hooks/useContextMenuPlacement';
 import { ThemeWheel } from '@/components/theme-wheel/ThemeWheel';
 import { AreaLibraryCard } from '@/components/theme-wheel/AreaLibraryCard';
 import { ThemeWheelModals } from '@/components/theme-wheel/ThemeWheelModals';
@@ -53,6 +54,8 @@ export default function ThemeWheelPlanner() {
   const [editingSettings, setEditingSettings] = useState<ThemeWheelData | null>(null);
   const [deleteAreaId, setDeleteAreaId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const contextMenuStyle = useContextMenuPlacement(contextMenuRef, contextMenu, contextMenu?.kind);
   const [manualColor, setManualColor] = useState(false);
 
   const [isArchiveCollapsed, setIsArchiveCollapsed] = useState(false);
@@ -566,8 +569,9 @@ export default function ThemeWheelPlanner() {
 
       {contextMenu && (
         <div
+          ref={contextMenuRef}
           className="fixed z-[100] flex w-max flex-col bg-ui-paper sp-context-menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={contextMenuStyle}
         >
           {contextMenu.kind === 'block' ? (
             <>

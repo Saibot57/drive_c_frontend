@@ -100,6 +100,7 @@ import { useMobileNavigation } from '@/hooks/useMobileNavigation';
 import { useScheduleKeyboardNav } from '@/hooks/useScheduleKeyboardNav';
 import { useKeyboardPlacement } from '@/hooks/useKeyboardPlacement';
 import { useNotesMarquee } from '@/hooks/useNotesMarquee';
+import { useContextMenuPlacement } from '@/hooks/useContextMenuPlacement';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import PublicLinkControl from '@/components/schedule/PublicLinkControl';
@@ -217,6 +218,7 @@ export default function NewSchedulePlanner() {
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ScheduledEntry | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const [copiedEntryContent, setCopiedEntryContent] = useState<{ teacher: string; room: string; notes?: string; category?: string; color?: string } | null>(null);
   /**
    * Eget urklipp för enbart anteckningar. Skilt från `copiedEntryContent` med
@@ -1259,6 +1261,14 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     return { index: peers.findIndex(e => e.instanceId === contextMenu.entry.instanceId), count: peers.length };
   }, [contextMenu, schedule]);
 
+  // Menyn mäts om när den byter innehåll: massmenyn är kortare, och
+  // knapparna för samtidiga poster finns bara när det finns sådana.
+  const contextMenuStyle = useContextMenuPlacement(
+    contextMenuRef,
+    contextMenu,
+    contextMenu && `${contextMenu.entry.instanceId}:${isBulkContextMenu}:${contextMenuLane?.count}`,
+  );
+
 
   // --- Keyboard Navigation ---
   const {
@@ -2232,7 +2242,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           />
           <div
             className="fixed z-[100] flex flex-col w-max bg-ui-paper sp-context-menu"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
+            ref={contextMenuRef}
+            style={contextMenuStyle}
           >
             <button
               className="px-3 py-2 text-left text-sm sp-menu-item"
@@ -2267,7 +2278,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
           />
           <div
             className="fixed z-[100] flex min-w-[260px] flex-col w-max bg-ui-paper sp-context-menu p-1"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
+            ref={contextMenuRef}
+            style={contextMenuStyle}
             role="menu"
           >
           {/* Fyra grupper med avdelare. Kortkommandot står bredvid, så att
