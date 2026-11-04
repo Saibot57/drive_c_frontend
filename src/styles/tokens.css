@@ -53,6 +53,16 @@
   --ui-scrim-light: rgba(0, 0, 0, 0.3);
   --ui-focus: #000000;
 
+  /* Stämplar och klassrubriker i Närvarorutor. Nya variabler, inget
+     befintligt Neo-värde ändras. */
+  --ui-mark-green: #9ccb6b;
+  --ui-mark-yellow: #ffd23f;
+  --ui-mark-blue: #8fd0ff;
+  --ui-mark-pink: #ff9ec4;
+  --ui-mark-lilac: #c9b8ff;
+  --ui-mark-grey: #e5e7eb;
+  --ui-mark-fg: #000000;
+
   --ui-course-mix: 100%;
   /* Tailwinds egen stack. Planens kortare lista hade bytt typsnitt i Neo på
      Windows och Linux, där varken ui-monospace eller Menlo finns. */
@@ -102,6 +112,14 @@
   --ui-scrim: rgba(31, 32, 34, 0.28);
   --ui-scrim-light: rgba(31, 32, 34, 0.12);
   --ui-focus: #1F2022;
+
+  --ui-mark-green: #C9D3B2;
+  --ui-mark-yellow: #EADDB8;
+  --ui-mark-blue: #C3D2DB;
+  --ui-mark-pink: #E3C4BF;
+  --ui-mark-lilac: #D2CBDC;
+  --ui-mark-grey: #E4E2DD;
+  --ui-mark-fg: #1F2022;
 
   /* Kursfärgen blandas med en varm grå i samma ljushet, inte med papperet:
      mot papperet blev pastellerna bara ljusare. 54 % mot #D8D6D0 hamnar

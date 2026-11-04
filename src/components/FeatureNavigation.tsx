@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen, Users } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen, Users, ClipboardCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -54,6 +54,9 @@ const features: readonly Feature[] = [
  * textfält) eller Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
  * sidan läser bara scheman som den inloggade redan har tillgång till.
  *
+ * Närvarorutorna nås med n-n-n på samma sätt. Sidan läser inget från
+ * servern; allt den visar har klistrats in och ligger i webbläsaren.
+ *
  * Arbetslags detaljplan nås bara via direktlänken. Den är inte klar för
  * kollegorna än, så ingen knapp leder dit.
  */
@@ -61,9 +64,21 @@ const hiddenFeatures: readonly Feature[] = [
   { label: 'Detaljplan',      href: '/features/arbetslag/detalj',   icon: DoorOpen,     shortcut: '' },
   { label: 'Statistik',       href: '/features/statistik',          icon: Sigma,        shortcut: '',
     aliases: ['/features/termin'] },
+  { label: 'Närvaro',         href: '/features/narvaro',            icon: ClipboardCheck, shortcut: '' },
 ];
 
 const TERM_PLANNER_HREF = '/features/statistik';
+
+/**
+ * Gömda dörrar: bokstaven tre gånger inom en sekund, utan modifierare och
+ * utanför textfält. Bokstäverna får inte vara bundna i en vy där man kan stå
+ * utan att skriva. `n` är "Ny byggsten" i schemats byggstensruta, men den
+ * öppnar en dialog med fokus i ett fält, så de följande trycken räknas inte.
+ */
+const SECRET_DOORS: Readonly<Record<string, string>> = {
+  t: TERM_PLANNER_HREF,
+  n: '/features/narvaro',
+};
 
 export function FeatureNavigation() {
   const pathname = usePathname();
@@ -101,8 +116,8 @@ export function FeatureNavigation() {
   //
   // Kombinationen kan fångas av operativsystemet eller webbläsaren innan sidan
   // ser den, så "t" tre gånger inom en sekund leder också dit. Det kräver inga
-  // modifierare, och t är inte bundet någon annanstans. Inte i textfält.
-  const tPresses = useRef<number[]>([]);
+  // modifierare. Inte i textfält. Samma gäller de andra i SECRET_DOORS.
+  const presses = useRef<{ key: string; times: number[] }>({ key: '', times: [] });
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.altKey && e.shiftKey && e.code === 'KeyT') {
@@ -112,17 +127,20 @@ export function FeatureNavigation() {
       }
 
       // Chromes autofyll skickar keydown utan `key`, därav typkontrollen.
-      if (e.ctrlKey || e.metaKey || e.altKey || typeof e.key !== 'string' || e.key.toLowerCase() !== 't') {
-        tPresses.current = [];
+      const key = typeof e.key === 'string' ? e.key.toLowerCase() : '';
+      if (e.ctrlKey || e.metaKey || e.altKey || !Object.prototype.hasOwnProperty.call(SECRET_DOORS, key)) {
+        presses.current = { key: '', times: [] };
         return;
       }
       if (e.repeat || isEditableElement(e.target)) return;
 
       const now = Date.now();
-      tPresses.current = [...tPresses.current, now].filter(t => now - t < 1000);
-      if (tPresses.current.length >= 3) {
-        tPresses.current = [];
-        router.push(TERM_PLANNER_HREF);
+      const earlier = presses.current.key === key ? presses.current.times : [];
+      const times = [...earlier, now].filter(t => now - t < 1000);
+      presses.current = { key, times };
+      if (times.length >= 3) {
+        presses.current = { key: '', times: [] };
+        router.push(SECRET_DOORS[key]);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
