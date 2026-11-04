@@ -1,20 +1,21 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ClipboardPaste, Copy, PenLine, Shuffle, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Check, ClipboardPaste, Copy, Loader2, Lock, PenLine, Shuffle, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
 import { NarvaroGroups } from '@/components/narvaro/NarvaroGroups';
 import { NarvaroNoteDialog } from '@/components/narvaro/NarvaroNoteDialog';
 import { STAMP_BG, StampTag } from '@/components/narvaro/stampStyle';
-import { usePersistentState } from '@/hooks/usePersistentState';
+import { NarvaroLock } from '@/components/narvaro/NarvaroLock';
+import { useAuth } from '@/contexts/AuthContext';
+import { NarvaroSaveStatus, useNarvaroSync } from '@/hooks/useNarvaroSync';
 import { cn } from '@/lib/utils';
 import { isEditableElement } from '@/utils/dom';
 import {
   AttendanceTable,
   CUSTOM_STAMP_COLORS,
-  DEFAULT_STAMPS,
   GroupBy,
   GroupsStore,
   MAX_STORED_GROUP_SESSIONS,
@@ -38,10 +39,6 @@ import {
   pastePreview,
   randomGroups,
   roster,
-  sanitizeGroups,
-  sanitizeNotes,
-  sanitizeStamps,
-  sanitizeTable,
   sessionKey,
   sessionLabel,
   sessionText,
@@ -49,6 +46,7 @@ import {
   toggleStamp,
   trimSessions,
 } from '@/utils/narvaro';
+import { isoWeekKey, tableFor } from '@/utils/narvaroDocs';
 import { exampleTable } from '@/utils/narvaroExample';
 import '@/styles/schedule-theme.css';
 
@@ -57,20 +55,19 @@ import '@/styles/schedule-theme.css';
  * under passet och för att dela in de närvarande i grupper.
  *
  * Arket tillhör skolan och går inte att läsa härifrån, så tabellen klistras
- * in. Allt sparas bara i webbläsaren (localStorage); inget skickas till
- * servern, och inga elevnamn finns i koden.
+ * in. Allt krypteras i webbläsaren med användarens lösenfras innan det
+ * sparas på servern (useNarvaroSync), och inga elevnamn finns i koden.
  *
  * Sidan är olistad: den nås med n-n-n (se FeatureNavigation).
  */
 
-const TABLE_KEY = 'narvaro.table.v1';
-const NOTES_KEY = 'narvaro.notes.v1';
-const STAMPS_KEY = 'narvaro.stamps.v1';
-const GROUPS_KEY = 'narvaro.groups.v1';
-
-const NO_NOTES: NotesStore = {};
-const NO_GROUPS: GroupsStore = {};
-const START_STAMPS: Stamp[] = [...DEFAULT_STAMPS];
+const SAVE_LABEL: Record<NarvaroSaveStatus, string> = {
+  saved: 'Sparat',
+  pending: 'Sparar snart',
+  saving: 'Sparar…',
+  error: 'Kunde inte spara. Försöker igen.',
+  conflict: 'Ändrat på en annan enhet',
+};
 
 type Mode = 'notes' | 'groups';
 type PasteMessage = { kind: 'ok' | 'error'; text: string } | null;
@@ -90,10 +87,23 @@ export default function Narvaro() {
   const [now] = useState(() => new Date());
   const example = useMemo(exampleTable, []);
 
-  const [savedTable, setSavedTable] = usePersistentState<AttendanceTable | null>(TABLE_KEY, sanitizeTable, null);
-  const [stamps, setStamps] = usePersistentState(STAMPS_KEY, sanitizeStamps, START_STAMPS);
-  const [savedNotes, setSavedNotes] = usePersistentState(NOTES_KEY, sanitizeNotes, NO_NOTES);
-  const [savedGroups, setSavedGroups] = usePersistentState(GROUPS_KEY, sanitizeGroups, NO_GROUPS);
+  const { user } = useAuth();
+  const sync = useNarvaroSync(user?.id ?? null, now);
+  const { update } = sync;
+  const weekKey = isoWeekKey(now);
+  // Veckans tabell, annars den senast inklistrade.
+  const current = tableFor(sync.data.tables, weekKey);
+  const savedTable = current?.table ?? null;
+  const stamps = sync.data.stamps;
+  const savedNotes = sync.data.notes;
+  const savedGroups = sync.data.groups;
+  const setStamps = (next: Stamp[]) => update(d => ({ ...d, stamps: next }));
+  const setSavedNotes = (next: NotesStore) => update(d => ({ ...d, notes: next }));
+  const setSavedGroups = (next: GroupsStore) => update(d => ({ ...d, groups: next }));
+  const setSavedTable = useCallback(
+    (t: AttendanceTable) => update(d => ({ ...d, tables: { ...d.tables, [weekKey]: t } })),
+    [update, weekKey],
+  );
 
   // Exemplet har egna anteckningar och grupper i minnet, så att det inte
   // blandas med de riktiga.
@@ -261,17 +271,53 @@ export default function Narvaro() {
         <div className="sp-toolbar flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
           <FeatureNavigation />
           <p className="font-mono text-xs uppercase tracking-wider text-ui-muted">Vecka {isoWeek(now)} · {weekday}</p>
-          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-            <Button
-              variant="neutral"
-              className="sp-btn"
-              aria-expanded={showPaste}
-              onClick={() => setPasteOpen(!showPaste)}
-            >
-              <ClipboardPaste /> Klistra in tabell
-            </Button>
-          </div>
+          {sync.phase === 'ready' && (
+            <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+              <SaveIndicator status={sync.saveStatus} />
+              <Button
+                variant="neutral"
+                className="sp-btn"
+                aria-expanded={showPaste}
+                onClick={() => setPasteOpen(!showPaste)}
+              >
+                <ClipboardPaste /> Klistra in tabell
+              </Button>
+              <Button
+                variant="neutral"
+                size="icon"
+                className="sp-btn"
+                onClick={() => void sync.lock()}
+                title="Lås och glöm nyckeln på den här enheten"
+                aria-label="Lås"
+              >
+                <Lock />
+              </Button>
+            </div>
+          )}
         </div>
+
+        {sync.phase !== 'ready' ? (
+          <NarvaroLock
+            phase={sync.phase}
+            error={sync.error}
+            busy={sync.busy}
+            onSetup={(p, r) => void sync.setup(p, r)}
+            onUnlock={(p, r) => void sync.unlock(p, r)}
+            onReset={() => void sync.reset()}
+            onRetry={() => void sync.retry()}
+          />
+        ) : (<>
+        {sync.saveStatus === 'conflict' && (
+          <div role="alert" className="sp-toast flex flex-wrap items-center justify-between gap-3 bg-ui-mark-pink px-4 py-2 text-sm font-semibold text-ui-mark-fg">
+            <span>Närvaron har ändrats på en annan enhet. Den senaste ändringen här sparades inte.</span>
+            <Button variant="neutral" size="sm" className="sp-btn" onClick={() => void sync.refresh(true)}>Hämta det senaste</Button>
+          </div>
+        )}
+        {sync.unreadable > 0 && (
+          <div role="alert" className="sp-toast bg-ui-mark-pink px-4 py-2 text-sm font-semibold text-ui-mark-fg">
+            {sync.unreadable === 1 ? 'En sparad vecka' : `${sync.unreadable} sparade veckor`} gick inte att läsa och visas inte. De ligger kvar orörda.
+          </div>
+        )}
 
         {showPaste && (
           <section className="sp-card flex flex-col gap-3 p-4" aria-label="Klistra in">
@@ -322,8 +368,8 @@ export default function Narvaro() {
               </details>
             )}
             <p className="text-xs text-ui-muted">
-              Tabellen och dina noteringar sparas bara i den här webbläsaren. Inget skickas till servern.
-              Klistra in på nytt när arket har uppdaterats.
+              Allt krypteras här innan det sparas, och servern kan inte läsa något. Tabellen sparas för vecka{' '}
+              {weekKey.slice(-2).replace(/^0/, '')}. Klistra in på nytt när arket har uppdaterats.
             </p>
           </section>
         )}
@@ -334,6 +380,11 @@ export default function Narvaro() {
             {savedTable
               ? <button type="button" className="underline" onClick={() => setShowExample(false)}>Tillbaka till ditt ark</button>
               : 'Klistra in ditt eget ark för att börja.'}
+          </div>
+        )}
+        {!isExample && current && current.key !== weekKey && (
+          <div className="sp-toast bg-ui-mark-yellow px-4 py-2 text-sm font-semibold text-ui-mark-fg">
+            Tabellen är från vecka {current.key.slice(-2).replace(/^0/, '')}. Klistra in veckans ark när du har det.
           </div>
         )}
 
@@ -634,6 +685,7 @@ export default function Narvaro() {
             ))}
           </section>
         )}
+        </>)}
       </div>
 
       <NarvaroNoteDialog
@@ -691,5 +743,15 @@ function ChipRow({ label, children }: { label: string; children: React.ReactNode
       <span className="pt-0 font-mono text-2xs font-bold uppercase tracking-widest text-ui-muted sm:pt-2">{label}</span>
       <div className="flex min-w-0 flex-wrap gap-2">{children}</div>
     </div>
+  );
+}
+
+function SaveIndicator({ status }: { status: NarvaroSaveStatus }) {
+  const Icon = status === 'saved' ? Check : status === 'error' || status === 'conflict' ? AlertTriangle : Loader2;
+  return (
+    <span role="status" className="flex items-center gap-1.5 text-xs text-ui-muted" title="Krypterat innan det sparas">
+      <Icon size={14} className={cn((status === 'saving' || status === 'pending') && 'animate-spin')} />
+      {SAVE_LABEL[status]}
+    </span>
   );
 }

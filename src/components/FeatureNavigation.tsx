@@ -54,8 +54,8 @@ const features: readonly Feature[] = [
  * textfält) eller Ctrl+Alt+Shift+T. Det är en gömd dörr, inget lås:
  * sidan läser bara scheman som den inloggade redan har tillgång till.
  *
- * Närvarorutorna nås med n-n-n på samma sätt. Sidan läser inget från
- * servern; allt den visar har klistrats in och ligger i webbläsaren.
+ * Närvarorutorna nås med n-n-n på samma sätt. Det sidan sparar krypteras
+ * med användarens lösenfras innan det skickas, så servern kan inte läsa det.
  *
  * Arbetslags detaljplan nås bara via direktlänken. Den är inte klar för
  * kollegorna än, så ingen knapp leder dit.
