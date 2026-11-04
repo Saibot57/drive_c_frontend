@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen, Users, ClipboardCheck } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen, Users, ClipboardCheck, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -59,12 +59,16 @@ const features: readonly Feature[] = [
  *
  * Arbetslags detaljplan nås bara via direktlänken. Den är inte klar för
  * kollegorna än, så ingen knapp leder dit.
+ *
+ * Trafiken nås också bara via direktlänken. Backend svarar bara konton i
+ * TRAFFIC_VIEWERS, så för alla andra visar sidan att statistiken inte finns.
  */
 const hiddenFeatures: readonly Feature[] = [
   { label: 'Detaljplan',      href: '/features/arbetslag/detalj',   icon: DoorOpen,     shortcut: '' },
   { label: 'Statistik',       href: '/features/statistik',          icon: Sigma,        shortcut: '',
     aliases: ['/features/termin'] },
   { label: 'Närvaro',         href: '/features/narvaro',            icon: ClipboardCheck, shortcut: '' },
+  { label: 'Trafik',          href: '/features/trafik',             icon: Activity,     shortcut: '' },
 ];
 
 const TERM_PLANNER_HREF = '/features/statistik';
