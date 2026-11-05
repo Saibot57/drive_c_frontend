@@ -1,6 +1,7 @@
 /**
  * Närvarorutornas data delad i dokument för servern: ett per ISO-vecka med
- * veckans tabell, anteckningar och grupper, och ett med stämplarna. Varje
+ * veckans tabeller (en per klass), anteckningar och grupper, och ett med
+ * stämplarna. Varje
  * dokument krypteras för sig (se narvaroCrypto) och sparas med egen version.
  *
  * Veckor vars måndag är mer än ett läsår (365 dagar) gammal gallras: de
@@ -16,6 +17,7 @@ import {
   sanitizeGroups,
   sanitizeNotes,
   sanitizeStamps,
+  cleanClassName,
   sanitizeTable,
 } from '@/utils/narvaro';
 
@@ -23,15 +25,18 @@ export const KEYINFO_KEY = 'keyinfo';
 export const SETTINGS_KEY = 'settings';
 export const RETENTION_DAYS = 365;
 
-/** Allt sidan visar. Tabellerna ligger per vecka, under veckans nyckel. */
+/** Klassens namn till dess tabell. `''` är en tabell som ännu inte fått någon klass. */
+export type Sheets = Record<string, AttendanceTable>;
+
+/** Allt sidan visar. Tabellerna ligger per vecka och klass. */
 export type NarvaroData = {
-  tables: Record<string, AttendanceTable>;
+  tables: Record<string, Sheets>;
   notes: NotesStore;
   groups: GroupsStore;
   stamps: Stamp[];
 };
 
-export type WeekDoc = { table: AttendanceTable | null; notes: NotesStore; groups: GroupsStore };
+export type WeekDoc = { sheets: Sheets; notes: NotesStore; groups: GroupsStore };
 export type SettingsDoc = { stamps: Stamp[] };
 
 export const emptyData = (): NarvaroData => ({ tables: {}, notes: {}, groups: {}, stamps: [...DEFAULT_STAMPS] });
@@ -73,16 +78,52 @@ export function weekOfSession(sessionKey: string): string | null {
   return m ? isoWeekKey(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))) : null;
 }
 
-/** Veckans tabell, annars den senaste från en tidigare vecka. */
-export function tableFor(
-  tables: Record<string, AttendanceTable>,
-  weekKey: string,
-): { key: string; table: AttendanceTable } | null {
-  const key = Object.keys(tables).filter(k => k <= weekKey).sort().pop();
-  return key ? { key, table: tables[key] } : null;
+export type SheetRef = { week: string; table: AttendanceTable };
+
+/**
+ * Varje klass senaste tabell till och med veckan. En klass vars ark inte
+ * klistrats in den här veckan visas med förra veckans.
+ */
+export function latestSheets(tables: Record<string, Sheets>, weekKey: string): Record<string, SheetRef> {
+  const out: Record<string, SheetRef> = {};
+  Object.keys(tables).filter(k => k <= weekKey).sort().forEach(week => {
+    Object.entries(tables[week]).forEach(([klass, table]) => { out[klass] = { week, table }; });
+  });
+  return out;
 }
 
-const emptyWeek = (): WeekDoc => ({ table: null, notes: {}, groups: {} });
+/** Varje klass senaste tabell över alla veckor, för att känna igen ett ark. */
+export function knownClasses(tables: Record<string, Sheets>): Sheets {
+  const out: Sheets = {};
+  Object.keys(tables).sort().forEach(week => Object.assign(out, tables[week]));
+  return out;
+}
+
+export function setSheet(data: NarvaroData, week: string, klass: string, table: AttendanceTable): NarvaroData {
+  return { ...data, tables: { ...data.tables, [week]: { ...data.tables[week], [klass]: table } } };
+}
+
+export function removeSheet(data: NarvaroData, week: string, klass: string): NarvaroData {
+  const sheets = { ...data.tables[week] };
+  delete sheets[klass];
+  const tables = { ...data.tables, [week]: sheets };
+  if (!Object.keys(sheets).length) delete tables[week];
+  return { ...data, tables };
+}
+
+/** Byter namn på en klass i alla veckor. Finns målet redan en vecka ersätts det. */
+export function renameClass(data: NarvaroData, from: string, to: string): NarvaroData {
+  if (from === to) return data;
+  const tables: Record<string, Sheets> = {};
+  Object.entries(data.tables).forEach(([week, sheets]) => {
+    const next = { ...sheets };
+    if (from in next) { next[to] = next[from]; delete next[from]; }
+    tables[week] = next;
+  });
+  return { ...data, tables };
+}
+
+const emptyWeek = (): WeekDoc => ({ sheets: {}, notes: {}, groups: {} });
 
 /** Delar datan i veckodokument. Gallrade veckor och pass utan datum tas inte med. */
 export function splitWeeks(data: NarvaroData, now: Date): Record<string, WeekDoc> {
@@ -91,7 +132,10 @@ export function splitWeeks(data: NarvaroData, now: Date): Record<string, WeekDoc
     if (!key || isExpiredWeek(key, now)) return null;
     return (weeks[key] = weeks[key] ?? emptyWeek());
   };
-  Object.entries(data.tables).forEach(([k, t]) => { const w = week(k); if (w) w.table = t; });
+  Object.entries(data.tables).forEach(([k, sheets]) => {
+    const w = week(k);
+    if (w && Object.keys(sheets).length) w.sheets = sheets;
+  });
   Object.entries(data.notes).forEach(([k, s]) => { const w = week(weekOfSession(k)); if (w) w.notes[k] = s; });
   Object.entries(data.groups).forEach(([k, g]) => { const w = week(weekOfSession(k)); if (w) w.groups[k] = g; });
   return weeks;
@@ -110,9 +154,23 @@ export function documentsToSave(data: NarvaroData, now: Date, knownKeys: Iterabl
   return docs;
 }
 
+/**
+ * Ett veckodokument. Före klasserna hade det en enda `table`; den blir en
+ * tabell utan klass, som sidan ber användaren namnge.
+ */
 export function sanitizeWeekDoc(raw: unknown): WeekDoc {
   const r = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
-  return { table: sanitizeTable(r.table), notes: sanitizeNotes(r.notes), groups: sanitizeGroups(r.groups) };
+  const sheets: Sheets = {};
+  if (typeof r.sheets === 'object' && r.sheets !== null && !Array.isArray(r.sheets)) {
+    Object.entries(r.sheets as Record<string, unknown>).forEach(([klass, t]) => {
+      const table = sanitizeTable(t);
+      if (table) sheets[klass === '' ? '' : cleanClassName(klass) || ''] = table;
+    });
+  } else {
+    const table = sanitizeTable(r.table);
+    if (table) sheets[''] = table;
+  }
+  return { sheets, notes: sanitizeNotes(r.notes), groups: sanitizeGroups(r.groups) };
 }
 
 export function sanitizeSettingsDoc(raw: unknown): SettingsDoc {
@@ -125,7 +183,7 @@ export function mergeWeeks(weeks: Record<string, WeekDoc>, stamps: Stamp[], now:
   const data: NarvaroData = { tables: {}, notes: {}, groups: {}, stamps };
   Object.entries(weeks).forEach(([key, w]) => {
     if (isExpiredWeek(key, now)) return;
-    if (w.table) data.tables[key] = w.table;
+    if (Object.keys(w.sheets).length) data.tables[key] = w.sheets;
     Object.assign(data.notes, w.notes);
     Object.assign(data.groups, w.groups);
   });
@@ -144,14 +202,18 @@ export const hasLegacyContent = (l: LegacyData) =>
 
 /**
  * För över det som tidigare bara låg i webbläsaren. Tabellen hör till den här
- * veckan, eftersom det var den sidan visade den för. Det som redan finns på
- * servern vinner: ett pass, en grupp eller en stämpel som finns där ändras inte.
+ * veckan, eftersom det var den sidan visade den för, och har ingen klass än.
+ * Det som redan finns på servern vinner: en tabell, ett pass, en grupp eller
+ * en stämpel som finns där ändras inte.
  */
 export function mergeLegacy(server: NarvaroData, legacy: LegacyData, now: Date): NarvaroData {
   const current = isoWeekKey(now);
   const ids = new Set(server.stamps.map(s => s.id));
+  const hasCurrent = Object.keys(server.tables[current] ?? {}).length > 0;
   return {
-    tables: legacy.table && !server.tables[current] ? { ...server.tables, [current]: legacy.table } : server.tables,
+    tables: legacy.table && !hasCurrent
+      ? { ...server.tables, [current]: { '': legacy.table } }
+      : server.tables,
     notes: { ...legacy.notes, ...server.notes },
     groups: { ...legacy.groups, ...server.groups },
     stamps: [...server.stamps, ...(legacy.stamps ?? []).filter(s => !ids.has(s.id))],
