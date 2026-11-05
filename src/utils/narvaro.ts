@@ -29,6 +29,8 @@ export type AttendancePerson = {
   group: string;
   /** Ett värde per kolumn: kryssad, okryssad eller ingen kryssruta. */
   marks: (boolean | null)[];
+  /** Klassen (arket) personen kommer från, när flera ark visas tillsammans. */
+  klass?: string;
 };
 
 export type AttendanceTable = {
@@ -270,12 +272,79 @@ export function defaultDay(table: AttendanceTable, now: Date): string {
   return table.days.includes(today) ? today : table.days[0];
 }
 
-/** Nyckeln som anteckningar och grupper sparas under: datum, dag och pass. */
+/**
+ * Nyckeln som anteckningar sparas under: datum, dag och kolumn. Passets namn
+ * ingår inte, eftersom samma pass kan heta lite olika i olika klassers ark
+ * (9.45-11.30 och 9.45-11.45).
+ */
 export function sessionKey(table: AttendanceTable, day: string, pass: PassChoice, now: Date): string {
   const col = table.cols.find(c => c.id === pass);
   const which = pass === 'day' ? 'dag' : col?.letter || pass;
-  return `${isoDate(dateForDay(day, now))}|${day}|${which}|${col?.pass ?? ''}`;
+  return `${isoDate(dateForDay(day, now))}|${day}|${which}`;
 }
+
+/** Äldre nycklar slutade med passets namn (`…|G|Studieverkstad`). */
+export const normalizeSessionKey = (key: string) => key.split('|').slice(0, 3).join('|');
+
+/**
+ * Grupper hör till passet och till vilka klasser som visas tillsammans, så
+ * att grupperna för Rosa + Grund inte skrivs över när bara Rosa visas.
+ */
+export const groupsKey = (sessKey: string, classes: readonly string[]) =>
+  `${sessKey}#${[...classes].sort().join('+')}`;
+
+export const isGroupsKey = (key: string) => key.includes('#');
+
+/* ---------- klasser ---------- */
+
+export const MAX_CLASS_NAME_LENGTH = 30;
+
+/** Klassens namn som det sparas: utan tecknen som skiljer nycklarna åt. */
+export const cleanClassName = (name: string) =>
+  name.replace(/[+#|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CLASS_NAME_LENGTH);
+
+/**
+ * Arken för de valda klasserna som en tabell. Passen paras ihop efter
+ * kolumn, eftersom arken har samma uppställning; namnet tas från det första
+ * arket. Heter två elever i veckans ark exakt likadant får båda klassen efter
+ * namnet, så att deras noteringar hålls isär.
+ */
+export function combineSheets(sheets: Record<string, AttendanceTable>, classes: readonly string[]): AttendanceTable {
+  const chosen = classes.filter(c => sheets[c]);
+  const counts = new Map<string, number>();
+  Object.values(sheets).forEach(t => t.people.forEach(p => counts.set(p.name, (counts.get(p.name) ?? 0) + 1)));
+  const people = chosen.flatMap(klass => sheets[klass].people.map(p => ({
+    ...p,
+    klass,
+    name: (counts.get(p.name) ?? 0) > 1 ? `${p.name} (${klass || 'utan klass'})` : p.name,
+  })));
+  const byIndex = new Map<number, AttendanceColumn>();
+  chosen.forEach(klass => sheets[klass].cols.forEach(c => { if (!byIndex.has(c.index)) byIndex.set(c.index, c); }));
+  const cols = Array.from(byIndex.values()).sort((a, b) => a.index - b.index);
+  return {
+    people,
+    cols,
+    groups: Array.from(new Set(people.map(p => p.group).filter(Boolean))),
+    days: Array.from(new Set(cols.map(c => c.day))),
+  };
+}
+
+export type ClassSuggestion = { klass: string; matched: number; total: number };
+
+/** Den klass vars senaste ark har flest av namnen, om någon har något. */
+export function suggestClass(table: AttendanceTable, known: Record<string, AttendanceTable>): ClassSuggestion | null {
+  const names = new Set(table.people.map(p => p.name));
+  let best: ClassSuggestion | null = null;
+  Object.entries(known).forEach(([klass, t]) => {
+    if (!klass) return;
+    const matched = t.people.filter(p => names.has(p.name)).length;
+    if (matched > 0 && (!best || matched > best.matched)) best = { klass, matched, total: names.size };
+  });
+  return best;
+}
+
+/** Säkert nog för att spara direkt: minst fyra av fem namn känns igen. */
+export const isConfident = (s: ClassSuggestion | null) => !!s && s.matched / s.total >= 0.8;
 
 export function sessionLabel(table: AttendanceTable, day: string, pass: PassChoice, now: Date): string {
   const d = dateForDay(day, now);
@@ -325,12 +394,13 @@ export function noteEntries(sess: SessionNotes): [string, PersonNote][] {
   return Object.entries(sess.people).filter(([, n]) => hasContent(n));
 }
 
-/** Passets noteringar som text, grupperade per klass när det finns flera. */
+/** Passets noteringar som text, grupperade per klass och skola när det finns flera. */
 export function sessionText(sess: SessionNotes, table: AttendanceTable, stamps: readonly Stamp[]): string {
   const lines = [sess.label];
   const byGroup = new Map<string, [string, PersonNote][]>();
   noteEntries(sess).forEach(([name, n]) => {
-    const g = table.people.find(p => p.name === name)?.group ?? '';
+    const p = table.people.find(x => x.name === name);
+    const g = p ? [p.klass, p.group].filter(Boolean).join(' · ') : '';
     byGroup.set(g, [...(byGroup.get(g) ?? []), [name, n]]);
   });
   const multi = byGroup.size > 1;
@@ -451,7 +521,8 @@ export function sanitizeTable(raw: unknown): AttendanceTable | null {
 export function sanitizeNotes(raw: unknown): NotesStore {
   if (!isRecord(raw)) return {};
   const out: NotesStore = {};
-  Object.entries(raw).forEach(([key, s]) => {
+  Object.entries(raw).forEach(([rawKey, s]) => {
+    const key = normalizeSessionKey(rawKey);
     if (!isRecord(s)) return;
     const people: Record<string, PersonNote> = {};
     if (isRecord(s.people)) {
@@ -459,7 +530,11 @@ export function sanitizeNotes(raw: unknown): NotesStore {
         if (isRecord(n)) people[name] = { tags: strings(n.tags), note: str(n.note) };
       });
     }
-    out[key] = { label: str(s.label), people, added: strings(s.added) };
+    // Två äldre nycklar kan bli samma; slå ihop dem hellre än att tappa någon.
+    const prev = out[key];
+    out[key] = prev
+      ? { label: prev.label || str(s.label), people: { ...people, ...prev.people }, added: Array.from(new Set([...prev.added, ...strings(s.added)])) }
+      : { label: str(s.label), people, added: strings(s.added) };
   });
   return out;
 }
@@ -476,11 +551,15 @@ export function sanitizeStamps(raw: unknown): Stamp[] {
   return out;
 }
 
+/**
+ * Grupper sparade före klasserna (utan `#` i nyckeln) gick inte att knyta
+ * till någon kombination av klasser och släpps.
+ */
 export function sanitizeGroups(raw: unknown): GroupsStore {
   if (!isRecord(raw)) return {};
   const out: GroupsStore = {};
   Object.entries(raw).forEach(([key, g]) => {
-    if (isRecord(g) && Array.isArray(g.groups)) out[key] = { groups: g.groups.map(strings) };
+    if (isGroupsKey(key) && isRecord(g) && Array.isArray(g.groups)) out[key] = { groups: g.groups.map(strings) };
   });
   return out;
 }

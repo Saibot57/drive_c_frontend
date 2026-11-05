@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Check, ClipboardPaste, Copy, Loader2, Lock, PenLine, Shuffle, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,6 +16,13 @@ import { isEditableElement } from '@/utils/dom';
 import {
   AttendanceTable,
   CUSTOM_STAMP_COLORS,
+  ClassSuggestion,
+  MAX_CLASS_NAME_LENGTH,
+  cleanClassName,
+  combineSheets,
+  groupsKey,
+  isConfident,
+  suggestClass,
   GroupBy,
   GroupsStore,
   MAX_STORED_GROUP_SESSIONS,
@@ -46,7 +53,8 @@ import {
   toggleStamp,
   trimSessions,
 } from '@/utils/narvaro';
-import { isoWeekKey, tableFor } from '@/utils/narvaroDocs';
+import { isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet } from '@/utils/narvaroDocs';
+import { usePersistentState } from '@/hooks/usePersistentState';
 import { exampleTable } from '@/utils/narvaroExample';
 import '@/styles/schedule-theme.css';
 
@@ -57,6 +65,11 @@ import '@/styles/schedule-theme.css';
  * Arket tillhör skolan och går inte att läsa härifrån, så tabellen klistras
  * in. Allt krypteras i webbläsaren med användarens lösenfras innan det
  * sparas på servern (useNarvaroSync), och inga elevnamn finns i koden.
+ *
+ * Varje klass har ett eget ark, som klistras in för sig och känns igen på
+ * namnen nästa gång. Klasserna kan visas var för sig eller tillsammans.
+ * Noteringar hör till eleven och passet; grupper till passet och till vilka
+ * klasser som visas.
  *
  * Sidan är olistad: den nås med n-n-n (se FeatureNavigation).
  */
@@ -70,6 +83,15 @@ const SAVE_LABEL: Record<NarvaroSaveStatus, string> = {
 };
 
 type Mode = 'notes' | 'groups';
+type PendingPaste = { table: AttendanceTable; suggestion: ClassSuggestion | null };
+
+/** Vilka klasser som visas, per enhet. Klassernas namn är inga personuppgifter. */
+const VIEW_KEY = 'narvaro.view.v1';
+const NO_CLASSES: string[] = [];
+const sanitizeView = (raw: unknown): string[] =>
+  Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : [];
+const classLabel = (klass: string) => klass || 'Utan klass';
+const weekNumber = (weekKey: string) => weekKey.slice(-2).replace(/^0/, '');
 type PasteMessage = { kind: 'ok' | 'error'; text: string } | null;
 
 const chip = (pressed: boolean) => cn(
@@ -91,19 +113,33 @@ export default function Narvaro() {
   const sync = useNarvaroSync(user?.id ?? null, now);
   const { update } = sync;
   const weekKey = isoWeekKey(now);
-  // Veckans tabell, annars den senast inklistrade.
-  const current = tableFor(sync.data.tables, weekKey);
-  const savedTable = current?.table ?? null;
+
+  // Varje klass senaste tabell, och de valda klasserna som en tabell.
+  const latest = useMemo(() => latestSheets(sync.data.tables, weekKey), [sync.data.tables, weekKey]);
+  const classNames = Object.keys(latest).filter(Boolean).sort((a, b) => a.localeCompare(b, 'sv'));
+  const unnamed = latest[''] ?? null;
+  const allClasses = unnamed ? [...classNames, ''] : classNames;
+  const [chosen, setChosen] = usePersistentState(VIEW_KEY, sanitizeView, NO_CLASSES);
+  // Alltid i klassernas ordning, oavsett i vilken ordning de valdes.
+  const picked = allClasses.filter(c => chosen.includes(c));
+  const selected = picked.length ? picked : allClasses.slice(0, 1);
+  const selectedKey = selected.join('+');
+  const savedTable = useMemo(() => {
+    if (!selected.length) return null;
+    const sheets = Object.fromEntries(Object.entries(latest).map(([k, ref]) => [k, ref.table]));
+    return combineSheets(sheets, selected);
+    // selectedKey står för `selected`, som är en ny lista varje rendering.
+  }, [latest, selectedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const stamps = sync.data.stamps;
   const savedNotes = sync.data.notes;
   const savedGroups = sync.data.groups;
   const setStamps = (next: Stamp[]) => update(d => ({ ...d, stamps: next }));
   const setSavedNotes = (next: NotesStore) => update(d => ({ ...d, notes: next }));
   const setSavedGroups = (next: GroupsStore) => update(d => ({ ...d, groups: next }));
-  const setSavedTable = useCallback(
-    (t: AttendanceTable) => update(d => ({ ...d, tables: { ...d.tables, [weekKey]: t } })),
-    [update, weekKey],
-  );
+  const toggleClass = (klass: string) => {
+    const next = selected.includes(klass) ? selected.filter(c => c !== klass) : [...selected, klass];
+    if (next.length) setChosen(next);
+  };
 
   // Exemplet har egna anteckningar och grupper i minnet, så att det inte
   // blandas med de riktiga.
@@ -132,6 +168,11 @@ export default function Narvaro() {
 
   const [pasteOpen, setPasteOpen] = useState<boolean | null>(null);
   const showPaste = pasteOpen ?? !savedTable;
+  const [pending, setPending] = useState<PendingPaste | null>(null);
+  const [newClass, setNewClass] = useState('');
+  const [justSaved, setJustSaved] = useState<string | null>(null);
+  const [nameUnnamed, setNameUnnamed] = useState('');
+  const [armedSheet, setArmedSheet] = useState<string | null>(null);
   const [pasteText, setPasteText] = useState('');
   const [pasteMsg, setPasteMsg] = useState<PasteMessage>(null);
   const [pasteRaw, setPasteRaw] = useState('');
@@ -139,13 +180,23 @@ export default function Narvaro() {
   const [copyFallback, setCopyFallback] = useState<string | null>(null);
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
 
-  // Ny tabell: välj dagens veckodag och passet som pågår.
+  // Första riktiga tabellen: välj dagens veckodag och passet som pågår.
+  // Byts sedan klasser behålls dag och pass, så länge de finns kvar.
+  const shownKind = isExample ? 'example' : 'real';
+  const initialized = useRef<string | null>(null);
   useEffect(() => {
-    const d = defaultDay(table, now);
-    setDay(d);
-    setPass(defaultPass(table, d, now));
     setKlass(k => (k === 'all' || table.groups.includes(k) ? k : 'all'));
-  }, [table, now]);
+    if (initialized.current !== shownKind) {
+      initialized.current = shownKind;
+      const d = defaultDay(table, now);
+      setDay(d);
+      setPass(defaultPass(table, d, now));
+      return;
+    }
+    const d = table.days.includes(day) ? day : defaultDay(table, now);
+    if (d !== day) setDay(d);
+    setPass(p => (p === 'day' || dayColumns(table, d).some(c => c.id === p) ? p : defaultPass(table, d, now)));
+  }, [table, now, shownKind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!toast) return;
@@ -157,16 +208,19 @@ export default function Narvaro() {
   const label = sessionLabel(table, day, pass, now);
   const sess: SessionNotes = notes[key] ?? emptySession(label);
   const { present, absent } = roster(table, { klass, day, pass, added: sess.added });
-  const excludedHere = useMemo(() => new Set(excluded[key] ?? []), [excluded, key]);
+  // Grupperna hör till passet och till de klasser som visas tillsammans.
+  const gKey = groupsKey(key, isExample ? ['exempel'] : selected);
+  const excludedHere = useMemo(() => new Set(excluded[gKey] ?? []), [excluded, gKey]);
   const active = present.filter(p => !excludedHere.has(p.name)).map(p => p.name);
-  const stored = groups[key]?.groups;
+  const stored = groups[gKey]?.groups;
   const view = stored ? groupView(stored, active) : null;
-  const showClass = klass === 'all' && table.groups.length > 1;
+  const showSchool = klass === 'all' && table.groups.length > 1;
+  const showClassName = !isExample && selected.length > 1;
 
   const updateSession = (fn: (s: SessionNotes) => SessionNotes) =>
     setNotes({ ...notes, [key]: { ...fn(sess), label } });
   const saveGroups = (next: string[][]) =>
-    setGroups(trimSessions({ ...groups, [key]: { groups: next } }, MAX_STORED_GROUP_SESSIONS));
+    setGroups(trimSessions({ ...groups, [gKey]: { groups: next } }, MAX_STORED_GROUP_SESSIONS));
 
   const copyText = useCallback((text: string) => {
     const fallback = () => setCopyFallback(text);
@@ -180,24 +234,55 @@ export default function Narvaro() {
 
   /* ---------- inklistring ---------- */
 
+  /** Sparar tabellen som klassens för veckan och visar klassen. */
+  const saveAs = useCallback((klass: string, table: AttendanceTable, suggestion: ClassSuggestion | null) => {
+    update(d => setSheet(d, weekKey, klass, table));
+    setChosen([klass]);
+    setPending(null);
+    setNewClass('');
+    setJustSaved(klass);
+    setShowExample(false);
+    const schools = table.groups.length ? ` från ${table.groups.length} skolor` : '';
+    const known = suggestion && suggestion.klass === klass ? ` ${suggestion.matched} av ${suggestion.total} namn kändes igen.` : '';
+    setPasteMsg({
+      kind: 'ok',
+      text: `${klass}: ${table.people.length} deltagare${schools} och ${table.cols.length} pass för vecka ${weekNumber(weekKey)}.${known}`,
+    });
+  }, [update, weekKey, setChosen]);
+
   const handlePaste = useCallback((text: string, html: string) => {
     const parsed = parsePasted(text, html);
+    setJustSaved(null);
     if (!parsed) {
+      setPending(null);
       setPasteMsg({ kind: 'error', text: 'Hittade inga kryssrutor. Kopiera cellerna i arket, inte en bild.' });
       setPasteRaw(pastePreview(text, html));
       return;
     }
-    // Rutan är öppen för att ingen tabell fanns. Håll den öppen en stund till,
-    // så att bekräftelsen syns.
     setPasteOpen(true);
-    setSavedTable(parsed);
-    setShowExample(false);
     setPasteRaw('');
     setPasteText('');
-    const classes = parsed.groups.length ? ` från ${parsed.groups.length} skolor` : '';
-    setPasteMsg({ kind: 'ok', text: `Läste in ${parsed.people.length} deltagare${classes} och ${parsed.cols.length} pass.` });
-    setTimeout(() => setPasteOpen(false), 1400);
-  }, [setSavedTable]);
+    // Känns namnen igen sparas tabellen direkt som den klassen; annars frågar sidan.
+    const suggestion = suggestClass(parsed, knownClasses(sync.data.tables));
+    if (suggestion && isConfident(suggestion)) {
+      saveAs(suggestion.klass, parsed, suggestion);
+      return;
+    }
+    setPending({ table: parsed, suggestion });
+    setPasteMsg(null);
+  }, [sync.data.tables, saveAs]);
+
+  /** Flyttar den nyss sparade tabellen till en annan klass. */
+  const moveJustSaved = (to: string) => {
+    if (!justSaved || !to || to === justSaved) return;
+    const table = sync.data.tables[weekKey]?.[justSaved];
+    if (!table) return;
+    update(d => setSheet(removeSheet(d, weekKey, justSaved), weekKey, to, table));
+    setChosen([to]);
+    setJustSaved(to);
+    setNewClass('');
+    setPasteMsg({ kind: 'ok', text: `Flyttad till ${to}.` });
+  };
 
   // Klistrar man in var som helst på sidan (utanför textfält) läses tabellen in.
   useEffect(() => {
@@ -217,8 +302,8 @@ export default function Narvaro() {
 
   const onTile = (name: string) => {
     if (mode === 'groups') {
-      const cur = excluded[key] ?? [];
-      setExcluded({ ...excluded, [key]: cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name] });
+      const cur = excluded[gKey] ?? [];
+      setExcluded({ ...excluded, [gKey]: cur.includes(name) ? cur.filter(n => n !== name) : [...cur, name] });
       return;
     }
     if (stamp === 'note') { setEditing(name); return; }
@@ -321,11 +406,11 @@ export default function Narvaro() {
 
         {showPaste && (
           <section className="sp-card flex flex-col gap-3 p-4" aria-label="Klistra in">
-            <h2 className="text-lg font-bold">Klistra in från Google Kalkylark</h2>
+            <h2 className="text-lg font-bold">Klistra in en klass från Google Kalkylark</h2>
             <ol className="ml-5 list-decimal text-sm">
-              <li>Markera namnkolumnen och kryssrutorna, med dag- och tidsraderna överst (till exempel A1:Q32).</li>
+              <li>Markera hela tabellen i klassens ark, med dag- och tidsraderna överst (till exempel A1:Q34).</li>
               <li>Kopiera med Ctrl+C, eller Cmd+C på Mac.</li>
-              <li>Klicka i rutan nedan och klistra in.</li>
+              <li>Klicka i rutan nedan och klistra in. Gör likadant för varje klass.</li>
             </ol>
             <textarea
               id="narvaro-paste"
@@ -360,6 +445,66 @@ export default function Narvaro() {
                 </span>
               )}
             </div>
+            {pending && (
+              <ClassPicker
+                title={`Vilken klass är det här? ${pending.table.people.length} deltagare och ${pending.table.cols.length} pass.`}
+                hint={pending.suggestion
+                  ? `${pending.suggestion.matched} av ${pending.suggestion.total} namn finns i ${pending.suggestion.klass}.`
+                  : classNames.length ? 'Inga av namnen känns igen.' : 'Ge klassen ett namn, till exempel Rosa.'}
+                classes={classNames}
+                suggested={pending.suggestion?.klass}
+                newName={newClass}
+                onNewName={setNewClass}
+                onPick={k => saveAs(k, pending.table, pending.suggestion)}
+                onCancel={() => { setPending(null); setNewClass(''); }}
+              />
+            )}
+            {justSaved && !pending && (
+              <details className="text-sm">
+                <summary className="cursor-pointer text-ui-muted underline">Fel klass?</summary>
+                <ClassPicker
+                  title={`Flytta tabellen från ${justSaved} till:`}
+                  classes={classNames.filter(c => c !== justSaved)}
+                  newName={newClass}
+                  onNewName={setNewClass}
+                  onPick={moveJustSaved}
+                />
+              </details>
+            )}
+            {allClasses.length > 0 && (
+              <div className="flex flex-col gap-1.5 text-sm">
+                <span className="font-mono text-2xs font-bold uppercase tracking-widest text-ui-muted">Klasser</span>
+                <ul className="flex flex-wrap gap-2">
+                  {allClasses.map(k => {
+                    const ref = latest[k];
+                    const thisWeek = ref.week === weekKey;
+                    const id = `${ref.week}|${k}`;
+                    return (
+                      <li key={k} className="flex items-center gap-1.5 rounded-ui-sm border border-ui-line bg-ui-paper px-2 py-0.5">
+                        <span className="font-semibold">{classLabel(k)}</span>
+                        <span className="text-xs text-ui-muted">
+                          {thisWeek ? `vecka ${weekNumber(weekKey)}` : `från vecka ${weekNumber(ref.week)}`} · {ref.table.people.length} deltagare
+                        </span>
+                        {thisWeek && (
+                          <button
+                            type="button"
+                            className="text-xs text-ui-muted underline"
+                            onClick={() => {
+                              if (armedSheet !== id) { setArmedSheet(id); return; }
+                              update(d => removeSheet(d, weekKey, k));
+                              setArmedSheet(null);
+                            }}
+                          >
+                            {armedSheet === id ? 'Säker? Tryck igen' : 'Ta bort'}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-xs text-ui-muted">Ta bort gäller bara veckans tabell. Noteringarna finns kvar.</p>
+              </div>
+            )}
             {pasteRaw && (
               <details className="flex flex-col gap-1.5">
                 <summary className="cursor-pointer text-sm font-semibold">Så här såg det inklistrade ut (de första raderna)</summary>
@@ -369,7 +514,7 @@ export default function Narvaro() {
             )}
             <p className="text-xs text-ui-muted">
               Allt krypteras här innan det sparas, och servern kan inte läsa något. Tabellen sparas för vecka{' '}
-              {weekKey.slice(-2).replace(/^0/, '')}. Klistra in på nytt när arket har uppdaterats.
+              {weekNumber(weekKey)}. Klistra in på nytt när arket har uppdaterats.
             </p>
           </section>
         )}
@@ -382,13 +527,47 @@ export default function Narvaro() {
               : 'Klistra in ditt eget ark för att börja.'}
           </div>
         )}
-        {!isExample && current && current.key !== weekKey && (
+        {!isExample && unnamed && (
+          <section className="sp-toast flex flex-col gap-2 bg-ui-mark-yellow px-4 py-3 text-sm text-ui-mark-fg" aria-label="Tabell utan klass">
+            <ClassPicker
+              title={`En tabell från vecka ${weekNumber(unnamed.week)} har ingen klass än (${unnamed.table.people.length} deltagare). Vilken klass är den?`}
+              classes={classNames}
+              newName={nameUnnamed}
+              onNewName={setNameUnnamed}
+              onPick={k => {
+                update(d => renameClass(d, '', k));
+                setChosen(Array.from(new Set([...selected.filter(c => c !== ''), k])));
+                setNameUnnamed('');
+              }}
+            />
+          </section>
+        )}
+        {!isExample && selected.some(k => latest[k] && latest[k].week !== weekKey) && (
           <div className="sp-toast bg-ui-mark-yellow px-4 py-2 text-sm font-semibold text-ui-mark-fg">
-            Tabellen är från vecka {current.key.slice(-2).replace(/^0/, '')}. Klistra in veckans ark när du har det.
+            {selected.filter(k => latest[k] && latest[k].week !== weekKey)
+              .map(k => `${classLabel(k)}: tabellen är från vecka ${weekNumber(latest[k].week)}.`).join(' ')}{' '}
+            Klistra in veckans ark när du har det.
           </div>
         )}
 
         <section className="sp-card flex flex-col gap-3 p-4" aria-label="Urval">
+          {!isExample && allClasses.length > 1 && (
+            <ChipRow label="Klass">
+              {allClasses.map(k => (
+                <button
+                  key={k}
+                  type="button"
+                  className={chip(selected.includes(k))}
+                  aria-pressed={selected.includes(k)}
+                  onClick={() => toggleClass(k)}
+                  title="Välj flera för att visa klasserna tillsammans"
+                >
+                  {classLabel(k)}
+                  {latest[k].week !== weekKey && <small className="font-mono text-2xs opacity-70">v. {weekNumber(latest[k].week)}</small>}
+                </button>
+              ))}
+            </ChipRow>
+          )}
           {table.groups.length > 1 && (
             <ChipRow label="Skola">
               {['all', ...table.groups].map(k => (
@@ -582,7 +761,7 @@ export default function Narvaro() {
                 {n?.note && <PenLine size={13} className="absolute right-2 top-2" aria-label="Har notering" />}
                 <span className={cn('break-words text-lg font-bold leading-tight', out && 'line-through')}>{first}</span>
                 <span className="break-words text-xs text-ui-muted">
-                  {last}{showClass && p.group ? ` · ${p.group}` : ''}
+                  {[last, showClassName && p.klass, showSchool && p.group].filter(Boolean).join(' · ')}
                 </span>
                 {sess.added.includes(p.name) && <span className="font-mono text-2xs uppercase tracking-wider text-ui-muted">Tillagd</span>}
                 {!!n?.tags.length && (
@@ -753,5 +932,54 @@ function SaveIndicator({ status }: { status: NarvaroSaveStatus }) {
       <Icon size={14} className={cn((status === 'saving' || status === 'pending') && 'animate-spin')} />
       {SAVE_LABEL[status]}
     </span>
+  );
+}
+
+type ClassPickerProps = {
+  title: string;
+  hint?: string;
+  classes: string[];
+  suggested?: string;
+  newName: string;
+  onNewName: (name: string) => void;
+  onPick: (klass: string) => void;
+  onCancel?: () => void;
+};
+
+/** Välj en befintlig klass eller skriv en ny. */
+function ClassPicker({ title, hint, classes, suggested, newName, onNewName, onPick, onCancel }: ClassPickerProps) {
+  const name = cleanClassName(newName);
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="font-semibold">{title}</p>
+      {hint && <p className="text-sm">{hint}</p>}
+      <div className="flex flex-wrap items-center gap-2">
+        {[...classes].sort((a, b) => (a === suggested ? -1 : b === suggested ? 1 : 0)).map(k => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => onPick(k)}
+            className={cn(chip(k === suggested), 'text-sm')}
+          >
+            {k}
+          </button>
+        ))}
+        <form
+          className="flex gap-1.5"
+          onSubmit={e => { e.preventDefault(); if (name) onPick(name); }}
+        >
+          <input
+            value={newName}
+            onChange={e => onNewName(e.target.value)}
+            maxLength={MAX_CLASS_NAME_LENGTH}
+            placeholder="Ny klass"
+            aria-label="Ny klass"
+            className="sp-input w-32 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm text-ui-ink"
+          />
+          <Button type="submit" variant="neutral" size="sm" className="sp-btn" disabled={!name}>Spara</Button>
+        </form>
+        {onCancel && <button type="button" className="text-sm text-ui-muted underline" onClick={onCancel}>Avbryt</button>}
+      </div>
+    </div>
   );
 }

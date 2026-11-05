@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import {
+  cleanClassName,
+  combineSheets,
+  groupsKey,
+  isConfident,
+  normalizeSessionKey,
+  suggestClass,
   dateForDay,
   defaultDay,
   defaultPass,
@@ -141,7 +147,52 @@ describe('datum och urval', () => {
 
   it('ger olika nycklar för pass med samma namn', () => {
     expect(sessionKey(table, 'Tisdag', 'c5', WED)).not.toBe(sessionKey(table, 'Tisdag', 'c6', WED));
-    expect(sessionKey(table, 'Måndag', 'day', WED)).toBe('2026-11-02|Måndag|dag|');
+    expect(sessionKey(table, 'Måndag', 'day', WED)).toBe('2026-11-02|Måndag|dag');
+    expect(sessionKey(table, 'Tisdag', 'c5', WED)).toBe('2026-11-03|Tisdag|F');
+  });
+});
+
+describe('klasser', () => {
+  const rosa = parseAttendance(gridFromHtml(SHEET_HTML))!;
+  const grund = parsePasted([
+    '\tMåndag\t\t\tTisdag',
+    '\t8.30-9.45\t10.00-11.45\tStudieverkstad\t8.30-9.45',
+    'TORA VEGA',
+    'Ny Elev\tTRUE\tFALSE\tFALSE\tTRUE',
+    'Test Person\tFALSE\tTRUE\tFALSE\tFALSE',
+  ].join('\n'), '')!;
+
+  it('visar flera klasser som en tabell, med pass ihopparade efter kolumn', () => {
+    const both = combineSheets({ Rosa: rosa, Grund: grund }, ['Rosa', 'Grund']);
+    expect(both.cols.map(c => `${c.letter}:${c.pass}`)).toEqual([
+      'B:8.30-9.45', 'C:10.00-11.30', 'D:Studieverkstad', 'E:8.30-9.45', 'F:Studieverkstad', 'G:Studieverkstad',
+    ]);
+    expect(both.people.map(p => `${p.name}/${p.klass}`)).toEqual([
+      'Test Person (Rosa)/Rosa', 'Annan Person/Rosa', 'Tredje Person/Rosa', 'Ny Elev/Grund', 'Test Person (Grund)/Grund',
+    ]);
+    const sel = { klass: 'all', day: 'Måndag', pass: 'c1', added: [] as string[] };
+    expect(roster(both, sel).present.map(p => p.name)).toEqual(['Test Person (Rosa)', 'Tredje Person', 'Ny Elev']);
+  });
+
+  it('visar bara de valda klasserna', () => {
+    const one = combineSheets({ Rosa: rosa, Grund: grund }, ['Grund']);
+    expect(one.people.map(p => p.klass)).toEqual(['Grund', 'Grund']);
+    expect(one.cols).toHaveLength(4);
+  });
+
+  it('föreslår klassen vars namn känns igen', () => {
+    expect(suggestClass(rosa, { Rosa: rosa, Grund: grund })).toEqual({ klass: 'Rosa', matched: 3, total: 3 });
+    expect(isConfident(suggestClass(rosa, { Grund: grund }))).toBe(false);
+    expect(suggestClass(rosa, { '': rosa })).toBeNull();
+  });
+
+  it('håller grupper isär per kombination av klasser', () => {
+    expect(groupsKey('2026-11-02|Måndag|B', ['Rosa', 'Grund'])).toBe(groupsKey('2026-11-02|Måndag|B', ['Grund', 'Rosa']));
+    expect(groupsKey('2026-11-02|Måndag|B', ['Rosa'])).not.toBe(groupsKey('2026-11-02|Måndag|B', ['Rosa', 'Grund']));
+  });
+
+  it('rensar klassnamn från tecknen som skiljer nycklarna åt', () => {
+    expect(cleanClassName('  Rosa + Grund#1 ')).toBe('Rosa Grund 1');
   });
 });
 
@@ -211,6 +262,17 @@ describe('grupper', () => {
 });
 
 describe('lagring', () => {
+  it('för över äldre passnycklar med passets namn', () => {
+    expect(normalizeSessionKey('2026-11-04|Onsdag|G|Studieverkstad')).toBe('2026-11-04|Onsdag|G');
+    expect(normalizeSessionKey('2026-11-04|Onsdag|dag|')).toBe('2026-11-04|Onsdag|dag');
+    const merged = sanitizeNotes({
+      '2026-11-04|Onsdag|G|Studieverkstad': { label: 'a', people: { A: { tags: ['x'], note: '' } } },
+      '2026-11-04|Onsdag|G': { label: 'b', people: { B: { tags: [], note: 'hej' } } },
+    });
+    expect(Object.keys(merged)).toEqual(['2026-11-04|Onsdag|G']);
+    expect(Object.keys(merged['2026-11-04|Onsdag|G'].people).sort()).toEqual(['A', 'B']);
+  });
+
   it('läser gamla eller trasiga data utan att krascha', () => {
     expect(sanitizeTable(null)).toBeNull();
     expect(sanitizeTable({ people: [{ name: 'A', marks: [null, true, 'x'] }], cols: [{ index: 1, day: 'Måndag' }] }))
@@ -220,7 +282,8 @@ describe('lagring', () => {
     expect(sanitizeStamps('x')).toEqual(DEFAULT_STAMPS);
     expect(sanitizeStamps([{ id: 'a', label: 'Egen', color: 'röd', custom: true }]))
       .toEqual([{ id: 'a', label: 'Egen', color: 'grey', custom: true }]);
-    expect(sanitizeGroups({ k: { groups: [['A', 1]] }, x: 2 })).toEqual({ k: { groups: [['A']] } });
+    expect(sanitizeGroups({ 'k#Rosa': { groups: [['A', 1]] }, x: 2, gammal: { groups: [['A']] } }))
+      .toEqual({ 'k#Rosa': { groups: [['A']] } });
   });
 
   it('exemplet går att läsa och sparas oförändrat', () => {

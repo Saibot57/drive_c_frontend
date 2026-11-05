@@ -38,7 +38,7 @@ import { exampleTable } from '@/utils/narvaroExample';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const NOW = new Date(2026, 10, 4, 10, 0);
-const SESSION = '2026-11-02|Måndag|B|8.30-9.45';
+const SESSION = '2026-11-02|Måndag|B';
 const PASS = 'grön cykel under bron';
 
 /** En minimal renderHook. Repot har inget testbibliotek för React. */
@@ -77,7 +77,7 @@ describe('useNarvaroSync', () => {
     expect(result.current.phase).toBe('ready');
     expect(server.has('keyinfo')).toBe(true);
 
-    act(() => result.current.update(d => ({ ...d, tables: { 'w2026-45': exampleTable() }, notes: { [SESSION]: withNote('ledde diskussionen') } })));
+    act(() => result.current.update(d => ({ ...d, tables: { 'w2026-45': { Oliv: exampleTable() } }, notes: { [SESSION]: withNote('ledde diskussionen') } })));
     await waitFor(() => server.has('w2026-45') && result.current.saveStatus === 'saved');
 
     const stored = Array.from(server.values()).map(v => v.payload).join('');
@@ -108,13 +108,14 @@ describe('useNarvaroSync', () => {
 
   it('för över det som låg i webbläsaren och tar bort det när det sparats', async () => {
     window.localStorage.setItem('narvaro.table.v1', JSON.stringify(exampleTable()));
-    window.localStorage.setItem('narvaro.notes.v1', JSON.stringify({ [SESSION]: withNote('gammal anteckning') }));
+    // Nyckeln i det gamla formatet, med passets namn sist.
+    window.localStorage.setItem('narvaro.notes.v1', JSON.stringify({ [`${SESSION}|8.30-9.45`]: withNote('gammal anteckning') }));
     const { result, unmount } = renderHook();
     await waitFor(() => result.current.phase === 'setup');
     await act(async () => { await result.current.setup(PASS, false); });
     await waitFor(() => window.localStorage.getItem('narvaro.table.v1') === null);
 
-    expect(Object.keys(result.current.data.tables)).toEqual(['w2026-45']);
+    expect(result.current.data.tables).toEqual({ 'w2026-45': { '': exampleTable() } });
     expect(result.current.data.notes[SESSION].people['Amira Haddad'].note).toBe('gammal anteckning');
     expect(server.has('w2026-45')).toBe(true);
     expect(window.localStorage.getItem('narvaro.notes.v1')).toBeNull();
