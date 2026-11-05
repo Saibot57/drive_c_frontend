@@ -1,13 +1,13 @@
 /**
  * Var massmarkeringens verktygsrad (penna och kryss) hamnar.
  *
- * Är markeringen samlad läggs raden mitt över den. Samlad betyder att rutan
- * runt de markerade korten inte täcker något omarkerat kort: tre samtidiga
- * poster, en förmiddag på samma dag eller två grannar över en dagsgräns. Då
- * hör raden tydligt till just de korten. Ligger markeringen spridd hade mitten
- * av rutan hamnat över poster som inte ingår, och raden läggs i stället mitt
- * i schemats nederkant. Dit läggs den också när de markerade korten är
- * utrullade ur bild, så att den alltid syns.
+ * Är markeringen samlad läggs raden mitt över den. Samlad betyder att de
+ * markerade korten fyller det mesta av rutan runt dem — minst
+ * `GATHERED_SHARE` av den yta som korten i rutan täcker. En lunch mitt i en
+ * markerad dag hindrar alltså inte, men två poster med en hel dag emellan
+ * gör det: där hade mitten av rutan hamnat över poster som inte ingår. Då
+ * läggs raden i stället mitt i schemats nederkant. Dit läggs den också när de
+ * markerade korten är utrullade ur bild, så att den alltid syns.
  *
  * Allt räknas i fönstrets koordinater, som `getBoundingClientRect` ger dem.
  */
@@ -31,15 +31,30 @@ export function unionBox(boxes: Box[]): Box | null {
   }));
 }
 
-/** Kanter som bara nuddar räknas inte som överlapp. */
-const overlaps = (a: Box, b: Box) => (
-  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+/** Hur stor del av kortytan i rutan som måste vara markerad. */
+export const GATHERED_SHARE = 2 / 3;
+
+const area = (box: Box) => (
+  Math.max(0, box.right - box.left) * Math.max(0, box.bottom - box.top)
 );
 
-/** Täcker rutan runt de markerade korten inget av de andra? */
+/** Kanter som bara nuddar ger ingen yta. */
+const intersection = (a: Box, b: Box): Box => ({
+  left: Math.max(a.left, b.left),
+  top: Math.max(a.top, b.top),
+  right: Math.min(a.right, b.right),
+  bottom: Math.min(a.bottom, b.bottom),
+});
+
+/** Fyller de markerade korten det mesta av rutan runt dem? */
 export function isGatheredSelection(selected: Box[], others: Box[]): boolean {
   const union = unionBox(selected);
-  return union !== null && !others.some(other => overlaps(union, other));
+  if (union === null) return false;
+  // Korten överlappar inte varandra, så ytorna kan summeras.
+  const selectedArea = selected.reduce((sum, box) => sum + area(box), 0);
+  const otherArea = others.reduce((sum, box) => sum + area(intersection(union, box)), 0);
+  const total = selectedArea + otherArea;
+  return total === 0 || selectedArea / total >= GATHERED_SHARE;
 }
 
 const clamp = (value: number, min: number, max: number) => (
