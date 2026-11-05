@@ -1304,53 +1304,356 @@
   color: var(--ws-text-muted);
 }
 
-/* ── Mindmap ── */
+/* ── Mindmap ──
+   Noderna placeras av utils/mindmapLayout.ts och ritas absolut; måtten står
+   inline. Kantbredderna här speglas i MINDMAP_METRICS (border, rootBorder) och
+   måste ändras där samtidigt, annars klipps texten. Färgerna ligger som
+   variabler så att bildexporten (utils/mindmapExport.ts) kan läsa dem. */
 .ws-mindmap {
-  display: flex;
-  align-items: flex-start;
+  --ws-mm-line: var(--ws-control-border);
+  --ws-mm-text: var(--ws-text);
+  --ws-mm-node-bg: var(--ws-bg);
+  --ws-mm-node-border: var(--ws-control-border);
+  --ws-mm-root-bg: var(--ws-accent-bg);
+  --ws-mm-root-border: var(--ui-line);
+  --ws-mm-badge-bg: var(--ws-bg-inset);
+  --ws-mm-badge-text: var(--ws-text-subtle);
+  --ws-mm-select: var(--ui-focus);
+  --ws-mm-image-bg: var(--ui-paper);
+  --ws-mm-c-green: var(--ui-mark-green);
+  --ws-mm-c-yellow: var(--ui-mark-yellow);
+  --ws-mm-c-blue: var(--ui-mark-blue);
+  --ws-mm-c-pink: var(--ui-mark-pink);
+  --ws-mm-c-lilac: var(--ui-mark-lilac);
+  --ws-mm-c-grey: var(--ui-mark-grey);
+
+  position: relative;
   height: 100%;
-  overflow: auto;
-  padding: 0.5rem;
   font-size: var(--ws-font-md);
 }
 
-.ws-mindmap__branch {
+.ws-mindmap__scroll {
+  position: relative;
+  height: 100%;
+  overflow: auto;
+  outline: none;
+}
+
+/* Kartan centreras i kortet. Remsan överst är verktygsradens plats, så att
+   den aldrig står över en nod; TOOLBAR_GUTTER_PX i MindmapEditor speglar den.
+   margin: auto i stället för justify-content, som skär av en karta som är
+   större än kortet. */
+.ws-mindmap__stage {
+  box-sizing: border-box;
   display: flex;
-  align-items: center;
+  min-width: 100%;
+  min-height: 100%;
+  width: max-content;
+  padding-top: 2rem;
+}
+
+.ws-mindmap__canvas {
+  position: relative;
+  flex-shrink: 0;
+  margin: auto;
+}
+
+.ws-mindmap__edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.ws-mindmap__edge {
+  fill: none;
+  stroke: var(--ws-mm-line);
+  stroke-width: 1.5;
 }
 
 .ws-mindmap__node {
-  position: relative;
+  position: absolute;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.625rem;
-  border: 1px solid var(--ws-control-border);
+  border: 1px solid var(--ws-mm-node-border);
   border-radius: 9999px;
-  background: var(--ws-bg);
+  background: var(--ws-mm-node-bg);
+  color: var(--ws-mm-text);
+  font-size: var(--ws-font-md);
+  font-weight: 400;
   white-space: nowrap;
+  cursor: default;
+  user-select: none;
 }
 
 .ws-mindmap__node--root {
-  background: var(--ws-accent-bg);
+  border-width: 2px;
+  border-color: var(--ws-mm-root-border);
+  background: var(--ws-mm-root-bg);
+  font-size: var(--ws-font-lg);
+  font-weight: 600;
 }
 
-.ws-mindmap__add {
+.ws-mindmap__node--green { background: var(--ws-mm-c-green); }
+.ws-mindmap__node--yellow { background: var(--ws-mm-c-yellow); }
+.ws-mindmap__node--blue { background: var(--ws-mm-c-blue); }
+.ws-mindmap__node--pink { background: var(--ws-mm-c-pink); }
+.ws-mindmap__node--lilac { background: var(--ws-mm-c-lilac); }
+.ws-mindmap__node--grey { background: var(--ws-mm-c-grey); }
+
+/* Markeringen syns bara när kartan har fokus; annars vore den ett löfte om
+   att tangenterna går till kartan, vilket de inte gör. */
+.ws-mindmap__scroll:focus-within .ws-mindmap__node--selected,
+.ws-mindmap__node--editing {
+  outline: 2px solid var(--ws-mm-select);
+  outline-offset: 2px;
+}
+
+.ws-mindmap__node--dragged {
+  opacity: 0.45;
+}
+
+.ws-mindmap__node--drop {
+  outline: 2px dashed var(--ws-mm-select);
+  outline-offset: 3px;
+}
+
+.ws-mindmap--dragging,
+.ws-mindmap--dragging .ws-mindmap__node {
+  cursor: grabbing;
+}
+
+.ws-mindmap__label {
+  overflow: hidden;
+  text-align: center;
+}
+
+.ws-mindmap__label--empty {
   color: var(--ws-text-faint);
 }
 
-.ws-mindmap__children {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  margin-left: 0.75rem;
+.ws-mindmap__input {
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  user-select: text;
 }
 
-.ws-mindmap__connector {
+.ws-mindmap__badge {
   flex-shrink: 0;
-  width: 0.75rem;
-  height: 1px;
-  background: var(--ws-control-border);
+  height: 1rem;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  background: var(--ws-mm-badge-bg);
+  color: var(--ws-mm-badge-text);
+  font-size: var(--ws-font-xs);
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Osynliga mätnoder. Måste ha samma klass som noderna för att få typsnittet. */
+.ws-mindmap__probe {
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Verktygsraden ligger uppe till vänster; låsknappen har högra hörnet. */
+.ws-mindmap__toolbar {
+  position: absolute;
+  top: 0.375rem;
+  left: 0.375rem;
+  z-index: 5;
+  display: flex;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-sm);
+  background: var(--ws-bg);
+  box-shadow: var(--ws-shadow-sm);
+}
+
+.ws-mindmap__tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--ws-radius-sm);
+  background: none;
+  color: var(--ws-text-subtle);
+  cursor: pointer;
+}
+
+.ws-mindmap__tool:hover,
+.ws-mindmap__tool[aria-expanded="true"],
+.ws-mindmap__tool[aria-pressed="true"] {
+  background: var(--ws-bg-hover);
+  color: var(--ws-text);
+}
+
+.ws-mindmap__popover {
+  position: absolute;
+  top: 2.25rem;
+  left: 0.375rem;
+  z-index: 6;
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-sm);
+  background: var(--ws-bg);
+  box-shadow: var(--ws-shadow);
+}
+
+.ws-mindmap__swatches {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.375rem;
+}
+
+.ws-mindmap__swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  padding: 0;
+  border: 1px solid var(--ws-control-border);
+  border-radius: 9999px;
+  color: var(--ws-text-subtle);
+  cursor: pointer;
+}
+
+.ws-mindmap__swatch--green { background: var(--ws-mm-c-green); }
+.ws-mindmap__swatch--yellow { background: var(--ws-mm-c-yellow); }
+.ws-mindmap__swatch--blue { background: var(--ws-mm-c-blue); }
+.ws-mindmap__swatch--pink { background: var(--ws-mm-c-pink); }
+.ws-mindmap__swatch--lilac { background: var(--ws-mm-c-lilac); }
+.ws-mindmap__swatch--grey { background: var(--ws-mm-c-grey); }
+.ws-mindmap__swatch--none { background: var(--ws-bg); }
+
+.ws-mindmap__menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 13rem;
+  padding: 0.25rem;
+}
+
+.ws-mindmap__menu-item {
+  padding: 0.3125rem 0.5rem;
+  border: none;
+  border-radius: var(--ws-radius-sm);
+  background: none;
+  color: var(--ws-text);
+  font-size: var(--ws-font-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws-mindmap__menu-item:hover {
+  background: var(--ws-bg-hover);
+}
+
+.ws-mindmap__menu-hint {
+  margin: 0.25rem 0.5rem 0.125rem;
+  color: var(--ws-text-faint);
+  font-size: var(--ws-font-xs);
+}
+
+/* Hjälpen täcker kortet och rullar själv; ett litet kort rymmer inte listan. */
+.ws-mindmap__help {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  overflow: auto;
+  padding: 0.625rem 0.75rem;
+  background: var(--ws-bg);
+  font-size: var(--ws-font-sm);
+}
+
+.ws-mindmap__help-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 2.25rem;
+  color: var(--ws-text-subtle);
+}
+
+.ws-mindmap__help-group {
+  margin: 0.5rem 0 0.25rem;
+  color: var(--ws-text-subtle);
+  font-size: var(--ws-font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ws-mindmap__help-group:first-of-type {
+  margin-top: 0;
+}
+
+.ws-mindmap__help-list {
+  margin: 0;
+}
+
+.ws-mindmap__help-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.125rem 0;
+}
+
+.ws-mindmap__help-row dt {
+  flex: 0 0 9.5rem;
+}
+
+.ws-mindmap__help-row dd {
+  margin: 0;
+  color: var(--ws-text-muted);
+}
+
+.ws-mindmap__help-row kbd {
+  padding: 0 0.25rem;
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-sm);
+  background: var(--ws-bg-inset);
+  font-family: inherit;
+  font-size: var(--ws-font-xs);
+}
+
+.ws-mindmap__notice {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  z-index: 6;
+  padding: 0.3125rem 0.5rem;
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-sm);
+  background: var(--ws-bg);
+  box-shadow: var(--ws-shadow);
+  font-size: var(--ws-font-sm);
+}
+
+.ws-mindmap__notice--error {
+  border-color: var(--ws-danger);
+  background: var(--ws-danger-bg);
+}
+
+.ws-exporting .ws-mindmap__node--selected,
+.ws-exporting .ws-mindmap__node--editing {
+  outline: none;
+}
+
+.ws-exporting .ws-mindmap__toolbar,
+.ws-exporting .ws-mindmap__popover,
+.ws-exporting .ws-mindmap__help,
+.ws-exporting .ws-mindmap__notice {
+  display: none;
 }
 
 /* ── Lista ── */

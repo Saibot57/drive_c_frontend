@@ -14,6 +14,7 @@ i planen, inte bara i PR:en.
 | [Workspace-editorerna utan hårdkodade färger](workspace-editorer-tokens.md) | Genomförd 2026-10-14 (#222) |
 | [Export av scheman från Arbetslag](arbetslag-export.md) | Genomförd 2026-10-21 |
 | [Mappar för veckoscheman](schemamappar.md) | Genomförd 2026-10-21, inte sammanslagen (backend #48) |
+| [Mindmap med kortkommandon och export till Google Docs](mindmap-tangentbord.md) | Genomförd 2026-11-05, inte sammanslagen |
 
 Lägg till en rad här när en ny plan skrivs, och uppdatera den när planen
 slås ihop med `main`.
