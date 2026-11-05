@@ -49,6 +49,8 @@ import {
 const SIZE_BY_TYPE: Partial<Record<ElementType, { w: number; h: number }>> = {
   sticky: { w: 200, h: 200 },
   kanban: { w: 480, h: 320 },
+  // En karta växer åt sidorna; 320 × 200 rymmer knappt roten och två barn.
+  mindmap: { w: 560, h: 360 },
   pdf: { w: 480, h: 600 },
   image: { w: 320, h: 240 },
   link: { w: 280, h: 220 },

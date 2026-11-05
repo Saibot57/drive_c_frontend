@@ -11,7 +11,7 @@ import type { HeadingContent } from '../types/heading.types';
 import type { ProvenanceStatus } from '../utils/provenance';
 import TextEditor from './editors/TextEditor';
 import TableEditor, { type TableContent } from './editors/TableEditor';
-import MindmapEditor, { type MindmapContent } from './editors/MindmapEditor';
+import MindmapEditor from './editors/MindmapEditor';
 import ListEditor, { type ListContent } from './editors/ListEditor';
 import KanbanEditor, { type KanbanContent } from './editors/KanbanEditor';
 import StickyEditor, { type StickyContent } from './editors/StickyEditor';
@@ -69,9 +69,12 @@ export default function ElementRenderer({
     case 'mindmap':
       return (
         <MindmapEditor
-          content={element.content as MindmapContent}
+          content={element.content}
           isLocked={isLocked}
+          isSelected={isSelected}
           onChange={onChange}
+          editSignal={editSignal}
+          title={element.title}
         />
       );
 

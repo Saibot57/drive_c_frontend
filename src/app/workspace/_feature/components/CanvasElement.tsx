@@ -50,9 +50,9 @@ function detectResizeZone(
 }
 
 /** Ritar sin egen ram ända ut i kanten och vill inte ha någon padding. */
-const FLUSH_TYPES: ElementType[] = ['sticky', 'pdf', 'image', 'link', 'wheel_ref', 'wheel_part', 'schedule_day', 'heading'];
+const FLUSH_TYPES: ElementType[] = ['mindmap', 'sticky', 'pdf', 'image', 'link', 'wheel_ref', 'wheel_part', 'schedule_day', 'heading'];
 /** Har sin egen rullning inuti och ska inte kunna rullas av wrappern. */
-const CLIPPED_TYPES: ElementType[] = ['pdf', 'image', 'link', 'wheel_ref', 'schedule_day'];
+const CLIPPED_TYPES: ElementType[] = ['mindmap', 'pdf', 'image', 'link', 'wheel_ref', 'schedule_day'];
 /** Ritas utan kort: formen är elementet, och rektangeln runt den var en lögn. */
 const BARE_TYPES: ElementType[] = ['wheel_part', 'heading'];
 /** Bilden är innehållet: ingen ram och ingen typfärgslist. */
@@ -78,10 +78,11 @@ const WIDTH_ONLY_DIRECTIONS = ['e', 'w'] as const;
 /**
  * Har ett eget redigeringsläge och fokuserar sig själv när det öppnas: rubriken
  * blir contentEditable först vid dubbelklick, länken visar sitt formulär först
- * vid pennknappen. De får signalen vidare i stället för fokus härifrån, för
- * fältet finns inte att fokusera förrän de öppnat det.
+ * vid pennknappen, mindmapen har ett fält bara i noden man skriver i. De får
+ * signalen vidare i stället för fokus härifrån, för fältet finns inte att
+ * fokusera förrän de öppnat det.
  */
-const SELF_EDITING_TYPES: ElementType[] = ['heading', 'link'];
+const SELF_EDITING_TYPES: ElementType[] = ['heading', 'link', 'mindmap'];
 
 /** Fält som tar text. En listas kryssruta är också ett <input>, men inte det. */
 const TEXTUAL_INPUT_TYPES = ['text', 'search', 'url'];
