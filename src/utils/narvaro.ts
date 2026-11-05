@@ -5,7 +5,8 @@
  *
  * Arket har namnen i kolumn A, veckodagarna i en rad med sammanslagna celler,
  * passen i raden under och en kryssruta per deltagare och pass. En rad med
- * bara ett namn och inga andra värden är en klassrubrik.
+ * bara ett namn och inga andra värden är en rubrik för skolan (till exempel
+ * TORA VEGA eller ÖSTRA GREVIE), och deltagarna under den hör dit.
  */
 
 import { PLANNER_DAYS } from '@/config/plannerConstants';
@@ -24,7 +25,7 @@ export type AttendanceColumn = {
 
 export type AttendancePerson = {
   name: string;
-  /** Klassrubriken ovanför personen, eller tom. */
+  /** Skolans rubrik ovanför personen, eller tom. */
   group: string;
   /** Ett värde per kolumn: kryssad, okryssad eller ingen kryssruta. */
   marks: (boolean | null)[];
@@ -188,6 +189,9 @@ export function parseAttendance(grid: string[][] | null): AttendanceTable | null
     if (!people.some(p => p.marks[c] !== null)) continue;
     const letter = width <= 26 ? String.fromCharCode(65 + c) : '';
     const pass = passRow >= 0 ? rows[passRow][c] ?? '' : '';
+    // Har arket en passrad hör en kolumn utan passnamn inte till tabellen,
+    // till exempel lösa kryssrutor till höger om den.
+    if (passRow >= 0 && !pass) continue;
     cols.push({
       index: c,
       id: `c${c}`,

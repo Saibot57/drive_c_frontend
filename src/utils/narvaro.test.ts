@@ -78,6 +78,22 @@ describe('inläsning', () => {
     expect(gridFromText('"säger ""hej"""\tx')).toEqual([['säger "hej"', 'x']]);
   });
 
+  it('hoppar över lösa kryssrutor utanför tabellen', () => {
+    const text = [
+      '\tMåndag\t',
+      '\t8.30-9.45\t10.00-11.30\t\t',
+      'TORA VEGA',
+      'Ett Namn\tTRUE\tFALSE\tFALSE\tFALSE',
+      'Två Namn\tFALSE\tTRUE',
+    ].join('\n');
+    const table = parsePasted(text, '')!;
+    expect(table.cols.map(c => c.pass)).toEqual(['8.30-9.45', '10.00-11.30']);
+  });
+
+  it('namnger kolumnerna efter bokstaven när arket saknar passrad', () => {
+    expect(parsePasted('Namn\tTRUE\tFALSE', '')!.cols.map(c => c.pass)).toEqual(['Kolumn B', 'Kolumn C']);
+  });
+
   it('ger null när det inte finns några kryssrutor', () => {
     expect(parsePasted('hej\tdå\nfoo\tbar', '')).toBeNull();
     expect(parsePasted('', '<p>ingen tabell</p>')).toBeNull();

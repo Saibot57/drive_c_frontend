@@ -194,7 +194,7 @@ export default function Narvaro() {
     setShowExample(false);
     setPasteRaw('');
     setPasteText('');
-    const classes = parsed.groups.length ? ` i ${parsed.groups.length} klasser` : '';
+    const classes = parsed.groups.length ? ` från ${parsed.groups.length} skolor` : '';
     setPasteMsg({ kind: 'ok', text: `Läste in ${parsed.people.length} deltagare${classes} och ${parsed.cols.length} pass.` });
     setTimeout(() => setPasteOpen(false), 1400);
   }, [setSavedTable]);
@@ -390,7 +390,7 @@ export default function Narvaro() {
 
         <section className="sp-card flex flex-col gap-3 p-4" aria-label="Urval">
           {table.groups.length > 1 && (
-            <ChipRow label="Klass">
+            <ChipRow label="Skola">
               {['all', ...table.groups].map(k => (
                 <button key={k} type="button" className={chip(klass === k)} aria-pressed={klass === k} onClick={() => setKlass(k)}>
                   {k === 'all' ? 'Alla' : k}
