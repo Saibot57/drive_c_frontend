@@ -18,7 +18,15 @@ export class TrafficNotAvailableError extends Error {
 
 export const trafficService = {
   async get(days: number): Promise<TrafficSummary> {
-    const response = await fetchWithAuth(`${API_URL}/trafik?dagar=${days}`);
+    let response: Response;
+    try {
+      response = await fetchWithAuth(`${API_URL}/trafik?dagar=${days}`);
+    } catch {
+      // Webbläsaren ger bara "Failed to fetch". Det händer när servern inte
+      // svarar, men också när backend saknar routen: preflighten får då 404,
+      // och webbläsaren släpper aldrig fram svaret.
+      throw new Error('Servern svarade inte. Är backend uppdaterad och omladdad?');
+    }
     if (response.status === 404) throw new TrafficNotAvailableError();
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.success === false || !payload?.data?.totals) {
