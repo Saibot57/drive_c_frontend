@@ -5,6 +5,7 @@ import { Copy, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PersonNote, Stamp } from '@/utils/narvaro';
+import { findExact, uniquePrefixMatch } from '@/utils/autocomplete';
 import { StampTag } from '@/components/narvaro/stampStyle';
 
 type Target = number | 'pool';
@@ -31,6 +32,68 @@ type Drag = {
   on: boolean;
   timer: ReturnType<typeof setTimeout> | null;
 };
+
+/**
+ * Fält i ett gruppkort där ett namn ur "Inte indelade" skrivs in. När minst
+ * tre tecken bara kan vara ett namn fylls resten i (som SmartTextInput i
+ * schemaplaneraren); Enter eller + lägger personen i gruppen.
+ */
+function GroupNameInput({ group, pool, onAdd }: { group: number; pool: readonly string[]; onAdd: (name: string) => void }) {
+  const [value, setValue] = useState('');
+  const [miss, setMiss] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!miss) return;
+    const t = setTimeout(() => setMiss(false), 700);
+    return () => clearTimeout(t);
+  }, [miss]);
+
+  const onChange = (next: string) => {
+    setMiss(false);
+    // Fyll bara i när användaren skriver till tecken, inte när hen raderar.
+    const match = next.length > value.length ? uniquePrefixMatch(next, pool) : null;
+    setValue(match ?? next);
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = findExact(value, pool);
+    if (!name) { setMiss(true); input.current?.focus(); return; }
+    setValue('');
+    onAdd(name);
+    input.current?.focus();
+  };
+
+  return (
+    <form onSubmit={submit} className="flex items-center gap-1 border-t-2 border-ui-hair p-1.5">
+      <input
+        ref={input}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="Lägg till namn…"
+        aria-label={`Lägg till namn i grupp ${group + 1}`}
+        aria-invalid={miss || undefined}
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="enter"
+        className={cn(
+          'sp-input min-w-0 flex-1 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm',
+          miss && 'border-ui-danger outline outline-2 outline-ui-danger',
+        )}
+      />
+      <button
+        type="submit"
+        className="rounded-ui-sm border-2 border-ui-line bg-ui-paper p-1 hover:bg-ui-surface-3"
+        aria-label={`Lägg in i grupp ${group + 1}`}
+        title="Lägg in i gruppen"
+      >
+        <Plus size={14} />
+      </button>
+    </form>
+  );
+}
 
 const targetOf = (value: string | undefined): Target | null =>
   value === undefined ? null : value === 'pool' ? 'pool' : Number(value);
@@ -200,7 +263,7 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
     over === target && 'outline-dashed outline-[3px] outline-offset-2 outline-[var(--ui-focus)]',
   );
   const onCardClick = (e: React.MouseEvent, target: Target) => {
-    if ((e.target as HTMLElement).closest('[data-gname],button')) return;
+    if ((e.target as HTMLElement).closest('[data-gname],button,form')) return;
     pickTo(target);
   };
 
@@ -215,7 +278,8 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
       </div>
       <p className="max-w-prose text-sm text-ui-muted">
         Dra ett namn till en annan grupp, eller tryck på namnet och sedan på gruppen. Med tangentbordet:
-        markera namnet och tryck på gruppens siffra, eller 0 för att ta ur det.
+        markera namnet och tryck på gruppens siffra, eller 0 för att ta ur det. Du kan också skriva
+        ett namn i gruppens fält: efter tre bokstäver fylls det i när bara ett namn passar.
       </p>
 
       <div data-gdrop="pool" className={card('pool')} onClick={e => onCardClick(e, 'pool')}>
@@ -250,6 +314,7 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
             <ul className="flex flex-col gap-0.5 p-2">
               {group.length ? group.map(n => nameItem(n, false)) : <li className="px-1.5 text-sm italic text-ui-muted">Dra hit namn</li>}
             </ul>
+            <GroupNameInput group={i} pool={view.pool} onAdd={name => onMove(name, i)} />
           </div>
         ))}
       </div>
