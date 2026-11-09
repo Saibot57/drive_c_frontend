@@ -58,6 +58,8 @@ export type PersonNote = { tags: string[]; note: string };
 export type SessionNotes = { label: string; people: Record<string, PersonNote>; added: string[] };
 export type NotesStore = Record<string, SessionNotes>;
 export type GroupsStore = Record<string, { groups: string[][] }>;
+/** Passets nyckel (`sessionKey`) till klassens eget namn på just det passet. */
+export type PassNames = Record<string, Record<string, string>>;
 
 /** `'day'` betyder hela dagen, annars en kolumns id. */
 export type PassChoice = 'day' | string;
@@ -346,10 +348,67 @@ export function suggestClass(table: AttendanceTable, known: Record<string, Atten
 /** Säkert nog för att spara direkt: minst fyra av fem namn känns igen. */
 export const isConfident = (s: ClassSuggestion | null) => !!s && s.matched / s.total >= 0.8;
 
-export function sessionLabel(table: AttendanceTable, day: string, pass: PassChoice, now: Date): string {
+/** Rubriken för passet, med passets eget namn före tiden: "Måndag 3/11 · Svenska · 8.30-9.45". */
+export function sessionLabel(table: AttendanceTable, day: string, pass: PassChoice, now: Date, name = ''): string {
   const d = dateForDay(day, now);
   const col = table.cols.find(c => c.id === pass);
-  return `${day} ${d.getDate()}/${d.getMonth() + 1} · ${pass === 'day' || !col ? 'hela dagen' : col.pass}`;
+  const time = pass === 'day' || !col ? 'hela dagen' : col.pass;
+  return [`${day} ${d.getDate()}/${d.getMonth() + 1}`, name, time].filter(Boolean).join(' · ');
+}
+
+/* ---------- passens namn ---------- */
+
+export const MAX_PASS_NAME_LENGTH = 40;
+
+export const cleanPassName = (name: string) =>
+  name.replace(/\s+/g, ' ').trim().slice(0, MAX_PASS_NAME_LENGTH).trim();
+
+/** Ger varje klass samma namn på passet. Ett tomt namn tar bort det. */
+export function setPassName(store: PassNames, key: string, classes: readonly string[], name: string): PassNames {
+  const clean = cleanPassName(name);
+  const names = { ...store[key] };
+  classes.forEach(k => {
+    if (clean) names[k] = clean;
+    else delete names[k];
+  });
+  const next = { ...store };
+  if (Object.keys(names).length) next[key] = names;
+  else delete next[key];
+  return next;
+}
+
+/** De visade klassernas olika namn på passet, i klassernas ordning: "Svenska / Matte". */
+export function passNameFor(store: PassNames, key: string, classes: readonly string[]): string {
+  const names = store[key] ?? {};
+  return Array.from(new Set(classes.map(k => names[k]).filter(Boolean))).join(' / ');
+}
+
+/**
+ * Byter passets namn. Har passet anteckningar får de den nya rubriken, så att
+ * Tidigare pass visar namnet som gäller nu.
+ */
+export function namePass(
+  notes: NotesStore,
+  passNames: PassNames,
+  sel: { key: string; classes: readonly string[]; name: string; labelFor: (name: string) => string },
+): { notes: NotesStore; passNames: PassNames } {
+  const nextNames = setPassName(passNames, sel.key, sel.classes, sel.name);
+  const sess = notes[sel.key];
+  if (!sess) return { notes, passNames: nextNames };
+  const label = sel.labelFor(passNameFor(nextNames, sel.key, sel.classes));
+  return { notes: { ...notes, [sel.key]: { ...sess, label } }, passNames: nextNames };
+}
+
+/** Flyttar klassens namn på passen till ett nytt klassnamn. */
+export function renamePassNamesClass(store: PassNames, from: string, to: string): PassNames {
+  if (from === to) return store;
+  const out: PassNames = {};
+  Object.entries(store).forEach(([key, names]) => {
+    const next = { ...names };
+    if (from in next) { next[to] = next[from]; delete next[from]; }
+    out[key] = next;
+  });
+  return out;
 }
 
 export type Roster = { present: AttendancePerson[]; absent: AttendancePerson[] };
@@ -560,6 +619,22 @@ export function sanitizeGroups(raw: unknown): GroupsStore {
   const out: GroupsStore = {};
   Object.entries(raw).forEach(([key, g]) => {
     if (isGroupsKey(key) && isRecord(g) && Array.isArray(g.groups)) out[key] = { groups: g.groups.map(strings) };
+  });
+  return out;
+}
+
+/** Namn som inte är text eller är tomma släpps; för långa kortas. */
+export function sanitizePassNames(raw: unknown): PassNames {
+  if (!isRecord(raw)) return {};
+  const out: PassNames = {};
+  Object.entries(raw).forEach(([rawKey, names]) => {
+    if (!isRecord(names)) return;
+    const clean: Record<string, string> = {};
+    Object.entries(names).forEach(([klass, n]) => {
+      const name = cleanPassName(str(n));
+      if (name) clean[klass] = name;
+    });
+    if (Object.keys(clean).length) out[normalizeSessionKey(rawKey)] = clean;
   });
   return out;
 }
