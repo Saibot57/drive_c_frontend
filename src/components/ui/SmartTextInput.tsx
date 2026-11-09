@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { uniquePrefixMatch } from '@/utils/autocomplete';
 
 type SmartTextInputProps = {
   options: string[];
@@ -14,14 +15,6 @@ type SmartTextInputProps = {
   placeholder?: string;
   maxLength?: number;
 };
-
-const normalizeAutofillValue = (value: string) => (
-  value
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-);
 
 const leadingWhitespace = (value: string) => (
   value.slice(0, value.length - value.trimStart().length)
@@ -37,13 +30,6 @@ export function SmartTextInput({
   placeholder,
   maxLength
 }: SmartTextInputProps) {
-  const normalizedOptions = useMemo(() => (
-    options.map(option => ({
-      raw: option,
-      normalized: normalizeAutofillValue(option)
-    }))
-  ), [options]);
-
   /**
    * Fyller i resten av namnet när det som skrivits matchar exakt ett
    * alternativ. Fältet kan innehålla flera värden separerade med komma, så
@@ -55,14 +41,8 @@ export function SmartTextInput({
     const lastSegment = nextValue.slice(separatorIndex + 1);
     const trimmedSegment = lastSegment.trim();
 
-    if (trimmedSegment.length < minChars) return nextValue;
-
-    const query = normalizeAutofillValue(trimmedSegment);
-    const matches = normalizedOptions.filter(option => option.normalized.startsWith(query));
-    if (matches.length !== 1) return nextValue;
-
-    const match = matches[0].raw;
-    if (match === trimmedSegment) return nextValue;
+    const match = uniquePrefixMatch(trimmedSegment, options, minChars);
+    if (match === null || match === trimmedSegment) return nextValue;
 
     const prefix = nextValue.slice(0, separatorIndex + 1);
     return `${prefix}${leadingWhitespace(lastSegment)}${match}`;
