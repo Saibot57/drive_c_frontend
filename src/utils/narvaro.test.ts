@@ -33,6 +33,13 @@ import {
   trimSessions,
   emptySession,
   DEFAULT_STAMPS,
+  MAX_PASS_NAME_LENGTH,
+  cleanPassName,
+  namePass,
+  passNameFor,
+  sanitizePassNames,
+  sessionLabel,
+  setPassName,
 } from '@/utils/narvaro';
 import { exampleTable } from '@/utils/narvaroExample';
 
@@ -149,6 +156,57 @@ describe('datum och urval', () => {
     expect(sessionKey(table, 'Tisdag', 'c5', WED)).not.toBe(sessionKey(table, 'Tisdag', 'c6', WED));
     expect(sessionKey(table, 'Måndag', 'day', WED)).toBe('2026-11-02|Måndag|dag');
     expect(sessionKey(table, 'Tisdag', 'c5', WED)).toBe('2026-11-03|Tisdag|F');
+  });
+});
+
+describe('passens namn', () => {
+  const table = parseAttendance(gridFromHtml(SHEET_HTML))!;
+  const key = '2026-11-02|Måndag|B';
+
+  it('sätter namnet före tiden i rubriken', () => {
+    const col = table.cols.find(c => c.id === 'c1')!;
+    expect(sessionLabel(table, 'Måndag', 'c1', WED)).toBe(`Måndag 2/11 · ${col.pass}`);
+    expect(sessionLabel(table, 'Måndag', 'c1', WED, 'Svenska')).toBe(`Måndag 2/11 · Svenska · ${col.pass}`);
+    expect(sessionLabel(table, 'Måndag', 'day', WED, 'Studiedag')).toBe('Måndag 2/11 · Studiedag · hela dagen');
+  });
+
+  it('städar namnet', () => {
+    expect(cleanPassName('  Svenska \n  kap 4 ')).toBe('Svenska kap 4');
+    expect(cleanPassName('x'.repeat(60))).toHaveLength(MAX_PASS_NAME_LENGTH);
+  });
+
+  it('ger alla visade klasser samma namn och tar bort med tomt namn', () => {
+    let store = setPassName({}, key, ['Rosa', 'Grund'], ' Svenska ');
+    expect(store).toEqual({ [key]: { Rosa: 'Svenska', Grund: 'Svenska' } });
+    store = setPassName(store, key, ['Grund'], 'Matte');
+    expect(store[key]).toEqual({ Rosa: 'Svenska', Grund: 'Matte' });
+    store = setPassName(store, key, ['Rosa'], '');
+    expect(store[key]).toEqual({ Grund: 'Matte' });
+    expect(setPassName(store, key, ['Grund'], '   ')).toEqual({});
+  });
+
+  it('visar de visade klassernas olika namn', () => {
+    const store = { [key]: { Rosa: 'Svenska', Grund: 'Matte', Oliv: 'Svenska' } };
+    expect(passNameFor(store, key, ['Rosa', 'Grund', 'Oliv'])).toBe('Svenska / Matte');
+    expect(passNameFor(store, key, ['Rosa', 'Oliv', 'Blå'])).toBe('Svenska');
+    expect(passNameFor(store, key, ['Blå'])).toBe('');
+    expect(passNameFor(store, 'annat', ['Rosa'])).toBe('');
+  });
+
+  it('ger passets anteckningar den nya rubriken', () => {
+    const notes = { [key]: setPersonNote(emptySession('Måndag 2/11 · 8.30'), 'A', { tags: [], note: 'x' }) };
+    const labelFor = (name: string) => ['Måndag 2/11', name, '8.30'].filter(Boolean).join(' · ');
+    const named = namePass(notes, {}, { key, classes: ['Rosa'], name: 'Svenska', labelFor });
+    expect(named.notes[key].label).toBe('Måndag 2/11 · Svenska · 8.30');
+    expect(named.notes[key].people).toEqual(notes[key].people);
+    const other = namePass(notes, {}, { key: 'annat', classes: ['Rosa'], name: 'Svenska', labelFor });
+    expect(other.notes).toBe(notes);
+    expect(other.passNames).toEqual({ annat: { Rosa: 'Svenska' } });
+  });
+
+  it('läser sparade namn defensivt', () => {
+    expect(sanitizePassNames(null)).toEqual({});
+    expect(sanitizePassNames({ [key]: { Rosa: 'Svenska', Grund: 7 }, x: [] })).toEqual({ [key]: { Rosa: 'Svenska' } });
   });
 });
 

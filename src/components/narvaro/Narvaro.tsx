@@ -18,6 +18,7 @@ import {
   CUSTOM_STAMP_COLORS,
   ClassSuggestion,
   MAX_CLASS_NAME_LENGTH,
+  MAX_PASS_NAME_LENGTH,
   cleanClassName,
   combineSheets,
   groupsKey,
@@ -28,6 +29,7 @@ import {
   MAX_STORED_GROUP_SESSIONS,
   NotesStore,
   PassChoice,
+  PassNames,
   PersonNote,
   SessionNotes,
   Stamp,
@@ -41,8 +43,10 @@ import {
   historyKeys,
   isoWeek,
   moveToGroup,
+  namePass,
   noteEntries,
   parsePasted,
+  passNameFor,
   pastePreview,
   randomGroups,
   roster,
@@ -133,6 +137,7 @@ export default function Narvaro() {
   const stamps = sync.data.stamps;
   const savedNotes = sync.data.notes;
   const savedGroups = sync.data.groups;
+  const savedPassNames = sync.data.passNames;
   const setStamps = (next: Stamp[]) => update(d => ({ ...d, stamps: next }));
   const setSavedNotes = (next: NotesStore) => update(d => ({ ...d, notes: next }));
   const setSavedGroups = (next: GroupsStore) => update(d => ({ ...d, groups: next }));
@@ -146,10 +151,12 @@ export default function Narvaro() {
   const [showExample, setShowExample] = useState(false);
   const [exNotes, setExNotes] = useState<NotesStore>({});
   const [exGroups, setExGroups] = useState<GroupsStore>({});
+  const [exPassNames, setExPassNames] = useState<PassNames>({});
   const isExample = !savedTable || showExample;
   const table = isExample ? example : savedTable;
   const notes = isExample ? exNotes : savedNotes;
   const groups = isExample ? exGroups : savedGroups;
+  const passNames = isExample ? exPassNames : savedPassNames;
   const setNotes = isExample ? setExNotes : setSavedNotes;
   const setGroups = isExample ? setExGroups : setSavedGroups;
 
@@ -179,6 +186,8 @@ export default function Narvaro() {
   const [toast, setToast] = useState<string | null>(null);
   const [copyFallback, setCopyFallback] = useState<string | null>(null);
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
+  // Rutan för passets namn: utkastet, eller null när den är stängd.
+  const [naming, setNaming] = useState<string | null>(null);
 
   // Första riktiga tabellen: välj dagens veckodag och passet som pågår.
   // Byts sedan klasser behålls dag och pass, så länge de finns kvar.
@@ -205,11 +214,13 @@ export default function Narvaro() {
   }, [toast]);
 
   const key = sessionKey(table, day, pass, now);
-  const label = sessionLabel(table, day, pass, now);
+  // Passets namn hör till passet och klassen; visas flera klasser får alla samma.
+  const nameClasses = isExample ? ['exempel'] : selected;
+  const label = sessionLabel(table, day, pass, now, passNameFor(passNames, key, nameClasses));
   const sess: SessionNotes = notes[key] ?? emptySession(label);
   const { present, absent } = roster(table, { klass, day, pass, added: sess.added });
   // Grupperna hör till passet och till de klasser som visas tillsammans.
-  const gKey = groupsKey(key, isExample ? ['exempel'] : selected);
+  const gKey = groupsKey(key, nameClasses);
   const excludedHere = useMemo(() => new Set(excluded[gKey] ?? []), [excluded, gKey]);
   const active = present.filter(p => !excludedHere.has(p.name)).map(p => p.name);
   const stored = groups[gKey]?.groups;
@@ -219,6 +230,16 @@ export default function Narvaro() {
 
   const updateSession = (fn: (s: SessionNotes) => SessionNotes) =>
     setNotes({ ...notes, [key]: { ...fn(sess), label } });
+  const savePassName = (name: string) => {
+    const sel = { key, classes: nameClasses, name, labelFor: (n: string) => sessionLabel(table, day, pass, now, n) };
+    if (isExample) {
+      const r = namePass(exNotes, exPassNames, sel);
+      setExNotes(r.notes);
+      setExPassNames(r.passNames);
+    } else update(d => ({ ...d, ...namePass(d.notes, d.passNames, sel) }));
+    setNaming(null);
+  };
+  useEffect(() => setNaming(null), [key]);
   const saveGroups = (next: string[][]) =>
     setGroups(trimSessions({ ...groups, [gKey]: { groups: next } }, MAX_STORED_GROUP_SESSIONS));
 
@@ -610,6 +631,35 @@ export default function Narvaro() {
                 </button>
               );
             })}
+            {naming === null ? (
+              <button
+                type="button"
+                className={chip(false)}
+                aria-label="Namnge passet"
+                title="Namnge passet"
+                onClick={() => setNaming(passNameFor(passNames, key, nameClasses))}
+              >
+                <PenLine size={14} />
+              </button>
+            ) : (
+              <form
+                className="flex gap-1.5"
+                onSubmit={e => { e.preventDefault(); savePassName(naming); }}
+                onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setNaming(null); } }}
+              >
+                <input
+                  autoFocus
+                  value={naming}
+                  onChange={e => setNaming(e.target.value)}
+                  maxLength={MAX_PASS_NAME_LENGTH}
+                  placeholder="Passets namn, t.ex. Svenska"
+                  aria-label="Passets namn"
+                  title="Tomt namn tar bort det"
+                  className="sp-input w-48 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm"
+                />
+                <Button type="submit" variant="neutral" size="sm" className="sp-btn">Spara</Button>
+              </form>
+            )}
           </ChipRow>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ui-hair pt-3">
@@ -812,7 +862,7 @@ export default function Narvaro() {
           <section className="sp-card flex flex-col gap-2 p-4" aria-label="Noteringar">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-bold">Noteringar · {label}</h3>
-              <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length} onClick={() => copyText(sessionText(sess, table, stamps))}>
+              <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps))}>
                 <Copy /> Kopiera
               </Button>
             </div>
