@@ -62,6 +62,11 @@ describe('dokument', () => {
       '2025-10-27|Måndag|B|x': note('gammal'),
     },
     groups: { '2026-11-04|Onsdag|dag|': { groups: [['Amira Haddad']] } },
+    passNames: {
+      '2026-11-02|Måndag|B': { Rosa: 'Svenska' },
+      '2026-10-27|Tisdag|dag': { Oliv: 'Studiedag' },
+      '2025-10-27|Måndag|B': { Rosa: 'Gammal' },
+    },
     stamps: [...DEFAULT_STAMPS],
   };
 
@@ -71,18 +76,21 @@ describe('dokument', () => {
     expect(Object.keys(weeks['w2026-45'].notes)).toEqual(['2026-11-02|Måndag|B|8.30-9.45']);
     expect(Object.keys(weeks['w2026-45'].groups)).toEqual(['2026-11-04|Onsdag|dag|']);
     expect(Object.keys(weeks['w2026-44'].notes)).toEqual(['2026-10-27|Tisdag|E|x']);
+    expect(weeks['w2026-45'].passNames).toEqual({ '2026-11-02|Måndag|B': { Rosa: 'Svenska' } });
+    expect(weeks['w2026-44'].passNames).toEqual({ '2026-10-27|Tisdag|dag': { Oliv: 'Studiedag' } });
   });
 
   it('slår ihop igen utan förlust', () => {
     const roundTrip = mergeWeeks(splitWeeks(data, NOW), data.stamps, NOW);
     const { ['2025-10-27|Måndag|B|x']: _expired, ...kept } = data.notes;
-    expect(roundTrip).toEqual({ ...data, notes: kept });
+    const { ['2025-10-27|Måndag|B']: _expiredName, ...keptNames } = data.passNames;
+    expect(roundTrip).toEqual({ ...data, notes: kept, passNames: keptNames });
   });
 
   it('sparar tomma veckor som funnits och stämplarna', () => {
     const docs = documentsToSave({ ...emptyData(), tables: {} }, NOW, ['w2026-43', 'w2025-01', 'keyinfo']);
     expect(docs[SETTINGS_KEY]).toEqual({ stamps: DEFAULT_STAMPS });
-    expect(docs['w2026-43']).toEqual({ sheets: {}, notes: {}, groups: {} });
+    expect(docs['w2026-43']).toEqual({ sheets: {}, notes: {}, groups: {}, passNames: {} });
     expect(docs['w2025-01']).toBeUndefined();
     expect(docs.keyinfo).toBeUndefined();
   });
@@ -101,8 +109,10 @@ describe('dokument', () => {
     let d = setSheet(emptyData(), 'w2026-45', 'Rosa', t);
     d = setSheet(d, 'w2026-45', '', t);
     d = setSheet(d, 'w2026-44', '', t);
+    d = { ...d, passNames: { '2026-11-02|Måndag|B': { '': 'Svenska', Rosa: 'Matte' } } };
     d = renameClass(d, '', 'Oliv');
     expect(Object.keys(d.tables['w2026-45']).sort()).toEqual(['Oliv', 'Rosa']);
+    expect(d.passNames).toEqual({ '2026-11-02|Måndag|B': { Oliv: 'Svenska', Rosa: 'Matte' } });
     expect(Object.keys(d.tables['w2026-44'])).toEqual(['Oliv']);
     d = removeSheet(d, 'w2026-44', 'Oliv');
     expect(d.tables['w2026-44']).toBeUndefined();
@@ -118,10 +128,13 @@ describe('dokument', () => {
     expect(old.sheets).toEqual({ '': t });
     expect(Object.keys(old.notes)).toEqual(['2026-11-02|Måndag|B']);
     expect(old.groups).toEqual({});
+    expect(old.passNames).toEqual({});
   });
 
   it('läser trasiga dokument utan att krascha', () => {
-    expect(sanitizeWeekDoc(null)).toEqual({ sheets: {}, notes: {}, groups: {} });
+    expect(sanitizeWeekDoc(null)).toEqual({ sheets: {}, notes: {}, groups: {}, passNames: {} });
+    expect(sanitizeWeekDoc({ passNames: { a: { Rosa: 3, Oliv: '  ' }, b: 'x', 'c|d|e|f': { Rosa: ' Svenska ' } } }).passNames)
+      .toEqual({ 'c|d|e': { Rosa: 'Svenska' } });
     expect(sanitizeWeekDoc({ table: 'x', notes: { k: { people: {} } } }).notes.k.added).toEqual([]);
     expect(sanitizeSettingsDoc({}).stamps).toEqual(DEFAULT_STAMPS);
   });
