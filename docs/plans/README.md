@@ -16,6 +16,7 @@ i planen, inte bara i PR:en.
 | [Mappar för veckoscheman](schemamappar.md) | Genomförd 2026-10-21, inte sammanslagen (backend #48) |
 | [Mindmap med kortkommandon och export till Google Docs](mindmap-tangentbord.md) | Genomförd 2026-11-05, inte sammanslagen |
 | [Namn på lektionspass i Närvarorutor](narvaro-passnamn.md) | Genomförd 2026-11-09, inte sammanslagen |
+| [Mobilläge i Närvarorutor](narvaro-mobillage.md) | Genomförd 2026-11-09, inte sammanslagen |
 
 Lägg till en rad här när en ny plan skrivs, och uppdatera den när planen
 slås ihop med `main`.
