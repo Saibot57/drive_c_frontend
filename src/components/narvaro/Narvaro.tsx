@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, ClipboardPaste, Copy, Loader2, Lock, PenLine, Shuffle, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Check, ClipboardPaste, Copy, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
@@ -9,6 +9,7 @@ import { NarvaroGroups } from '@/components/narvaro/NarvaroGroups';
 import { NarvaroNoteDialog } from '@/components/narvaro/NarvaroNoteDialog';
 import { STAMP_BG, StampTag } from '@/components/narvaro/stampStyle';
 import { NarvaroLock } from '@/components/narvaro/NarvaroLock';
+import { NarvaroMobile, NarvaroMobileHeader } from '@/components/narvaro/NarvaroMobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { NarvaroSaveStatus, useNarvaroSync } from '@/hooks/useNarvaroSync';
 import { cn } from '@/lib/utils';
@@ -55,6 +56,17 @@ import {
 } from '@/utils/narvaro';
 import { isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet } from '@/utils/narvaroDocs';
 import { usePersistentState } from '@/hooks/usePersistentState';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useWakeLock } from '@/hooks/useWakeLock';
+import {
+  MobilePref,
+  MobileView,
+  isMobileMode,
+  pickActiveStamp,
+  sanitizeMobilePref,
+  sanitizeStampId,
+  setStamp as setStampOn,
+} from '@/utils/narvaroMobile';
 import { exampleTable } from '@/utils/narvaroExample';
 import '@/styles/schedule-theme.css';
 
@@ -93,6 +105,12 @@ const sanitizeView = (raw: unknown): string[] =>
 const classLabel = (klass: string) => klass || 'Utan klass';
 const weekNumber = (weekKey: string) => weekKey.slice(-2).replace(/^0/, '');
 type PasteMessage = { kind: 'ok' | 'error'; text: string } | null;
+
+/** Mobilläget per enhet: eget val, annars skärmens bredd. */
+const MOBILE_KEY = 'narvaro.mobile.v1';
+const MOBILE_AUTO: MobilePref = 'auto';
+/** Senast valda stämpeln i mobilläget (ett id, ingen personuppgift). */
+const MOBILE_STAMP_KEY = 'narvaro.stamp.v1';
 
 const chip = (pressed: boolean) => cn(
   'inline-flex items-baseline gap-1.5 rounded-ui-sm border-frame border-ui-line px-3 py-1 text-sm font-semibold transition-colors',
@@ -179,6 +197,14 @@ export default function Narvaro() {
   const [toast, setToast] = useState<string | null>(null);
   const [copyFallback, setCopyFallback] = useState<string | null>(null);
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
+
+  const [mobilePref, setMobilePref] = usePersistentState(MOBILE_KEY, sanitizeMobilePref, MOBILE_AUTO);
+  const smallScreen = useMediaQuery('(max-width: 639px)');
+  const mobile = isMobileMode(mobilePref, smallScreen) && sync.phase === 'ready';
+  const [mobileStamp, setMobileStamp] = usePersistentState(MOBILE_STAMP_KEY, sanitizeStampId, '');
+  const [mobileView, setMobileView] = useState<MobileView>('class');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  useWakeLock(mobile);
 
   // Första riktiga tabellen: välj dagens veckodag och passet som pågår.
   // Byts sedan klasser behålls dag och pass, så länge de finns kvar.
@@ -353,12 +379,16 @@ export default function Narvaro() {
       </div>
 
       <div className="relative z-10 flex flex-col gap-5 pb-20">
+        {!mobile && (
         <div className="sp-toolbar flex flex-col items-start gap-4 p-4 lg:flex-row lg:items-center">
           <FeatureNavigation />
           <p className="font-mono text-xs uppercase tracking-wider text-ui-muted">Vecka {isoWeek(now)} · {weekday}</p>
           {sync.phase === 'ready' && (
             <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
               <SaveIndicator status={sync.saveStatus} />
+              <Button variant="neutral" className="sp-btn" onClick={() => setMobilePref('on')} title="Stora rutor och stämplar i tummens räckvidd">
+                <Smartphone /> Mobilläge
+              </Button>
               <Button
                 variant="neutral"
                 className="sp-btn"
@@ -380,6 +410,7 @@ export default function Narvaro() {
             </div>
           )}
         </div>
+        )}
 
         {sync.phase !== 'ready' ? (
           <NarvaroLock
@@ -392,6 +423,19 @@ export default function Narvaro() {
             onRetry={() => void sync.retry()}
           />
         ) : (<>
+        {mobile && (
+          <NarvaroMobileHeader
+            label={label}
+            count={present.length}
+            status={<SaveIndicator status={sync.saveStatus} />}
+            view={mobileView}
+            onView={setMobileView}
+            hasGroups={!!stored}
+            pickerOpen={pickerOpen}
+            onTogglePicker={() => setPickerOpen(o => !o)}
+            onExit={() => { setMobilePref('off'); setPickerOpen(false); }}
+          />
+        )}
         {sync.saveStatus === 'conflict' && (
           <div role="alert" className="sp-toast flex flex-wrap items-center justify-between gap-3 bg-ui-mark-pink px-4 py-2 text-sm font-semibold text-ui-mark-fg">
             <span>Närvaron har ändrats på en annan enhet. Den senaste ändringen här sparades inte.</span>
@@ -404,7 +448,7 @@ export default function Narvaro() {
           </div>
         )}
 
-        {showPaste && (
+        {showPaste && !mobile && (
           <section className="sp-card flex flex-col gap-3 p-4" aria-label="Klistra in">
             <h2 className="text-lg font-bold">Klistra in en klass från Google Kalkylark</h2>
             <ol className="ml-5 list-decimal text-sm">
@@ -527,7 +571,7 @@ export default function Narvaro() {
               : 'Klistra in ditt eget ark för att börja.'}
           </div>
         )}
-        {!isExample && unnamed && (
+        {!isExample && unnamed && !mobile && (
           <section className="sp-toast flex flex-col gap-2 bg-ui-mark-yellow px-4 py-3 text-sm text-ui-mark-fg" aria-label="Tabell utan klass">
             <ClassPicker
               title={`En tabell från vecka ${weekNumber(unnamed.week)} har ingen klass än (${unnamed.table.people.length} deltagare). Vilken klass är den?`}
@@ -550,6 +594,7 @@ export default function Narvaro() {
           </div>
         )}
 
+        {(!mobile || pickerOpen) && (
         <section className="sp-card flex flex-col gap-3 p-4" aria-label="Urval">
           {!isExample && allClasses.length > 1 && (
             <ChipRow label="Klass">
@@ -612,6 +657,7 @@ export default function Narvaro() {
             })}
           </ChipRow>
 
+          {!mobile && (<>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ui-hair pt-3">
             <div role="tablist" className="flex overflow-hidden rounded-ui-sm border-frame border-ui-line">
               {(['notes', 'groups'] as const).map(m => (
@@ -739,7 +785,29 @@ export default function Narvaro() {
               <p className="text-sm text-ui-muted">Tryck på en namnruta för att lämna personen utanför grupperna.</p>
             </div>
           )}
+          </>)}
         </section>
+        )}
+
+        {mobile && (
+          <NarvaroMobile
+            sessKey={key}
+            view={stored ? mobileView : 'class'}
+            present={present}
+            absent={absent}
+            sess={sess}
+            stamps={stamps}
+            activeStamp={pickActiveStamp(stamps, mobileStamp)}
+            onPickStamp={setMobileStamp}
+            storedGroups={stored}
+            detail={p => [splitName(p.name)[1], showClassName && p.klass, showSchool && p.group].filter(Boolean).join(' · ')}
+            onSetStamp={(name, id, on) => updateSession(s => setStampOn(s, name, id, on))}
+            onEdit={setEditing}
+            onAdd={addPerson}
+          />
+        )}
+
+        {!mobile && (<>
 
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
           {present.length ? present.map(p => {
@@ -865,6 +933,7 @@ export default function Narvaro() {
           </section>
         )}
         </>)}
+        </>)}
       </div>
 
       <NarvaroNoteDialog
@@ -908,7 +977,13 @@ export default function Narvaro() {
       </Dialog>
 
       {toast && (
-        <div role="status" className="sp-toast fixed bottom-5 left-1/2 z-[1500] -translate-x-1/2 bg-ui-ink px-4 py-2 text-sm font-semibold text-ui-paper">
+        <div
+          role="status"
+          className={cn(
+            'sp-toast fixed left-1/2 z-[1500] -translate-x-1/2 bg-ui-ink px-4 py-2 text-sm font-semibold text-ui-paper',
+            mobile ? 'bottom-36' : 'bottom-5',
+          )}
+        >
           {toast}
         </div>
       )}
