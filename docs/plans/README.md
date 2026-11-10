@@ -29,6 +29,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Mindmap med kortkommandon och export till Google Docs](mindmap-tangentbord.md) | Genomförd 2026-11-05 (#258) |
 | [Namn på lektionspass i Närvarorutor](narvaro-passnamn.md) | Genomförd 2026-11-09 (#259). Tillägg 2026-11-10 (#263) |
 | [Mobilläge i Närvarorutor](narvaro-mobillage.md) | Genomförd 2026-11-09 (#261) |
+| [Mindmap direkt på ytan, med fritt dragbara noder](mindmap-pa-ytan.md) | Planerad |
 
 Lägg till en rad här när en ny plan skrivs.
 
