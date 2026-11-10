@@ -1,6 +1,6 @@
 # Mindmap med kortkommandon och export till Google Docs
 
-Status: Genomförd 2026-11-05
+Status: Genomförd 2026-11-05 (#258)
 
 ## Bakgrund
 

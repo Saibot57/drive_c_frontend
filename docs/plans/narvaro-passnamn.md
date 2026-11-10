@@ -1,6 +1,6 @@
 # Namn på lektionspass i Närvarorutor
 
-Status: Genomförd 2026-11-09, inte sammanslagen
+Status: Genomförd 2026-11-09 (#259)
 
 ## Vad användaren vill
 
