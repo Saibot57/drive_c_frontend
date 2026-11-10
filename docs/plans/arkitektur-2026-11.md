@@ -21,7 +21,7 @@ skriver avvikelser under steget och uppdaterar fyndets rad i backend-repots
   - Avvikelse: oktoberrapporterna om arkitektur och dataintegritet är dessutom
     kopierade till `docs/arkiv/`, och den här planfilen är tillagd.
 - [x] **2. Dela `LessonLab.tsx` mekaniskt** (F9; FE) i `LabSchedule.tsx`,
-  `LabTeams.tsx` och `LabDragPreview.tsx`. Genomfört 2026-11-10 (#264).
+  `LabTeams.tsx` och `LabDragPreview.tsx`. Genomfört 2026-11-10 (#266).
   `LessonLab.tsx` gick från 1 550 till 597 rader. Ingen kodrad är ändrad
   utöver `export` och namnen nedan; kontrollerat rad för rad mot originalet.
   - Avvikelse: en fjärde fil, `labShared.ts` (46 rader), för det som flera av
