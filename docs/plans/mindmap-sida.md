@@ -1,6 +1,6 @@
 # Mindmap-sida: en MindMup-kopia med sparade kartor
 
-Status: Planerad
+Status: Pågår
 
 Planen är skriven 2026-11-10 efter en intervju med Tobias (besluten i
 avsnitt 1). Den är tänkt att följas steg för steg av agenter: varje steg är
@@ -354,7 +354,25 @@ Bocka av med datum och PR-nummer; skriv avvikelser under steget.
 
 ### Steg 0: Lyft ut kärnan (FE, ingen synlig ändring)
 
-- [ ] Genomfört: –
+- [x] Genomfört 2026-11-10 på grenen `claude/stoic-franklin-774m9t`
+  (PR-numret skrivs in när PR:en finns).
+  - Avvikelse: de nya testerna ligger i en egen fil,
+    `src/utils/mindmap/mindmapFields.test.ts` (10 tester), i stället för i
+    `mindmapTree.test.ts`, så att de flyttade testfilernas diff mot
+    originalen bara är importraden. Kontrollerat med `git diff --no-index`
+    mot `HEAD` för alla fem par.
+  - Avvikelse: `src/types/mindmap.ts` fick också `MINDMAP_ICONS` och
+    `MINDMAP_NOTE_MAX_LENGTH`, som tvätten behöver.
+  - `mindmapExport.ts` i workspace vidareexporterar `canvasToPng`,
+    `renderMindmapCanvas` och `MindmapPalette` från `mindmapDraw.ts`, så
+    att `MindmapEditor.tsx` importerar dem som förut utan ändring.
+  - Kontroller: `tsc`, `lint` (bara den gamla varningen i
+    `WorkspaceShell.tsx`), `test` (83 filer, 1 297 tester, från 82 och
+    1 287) och `build` gröna.
+  - Inte kontrollerat: kortet i webbläsaren (skyddsregel 1). Sessionen
+    hade ingen backend att logga in mot. Gör det i förhandsvisningen av
+    PR:en: nytt mindmap-kort, Tab/Enter, färg, export som bild och
+    punktlista.
 
 **Mål.** De rena mindmap-funktionerna blir delade, så att sidan kan
 importera dem utan att nå in i Workspace. Inget ändras för användaren.
