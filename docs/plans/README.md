@@ -29,7 +29,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Mindmap med kortkommandon och export till Google Docs](mindmap-tangentbord.md) | Genomförd 2026-11-05 (#258) |
 | [Namn på lektionspass i Närvarorutor](narvaro-passnamn.md) | Genomförd 2026-11-09 (#259). Tillägg 2026-11-10 (#263) |
 | [Mobilläge i Närvarorutor](narvaro-mobillage.md) | Genomförd 2026-11-09 (#261) |
-| [Mindmap-sida: en MindMup-kopia med sparade kartor](mindmap-sida.md) | Pågår. Steg 0 (delad kärna) genomfört 2026-11-10 (#267). Steg 0 (#267) och steg 1 (backend #60) genomförda 2026-11-10. Steg 2 (sidan) kodat 2026-11-10 på grenen `claude/stoic-franklin-774m9t`. Planen utökad efter genomgången 2026-11-10 (avsnitt 12). Steg 3–8 återstår |
+| [Mindmap-sida: en MindMup-kopia med sparade kartor](mindmap-sida.md) | Pågår. Steg 0 (#267) och steg 1 (backend #60) genomförda 2026-11-10. Steg 2 (sidan) kodat 2026-11-10. Planen utökad efter genomgången 2026-11-10 (avsnitt 12). Steg 3–8 återstår |
 
 Lägg till en rad här när en ny plan skrivs.
 
