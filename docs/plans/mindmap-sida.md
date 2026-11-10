@@ -412,7 +412,20 @@ kortet ändras. `sanitizeMindmap` prövas mot kortets befintliga fixturer.
 
 ### Steg 1: Backend `/api/mindmap` (BE)
 
-- [ ] Genomfört: –
+- [x] Koden genomförd 2026-11-10 på backend-grenen
+  `claude/stoic-franklin-774m9t` (PR-numret skrivs in när PR:en finns).
+  Deployen återstår och görs av Tobias; först då är steget klart enligt
+  "Klart när".
+  - `api/validation.py` har `PayloadError`, `is_int`, `text`, `integer`
+    och `json_document`. Bara `mindmap_routes` importerar därifrån.
+    Noterat under steg 3 i `arkitektur-2026-11.md`.
+  - Kontroller: `pytest` (547 tester, varav 12 nya), `alembic heads` ger
+    en head. Migrationen är `023` rad för rad utöver kolumnerna (jämfört
+    med `diff`).
+  - Inte kontrollerat: att `create_app()` registrerar routen. Appfabriken
+    går inte att starta utan MySQL (poolparametrarna avvisas av SQLite).
+    Raden i `app.py` står bredvid `narvaro_api`. Kontrollera efter
+    deployen med `GET /api/mindmap` som i "Klart när".
 
 **Mål.** Kartor kan sparas, listas, läsas, uppdateras med version och
 raderas. Avsnitt 3 i sin helhet.
