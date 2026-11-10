@@ -36,6 +36,7 @@ import {
   MAX_PASS_NAME_LENGTH,
   cleanPassName,
   namePass,
+  relabelSession,
   passNameFor,
   sanitizePassNames,
   sessionLabel,
@@ -202,6 +203,13 @@ describe('passens namn', () => {
     const other = namePass(notes, {}, { key: 'annat', classes: ['Rosa'], name: 'Svenska', labelFor });
     expect(other.notes).toBe(notes);
     expect(other.passNames).toEqual({ annat: { Rosa: 'Svenska' } });
+  });
+
+  it('byter namnet i ett tidigare pass rubrik', () => {
+    expect(relabelSession('Måndag 2/11 · 8.30-9.45', 'Svenska')).toBe('Måndag 2/11 · Svenska · 8.30-9.45');
+    expect(relabelSession('Måndag 2/11 · Svenska · 8.30-9.45', 'Prov')).toBe('Måndag 2/11 · Prov · 8.30-9.45');
+    expect(relabelSession('Måndag 2/11 · Svenska / Matte · hela dagen', '')).toBe('Måndag 2/11 · hela dagen');
+    expect(relabelSession('trasig', 'Svenska')).toBe('trasig');
   });
 
   it('läser sparade namn defensivt', () => {

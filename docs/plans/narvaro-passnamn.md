@@ -1,6 +1,6 @@
 # Namn på lektionspass i Närvarorutor
 
-Status: Genomförd 2026-11-09 (#259)
+Status: Genomförd 2026-11-09 (#259). Tillägg 2026-11-10: namnge i Tidigare pass (#263)
 
 ## Vad användaren vill
 
@@ -71,6 +71,17 @@ grupper tillkom och går över när fliken laddas om.
 - Pennknapp + inline-ruta i raden Pass. Inget annat i filen formateras om.
 - Kopiera i Noteringar använder aktuell `label` (`{ ...sess, label }`), inte
   den som sparades senast.
+
+## Tillägg 2026-11-10: namnge i Tidigare pass
+
+Ett tidigare pass namnges med **högerklick** på dess rad i Tidigare pass. Raden
+blir en ruta med Spara och Avbryt (Esc avbryter, tomt namn tar bort).
+
+- Namnet sätts för de klasser som visas nu, som med pennknappen.
+- Passets tabell kan vara en annan veckas än den som visas, så rubriken byggs
+  om från den sparade: `relabelSession` behåller datumet först och tiden sist
+  och byter det som står mellan.
+- Högerklick finns inte på alla pekskärmar (Safari på iPhone saknar det).
 
 ## Steg
 
