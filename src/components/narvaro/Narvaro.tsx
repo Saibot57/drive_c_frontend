@@ -58,7 +58,7 @@ import {
   toggleStamp,
   trimSessions,
 } from '@/utils/narvaro';
-import { isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet } from '@/utils/narvaroDocs';
+import { groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading } from '@/utils/narvaroDocs';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -953,31 +953,38 @@ export default function Narvaro() {
         {history.length > 0 && (
           <section className="sp-card flex flex-col p-4" aria-label="Tidigare pass">
             <h3 className="mb-1 text-lg font-bold">Tidigare pass</h3>
-            {history.map(k => (
-              <details key={k} className="border-t border-ui-hair py-2">
-                <summary className="cursor-pointer font-semibold">{notes[k].label}</summary>
-                <pre className="my-2 overflow-x-auto whitespace-pre-wrap rounded-ui-sm border border-ui-line bg-ui-surface-2 p-2.5 font-mono text-xs">
-                  {sessionText(notes[k], table, stamps)}
-                </pre>
-                <div className="flex gap-2">
-                  <Button variant="neutral" size="sm" className="sp-btn" onClick={() => copyText(sessionText(notes[k], table, stamps))}>
-                    <Copy /> Kopiera
-                  </Button>
-                  <Button
-                    variant="neutral"
-                    size="sm"
-                    className="sp-btn"
-                    onClick={() => {
-                      if (armedDelete !== k) { setArmedDelete(k); return; }
-                      const next = { ...notes };
-                      delete next[k];
-                      setNotes(next);
-                      setArmedDelete(null);
-                    }}
-                  >
-                    <Trash2 /> {armedDelete === k ? 'Säker? Tryck igen' : 'Ta bort'}
-                  </Button>
-                </div>
+            {groupByWeek(history).map((group, i) => (
+              <details key={group.week ?? ''} open={i === 0} className="border-t border-ui-line py-2">
+                <summary className="cursor-pointer font-mono text-xs font-semibold tracking-wider text-ui-muted">
+                  {weekHeading(group.week, weekKey)} · {group.keys.length} pass
+                </summary>
+                {group.keys.map(k => (
+                  <details key={k} className="ml-4 border-t border-ui-hair py-2">
+                    <summary className="cursor-pointer font-semibold">{notes[k].label}</summary>
+                    <pre className="my-2 overflow-x-auto whitespace-pre-wrap rounded-ui-sm border border-ui-line bg-ui-surface-2 p-2.5 font-mono text-xs">
+                      {sessionText(notes[k], table, stamps)}
+                    </pre>
+                    <div className="flex gap-2">
+                      <Button variant="neutral" size="sm" className="sp-btn" onClick={() => copyText(sessionText(notes[k], table, stamps))}>
+                        <Copy /> Kopiera
+                      </Button>
+                      <Button
+                        variant="neutral"
+                        size="sm"
+                        className="sp-btn"
+                        onClick={() => {
+                          if (armedDelete !== k) { setArmedDelete(k); return; }
+                          const next = { ...notes };
+                          delete next[k];
+                          setNotes(next);
+                          setArmedDelete(null);
+                        }}
+                      >
+                        <Trash2 /> {armedDelete === k ? 'Säker? Tryck igen' : 'Ta bort'}
+                      </Button>
+                    </div>
+                  </details>
+                ))}
               </details>
             ))}
           </section>
