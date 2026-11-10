@@ -354,8 +354,7 @@ Bocka av med datum och PR-nummer; skriv avvikelser under steget.
 
 ### Steg 0: Lyft ut kärnan (FE, ingen synlig ändring)
 
-- [x] Genomfört 2026-11-10 på grenen `claude/stoic-franklin-774m9t`
-  (PR-numret skrivs in när PR:en finns).
+- [x] Genomfört 2026-11-10 (#267).
   - Avvikelse: de nya testerna ligger i en egen fil,
     `src/utils/mindmap/mindmapFields.test.ts` (10 tester), i stället för i
     `mindmapTree.test.ts`, så att de flyttade testfilernas diff mot
