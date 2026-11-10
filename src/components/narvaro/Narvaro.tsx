@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, ClipboardPaste, Copy, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Check, ClipboardPaste, Copy, Hourglass, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
@@ -73,6 +73,7 @@ import {
   setStamp as setStampOn,
 } from '@/utils/narvaroMobile';
 import { exampleTable } from '@/utils/narvaroExample';
+import { PurgeTier, dismissWeek, purgeBadge, purgeInfo, purgeWhen, sanitizeDismissed, weeksNearPurge } from '@/utils/narvaroRetention';
 import '@/styles/schedule-theme.css';
 
 /**
@@ -116,6 +117,11 @@ const MOBILE_KEY = 'narvaro.mobile.v1';
 const MOBILE_AUTO: MobilePref = 'auto';
 /** Senast valda stämpeln i mobilläget (ett id, ingen personuppgift). */
 const MOBILE_STAMP_KEY = 'narvaro.stamp.v1';
+/** Veckor vars påminnelse om gallring är avfärdad, per enhet (bara veckonycklar). */
+const DISMISSED_KEY = 'narvaro.retentionDismissed.v1';
+const NO_WEEKS: string[] = [];
+const TIER_BG: Record<PurgeTier, string> = { 14: 'bg-ui-mark-grey', 7: 'bg-ui-mark-yellow', 1: 'bg-ui-mark-pink' };
+const weekAnchor = (week: string) => `narvaro-vecka-${week}`;
 
 const chip = (pressed: boolean) => cn(
   'inline-flex items-baseline gap-1.5 rounded-ui-sm border-frame border-ui-line px-3 py-1 text-sm font-semibold transition-colors',
@@ -241,6 +247,19 @@ export default function Narvaro() {
     const t = setTimeout(() => setToast(null), 1600);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Påminnelser om gallring. "Visa" byter till noteringarna, fäller ut veckan och scrollar dit.
+  const [dismissedWeeks, setDismissedWeeks] = usePersistentState(DISMISSED_KEY, sanitizeDismissed, NO_WEEKS);
+  const [revealWeek, setRevealWeek] = useState<string | null>(null);
+  useEffect(() => {
+    if (!revealWeek) return;
+    const el = document.getElementById(weekAnchor(revealWeek));
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    setRevealWeek(null);
+  }, [revealWeek]);
 
   const key = sessionKey(table, day, pass, now);
   // Passets namn hör till passet och klassen; visas flera klasser får alla samma.
@@ -396,7 +415,10 @@ export default function Narvaro() {
     saveGroups(Array.from({ length: groupCount(groupBy, groupN, active.length) }, () => []));
 
   const entries = noteEntries(sess);
-  const history = mode === 'notes' ? historyKeys(notes, key) : [];
+  const pastWeeks = groupByWeek(historyKeys(notes, key));
+  const history = mode === 'notes' ? pastWeeks : [];
+  const nearPurge = isExample || mobile ? [] : weeksNearPurge(pastWeeks.map(g => g.week), now, dismissedWeeks);
+  const weekText = (keys: readonly string[]) => keys.map(k => sessionText(notes[k], table, stamps)).join('\n\n');
   const cols = dayColumns(table, day);
   const weekday = now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -475,6 +497,35 @@ export default function Narvaro() {
           <div role="alert" className="sp-toast bg-ui-mark-pink px-4 py-2 text-sm font-semibold text-ui-mark-fg">
             {sync.unreadable === 1 ? 'En sparad vecka' : `${sync.unreadable} sparade veckor`} gick inte att läsa och visas inte. De ligger kvar orörda.
           </div>
+        )}
+        {nearPurge.length > 0 && (
+          <section
+            aria-label="Gallras snart"
+            className={cn('sp-toast flex flex-col gap-1.5 px-4 py-2 text-sm text-ui-mark-fg', nearPurge[0].tier === 1 ? 'bg-ui-mark-pink' : 'bg-ui-mark-yellow')}
+          >
+            {nearPurge.map(w => (
+              <div key={w.week} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 font-semibold">
+                  <Hourglass className="h-4 w-4 shrink-0" aria-hidden />
+                  {weekHeading(w.week, weekKey)} gallras {purgeWhen(w.daysLeft)}, med alla noteringar. Kopiera det du vill spara.
+                </span>
+                <span className="flex gap-2">
+                  <Button variant="neutral" size="sm" className="sp-btn" onClick={() => { setMode('notes'); setRevealWeek(w.week); }}>
+                    Visa
+                  </Button>
+                  <Button
+                    variant="neutral"
+                    size="sm"
+                    className="sp-btn"
+                    aria-label={`Avfärda påminnelsen om ${weekHeading(w.week, weekKey)}`}
+                    onClick={() => setDismissedWeeks(dismissWeek(dismissedWeeks, w.week, now))}
+                  >
+                    <X /> Avfärda
+                  </Button>
+                </span>
+              </div>
+            ))}
+          </section>
         )}
 
         {showPaste && !mobile && (
@@ -961,11 +1012,26 @@ export default function Narvaro() {
         {history.length > 0 && (
           <section className="sp-card flex flex-col p-4" aria-label="Tidigare pass">
             <h3 className="mb-1 text-lg font-bold">Tidigare pass</h3>
-            {groupByWeek(history).map((group, i) => (
-              <details key={group.week ?? ''} open={i === 0} className="border-t border-ui-line py-2">
+            {history.map((group, i) => {
+              const purge = purgeInfo(group.week, now);
+              return (
+              <details key={group.week ?? ''} id={group.week ? weekAnchor(group.week) : undefined} open={i === 0} className="scroll-mt-4 border-t border-ui-line py-2">
                 <summary className="cursor-pointer font-mono text-xs font-semibold tracking-wider text-ui-muted">
                   {weekHeading(group.week, weekKey)} · {group.keys.length} pass
+                  {purge && (
+                    <span className={cn('ml-2 inline-flex items-center gap-1 rounded-ui-sm border border-ui-line px-1.5 py-0.5 font-sans normal-case tracking-normal text-ui-mark-fg', TIER_BG[purge.tier])}>
+                      <Hourglass className="h-3 w-3" aria-hidden /> {purgeBadge(purge.daysLeft)}
+                    </span>
+                  )}
                 </summary>
+                {purge && (
+                  <div className="ml-4 flex flex-wrap items-center gap-2 py-2 text-sm">
+                    <span className="text-ui-muted">Veckan gallras {purgeWhen(purge.daysLeft)}.</span>
+                    <Button variant="neutral" size="sm" className="sp-btn" onClick={() => copyText(weekText(group.keys))}>
+                      <Copy /> Kopiera veckan
+                    </Button>
+                  </div>
+                )}
                 {group.keys.map(k => renaming?.key === k ? (
                   <form
                     key={k}
@@ -1020,7 +1086,8 @@ export default function Narvaro() {
                   </details>
                 ))}
               </details>
-            ))}
+              );
+            })}
           </section>
         )}
         </>)}
