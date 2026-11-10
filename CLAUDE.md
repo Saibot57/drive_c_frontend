@@ -49,7 +49,7 @@ CI (`.github/workflows/ci.yml`) kör alla fyra på varje PR. Kör dem lokalt fö
 
 ## Fällor
 
-- **Stora filer som ändras ofta:** `NewSchedulePlanner.tsx` (~2 600 rader), `LessonLab.tsx` (~1 550), `useWorkspaceData.ts` (~1 300), `Narvaro.tsx` (~1 100), `useArchiveManager.ts` (~800). Lägg inte en ny subkomponent eller mer logik i dem: en ny del blir en egen fil i samma mapp, och logik går till `utils/` med test.
+- **Stora filer som ändras ofta:** `NewSchedulePlanner.tsx` (~2 600 rader), `useWorkspaceData.ts` (~1 300), `Narvaro.tsx` (~1 100), `useArchiveManager.ts` (~800). `LessonLab.tsx` delades 2026-11-10 i `LabSchedule.tsx`, `LabTeams.tsx`, `LabDragPreview.tsx` och `labShared.ts`; håll den så. Lägg inte en ny subkomponent eller mer logik i dem: en ny del blir en egen fil i samma mapp, och logik går till `utils/` med test.
 - **Schemat:** allt användaren ändrar går via `commitSchedule` i `NewSchedulePlanner.tsx`, som stoppar ändringar i läsläge. `applyScheduleFromServer` är bara för inläsningar från servern; en redigeringsväg som använder den går förbi läsläget.
 - **En ny dold schemainställning** läggs i `HiddenSettingsDraft` (`useHiddenSettings.ts`). Typfelen visar sedan var den ska in (`utils/plannerBackup.ts`, `applyImportedSettings`, `handleExportJSON`), så att den följer med JSON-backupen.
 - **En ny workspace-elementtyp** måste in i backendens `VALID_TYPES` (`models/workspace_models.py`), annars avvisas den. I frontend rör den ett femtontal filer; sök på en befintlig typ, t.ex. `'heading'`.

@@ -20,9 +20,19 @@ skriver avvikelser under steget och uppdaterar fyndets rad i backend-repots
     säger vilken Python som kör vad.
   - Avvikelse: oktoberrapporterna om arkitektur och dataintegritet är dessutom
     kopierade till `docs/arkiv/`, och den här planfilen är tillagd.
-- [ ] **2. Dela `LessonLab.tsx` mekaniskt** (F9; FE) i `LabSchedule.tsx`,
-  `LabTeams.tsx` och `LabDragPreview.tsx`. Ingen beteendeändring; `tsc` och
-  bygget är skyddsnätet.
+- [x] **2. Dela `LessonLab.tsx` mekaniskt** (F9; FE) i `LabSchedule.tsx`,
+  `LabTeams.tsx` och `LabDragPreview.tsx`. Genomfört 2026-11-10 (#264).
+  `LessonLab.tsx` gick från 1 550 till 597 rader. Ingen kodrad är ändrad
+  utöver `export` och namnen nedan; kontrollerat rad för rad mot originalet.
+  - Avvikelse: en fjärde fil, `labShared.ts` (46 rader), för det som flera av
+    filerna behöver: `DragData`, `ViewContext`, släppmålens id:n, `classColor`
+    och `lessonLabel`.
+  - Avvikelse: `LabSchedule.tsx` importerar `TeacherChip` från `LabTeams.tsx`,
+    eftersom bemanningsraden i en lektion visar lärarbrickor.
+  - Namnbyten: `Schedule` → `LabSchedule`, `Teams` → `LabTeams`,
+    `DragPreview` → `LabDragPreview`, `DayColumn` → `LabDayColumn`.
+  - Inte kontrollerat: att sidan ser likadan ut i webbläsaren. Öppna Arbetslag
+    i förhandsvisningen och dra en lektion och en lärare.
 - [ ] **3. `api/validation.py` med en gemensam `PayloadError`, felhanterare i
   `create_app` och `tests/test_app_factory.py`** (F7, F4; BE). Flytta
   `narvaro_routes` och `term_routes` först.
