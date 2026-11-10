@@ -399,6 +399,17 @@ export function namePass(
   return { notes: { ...notes, [sel.key]: { ...sess, label } }, passNames: nextNames };
 }
 
+/**
+ * Byter namnet i en sparad rubrik ("Måndag 3/11 · Svenska · 8.30-9.45"),
+ * för ett tidigare pass vars tabell inte längre visas. Datumet står först
+ * och tiden sist; det som står mellan är det gamla namnet.
+ */
+export function relabelSession(label: string, name: string): string {
+  const parts = label.split(' · ');
+  if (parts.length < 2) return label;
+  return [parts[0], name, parts[parts.length - 1]].filter(Boolean).join(' · ');
+}
+
 /** Flyttar klassens namn på passen till ett nytt klassnamn. */
 export function renamePassNamesClass(store: PassNames, from: string, to: string): PassNames {
   if (from === to) return store;
