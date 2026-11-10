@@ -6,6 +6,7 @@ import {
   SETTINGS_KEY,
   documentsToSave,
   emptyData,
+  groupByWeek,
   isExpiredWeek,
   isoWeekKey,
   mergeLegacy,
@@ -19,6 +20,7 @@ import {
   renameClass,
   setSheet,
   weekMonday,
+  weekHeading,
   weekOfSession,
 } from '@/utils/narvaroDocs';
 
@@ -163,5 +165,47 @@ describe('överföring från webbläsaren', () => {
     const t = exampleTable();
     const merged = mergeLegacy({ ...emptyData(), tables: { 'w2026-45': { Oliv: t } } }, { table: { ...t, days: ['X'] }, notes: {}, groups: {}, stamps: null }, NOW);
     expect(merged.tables['w2026-45']).toEqual({ Oliv: t });
+  });
+});
+
+describe('tidigare pass per vecka', () => {
+  it('grupperar per ISO-vecka, senaste först, och behåller ordningen inom veckan', () => {
+    const keys = [
+      '2026-11-09|Måndag|C', '2026-11-09|Måndag|B', '2026-11-09|Måndag|A',
+      '2026-11-05|Torsdag|C', '2026-11-04|Onsdag|B',
+    ];
+    expect(groupByWeek(keys)).toEqual([
+      { week: 'w2026-46', keys: ['2026-11-09|Måndag|C', '2026-11-09|Måndag|B', '2026-11-09|Måndag|A'] },
+      { week: 'w2026-45', keys: ['2026-11-05|Torsdag|C', '2026-11-04|Onsdag|B'] },
+    ]);
+  });
+
+  it('lägger söndagen i samma vecka som måndagen före', () => {
+    expect(groupByWeek(['2026-11-15|Söndag|A', '2026-11-09|Måndag|A'])).toEqual([
+      { week: 'w2026-46', keys: ['2026-11-15|Söndag|A', '2026-11-09|Måndag|A'] },
+    ]);
+  });
+
+  it('följer ISO-året vid årsskiftet', () => {
+    // 4 januari 2027 är måndag i v. 1; 1 januari 2027 hör till v. 53 år 2026.
+    expect(groupByWeek(['2027-01-04|Måndag|A', '2027-01-01|Fredag|A', '2026-12-28|Måndag|A'])).toEqual([
+      { week: 'w2027-01', keys: ['2027-01-04|Måndag|A'] },
+      { week: 'w2026-53', keys: ['2027-01-01|Fredag|A', '2026-12-28|Måndag|A'] },
+    ]);
+  });
+
+  it('lägger nycklar utan datum sist', () => {
+    expect(groupByWeek(['gammal', '2026-11-04|Onsdag|B'])).toEqual([
+      { week: 'w2026-45', keys: ['2026-11-04|Onsdag|B'] },
+      { week: null, keys: ['gammal'] },
+    ]);
+    expect(groupByWeek([])).toEqual([]);
+  });
+
+  it('skriver rubriken med år bara när ISO-året är ett annat', () => {
+    expect(weekHeading('w2026-45', 'w2026-46')).toBe('v. 45');
+    expect(weekHeading('w2026-05', 'w2026-46')).toBe('v. 5');
+    expect(weekHeading('w2026-53', 'w2027-01')).toBe('v. 53 · 2026');
+    expect(weekHeading(null, 'w2026-46')).toBe('Utan datum');
   });
 });

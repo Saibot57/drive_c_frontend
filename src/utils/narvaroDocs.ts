@@ -83,6 +83,37 @@ export function weekOfSession(sessionKey: string): string | null {
   return m ? isoWeekKey(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))) : null;
 }
 
+/** Pass grupperade per ISO-vecka. `week` är `null` för en nyckel utan datum. */
+export type WeekGroup = { week: string | null; keys: string[] };
+
+/**
+ * Delar passen i en grupp per ISO-vecka, senaste veckan först. Ordningen
+ * inom en vecka behålls. Nycklar utan datum hamnar sist.
+ */
+export function groupByWeek(keys: readonly string[]): WeekGroup[] {
+  const byWeek = new Map<string | null, string[]>();
+  keys.forEach(k => {
+    const w = weekOfSession(k);
+    const list = byWeek.get(w);
+    if (list) list.push(k);
+    else byWeek.set(w, [k]);
+  });
+  return Array.from(byWeek.entries())
+    .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : b.localeCompare(a)))
+    .map(([week, ks]) => ({ week, keys: ks }));
+}
+
+/**
+ * Rubriken för en vecka, t.ex. `v. 46`. Hör veckan till ett annat ISO-år än
+ * `currentWeek` står året med: `v. 53 · 2026`.
+ */
+export function weekHeading(week: string | null, currentWeek: string): string {
+  const m = week?.match(WEEK_KEY);
+  if (!m) return 'Utan datum';
+  const label = `v. ${Number(m[2])}`;
+  return currentWeek.slice(1, 5) === m[1] ? label : `${label} · ${m[1]}`;
+}
+
 export type SheetRef = { week: string; table: AttendanceTable };
 
 /**
