@@ -474,12 +474,11 @@ export function sessionText(sess: SessionNotes, table: AttendanceTable, stamps: 
 }
 
 /** Tidigare pass med noteringar, senaste först. */
-export function historyKeys(notes: NotesStore, currentKey: string, max = 15): string[] {
+export function historyKeys(notes: NotesStore, currentKey: string): string[] {
   return Object.keys(notes)
     .filter(k => k !== currentKey && noteEntries(notes[k]).length > 0)
     .sort()
-    .reverse()
-    .slice(0, max);
+    .reverse();
 }
 
 /* ---------- grupper ---------- */
