@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen, Users, ClipboardCheck, Activity } from 'lucide-react';
+import { Check, ChevronsUpDown, Library, Calendar, CalendarDays, PieChart, Briefcase, LogOut, LogIn, Sigma, DoorOpen, Users, ClipboardCheck, Activity, Network } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -44,6 +44,7 @@ const features: readonly Feature[] = [
   { label: 'Arbetslag',       href: '/features/arbetslag',          icon: Users,        shortcut: '4' },
   { label: 'Kalender',        href: '/features/calendar',           icon: CalendarDays, shortcut: '5' },
   { label: 'Workspace',       href: '/workspace',                   icon: Briefcase,    shortcut: '6' },
+  { label: 'Mindmap',         href: '/features/mindmap',            icon: Network,      shortcut: '7' },
 ];
 
 /**

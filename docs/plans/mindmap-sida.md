@@ -448,7 +448,33 @@ annan route importerar. Enda ändringen i befintlig kod är registreringen.
 
 ### Steg 2: Sidan med lista och editor (FE, första synliga steget)
 
-- [ ] Genomfört: –
+- [x] Koden genomförd 2026-11-10 på grenen `claude/stoic-franklin-774m9t`
+  (PR-numret skrivs in när PR:en finns). Slås ihop först när backend (#60)
+  är deployad.
+  - Avvikelse: `services/http.ts` med `readData` (ordagrant
+    `arbetslagService`:s) och `http.test.ts` är skapad, eftersom ingen
+    befintlig uppackare är exporterad och `CLAUDE.md` förbjuder en till
+    kopia. Bara `mindmapService` använder den; noterat under steg 4 i
+    `arkitektur-2026-11.md`.
+  - Avvikelse: namnbyte sker i listans rad (som Arbetslags "Sparade
+    upplägg"), inte i en dialog.
+  - Avvikelse: `mindmap.lastOpen.v1` läses direkt ur localStorage med
+    `sanitizeLastOpen`, inte med `usePersistentState`, eftersom listan
+    hämtas innan den hookens effekt hunnit läsa värdet. Skrivs med samma
+    JSON-form.
+  - Konfliktrutan har "Ladda den sparade versionen" och "Behåll min";
+    "Behåll min" skriver hela dokumentet inklusive namnet.
+  - `changedLabel` är en kopia av Arbetslags (10 rader) i
+    `utils/mindmapDoc.ts`, för att inte importera från en annan feature.
+  - Kontroller: `tsc`, `lint`, `test` (87 filer, 1 325 tester, 28 nya),
+    `build` gröna. Visuellt mot ett mock-API i Playwright: skriva 6 noder
+    med Tab/Enter/pilar, färg med Alt+3, autosparning, byta namn,
+    kopiera, exportmeny, hjälpruta, båda temana, konflikt från en annan
+    flik med "Behåll min", ta bort den öppna kartan. Inga fel i konsolen
+    utöver det väntade 409-svaret.
+  - Inte kontrollerat: mot riktig backend (kräver deploy av #60);
+    regressionslistan i avsnitt 8 i webbläsaren (kortet i Workspace och
+    menyns siffror 1–6). Gör det i PR:ens förhandsvisning.
 
 **Mål.** `/features/mindmap` i menyn (Ctrl+Shift+7). En lista med sparade
 kartor till vänster (hopfällbar), kartan till höger med allt kortet kan i

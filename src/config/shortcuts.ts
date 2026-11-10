@@ -20,6 +20,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Ctrl', 'Shift', '4'], description: 'Arbetslag' },
       { keys: ['Ctrl', 'Shift', '5'], description: 'Kalender' },
       { keys: ['Ctrl', 'Shift', '6'], description: 'Workspace' },
+      { keys: ['Ctrl', 'Shift', '7'], description: 'Mindmap' },
       { keys: ['?'], description: 'Visa genvägar' },
       { keys: ['Ctrl', 'Z'], description: 'Ångra' },
     ],
@@ -81,6 +82,20 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Home', 'End'], description: 'Veckans första / sista dag' },
       { keys: ['Enter'], description: 'Välj dag / öppna anteckning' },
       { keys: ['Escape'], description: 'Lämna redigering / överstrykning' },
+    ],
+  },
+  {
+    // Hela listan står i MINDMAP_SHORTCUTS (utils/mindmap/mindmapKeys.ts) och
+    // i hjälprutan på sidan; här bara det man behöver för att komma igång.
+    label: 'Mindmap',
+    shortcuts: [
+      { keys: ['Tab'], description: 'Ny nod under (barn)' },
+      { keys: ['Enter'], description: 'Ny nod bredvid (syskon)' },
+      { keys: ['←↑↓→'], description: 'Gå mellan noderna' },
+      { keys: ['Mellanslag'], description: 'Fäll ihop eller ut grenen' },
+      { keys: ['Alt', '1–6'], description: 'Färg (Alt+0 tar bort)' },
+      { keys: ['Alt', '←↑↓→'], description: 'Flytta noden' },
+      { keys: ['Delete'], description: 'Ta bort noden med gren' },
     ],
   },
 ];
