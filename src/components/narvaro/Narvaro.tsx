@@ -48,6 +48,7 @@ import {
   noteEntries,
   parsePasted,
   passNameFor,
+  relabelSession,
   pastePreview,
   randomGroups,
   roster,
@@ -206,6 +207,8 @@ export default function Narvaro() {
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
   // Rutan för passets namn: utkastet, eller null när den är stängd.
   const [naming, setNaming] = useState<string | null>(null);
+  // Ett tidigare pass som får nytt namn (högerklick i Tidigare pass).
+  const [renaming, setRenaming] = useState<{ key: string; draft: string } | null>(null);
 
   const [mobilePref, setMobilePref] = usePersistentState(MOBILE_KEY, sanitizeMobilePref, MOBILE_AUTO);
   const smallScreen = useMediaQuery('(max-width: 639px)');
@@ -256,14 +259,19 @@ export default function Narvaro() {
 
   const updateSession = (fn: (s: SessionNotes) => SessionNotes) =>
     setNotes({ ...notes, [key]: { ...fn(sess), label } });
-  const savePassName = (name: string) => {
-    const sel = { key, classes: nameClasses, name, labelFor: (n: string) => sessionLabel(table, day, pass, now, n) };
+  // Ett tidigare pass får sin rubrik från den sparade, eftersom dess tabell kan vara en annan veckas.
+  const savePassName = (name: string, k = key) => {
+    const labelFor = k === key
+      ? (n: string) => sessionLabel(table, day, pass, now, n)
+      : (n: string) => relabelSession(notes[k]?.label ?? '', n);
+    const sel = { key: k, classes: nameClasses, name, labelFor };
     if (isExample) {
       const r = namePass(exNotes, exPassNames, sel);
       setExNotes(r.notes);
       setExPassNames(r.passNames);
     } else update(d => ({ ...d, ...namePass(d.notes, d.passNames, sel) }));
     setNaming(null);
+    setRenaming(null);
   };
   useEffect(() => setNaming(null), [key]);
   const saveGroups = (next: string[][]) =>
@@ -958,9 +966,35 @@ export default function Narvaro() {
                 <summary className="cursor-pointer font-mono text-xs font-semibold tracking-wider text-ui-muted">
                   {weekHeading(group.week, weekKey)} · {group.keys.length} pass
                 </summary>
-                {group.keys.map(k => (
+                {group.keys.map(k => renaming?.key === k ? (
+                  <form
+                    key={k}
+                    className="ml-4 flex flex-wrap items-center gap-1.5 border-t border-ui-hair py-2"
+                    onSubmit={e => { e.preventDefault(); savePassName(renaming.draft, k); }}
+                    onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setRenaming(null); } }}
+                  >
+                    <input
+                      autoFocus
+                      value={renaming.draft}
+                      onChange={e => setRenaming({ key: k, draft: e.target.value })}
+                      maxLength={MAX_PASS_NAME_LENGTH}
+                      placeholder="Passets namn, t.ex. Svenska"
+                      aria-label={`Namn på passet ${notes[k].label}`}
+                      title="Tomt namn tar bort det"
+                      className="sp-input w-48 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm"
+                    />
+                    <Button type="submit" variant="neutral" size="sm" className="sp-btn">Spara</Button>
+                    <Button type="button" variant="neutral" size="sm" className="sp-btn" onClick={() => setRenaming(null)}>Avbryt</Button>
+                  </form>
+                ) : (
                   <details key={k} className="ml-4 border-t border-ui-hair py-2">
-                    <summary className="cursor-pointer font-semibold">{notes[k].label}</summary>
+                    <summary
+                      className="cursor-pointer font-semibold"
+                      title="Högerklicka för att namnge passet"
+                      onContextMenu={e => { e.preventDefault(); setRenaming({ key: k, draft: passNameFor(passNames, k, nameClasses) }); }}
+                    >
+                      {notes[k].label}
+                    </summary>
                     <pre className="my-2 overflow-x-auto whitespace-pre-wrap rounded-ui-sm border border-ui-line bg-ui-surface-2 p-2.5 font-mono text-xs">
                       {sessionText(notes[k], table, stamps)}
                     </pre>
