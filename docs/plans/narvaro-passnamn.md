@@ -1,6 +1,6 @@
 # Namn på lektionspass i Närvarorutor
 
-Status: Genomförd 2026-11-09 (#259). Tillägg 2026-11-10: namnge i Tidigare pass, inte sammanslaget
+Status: Genomförd 2026-11-09 (#259). Tillägg 2026-11-10: namnge i Tidigare pass (#263)
 
 ## Vad användaren vill
 

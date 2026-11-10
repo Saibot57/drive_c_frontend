@@ -1,6 +1,6 @@
 # Plan: Mappar för veckoscheman
 
-Status: genomförd 2026-10-21, inte sammanslagen med main (backend
+Status: Genomförd 2026-10-21 (#240, backend
 Saibot57/drive_c_backend#48). Backend först (avsnitt 3.6). Frågorna
 besvarades samma dag (avsnitt 13).
 
