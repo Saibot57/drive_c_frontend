@@ -14,7 +14,7 @@ skriver avvikelser under steget och uppdaterar fyndets rad i backend-repots
 ## Snabba vinster
 
 - [x] **1. Dokumenten säger sanningen** (N2, N3; FE och BE). Genomfört
-  2026-11-10 på grenen `ccr-b9f0ab06-bwel14` i båda repona.
+  2026-11-10 (#264, backend #58).
   - Nya `CLAUDE.md` i båda repona, statusregeln i `docs/plans/README.md`, fyra
     planers status rättade, `granskning-status.md` uppdaterad och `DEPLOY.md`
     säger vilken Python som kör vad.

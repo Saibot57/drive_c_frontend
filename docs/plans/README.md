@@ -17,7 +17,7 @@ räcker: den som undrar ser läget på GitHub.
 
 | Plan | Status |
 |---|---|
-| [Arkitektur: refaktoreringssteg efter granskningen 2026-11-09](arkitektur-2026-11.md) | Pågår. Steg 1 genomfört 2026-11-10 |
+| [Arkitektur: refaktoreringssteg efter granskningen 2026-11-09](arkitektur-2026-11.md) | Pågår. Steg 1 genomfört 2026-11-10 (#264, backend #58) |
 | [Sparade upplägg i Arbetslag](arbetslag-upplagg.md) | Genomförd 2026-09-30 (backend #27) |
 | [Basscheman och veckoscheman](basscheman.md) | Genomförd 2026-10-09 (#212, backend #31) |
 | [Färre knappar och tydligare menyer i schemaplaneraren](schema-knappar-och-menyer.md) | Genomförd 2026-10-09 (#211) |
