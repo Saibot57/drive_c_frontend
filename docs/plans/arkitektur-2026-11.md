@@ -36,6 +36,10 @@ skriver avvikelser under steget och uppdaterar fyndets rad i backend-repots
 - [ ] **3. `api/validation.py` med en gemensam `PayloadError`, felhanterare i
   `create_app` och `tests/test_app_factory.py`** (F7, F4; BE). Flytta
   `narvaro_routes` och `term_routes` först.
+  - Filen `api/validation.py` finns sedan 2026-11-10 (mindmap-planens
+    steg 1) med `PayloadError`, `is_int`, `text`, `integer` och
+    `json_document`; bara `mindmap_routes` använder den än. Det här steget
+    flyttar de befintliga routes-filerna dit.
 - [ ] **4. `services/http.ts` med `http.test.ts`** (F14; FE). Flytta
   `termService` och `narvaroService`.
 - [ ] **5. Backendhygien** (F5; BE): ta bort rotskripten och

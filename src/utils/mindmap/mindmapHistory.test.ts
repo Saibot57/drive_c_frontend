@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MindmapContent } from '../types/mindmap.types';
+import type { MindmapContent } from '@/types/mindmap';
 import { breakCoalescing, emptyHistory, MAX_MINDMAP_HISTORY, recordChange, redo, undo } from './mindmapHistory';
 
 const snap = (label: string) => ({

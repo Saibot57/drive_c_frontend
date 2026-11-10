@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import type { MindmapNode } from '../types/mindmap.types';
+import type { MindmapNode } from '@/types/mindmap';
 import { parseOutlineHtml, parseOutlineText, toOutlineHtml, toOutlineText } from './mindmapOutline';
 
 const n = (label: string, children: MindmapNode[] = []): MindmapNode => ({ id: label, label, children });

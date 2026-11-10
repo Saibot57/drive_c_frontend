@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MindmapContent, MindmapNode } from '../types/mindmap.types';
+import type { MindmapContent, MindmapNode } from '@/types/mindmap';
 import { edgePath, layoutMindmap, MINDMAP_METRICS as M } from './mindmapLayout';
 
 const n = (id: string, children: MindmapNode[] = [], extra: Partial<MindmapNode> = {}): MindmapNode => ({

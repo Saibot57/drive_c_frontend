@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MindmapContent, MindmapNode } from '../types/mindmap.types';
+import type { MindmapContent, MindmapNode } from '@/types/mindmap';
 import {
   addChild,
   addChildren,
