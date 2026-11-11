@@ -619,8 +619,7 @@ smidig att panorera i.
 
 ### Steg 4: Anteckningar, länkar, bilder och ikoner (FE)
 
-- [x] Genomfört: 2026-11-11, grenen `claude/mindmap-steg-3` (omstartad från
-  main efter #268)
+- [x] Genomfört: 2026-11-11, #269
 
 **Så blev det.** Nya filer: `utils/mindmapImage.ts` (bildkälla, länk,
 tangenter; + test), `utils/mindmapClipboard.ts` (+ test),
