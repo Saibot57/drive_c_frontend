@@ -823,8 +823,7 @@ offset).
 
 ### Steg 6: Tvärlänkar (FE)
 
-- [x] Genomfört: 2026-11-11, grenen `claude/mindmap-steg-3` (omstartad från
-  main efter #270)
+- [x] Genomfört: 2026-11-11, #271
 
 **Så blev det.** Nya filer: `utils/mindmapCrossLinks.ts` (formerna,
 dispositionen, tangenten; + test, 23 st, som också prövar reglerna),
