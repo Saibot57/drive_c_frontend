@@ -17,10 +17,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { MINDMAP_COLORS, MINDMAP_COLOR_LABELS, type MindmapColor, type MindmapLayout } from '@/types/mindmap';
 import { MindmapHelp } from './MindmapHelp';
+import { MindmapImportButton } from './MindmapImportButton';
 
 export type MindmapMenu = 'color' | 'export' | 'help' | null;
 
-export type MindmapExportKind = 'image' | 'list' | 'headings' | 'png';
+export type MindmapExportKind = 'image' | 'list' | 'headings' | 'png' | 'pdf' | 'markdown' | 'json';
 
 interface MindmapToolbarProps {
   layout: MindmapLayout;
@@ -41,6 +42,11 @@ interface MindmapToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onExport: (kind: MindmapExportKind) => void;
+  /** Genomskinlig bakgrund i bilden och PNG:n. */
+  transparent?: boolean;
+  onTransparent?: (transparent: boolean) => void;
+  /** En vald fil att importera som ny karta. Utan den visas ingen knapp. */
+  onImport?: (file: File) => void;
   /** Zoomnivån och dess knappar (MindmapZoom). */
   zoom?: React.ReactNode;
   /** Till höger: sparstatus och kartans namn. */
@@ -64,6 +70,9 @@ export default function MindmapToolbar({
   onUndo,
   onRedo,
   onExport,
+  transparent,
+  onTransparent,
+  onImport,
   zoom,
   status,
 }: MindmapToolbarProps) {
@@ -182,10 +191,22 @@ export default function MindmapToolbar({
             <button type="button" className="mm__menu-item" onClick={() => choose('list')}>Kopiera som punktlista</button>
             <button type="button" className="mm__menu-item" onClick={() => choose('headings')}>Kopiera som rubriker och punkter</button>
             <button type="button" className="mm__menu-item" onClick={() => choose('png')}>Ladda ner som PNG</button>
-            <p className="mm__menu-hint">Klistra in i Google Docs med Ctrl+V.</p>
+            {onTransparent && (
+              <label className="mm__swatch-option mm__menu-option">
+                <input type="checkbox" checked={!!transparent} onChange={(e) => onTransparent(e.target.checked)} />
+                Genomskinlig bakgrund (bild och PNG)
+              </label>
+            )}
+            <p className="mm__menu-hint">Klistra in i Google Docs med Ctrl+V. Alt+Shift+C kopierar bilden.</p>
+            <span className="mm__menu-rule" aria-hidden />
+            <button type="button" className="mm__menu-item" onClick={() => choose('pdf')}>Ladda ner som PDF</button>
+            <button type="button" className="mm__menu-item" onClick={() => choose('markdown')}>Ladda ner som Markdown</button>
+            <button type="button" className="mm__menu-item" onClick={() => choose('json')}>Ladda ner som JSON</button>
+            <p className="mm__menu-hint">JSON går att importera igen som en ny karta.</p>
           </div>
         )}
       </div>
+      {onImport && <MindmapImportButton onFile={onImport} />}
       <Button size="sm" variant="neutral" className={tool} onClick={() => toggle('help')} title="Kortkommandon" aria-label="Kortkommandon" aria-expanded={menu === 'help'}>
         <Keyboard size={15} />
       </Button>

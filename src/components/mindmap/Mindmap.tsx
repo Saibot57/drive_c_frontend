@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { type MindmapSaveStatus, useMindmapSync } from '@/hooks/useMindmapSync';
 import { cn } from '@/lib/utils';
 import MindmapCanvas from './MindmapCanvas';
+import { MindmapImportButton } from './MindmapImportButton';
 import { MindmapList } from './MindmapList';
 import '@/styles/schedule-theme.css';
 import './mindmap.css';
@@ -111,12 +112,16 @@ export default function Mindmap() {
                   doc={sync.active.doc}
                   title={sync.active.name}
                   onChange={sync.update}
+                  onImport={(file) => void sync.importFile(file)}
                   status={<SaveIndicator status={sync.saveStatus} error={sync.saveError} />}
                 />
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-ui-muted">
                   <p>Ingen karta är öppen.</p>
-                  <Button variant="neutral" className="sp-btn" onClick={() => void sync.create()} disabled={sync.busy}>Ny karta</Button>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button variant="neutral" className="sp-btn" onClick={() => void sync.create()} disabled={sync.busy}>Ny karta</Button>
+                    <MindmapImportButton onFile={(file) => void sync.importFile(file)} disabled={sync.busy} />
+                  </div>
                 </div>
               )}
             </div>

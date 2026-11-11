@@ -27,6 +27,7 @@ const PAGE_SHORTCUTS: { group: string; items: { keys: string; what: string }[] }
       { keys: 'Alt+I', what: 'Bild i noden' },
       { keys: 'Alt+Shift+1–8', what: 'Ikon (Alt+Shift+9 tar bort)' },
       { keys: 'Ctrl+C / X / V', what: 'Grenen följer med hel: anteckning, länk, bild, ikon och färg' },
+      { keys: 'Alt+Shift+C', what: 'Kopiera kartan som bild' },
     ],
   },
 ];

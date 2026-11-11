@@ -13,9 +13,11 @@ import {
   copyName,
   defaultMindmapDoc,
   sanitizeLastOpen,
+  sanitizeMindmapDoc,
   sortSummaries,
   upsertSummary,
 } from '@/utils/mindmapDoc';
+import { MAX_IMPORT_BYTES, parseMindmapFile } from '@/utils/mindmapFile';
 import { createSaveQueue, type SaveQueue, type SaveQueueEvent } from '@/utils/saveQueue';
 
 /**
@@ -201,6 +203,31 @@ export function useMindmapSync(userId: string | null) {
 
   const create = useCallback(() => createWith(DEFAULT_MINDMAP_NAME, defaultMindmapDoc()), [createWith]);
 
+  /**
+   * En importerad karta blir alltid en ny karta; den öppna skrivs aldrig
+   * över. Det som väntar i den öppna sparas först (createWith).
+   */
+  const importMap = useCallback(
+    (name: string, doc: MindmapDoc) => createWith(cleanMindmapName(name), sanitizeMindmapDoc(doc)),
+    [createWith],
+  );
+
+  /** En vald fil: `.mup` eller sidans `.json`. Ett fel blir en notis och ingen ny karta. */
+  const importFile = useCallback(async (file: { name: string; size: number; text: () => Promise<string> }) => {
+    if (file.size > MAX_IMPORT_BYTES) {
+      setNotice(`Filen är för stor för att importeras (högst ${Math.round(MAX_IMPORT_BYTES / 1024 / 1024)} MB).`);
+      return;
+    }
+    let parsed: { name: string; doc: MindmapDoc };
+    try {
+      parsed = parseMindmapFile(await file.text(), file.name);
+    } catch (e) {
+      setNotice(message(e, 'Filen gick inte att läsa.'));
+      return;
+    }
+    await importMap(parsed.name, parsed.doc);
+  }, [importMap]);
+
   const duplicate = useCallback(async (id: string) => {
     const current = activeRef.current;
     try {
@@ -315,7 +342,7 @@ export function useMindmapSync(userId: string | null) {
 
   return {
     phase, loadError, maps, active, saveStatus, saveError, conflict, notice, busy,
-    update, open, create, duplicate, rename, remove, reloadActive, keepMine, retrySave, dismissNotice,
+    update, open, create, importMap, importFile, duplicate, rename, remove, reloadActive, keepMine, retrySave, dismissNotice,
     retryLoad: load,
   };
 }

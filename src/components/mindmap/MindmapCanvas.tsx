@@ -40,7 +40,7 @@ import {
 } from '@/utils/mindmap/mindmapLayout';
 import { parseOutlineHtml, parseOutlineText } from '@/utils/mindmap/mindmapOutline';
 import { toOutlineHtml, toOutlineText, type OutlineStyle } from '@/utils/mindmap/mindmapOutline';
-import { canvasToPng, renderMindmapCanvas, type MindmapDrawOptions, type MindmapPalette } from '@/utils/mindmap/mindmapDraw';
+import type { MindmapDrawOptions, MindmapPalette } from '@/utils/mindmap/mindmapDraw';
 import { readBranchData, withBranchData } from '@/utils/mindmapClipboard';
 import { crossLinkOutline } from '@/utils/mindmapCrossLinks';
 import { drawCrossLinks } from '@/utils/mindmapCrossLinkDraw';
@@ -50,8 +50,9 @@ import { placeNode } from '@/utils/mindmapPlacement';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapLinks } from '@/hooks/useMindmapLinks';
+import { useMindmapExport } from '@/hooks/useMindmapExport';
+import { isCopyImageKey } from '@/utils/mindmapFile';
 import { useMindmapViewport } from '@/hooks/useMindmapViewport';
-import { downloadBlob, toFileSlug } from '@/utils/download';
 import { isEditableElement } from '@/utils/dom';
 import { loadDrawSymbols, LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from './mindmapIcons';
 import { MindmapLinkBar } from './MindmapLinkBar';
@@ -71,6 +72,8 @@ interface MindmapCanvasProps {
   onChange: (doc: MindmapDoc) => void;
   /** Visas i verktygsraden, till höger: sparstatus och kartans namn. */
   status?: React.ReactNode;
+  /** En fil att importera som ny karta (useMindmapSync.importFile). */
+  onImport?: (file: File) => void;
 }
 
 /** Så långt måste pekaren röra sig innan ett klick blir ett drag. */
@@ -170,7 +173,7 @@ async function copyOutline(
  * rotnodens mitt i lagrets origo. Layouten och textmätningen görs vid zoom 1;
  * lagret skalar resultatet.
  */
-export default function MindmapCanvas({ mapId, doc, title, onChange, status }: MindmapCanvasProps) {
+export default function MindmapCanvas({ mapId, doc, title, onChange, status, onImport }: MindmapCanvasProps) {
   /*
    * Det senaste dokumentet. Sätts direkt vid varje ändring och inte först när
    * sidan ritats om, så att två snabba tangenttryck inte räknar på samma
@@ -602,6 +605,16 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   };
 
   const handleMapKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Alt+Shift+C kopierar kartan som bild, också medan man skriver. Före
+    // resolveMindmapKey, och direkt i händelsen: Safari kräver det för urklipp.
+    if (isCopyImageKey(e.nativeEvent)) {
+      e.preventDefault();
+      e.stopPropagation();
+      setMenu(null);
+      if (canCopyImage()) exporter.exportAs('image');
+      else flash('Webbläsaren kan inte kopiera bilder. Ladda ner kartan som PNG i stället.', 'error');
+      return;
+    }
     if (handleViewKey(e) || handleExtraKey(e)) return;
     // Ctrl+L från ett textfält: skrivandet avslutas, länken börjar från noden.
     if (links.handleKey(e)) {
@@ -819,6 +832,20 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
   /* ── Export ── */
 
+  const exporter = useMindmapExport({
+    getDoc: () => docRef.current,
+    title,
+    readPalette: () => {
+      const container = rootRef.current;
+      const node = probeRef.current;
+      const root = probeRootRef.current;
+      return container && node && root ? readPalette(container, { node, root }) : null;
+    },
+    loadSymbols: (color) => (symbolsRef.current ? loadDrawSymbols(symbolsRef.current, color) : Promise.resolve(undefined)),
+    images: () => images.forDraw(),
+    flash,
+  });
+
   const handleExport = (kind: MindmapExportKind) => {
     const d = docRef.current;
     if (kind === 'list' || kind === 'headings') {
@@ -830,33 +857,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
       return;
     }
 
-    const container = rootRef.current;
-    const node = probeRef.current;
-    const root = probeRootRef.current;
-    if (!container || !node || !root) return;
-    // Bilden ritas först när typsnitten finns, annars blir texten fel.
-    // Symbolerna laddas i bildens färger; nodernas bilder är redan avkodade.
-    const png = (document.fonts?.ready ?? Promise.resolve())
-      .then(async () => {
-        const palette = readPalette(container, { node, root });
-        const symbols = symbolsRef.current ? await loadDrawSymbols(symbolsRef.current, palette.text) : undefined;
-        return canvasToPng(renderMindmapCanvas(d, palette, {
-          extras: true,
-          images: images.forDraw(),
-          symbols,
-          overlay: (ctx, drawn) => drawCrossLinks(ctx, drawn, d, palette),
-        }));
-      });
-
-    if (kind === 'image') {
-      navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
-        .then(() => flash('Bilden är kopierad. Klistra in i dokumentet.'))
-        .catch(() => flash('Kunde inte kopiera bilden. Ladda ner den som PNG i stället.', 'error'));
-      return;
-    }
-    png
-      .then((blob) => downloadBlob(blob, `${toFileSlug(title || d.root.label, 'mindmap')}.png`))
-      .catch(() => flash('Kunde inte skapa bilden.', 'error'));
+    exporter.exportAs(kind);
   };
 
   /* ── Ritning ── */
@@ -932,6 +933,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
         onUndo={() => toolbarAction({ type: 'undo' })}
         onRedo={() => toolbarAction({ type: 'redo' })}
         onExport={handleExport}
+        transparent={exporter.transparent}
+        onTransparent={exporter.setTransparent}
+        onImport={onImport}
         zoom={<MindmapZoom viewport={viewport} />}
         status={status}
       />

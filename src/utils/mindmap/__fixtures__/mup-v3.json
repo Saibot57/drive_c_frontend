@@ -1,0 +1,41 @@
+{
+  "id": "root",
+  "formatVersion": 3,
+  "attr": { "theme": "default" },
+  "ideas": {
+    "1": {
+      "id": 1,
+      "title": "Ekosystem",
+      "attr": {},
+      "ideas": {
+        "1": {
+          "id": "2.a1b2",
+          "title": "Producenter",
+          "attr": { "style": { "background": "#99CC66" } },
+          "ideas": {
+            "1": { "id": "3.a1b2", "title": "Växter" },
+            "2": { "id": "4.a1b2", "title": "Alger", "attr": { "icon": { "url": "internal:1/a1b2", "width": 64, "height": 64 } } }
+          }
+        },
+        "2": {
+          "id": "5.a1b2",
+          "title": "Konsumenter",
+          "attr": { "style": { "background": "#F5F5F5" } },
+          "ideas": {
+            "1": { "id": "6.a1b2", "title": "Växtätare", "attr": { "icon": { "url": "https://example.com/hjort.jpg", "width": 300, "height": 150 } } },
+            "2": { "id": "7.a1b2", "title": "Rovdjur" },
+            "3": { "id": "8.a1b2", "title": "", "attr": { "group": "standard" } }
+          }
+        },
+        "3": { "id": "9.a1b2", "title": "Nedbrytare" }
+      }
+    }
+  },
+  "links": [
+    { "ideaIdFrom": "3.a1b2", "ideaIdTo": "6.a1b2", "attr": { "style": { "color": "#AA00FF", "arrow": "both" } } },
+    { "ideaIdFrom": "2.a1b2", "ideaIdTo": "3.a1b2", "attr": { "style": { "arrow": "to" } } },
+    { "ideaIdFrom": "7.a1b2", "ideaIdTo": "9.a1b2", "attr": { "style": { "arrow": "from" } } },
+    { "ideaIdFrom": "7.a1b2", "ideaIdTo": "404" }
+  ],
+  "resources": { "1/a1b2": "data:image/png;base64,AAAA" }
+}

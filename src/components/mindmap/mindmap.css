@@ -440,6 +440,17 @@
   background: var(--sp-menu-hover);
 }
 
+.mm__menu-option {
+  padding: 0.375rem 0.625rem 0.125rem;
+}
+
+.mm__menu-rule {
+  display: block;
+  height: 1px;
+  margin: 0.25rem 0.25rem;
+  background: var(--ui-line);
+}
+
 .mm__menu-hint {
   margin: 0.25rem 0.625rem 0.25rem;
   color: var(--mm-faint);

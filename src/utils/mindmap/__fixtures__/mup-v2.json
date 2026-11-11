@@ -1,0 +1,44 @@
+{
+  "formatVersion": 2,
+  "id": 1,
+  "title": "Franska revolutionen",
+  "attr": { "style": { "background": "#ffffff" } },
+  "ideas": {
+    "1": {
+      "id": 2,
+      "title": "Orsaker",
+      "attr": { "style": { "background": "#22AAE0" } },
+      "ideas": {
+        "2": { "id": 4, "title": "Statsskulden", "attr": { "note": { "index": 1, "text": "Kriget i Amerika kostade." } } },
+        "1": { "id": 3, "title": "Missväxt 1788" },
+        "1.5": { "id": 9, "title": "Brödpriset" }
+      }
+    },
+    "-1": {
+      "id": 5,
+      "title": "Förlopp https://sv.wikipedia.org/wiki/Franska_revolutionen",
+      "attr": { "collapsed": true, "position": [120, -40, 1], "style": { "background": "#E0E0E0" } },
+      "ideas": {
+        "1": { "id": 6, "title": "Stormningen av Bastiljen" }
+      }
+    },
+    "2": {
+      "id": 7,
+      "title": "Följder",
+      "attr": {
+        "attachment": { "contentType": "text/html", "content": "<p>Napoleon&nbsp;tar makten.</p><p>Code civil &amp; <b>lagar</b></p>" },
+        "icon": { "url": "https://example.com/flagga.png", "width": 40, "height": 20, "position": "left" },
+        "style": { "background": "#FF0000" }
+      }
+    },
+    "-2": {
+      "id": 8,
+      "title": "Idéer",
+      "attr": { "icon": { "url": "data:image/png;base64,AAAA", "width": 10, "height": 10 }, "style": { "background": "transparent" } }
+    }
+  },
+  "links": [
+    { "ideaIdFrom": 4, "ideaIdTo": 6, "attr": { "style": { "color": "#00AA00", "lineStyle": "dashed", "arrow": true } } },
+    { "ideaIdFrom": 3, "ideaIdTo": 7, "attr": { "style": { "color": "#707070", "lineStyle": "solid" } } }
+  ]
+}
