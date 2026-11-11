@@ -1063,6 +1063,11 @@ PDF.
 
 - [ ] Genomfört: –
 
+Detaljplanen står i [`mindmap-presentation.md`](mindmap-presentation.md),
+skriven 2026-11-11. Den delar steget i 8a (visa bara grenen) och 8b
+(presentationsläget) och gäller före texten nedan där de skiljer sig:
+presentationsläget startas med Alt+P, inte `F5`.
+
 **Mål.** `F5` (och en knapp) visar kartan i helskärm utan verktygsrad
 och lista, med större text (nodhöjd × 1,5), allt hopfällt utom roten.
 Mellanslag eller högerpil fäller ut nästa gren i läsordning, vänsterpil
@@ -1120,7 +1125,7 @@ Kortets lista (`MINDMAP_SHORTCUTS`) gäller rakt av. Sidan lägger till:
 | Ctrl+L, Shift+dra | Börja tvärlänk | 6 |
 | Alt+Shift+C | Kopiera kartan som bild | 7 |
 | Alt+Enter | Visa bara grenen (Esc visar hela) | 8 |
-| F5 | Presentationsläge | 8 |
+| Alt+P | Presentationsläge | 8 |
 | Ctrl+Shift+7 | Gå till Mindmap | 2 |
 
 **Inga genvägar utan modifierare utöver kortets.** Två skäl, båda
@@ -1210,8 +1215,9 @@ Besvarade 2026-11-10:
 2. PDF:en är en sida, liggande A4 eller A3. Ingen uppdelning på flera
    sidor; den klipper mitt i noder och länkar.
 
-En öppen, att svara på före steg 8: `F5` för presentationsläget laddar om
-sidan när kartan inte har fokus. Förslag: Alt+P i stället, med knappen kvar.
+Besvarad 2026-11-11, i detaljplanen för steg 8: presentationsläget
+startas med Alt+P och en knapp. `F5` laddar om sidan när kartan inte har
+fokus och används inte.
 
 ## 11. Arbetsgång för en agent
 

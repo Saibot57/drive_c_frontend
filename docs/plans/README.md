@@ -30,6 +30,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Namn på lektionspass i Närvarorutor](narvaro-passnamn.md) | Genomförd 2026-11-09 (#259). Tillägg 2026-11-10 (#263) |
 | [Mobilläge i Närvarorutor](narvaro-mobillage.md) | Genomförd 2026-11-09 (#261) |
 | [Mindmap-sida: en MindMup-kopia med sparade kartor](mindmap-sida.md) | Pågår. Steg 0 (#267) och steg 1 (backend #60) genomförda 2026-11-10. Steg 2 (sidan) och steg 3 (zoom, panorering, minikarta) genomförda 2026-11-11 (#268). Steg 4 (anteckningar, länkar, bilder, ikoner) 2026-11-11 (#269). Steg 5 (fri placering) 2026-11-11 (#270). Steg 6 (tvärlänkar) 2026-11-11 (#271). Steg 7 (import och export) 2026-11-11 (#272). Planen utökad efter genomgången 2026-11-10 (avsnitt 12). Steg 8 återstår |
+| [Mindmap steg 8: visa bara grenen och presentationsläge](mindmap-presentation.md) | Planerad 2026-11-11 |
 
 Lägg till en rad här när en ny plan skrivs.
 
