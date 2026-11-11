@@ -41,6 +41,8 @@ vi.mock('@/services/mindmapService', async (importOriginal) => {
 
 import { useMindmapSync } from '@/hooks/useMindmapSync';
 import { addChild, setLabel } from '@/utils/mindmap/mindmapTree';
+import { MAX_MINDMAPS } from '@/types/mindmapDoc';
+import { toMindmapFile } from '@/utils/mindmapFile';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -165,6 +167,71 @@ describe('useMindmapSync', () => {
     expect(server.has(copyId)).toBe(false);
     expect(result.current.active?.id).not.toBe(copyId);
     expect(result.current.maps.map(m => m.id)).not.toContain(copyId);
+    unmount();
+  });
+
+  it('importerar till en ny karta och sparar den öppna först, utan att skriva över den', async () => {
+    seed('a', 'Öppen');
+    const { result, unmount } = renderHook();
+    await waitFor(() => result.current.active?.id === 'a');
+
+    // En ändring som väntar på att sparas när importen börjar.
+    act(() => result.current.update(setLabel(result.current.active!.doc, 'r', 'Ändrad')));
+    const imported: MindmapDoc = { root: { id: '1', label: 'Från MindMup', children: [{ id: '2', label: 'Gren', children: [] }] }, layout: 'right' };
+    await act(async () => { await result.current.importMap('  Importerad  ', imported); });
+
+    expect(server.get('a')!.doc.root.label).toBe('Ändrad');
+    expect(server.get('a')!.name).toBe('Öppen');
+    expect(server.size).toBe(2);
+    expect(result.current.active?.id).not.toBe('a');
+    expect(result.current.active?.name).toBe('Importerad');
+    expect(result.current.active?.doc.root.children[0].label).toBe('Gren');
+    unmount();
+  });
+
+  it('läser en fil i sidans format och en MindMup-fil', async () => {
+    const { result, unmount } = renderHook();
+    await waitFor(() => result.current.phase === 'ready');
+    const own = toMindmapFile('Egen', { root: { id: 'r', label: 'Rot', children: [] }, layout: 'both' });
+    await act(async () => { await result.current.importFile({ name: 'egen.json', size: own.length, text: async () => own }); });
+    expect(result.current.active?.name).toBe('Egen');
+    expect(result.current.active?.doc.layout).toBe('both');
+
+    const mup = JSON.stringify({ id: 'root', formatVersion: 3, ideas: { 1: { id: 1, title: 'Mup-rot', ideas: { '-1': { id: 2, title: 'Vänster' } } } } });
+    await act(async () => { await result.current.importFile({ name: 'karta.mup', size: mup.length, text: async () => mup }); });
+    expect(result.current.active?.name).toBe('Mup-rot');
+    expect(result.current.active?.doc.root.children[0].side).toBe('left');
+    expect(server.size).toBe(2);
+    unmount();
+  });
+
+  it('ger en notis och ingen ny karta för en trasig fil eller en för stor fil', async () => {
+    seed('a', 'Öppen');
+    const { result, unmount } = renderHook();
+    await waitFor(() => result.current.active?.id === 'a');
+
+    await act(async () => { await result.current.importFile({ name: 'trasig.mup', size: 10, text: async () => '{"title": ' }); });
+    expect(result.current.notice).toBe('Filen går inte att läsa: den är inte JSON.');
+    await act(async () => { await result.current.importFile({ name: 'okänd.json', size: 10, text: async () => '{"hej": 1}' }); });
+    expect(result.current.notice).toMatch(/varken en MindMup-karta/);
+    const text = vi.fn(async () => '{}');
+    await act(async () => { await result.current.importFile({ name: 'stor.mup', size: 6 * 1024 * 1024, text }); });
+    expect(result.current.notice).toMatch(/för stor/);
+    expect(text).not.toHaveBeenCalled();
+
+    expect(server.size).toBe(1);
+    expect(result.current.active?.id).toBe('a');
+    unmount();
+  });
+
+  it('ger det vanliga meddelandet vid gränsen på antal kartor', async () => {
+    for (let i = 0; i < MAX_MINDMAPS; i += 1) seed(`m${i}`, `Karta ${i}`);
+    const { result, unmount } = renderHook();
+    await waitFor(() => result.current.phase === 'ready');
+    const own = toMindmapFile('Egen', DOC);
+    await act(async () => { await result.current.importFile({ name: 'egen.json', size: own.length, text: async () => own }); });
+    expect(result.current.notice).toBe(`Du kan ha högst ${MAX_MINDMAPS} kartor. Ta bort en först.`);
+    expect(server.size).toBe(MAX_MINDMAPS);
     unmount();
   });
 

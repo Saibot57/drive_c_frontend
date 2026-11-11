@@ -1,4 +1,4 @@
-import type { MindmapContent } from '@/types/mindmap';
+import type { MindmapColor, MindmapContent } from '@/types/mindmap';
 
 /**
  * Mindmap-sidans dokument och lista (`/api/mindmap`). Trädet är det delade
@@ -15,11 +15,15 @@ export interface MindmapCrossLink {
   label?: string;
   /** Förval `to`. */
   arrow?: 'none' | 'to' | 'both';
+  /** En av nodfärgerna, t.ex. grön för stöd och rosa för invändning. */
+  color?: MindmapColor;
 }
+
+export const MAX_CROSS_LINK_LABEL_LENGTH = 80;
 
 /** Det som sparas i backendens `doc`. */
 export interface MindmapDoc extends MindmapContent {
-  /** Länkar på tvären, utanför trädet. Tomt tills steg 6 i planen. */
+  /** Länkar på tvären, utanför trädet. */
   crossLinks?: MindmapCrossLink[];
 }
 

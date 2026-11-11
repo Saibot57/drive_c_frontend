@@ -16,6 +16,8 @@ export interface MindmapNodeViewProps {
   dragged: boolean;
   /** Noden är släppmålet för den som dras. */
   dropTarget: boolean;
+  /** En tvärlänk håller på att göras från noden. */
+  linking?: boolean;
   /** Läget för nodens bild, om den har en. */
   imageState: MindmapImageState | undefined;
   /** Textfältet i noden som redigeras; kartan sätter fokus i det. */
@@ -45,6 +47,7 @@ export function MindmapNodeView({
   editing,
   dragged,
   dropTarget,
+  linking,
   imageState,
   inputRef,
   onPointerDown,
@@ -69,6 +72,7 @@ export function MindmapNodeView({
     editing && 'mm__node--editing',
     dragged && 'mm__node--dragged',
     dropTarget && 'mm__node--drop',
+    linking && 'mm__node--linking',
   ].filter(Boolean).join(' ');
 
   return (

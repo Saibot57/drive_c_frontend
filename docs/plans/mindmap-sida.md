@@ -823,7 +823,65 @@ offset).
 
 ### Steg 6: Tvärlänkar (FE)
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11, #271
+
+**Så blev det.** Nya filer: `utils/mindmapCrossLinks.ts` (formerna,
+dispositionen, tangenten; + test, 23 st, som också prövar reglerna),
+`utils/mindmapCrossLinkDraw.ts`, `hooks/useMindmapLinks.ts`,
+`components/mindmap/MindmapLinkLayer.tsx` och `MindmapLinkBar.tsx`. Efter
+steget: 94 testfiler, 1 467 tester.
+
+- Ctrl+L på en markerad nod (också medan man skriver i den) börjar en länk.
+  En text nere till vänster säger vad som väntas. Klick på en nod, eller
+  pilar och Enter, avslutar; Esc avbryter. Andra tangenter sväljs i det
+  läget, så att ett tecken inte skriver över noden.
+- Shift+dra från en nod drar en streckad linje och gör länken vid släpp på
+  en annan nod. Släpp på tom yta gör ingenting. Också roten kan vara ände.
+- En ny länk är markerad direkt. Då visas en rad över kartan med etikett,
+  pil (en, båda, ingen), byt riktning, de sex färgerna och ta bort.
+  Dubbelklick på kurvan sätter fokus i etikettfältet; Enter eller F2 gör
+  detsamma, Delete tar bort, Esc avmarkerar.
+- En otillåten länk ger ett meddelande som säger reglerna.
+- `commit` i `MindmapCanvas` kör `pruneCrossLinks`: en flytt som gör två
+  länkade noder till förälder och barn tar bort länken, i samma ångra-steg.
+- Kurvan böjer åt sidan så att den inte ligger på trädets kanter. Sidan
+  beror på nodernas id, så en vänd länk ligger kvar.
+- "Kopiera som punktlista" och "rubriker" får "Länkar:" sist. Ctrl+C på en
+  gren tar inte med tvärlänkar.
+
+**Delad kod (skyddsregel 6).** `renderMindmapCanvas` fick det valfria
+`options.overlay(ctx, layout)`, som anropas sist. Sidan ritar tvärlänkarna
+genom det; den delade filen vet inget om dem. Kortets anrop är oförändrat.
+
+**Avvikelser från texten ovan.**
+
+- `crossLinkGeometry` ligger i `utils/mindmapCrossLinks.ts`, inte i
+  `mindmapDoc.ts`, tillsammans med det andra som rör formen. Reglerna och
+  operationerna ligger i `mindmapDoc.ts` som planen säger, och där finns
+  också `setCrossLinkArrow`, `reverseCrossLink` och `setCrossLinkColor`.
+- `mindmapDraw` ritar inte länkarna själv utan genom `overlay`, så att den
+  delade filen slipper känna till sidans dokumenttyp.
+- Etiketten redigeras i raden över kartan, inte på kurvan.
+- `MindmapCrossLink` har fått `color`, som avsnitt 2.2 beskriver;
+  `sanitizeMindmapDoc` läser den och klipper etiketten vid 80 tecken.
+
+**Kontrollerat 2026-11-11.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium mot mock-API:t: Ctrl+L
+med klick och med pilar och Enter, ett tecken i länkläget skriver inte över
+noden, en otillåten länk ger meddelandet, Esc avbryter, Shift+dra (noden
+flyttas inte), etikett och färg, byt riktning och pil åt båda håll, ångra,
+dubbelklick på kurvan, Delete på en markerad länk (noderna kvar), hopfälld
+gren (länken ritas till förfadern), kurvan följer en nod som dras, länken
+försvinner med noden, PNG-exporten med kurva, pil, färg och etikett,
+dispositionen med "Länkar:", allt kvar efter omladdning. Skärmbilder i Neo
+och Kronberg.
+
+**Inte kontrollerat.** Riktig backend. Workspace-kortet i webbläsaren. Mac
+(Cmd+L). Pekskärm, där Shift+dra inte finns; Ctrl+L kräver tangentbord.
+
+**Kvar att tänka på.** `MindmapCanvas.tsx` är 1 094 rader trots att
+länkarnas läge ligger i en egen hook. Kurvorna ligger ovanpå noderna och
+kan gå över en nod som står mellan ändarna; i en tät karta syns det.
 
 **Mål.** `Ctrl+L` på en markerad nod startar en länk; klick (eller pilar +
 Enter) på en annan nod avslutar. Länken ritas som en streckad kurva med
@@ -859,7 +917,107 @@ inget om `crossLinks`, och den delade tvätten rör dem inte.
 
 ### Steg 7: Import och export (FE)
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11, #272
+
+**Så blev det.** Nya filer: `utils/mindmapMup.ts` (MindMup, färg, HTML
+till text), `utils/mindmapMarkdown.ts`, `utils/mindmapFile.ts` (sidans
+eget format, igenkänning av en fil, filnamn, Alt+Shift+C),
+`utils/mindmapPdf.ts` (sidformat och skala), alla med test;
+`hooks/useMindmapExport.ts`, `components/mindmap/MindmapImportButton.tsx`
+och fixturerna `utils/mindmap/__fixtures__/mup-v2.json` och
+`mup-v3.json`. Efter steget: 98 testfiler, 1 551 tester.
+
+- "Importera" i verktygsraden (och bredvid "Ny karta" när ingen karta är
+  öppen) tar `.mup` och `.json` genom ett dolt filfält, som nollställs
+  efter varje val. Formen avgör, inte ändelsen. `useMindmapSync` har fått
+  `importMap(name, doc)` och `importFile(file)`; båda går genom
+  `createWith`, så den öppna kartan sparas först och skrivs aldrig över,
+  och gränsen på 100 kartor ger sitt vanliga meddelande. Ett fel blir en
+  notis med svensk text och ingen ny karta. Filer över 5 MB läses inte.
+- Sidans format är `{ format: 'drive-c-mindmap', version: 1, name, doc }`.
+  Inläsningen går genom `sanitizeMindmapDoc`; ett dokument utan rot är ett
+  fel, inte en tom karta (tvätten hade annars gett en ny standardkarta).
+  En nyare version avvisas.
+- MindMup: positiva rangtal till höger och negativa till vänster, var för
+  sig efter absolutvärde och som tal (`1.5` mellan `1` och `2`). Finns ett
+  negativt rangtal under roten blir layouten `both` med sidorna satta,
+  annars `right`. Id blir strängar. Den första webbadressen i titeln blir
+  nodens länk och tas bort ur texten, som MindMup visar den. Anteckning ur
+  `attr.note` och ur en HTML-bilaga (som text). En ikon med http(s)-adress
+  blir bild i närmaste av sidans tre bredder, med `aspect` ur måtten;
+  `data:` och interna resurser hoppas över. Tomma grupper tas bort, som i
+  MindMup. Flera rotidéer i format 3 blir grenar under en ny rot med
+  filens namn. Format 1 (stilen direkt på idén) läses också.
+- Färgen: närmaste av de sex räknas i kulörton, inte i RGB (rött ska bli
+  rosa, inte gult), mot en fast tabell med Neo-temats `--ui-mark-*`. Grått
+  blir grått; vitt, nästan vitt (alla kanaler minst 240) och
+  `transparent` blir ingen färg. På en länk blir också grått ingen färg:
+  MindMups förvalda länkfärg är grå.
+- Länkarnas pil: `true` eller `'to'` blir förvalet, `'both'` båda, `'from'`
+  vänder länken, ingen pil blir `none`. Otillåtna länkar tas bort av
+  tvätten.
+- Exportmenyn har fått PDF, Markdown och JSON och valet "Genomskinlig
+  bakgrund" för bild och PNG (inte sparat mellan besök). Med det ritas
+  bakgrunden genomskinlig, men tvärlänkarnas etiketter behåller sin ljusa
+  kant. `mindmapDraw` är oändrad.
+- PDF: liggande A4, eller A3 när kartan på A4 skulle få mindre än 0,5 pt
+  per px (14 px text blir 7 pt). En liten karta förstoras inte mer än 1 pt
+  per px. Bilden ritas i 200 punkter per tum, högst 8 000 px på längsta
+  sidan, och läggs komprimerad (`'FAST'`; utan blev en liten karta 4,5 MB,
+  med 140 kB). Bilden är PNG-exportens, med bilder, symboler och
+  tvärlänkar, på Neo-papperet, som är vitt.
+- Alt+Shift+C kopierar kartan som bild, också medan man skriver i en nod.
+  Den fångas först i kartans keydown, före `resolveMindmapKey`, läses med
+  `e.code` och skriver till urklipp direkt i händelsen. Raden står i
+  hjälprutan. Kan webbläsaren inte kopiera bilder ges en notis.
+- Exporten (utom dispositionen till urklipp, som Ctrl+C också använder) är
+  utbruten ur `MindmapCanvas.tsx` till `useMindmapExport`. Canvasen är
+  1 098 rader.
+
+**Avvikelser från texten ovan.**
+
+- PDF:en läggs på sidan med jsPDF:s `addImage` och inte med
+  `addCanvasCentered`: den fyller alltid sidan, och en karta med tre noder
+  hade fått 36 pt text. Skalan räknas i `planMindmapPdf`, som testas.
+- Ordet "proportioner" i målet tolkades som storlek: A4 och A3 har samma
+  proportioner, och sidan är alltid liggande enligt beslutet. En hög,
+  smal karta hamnar därför på A3 och fyller höjden.
+- Fixturerna ligger i `utils/mindmap/__fixtures__/`, i den delade mappen,
+  som nya filer. Ingen delad kod är ändrad.
+
+**MindMup-formatet, kontrollerat 2026-11-11 mot `mindmup/mapjs` på
+GitHub** (`content.js`, `content-upgrade.js`, `map-model.js`,
+`update-node-content.js`, `url-helper.js`,
+`apply-idea-attributes-to-node-theme.js`): omslaget i format 3, rangtalens
+ordning och sida, `attr.collapsed`, `attr.style.background` (med
+`'false'` och `'transparent'` som ingen färg), `attr.icon` med `url`,
+`width`, `height`, `position`, `attr.attachment` med `content`,
+`attr.note`, länkarnas form och pilens värden, tomma grupper och länken i
+titeln. Det som står i kommentaren överst i `mindmapMup.ts`.
+
+**Kontrollerat 2026-11-11.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium mot mock-API:t:
+import av båda fixturerna (en ny karta var gång, den öppna kartan med en
+osparad ändring orörd på servern), exportmenyn i Neo och Kronberg, JSON ut
+och in igen (samma dokument på servern), Markdown, PDF (A4, 200 ppi,
+första sidan renderad till bild och granskad: noder, färg, bild och
+tvärlänkar), PNG med och utan genomskinlig bakgrund (hörnpixeln vit
+respektive genomskinlig), Alt+Shift+C (urklippet har `image/png`), en
+trasig fil (notis, ingen ny karta) och samma fil två gånger, raden i
+hjälprutan, inga fel i konsolen.
+
+**Inte kontrollerat.** `.mup`-läsaren mot en riktig fil från mindmup.com:
+ingen fanns i sessionen, och fixturerna är skrivna för hand efter
+källkoden. Att `attr.note` har texten i `note.text` och att en bilaga har
+`contentType: 'text/html'` (läsaren tar båda formerna). Om MindMup sparar
+en etikett på en länk (läsaren tar `attr.label` om den finns). Riktig
+backend. Workspace-kortet i webbläsaren (dess filer och den delade koden
+är orörda, testerna gröna). Safari och Firefox: urklipp med bild, och
+Alt+Shift+C på Mac.
+
+**Kvar att tänka på.** Klart när "en karta från mindmup.com går att öppna
+och exportera som PDF": det sista ledet är kontrollerat, det första bara
+mot fixturer. Pröva med en riktig `.mup` när en finns.
 
 **Mål.** Importera en `.mup`-fil (MindMup) som en ny karta; exportera som
 PNG (finns), PDF, Markdown och disposition (finns), och som `.json` med
