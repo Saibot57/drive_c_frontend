@@ -11,6 +11,12 @@ const PAGE_SHORTCUTS: { group: string; items: { keys: string; what: string }[] }
       { keys: 'Ctrl+Shift+7', what: 'Gå till Mindmap' },
       { keys: 'Klick på markerad nod', what: 'Redigera noden' },
       { keys: 'Dra en nod', what: 'Flytta grenen till en annan nod' },
+      { keys: 'Ctrl+hjul, Ctrl++ / Ctrl+-', what: 'Zooma in och ut' },
+      { keys: 'Hjul, dra på tom yta', what: 'Panorera' },
+      { keys: 'Dra med mittknappen', what: 'Panorera, också på en nod' },
+      { keys: 'Ctrl+0', what: 'Passa in hela kartan' },
+      { keys: 'Ctrl+.', what: 'Centrera på den markerade noden' },
+      { keys: 'Klick i minikartan', what: 'Flytta vyn dit' },
     ],
   },
 ];

@@ -31,6 +31,8 @@ interface MindmapToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onExport: (kind: MindmapExportKind) => void;
+  /** Zoomnivån och dess knappar (MindmapZoom). */
+  zoom?: React.ReactNode;
   /** Till höger: sparstatus och kartans namn. */
   status?: React.ReactNode;
 }
@@ -48,6 +50,7 @@ export default function MindmapToolbar({
   onUndo,
   onRedo,
   onExport,
+  zoom,
   status,
 }: MindmapToolbarProps) {
   const toggle = (next: Exclude<MindmapMenu, null>) => onMenu(menu === next ? null : next);
@@ -140,6 +143,12 @@ export default function MindmapToolbar({
         <Keyboard size={15} />
       </Button>
       <MindmapHelp open={menu === 'help'} onClose={() => onMenu(null)} />
+      {zoom && (
+        <div className="flex items-center gap-2">
+          <span className="mx-1 h-5 w-px bg-ui-line" aria-hidden />
+          {zoom}
+        </div>
+      )}
 
       {status && <div className="ml-auto flex min-w-0 items-center gap-3">{status}</div>}
     </div>

@@ -29,9 +29,13 @@ import { parseOutlineHtml, parseOutlineText } from '@/utils/mindmap/mindmapOutli
 import { toOutlineHtml, toOutlineText, type OutlineStyle } from '@/utils/mindmap/mindmapOutline';
 import { canvasToPng, renderMindmapCanvas, type MindmapPalette } from '@/utils/mindmap/mindmapDraw';
 import { removeNodeFromDoc } from '@/utils/mindmapDoc';
+import { panBy, resolveViewportKey, type MindmapRect } from '@/utils/mindmapViewport';
+import { useMindmapViewport } from '@/hooks/useMindmapViewport';
 import { downloadBlob, toFileSlug } from '@/utils/download';
 import { isEditableElement } from '@/utils/dom';
+import { MindmapMinimap } from './MindmapMinimap';
 import MindmapToolbar, { type MindmapExportKind, type MindmapMenu } from './MindmapToolbar';
+import { MindmapZoom } from './MindmapZoom';
 
 interface MindmapCanvasProps {
   /** Kartans id. Byts det nollställs markering och ångra-historik. */
@@ -66,10 +70,15 @@ const fontOf = (style: CSSStyleDeclaration) => `${style.fontWeight} ${style.font
  * Bilden är något som delas med andra och ritas därför i standardutseendet,
  * som kortets export: temat tas bort medan värdena läses och sätts tillbaka
  * direkt, i samma uppgift, så sidan hinner aldrig ritas om utan tema.
+ * Minikartan visas på sidan och läser i stället med temat kvar (`keepTheme`).
  */
-function readPalette(container: HTMLElement, probes: { node: HTMLElement; root: HTMLElement }): MindmapPalette {
+function readPalette(
+  container: HTMLElement,
+  probes: { node: HTMLElement; root: HTMLElement },
+  keepTheme = false,
+): MindmapPalette {
   const html = document.documentElement;
-  const theme = html.getAttribute('data-theme');
+  const theme = keepTheme ? null : html.getAttribute('data-theme');
   if (theme !== null) html.removeAttribute('data-theme');
   try {
     const style = getComputedStyle(container);
@@ -122,6 +131,10 @@ async function copyOutline(node: MindmapDoc['root'], style: OutlineStyle): Promi
  * (docs/plans/mindmap-sida.md, beslut 12). Noderna placeras av
  * layoutMindmap och ritas absolut, med grenarna som SVG-kurvor. Samma layout
  * ritar bilden vid export (mindmapDraw).
+ *
+ * Kartan ligger i ett lager som flyttas och skalas (useMindmapViewport), med
+ * rotnodens mitt i lagrets origo. Layouten och textmätningen görs vid zoom 1;
+ * lagret skalar resultatet.
  */
 export default function MindmapCanvas({ mapId, doc, title, onChange, status }: MindmapCanvasProps) {
   /*
@@ -149,6 +162,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   const [dropId, setDropId] = useState<string | null>(null);
   const dropRef = useRef<string | null>(null);
   const suppressClick = useRef(false);
+  const [panning, setPanning] = useState(false);
+  /** Sätts när markeringen kommer av att kartan fick fokus; då ska vyn inte flytta sig. */
+  const skipReveal = useRef(false);
   const selectedOnDown = useRef(false);
 
   const [menu, setMenu] = useState<MindmapMenu>(null);
@@ -156,8 +172,6 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const probeRef = useRef<HTMLSpanElement>(null);
   const probeRootRef = useRef<HTMLSpanElement>(null);
@@ -205,6 +219,29 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     [doc, measure],
   );
 
+  /* ── Vyn ── */
+
+  // Rotnodens mitt är lagrets origo, så att roten ligger still när kartan
+  // växer och en sparad vy gäller också efter att noder lagts till.
+  const origin = useMemo(() => {
+    const root = layout.nodes.find((node) => node.isRoot);
+    return root
+      ? { x: Math.round(root.x + root.width / 2), y: Math.round(root.y + root.height / 2) }
+      : { x: 0, y: 0 };
+  }, [layout]);
+  const bounds = useMemo<MindmapRect>(
+    () => ({ x: -origin.x, y: -origin.y, width: layout.width, height: layout.height }),
+    [origin, layout.width, layout.height],
+  );
+  const viewport = useMindmapViewport({ mapId, bounds, ready: fonts !== null });
+  const scrollRef = viewport.viewportRef;
+
+  /** Nodens ruta i kartans koordinater, eller `null` om den inte syns (hopfälld gren). */
+  const nodeRect = useCallback((id: string): MindmapRect | null => {
+    const box = layout.byId.get(id);
+    return box ? { x: box.x - origin.x, y: box.y - origin.y, width: box.width, height: box.height } : null;
+  }, [layout, origin]);
+
   /* ── Grundsteg ── */
 
   const currentId = useCallback((): string => {
@@ -220,7 +257,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
   const focusMap = useCallback(() => {
     scrollRef.current?.focus({ preventScroll: true });
-  }, []);
+  }, [scrollRef]);
 
   const commit = useCallback((next: MindmapDoc, historyKey: string | null = null) => {
     historyRef.current = recordChange(
@@ -403,7 +440,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
         // Webbläsaren skickar en paste-händelse, som handlePaste tar hand om.
         return;
     }
-  }, [commit, currentId, finishEdit, flash, focusMap, select, startEdit]);
+  }, [commit, currentId, finishEdit, flash, focusMap, scrollRef, select, startEdit]);
 
   const keyContext = useCallback((id: string) => {
     const d = docRef.current;
@@ -419,7 +456,29 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
   /* ── Tangentbordet ── */
 
+  /**
+   * Vyns kortkommandon (Ctrl+0, Ctrl+., Ctrl++ och Ctrl+-). Tas före kartans
+   * egna, och gäller också medan man skriver i en nod: händelsen bubblar hit
+   * från textfältet. Ctrl+0, + och - är webbläsarens zoom och stoppas därför,
+   * men bara här, när kartan har fokus.
+   */
+  const handleViewKey = (e: React.KeyboardEvent<HTMLDivElement>): boolean => {
+    const action = resolveViewportKey(e.nativeEvent);
+    if (!action) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    if (action === 'fit') viewport.fit();
+    else if (action === 'zoomIn') viewport.zoomStep(1);
+    else if (action === 'zoomOut') viewport.zoomStep(-1);
+    else {
+      const rect = nodeRect(editingRef.current ?? currentId());
+      if (rect) viewport.center(rect);
+    }
+    return true;
+  };
+
   const handleMapKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (handleViewKey(e)) return;
     if (editingRef.current || isEditableElement(e.target)) return;
     const action = resolveMindmapKey(e.nativeEvent, 'nav', keyContext(currentId()));
     if (!action) return;
@@ -475,6 +534,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   const handleNodePointerDown = (e: React.PointerEvent<HTMLDivElement>, id: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+    // Efter ett drag som släpptes på en annan nod kommer inget klick på den
+    // dragna; utan det här hade nästa klick på en nod svalts.
+    suppressClick.current = false;
     // Läses före klicket: när knappen trycks ned får kartan fokus och
     // markerar roten, och då hade första klicket på roten börjat redigera.
     selectedOnDown.current = selectedRef.current === id && document.activeElement === scrollRef.current;
@@ -519,6 +581,36 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     window.addEventListener('pointerup', handleUp);
   };
 
+  /**
+   * Panorerar: vänsterknappen på tom yta (noderna stoppar sin egen
+   * nedtryckning) eller mittknappen var som helst, också på en nod.
+   */
+  const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    setMenu(null);
+    if (e.button !== 0 && e.button !== 1) return;
+    let last = { x: e.clientX, y: e.clientY };
+    const pointerId = e.pointerId;
+
+    const handleMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      const dx = ev.clientX - last.x;
+      const dy = ev.clientY - last.y;
+      last = { x: ev.clientX, y: ev.clientY };
+      viewport.change((view) => panBy(view, dx, dy));
+    };
+    const handleUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+      setPanning(false);
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+    setPanning(true);
+  };
+
   const handleNodeClick = (id: string) => {
     if (suppressClick.current) {
       suppressClick.current = false;
@@ -549,25 +641,16 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     input.setSelectionRange(end, end);
   }, [editingId]);
 
-  // Rullar så att den markerade noden syns, i kartans egen ruta.
+  // Ytan följer med så att den markerade noden syns, också när den flyttar
+  // sig för att kartan ändrats.
   useEffect(() => {
-    const el = scrollRef.current;
-    const canvas = canvasRef.current;
+    const skip = skipReveal.current;
+    skipReveal.current = false;
     const id = editingId ?? selectedId;
-    const box = id ? layout.byId.get(id) : null;
-    if (!el || !canvas || !box) return;
-    const left = canvas.offsetLeft + box.x;
-    const top = canvas.offsetTop + box.y;
-    const pad = 12;
-    if (left - pad < el.scrollLeft) el.scrollLeft = left - pad;
-    else if (left + box.width + pad > el.scrollLeft + el.clientWidth) {
-      el.scrollLeft = left + box.width + pad - el.clientWidth;
-    }
-    if (top - pad < el.scrollTop) el.scrollTop = Math.max(0, top - pad);
-    else if (top + box.height + pad > el.scrollTop + el.clientHeight) {
-      el.scrollTop = top + box.height + pad - el.clientHeight;
-    }
-  }, [selectedId, editingId, layout]);
+    const rect = id ? nodeRect(id) : null;
+    if (!rect || skip) return;
+    viewport.reveal(rect);
+  }, [selectedId, editingId, nodeRect, viewport]);
 
   /* ── Export ── */
 
@@ -603,6 +686,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
   /* ── Ritning ── */
 
+  const readMinimapPalette = useCallback((): MindmapPalette | null => {
+    const container = rootRef.current;
+    const node = probeRef.current;
+    const root = probeRootRef.current;
+    return container && node && root ? readPalette(container, { node, root }, true) : null;
+  }, []);
+
   const toolbarAction = (action: MindmapAction) => {
     setMenu(null);
     run(action, 'nav');
@@ -612,7 +702,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   const m = MINDMAP_METRICS;
 
   return (
-    <div ref={rootRef} className={`mm flex h-full flex-col${dragId ? ' mm--dragging' : ''}`}>
+    <div ref={rootRef} className={`mm flex h-full flex-col${dragId ? ' mm--dragging' : ''}${panning ? ' mm--panning' : ''}`}>
       <MindmapToolbar
         layout={doc.layout ?? 'right'}
         menu={menu}
@@ -628,24 +718,37 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
         onUndo={() => toolbarAction({ type: 'undo' })}
         onRedo={() => toolbarAction({ type: 'redo' })}
         onExport={handleExport}
+        zoom={<MindmapZoom viewport={viewport} />}
         status={status}
       />
 
       <div className="relative min-h-0 flex-1">
         <div
           ref={scrollRef}
-          className="mm__scroll"
+          className="mm__viewport"
           tabIndex={0}
           aria-label="Mindmap. Tab ger en ny nod under, Enter en ny nod bredvid."
           onKeyDown={handleMapKeyDown}
           onPaste={handleMapPaste}
           onFocus={(e) => {
-            if (e.target === e.currentTarget && !selectedRef.current) select(docRef.current.root.id);
+            if (e.target === e.currentTarget && !selectedRef.current) {
+              // Roten markeras, men vyn står kvar: den som klickar på tom yta
+              // för att panorera ska inte kastas tillbaka till roten.
+              skipReveal.current = true;
+              select(docRef.current.root.id);
+            }
           }}
-          onPointerDown={() => setMenu(null)}
+          onPointerDown={handleViewportPointerDown}
+          onMouseDown={(e) => {
+            // Mittknappen startar annars webbläsarens autorullning.
+            if (e.button === 1) e.preventDefault();
+          }}
         >
-          <div className="mm__stage">
-            <div ref={canvasRef} className="mm__canvas" style={{ width: layout.width, height: layout.height }}>
+          <div ref={viewport.layerRef} className="mm__layer">
+            <div
+              className="mm__canvas"
+              style={{ left: -origin.x, top: -origin.y, width: layout.width, height: layout.height }}
+            >
               <svg className="mm__edges" width={layout.width} height={layout.height} aria-hidden="true">
                 {layout.edges.map((edge) => (
                   <path key={`${edge.fromId}-${edge.toId}`} d={edgePath(edge)} className="mm__edge" />
@@ -731,6 +834,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
             </div>
           </div>
         </div>
+
+        <MindmapMinimap viewport={viewport} doc={doc} bounds={bounds} readPalette={readMinimapPalette} />
 
         {notice && (
           <div className={`mm__notice mm__notice--${notice.tone}`} role="status">

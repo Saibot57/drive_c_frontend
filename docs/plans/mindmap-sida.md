@@ -529,7 +529,68 @@ som redan används.
 
 ### Steg 3: Zoom, panorering och stor yta (FE)
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11, grenen `claude/mindmap-steg-3` (bygger på steg 2)
+
+**Så blev det.** Nya filer: `utils/mindmapViewport.ts` (+ test, 44 st),
+`hooks/useMindmapViewport.ts` (+ test, 10 st),
+`components/mindmap/MindmapZoom.tsx` och `MindmapMinimap.tsx`. Ändrade:
+`MindmapCanvas.tsx`, `MindmapToolbar.tsx`, `MindmapHelp.tsx`, `mindmap.css`.
+Efter steget: 89 testfiler, 1 379 tester.
+
+- Rullningsytan (`.mm__scroll`, `.mm__stage`) är borta. Kartan ligger i
+  `.mm__layer` inuti `.mm__viewport` (`overflow: clip`). **Rotnodens mitt är
+  lagrets origo**, så roten ligger still när kartan växer och en sparad vy
+  gäller också efter att noder lagts till.
+- Vyn är inte React-state i kartan: hooken sätter lagrets `transform` direkt
+  och zoomnivån och minikartan prenumererar själva. Kartans 300 noder ritas
+  inte om vid panorering.
+- `fitToBounds` förstorar inte över 100 %, så en ny karta med en nod står i
+  mitten i normal storlek. `clampView` håller alltid 48 px av kartan kvar i
+  ytan. När ytan byter storlek (listan fälls ihop) behålls ytans mitt.
+- Den mjuka övergången (180 ms) gäller bara hopp: passa in, centrera,
+  zoomsteg, klick i minikartan och när ytan följer markeringen. Hjul och
+  drag har ingen. `prefers-reduced-motion` stänger av den.
+- När kartan får fokus och roten markeras av det flyttas inte vyn; annars
+  hade ett klick på tom yta för att panorera kastat en tillbaka till roten.
+- Verktygsraden har zooma ut, nivån (klick ger 100 %), zooma in och passa
+  in. Knapparna tar inte fokus, så man kan zooma medan man skriver i en nod.
+  Ctrl+0, Ctrl+., Ctrl++ och Ctrl+- gäller också medan man skriver.
+- Minikartan är högst 168 × 200 px och följer kartans form (en disposition
+  växer nedåt och blir en smal remsa). Den göms under 640 px skärmbredd.
+  Bild och ram uppdateras genom samma strypning (`createFrameThrottle`,
+  100 ms).
+- Meddelanderutan (`.mm__notice`) flyttade till nedre vänstra hörnet;
+  minikartan har det högra.
+- Pekdrag på tom yta panorerar (`touch-action: none` på ytan). Nypzoom med
+  två fingrar på pekskärm finns inte; styrplattans nyp kommer som Ctrl+hjul
+  och fungerar.
+
+**Delad kod (skyddsregel 6).** `renderMindmapCanvas` i
+`utils/mindmap/mindmapDraw.ts` fick en tredje, valfri parameter
+(`{ scale }`) för minikartan. Utan den ritas bilden som förut i skala 2;
+kortets anrop är oförändrat.
+
+**Rättat i steg 2-koden på vägen.** Efter att en nod dragits och släppts på
+en annan svaldes nästa klick på en nod (`suppressClick` nollställdes bara av
+ett klick som aldrig kom). Den nollställs nu vid nästa nedtryckning.
+
+**Kontrollerat 2026-11-11.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium (Playwright) mot ett
+mock-API: karta skriven med Tab och Enter; 300 rader inklistrade (305
+noder); Ctrl+hjul håller noden under pekaren stilla och stannar vid 25 och
+300 %; hjul, vänsterdrag på tom yta och mittknapp på en nod panorerar;
+Ctrl+0, Ctrl+., Ctrl++ och Ctrl+-; klick i minikartan; dra en nod till ny
+förälder vid 50 % och 200 %; PNG-exporten är bit för bit densamma vid 50 %
+och 200 %; 40 pilsteg håller markeringen synlig; textfältet behåller fokus
+och ytan rullar inte; vyn är kvar efter omladdning; Ctrl+hjul utanför
+kartan rör inte kartans zoom. Skärmbilder i Neo och Kronberg.
+
+**Inte kontrollerat.** Riktig backend. Workspace-kortet i webbläsaren
+(dess filer är orörda och dess tester gröna). Att Ctrl+0, Ctrl++ och Ctrl+-
+utanför kartan ger webbläsarens egen zoom och att kartan tål den:
+webbläsarens zoom går inte att styra i huvudlös Chromium. Firefox, Safari
+och Mac (Cmd). Pekskärm. "Kopiera som bild" (samma kod som PNG-exporten
+fram till urklippet).
 
 **Mål.** Kartan har ingen praktisk gräns. Ctrl+hjul zoomar kring pekaren
 (25–300 %), hjul panorerar, dra på tom yta panorerar, dra med mittknappen

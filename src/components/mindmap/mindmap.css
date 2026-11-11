@@ -36,28 +36,44 @@
   --mm-radius: var(--ui-radius-sm);
 }
 
-.mm__scroll {
+/* Ytan som kartan syns i. Den rullar inte: lagret innanför flyttas och
+   skalas av useMindmapViewport. clip och inte hidden, så att ett fält som
+   får fokus inte kan rulla innehållet; hidden står kvar för äldre webbläsare. */
+.mm__viewport {
   position: relative;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
+  overflow: clip;
   outline: none;
+  cursor: grab;
+  /* Pekdrag panorerar kartan i stället för att rulla sidan. */
+  touch-action: none;
 }
 
-/* Kartan centreras i ytan. margin: auto i stället för justify-content, som
-   skär av en karta som är större än ytan. */
-.mm__stage {
-  box-sizing: border-box;
-  display: flex;
-  min-width: 100%;
-  min-height: 100%;
-  width: max-content;
-  padding: 1.5rem;
+/* Lagrets origo är rotnodens mitt. transform sätts av useMindmapViewport. */
+.mm__layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* Bara vid hopp (passa in, centrera, följa markeringen), aldrig under hjul
+   eller drag: då skulle kartan släpa efter pekaren. */
+.mm__layer[data-smooth="true"] {
+  transition: transform 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm__layer[data-smooth="true"] {
+    transition: none;
+  }
 }
 
 .mm__canvas {
-  position: relative;
-  flex-shrink: 0;
-  margin: auto;
+  position: absolute;
 }
 
 .mm__edges {
@@ -106,7 +122,7 @@
 
 /* Markeringen syns bara när kartan har fokus; annars vore den ett löfte om
    att tangenterna går till kartan, vilket de inte gör. */
-.mm__scroll:focus-within .mm__node--selected,
+.mm__viewport:focus-within .mm__node--selected,
 .mm__node--editing {
   outline: 2px solid var(--mm-select);
   outline-offset: 2px;
@@ -122,7 +138,9 @@
 }
 
 .mm--dragging,
-.mm--dragging .mm__node {
+.mm--dragging .mm__node,
+.mm--panning .mm__viewport,
+.mm--panning .mm__node {
   cursor: grabbing;
 }
 
@@ -236,9 +254,80 @@
   font-size: 0.6875rem;
 }
 
-.mm__notice {
+/* Zoomnivån i verktygsraden. Fast bredd, så att knapparna inte hoppar. */
+.mm__zoom-level {
+  min-width: 3.25rem;
+  height: 2rem;
+  padding: 0 0.25rem;
+  border: none;
+  border-radius: var(--sp-radius-sm);
+  background: none;
+  color: var(--ui-ink-2);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+}
+
+.mm__zoom-level:hover {
+  background: var(--sp-menu-hover);
+}
+
+/* Minikartan nere till höger. Rutan följer kartbildens mått (högst BOX i
+   MindmapMinimap.tsx), men blir aldrig för liten att träffa. */
+.mm__minimap {
   position: absolute;
   right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 5;
+  box-sizing: content-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  min-height: 40px;
+  padding: 4px;
+  border: var(--sp-border);
+  border-radius: var(--sp-radius-sm);
+  background: var(--mm-image-bg);
+  box-shadow: var(--sp-shadow-sm);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.mm__minimap-map {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mm__minimap-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mm__minimap-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 1.5px solid var(--mm-select);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* På en smal skärm tar minikartan för mycket av kartan. */
+@media (max-width: 640px) {
+  .mm__minimap {
+    display: none;
+  }
+}
+
+/* Meddelandet står nere till vänster; minikartan har högra hörnet. */
+.mm__notice {
+  position: absolute;
+  left: 0.75rem;
   bottom: 0.75rem;
   z-index: 6;
   max-width: 28rem;
