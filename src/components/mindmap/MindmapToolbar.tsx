@@ -6,6 +6,7 @@ import {
   Download,
   Keyboard,
   Palette,
+  ListTree,
   PanelRight,
   Plus,
   Redo2,
@@ -33,6 +34,9 @@ interface MindmapToolbarProps {
   /** Panelen med anteckning, länk, bild och ikon. */
   panelOpen?: boolean;
   onTogglePanel?: () => void;
+  /** Finns det noder som flyttats för hand? Då går placeringen att nollställa. */
+  canResetLayout?: boolean;
+  onResetLayout?: () => void;
   onLayout: (layout: MindmapLayout) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -54,6 +58,8 @@ export default function MindmapToolbar({
   onColor,
   panelOpen,
   onTogglePanel,
+  canResetLayout,
+  onResetLayout,
   onLayout,
   onUndo,
   onRedo,
@@ -124,6 +130,19 @@ export default function MindmapToolbar({
       >
         <ArrowLeftRight size={15} />
       </Button>
+      {onResetLayout && (
+        <Button
+          size="sm"
+          variant="neutral"
+          className={tool}
+          onClick={onResetLayout}
+          disabled={!canResetLayout}
+          title="Nollställ placeringen i hela kartan (Alt+Shift+0 för en nod)"
+          aria-label="Nollställ placeringen i hela kartan"
+        >
+          <ListTree size={15} />
+        </Button>
+      )}
       {onTogglePanel && (
         <Button
           size="sm"

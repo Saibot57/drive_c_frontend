@@ -17,6 +17,8 @@ import {
   navigate,
   outdent,
   setColor,
+  clearOffsets,
+  hasOffsets,
   setColorDeep,
   setIcon,
   setImage,
@@ -24,6 +26,7 @@ import {
   setLayout,
   setLink,
   setNote,
+  setOffset,
   sideOf,
   toggleCollapsed,
 } from '@/utils/mindmap/mindmapTree';
@@ -32,7 +35,6 @@ import { resolveMindmapKey, type MindmapAction, type MindmapMode } from '@/utils
 import {
   edgePath,
   layoutMindmap,
-  MINDMAP_EXTRA_METRICS,
   MINDMAP_METRICS,
   type MeasureText,
 } from '@/utils/mindmap/mindmapLayout';
@@ -42,6 +44,7 @@ import { canvasToPng, renderMindmapCanvas, type MindmapDrawOptions, type Mindmap
 import { readBranchData, withBranchData } from '@/utils/mindmapClipboard';
 import { removeNodeFromDoc } from '@/utils/mindmapDoc';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
+import { placeNode } from '@/utils/mindmapPlacement';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapViewport } from '@/hooks/useMindmapViewport';
@@ -49,7 +52,7 @@ import { downloadBlob, toFileSlug } from '@/utils/download';
 import { isEditableElement } from '@/utils/dom';
 import { loadDrawSymbols, LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from './mindmapIcons';
 import { MindmapMinimap } from './MindmapMinimap';
-import { MindmapNodeImage } from './MindmapNodeImage';
+import { MINDMAP_PLACEHOLDER, MindmapNodeView } from './MindmapNodeView';
 import { MindmapNodePanel, type MindmapPanelField } from './MindmapNodePanel';
 import MindmapToolbar, { type MindmapExportKind, type MindmapMenu } from './MindmapToolbar';
 import { MindmapZoom } from './MindmapZoom';
@@ -64,9 +67,6 @@ interface MindmapCanvasProps {
   /** Visas i verktygsraden, till höger: sparstatus och kartans namn. */
   status?: React.ReactNode;
 }
-
-/** Visas i en tom nod som inte redigeras. */
-const PLACEHOLDER = 'Ny nod';
 
 /** Så långt måste pekaren röra sig innan ett klick blir ett drag. */
 const DRAG_THRESHOLD_PX = 5;
@@ -184,6 +184,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const dropRef = useRef<string | null>(null);
+  /** Hur långt noden som dras har flyttats, i kartans px (vid zoom 1). */
+  const [dragMove, setDragMove] = useState<{ id: string; dx: number; dy: number } | null>(null);
   const suppressClick = useRef(false);
   const [panning, setPanning] = useState(false);
   /** Sätts när markeringen kommer av att kartan fick fokus; då ska vyn inte flytta sig. */
@@ -237,10 +239,20 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     };
   }, [fonts]);
 
-  const layout = useMemo(
-    () => layoutMindmap(doc, (text, isRoot) => measure(text || PLACEHOLDER, isRoot), MINDMAP_METRICS, { extras: true }),
-    [doc, measure],
+  /** Sidans layout: sidans textmätning, och plats för ikon, symboler och bild. */
+  const layoutOf = useCallback(
+    (content: MindmapContent) =>
+      layoutMindmap(content, (text, isRoot) => measure(text || MINDMAP_PLACEHOLDER, isRoot), MINDMAP_METRICS, { extras: true }),
+    [measure],
   );
+
+  // Medan en nod dras ritas kartan som om den redan släppts där, så att
+  // grenen och kanterna följer pekaren. Dokumentet ändras först vid släppet.
+  const layout = useMemo(() => {
+    if (!dragMove) return layoutOf(doc);
+    const base = findNode(doc.root, dragMove.id)?.offset ?? { dx: 0, dy: 0 };
+    return layoutOf(setOffset(doc, dragMove.id, { dx: base.dx + dragMove.dx, dy: base.dy + dragMove.dy }));
+  }, [doc, dragMove, layoutOf]);
 
   /* ── Bilder och panel ── */
 
@@ -395,15 +407,17 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
         startEdit(result.id);
         return;
       }
+      // En nod som byter förälder börjar om på sin automatiska plats där;
+      // förskjutningen gällde den gamla platsen.
       case 'indent': {
         const next = indent(d, id);
-        if (next) commit(asDoc(next));
+        if (next) commit(asDoc(setOffset(next, id, null)));
         return;
       }
       case 'outdent': {
         if (findParent(d.root, id)?.parent.id === d.root.id) return;
         const next = outdent(d, id);
-        if (next) commit(asDoc(next));
+        if (next) commit(asDoc(setOffset(next, id, null)));
         return;
       }
       case 'navigate': {
@@ -422,6 +436,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
           if (!side) return;
           const outward = side === 'right' ? 'right' : 'left';
           next = action.direction === outward ? indent(d, id) : outdent(d, id);
+          if (next) next = setOffset(next, id, null);
         }
         if (next) commit(asDoc(next));
         return;
@@ -547,6 +562,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     const id = editingRef.current ?? currentId();
     if (action.type === 'icon') {
       commit(asDoc(setIcon(docRef.current, id, action.icon)));
+    } else if (action.type === 'resetOffset') {
+      const next = setOffset(docRef.current, id, null);
+      if (next !== docRef.current) commit(asDoc(next));
     } else {
       select(id);
       openPanel(action.field);
@@ -624,6 +642,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
     const start = { x: e.clientX, y: e.clientY };
     let active = false;
+    let moved = { dx: 0, dy: 0 };
 
     const handleMove = (ev: PointerEvent) => {
       if (!active) {
@@ -631,24 +650,36 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
         active = true;
         setDragId(id);
       }
+      // Den dragna noden släpper igenom pekaren (CSS), så träffen är noden under.
       const hit = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-mm-id]');
       const target = hit && scrollRef.current?.contains(hit) ? hit.dataset.mmId ?? null : null;
       const valid = target && canMoveNode(docRef.current, id, target) ? target : null;
       dropRef.current = valid;
       setDropId(valid);
+      // Skärmens pixlar till kartans: zoomen kan ha ändrats under draget.
+      const zoom = viewport.getView().zoom;
+      moved = { dx: (ev.clientX - start.x) / zoom, dy: (ev.clientY - start.y) / zoom };
+      setDragMove({ id, ...moved });
     };
 
-    const handleUp = () => {
+    const handleUp = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
       if (!active) return;
       suppressClick.current = true;
       const target = dropRef.current;
       dropRef.current = null;
       setDragId(null);
       setDropId(null);
-      if (!target) return;
-      const next = moveNode(docRef.current, id, target);
+      setDragMove(null);
+      // Ett avbrutet drag (pekaren togs över av webbläsaren) ändrar ingenting.
+      if (ev.type === 'pointercancel') return;
+      // På en annan nod: grenen blir dess barn och står på sin automatiska
+      // plats där. På tom yta: noden stannar där den släpptes.
+      const next = target
+        ? moveNode(setOffset(docRef.current, id, null), id, target)
+        : placeNode(docRef.current, id, moved, layoutOf);
       if (next) {
         commit(asDoc(next));
         select(id);
@@ -658,6 +689,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
     window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
   };
 
   /**
@@ -727,9 +759,10 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     skipReveal.current = false;
     const id = editingId ?? selectedId;
     const rect = id ? nodeRect(id) : null;
-    if (!rect || skip) return;
+    // Inte under ett drag: då ändras layouten för varje pekarrörelse.
+    if (!rect || skip || dragMove) return;
     viewport.reveal(rect);
-  }, [selectedId, editingId, nodeRect, viewport]);
+  }, [selectedId, editingId, nodeRect, viewport, dragMove]);
 
   /* ── Export ── */
 
@@ -797,8 +830,6 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     if (action.type !== 'addChild') focusMap();
   };
 
-  const m = MINDMAP_METRICS;
-  const x = MINDMAP_EXTRA_METRICS;
   /** Bildkällans nyckel per nod, för att slå upp bildens läge. */
   const imageKeys = new Map(images.refs.map((ref) => [ref.nodeId, ref.key]));
 
@@ -822,6 +853,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
         }}
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((open) => !open)}
+        canResetLayout={hasOffsets(doc)}
+        onResetLayout={() => {
+          setMenu(null);
+          const next = clearOffsets(docRef.current);
+          if (next !== docRef.current) commit(asDoc(next));
+          focusMap();
+        }}
         onLayout={(next: MindmapLayout) => {
           setMenu(null);
           commit(asDoc(setLayout(docRef.current, next)));
@@ -867,127 +905,39 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
                 ))}
               </svg>
 
-              {layout.nodes.map((node) => {
-                const isEditing = editingId === node.id;
-                const NodeIcon = node.icon ? MINDMAP_ICON_COMPONENTS[node.icon] : null;
-                const classes = [
-                  'mm__node',
-                  node.isRoot && 'mm__node--root',
-                  node.image && 'mm__node--image',
-                  node.color && `mm__node--${node.color}`,
-                  selectedId === node.id && 'mm__node--selected',
-                  isEditing && 'mm__node--editing',
-                  dragId === node.id && 'mm__node--dragged',
-                  dropId === node.id && 'mm__node--drop',
-                ].filter(Boolean).join(' ');
-
-                return (
-                  <div
-                    key={node.id}
-                    data-mm-id={node.id}
-                    className={classes}
-                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                    onPointerDown={(e) => handleNodePointerDown(e, node.id)}
-                    onClick={() => handleNodeClick(node.id)}
-                    onDoubleClick={() => startEdit(node.id)}
-                  >
-                    <div
-                      className="mm__row"
-                      style={{
-                        height: node.rowHeight ? node.rowHeight - 2 * (node.isRoot ? m.rootBorder : m.border) : undefined,
-                        paddingInline: node.isRoot ? m.rootPadX : m.padX,
-                      }}
-                    >
-                    {NodeIcon && <span className="mm__icon" aria-hidden="true"><NodeIcon size={x.iconSize} /></span>}
-                    {isEditing ? (
-                      <input
-                        ref={inputRef}
-                        value={node.label}
-                        placeholder={PLACEHOLDER}
-                        onChange={(e) => commit(asDoc(setLabel(docRef.current, node.id, e.target.value)), `label:${node.id}`)}
-                        onKeyDown={handleInputKeyDown}
-                        onPaste={handleInputPaste}
-                        onBlur={() => {
-                          // Blur kommer också när en annan nod tar över skrivandet;
-                          // då har editingRef redan bytts och det finns inget att avsluta.
-                          if (editingRef.current === node.id) finishEdit();
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        className="mm__input"
-                        style={{ width: node.labelWidth }}
-                        aria-label="Nodens text"
-                      />
-                    ) : (
-                      <span
-                        className={`mm__label${node.label ? '' : ' mm__label--empty'}`}
-                        style={{ width: node.labelWidth }}
-                      >
-                        {node.label || PLACEHOLDER}
-                      </span>
-                    )}
-                    {node.hasNote && (
-                      <button
-                        type="button"
-                        className="mm__marker"
-                        tabIndex={-1}
-                        title="Anteckning (Alt+N)"
-                        aria-label="Visa anteckningen"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          select(node.id);
-                          openPanel('note');
-                        }}
-                      >
-                        <NoteSymbol size={x.markerSize} />
-                      </button>
-                    )}
-                    {node.link && (
-                      <a
-                        className="mm__marker"
-                        href={node.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        tabIndex={-1}
-                        title={node.link}
-                        aria-label="Öppna länken i en ny flik"
-                        draggable={false}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <LinkSymbol size={x.markerSize} />
-                      </a>
-                    )}
-                    {node.hiddenCount > 0 && (
-                      <button
-                        type="button"
-                        className="mm__badge"
-                        style={{ width: m.badgeWidth }}
-                        tabIndex={-1}
-                        title="Fäll ut (mellanslag)"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const next = toggleCollapsed(docRef.current, node.id);
-                          if (next) commit(asDoc(next));
-                          select(node.id);
-                          focusMap();
-                        }}
-                      >
-                        +{node.hiddenCount}
-                      </button>
-                    )}
-                    </div>
-                    {node.image && (
-                      <MindmapNodeImage
-                        width={node.image.width}
-                        height={node.image.height}
-                        state={imageKeys.get(node.id) ? images.get(imageKeys.get(node.id)!) : undefined}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+              {layout.nodes.map((node) => (
+                <MindmapNodeView
+                  key={node.id}
+                  node={node}
+                  selected={selectedId === node.id}
+                  editing={editingId === node.id}
+                  dragged={dragId === node.id}
+                  dropTarget={dropId === node.id}
+                  imageState={imageKeys.get(node.id) ? images.get(imageKeys.get(node.id)!) : undefined}
+                  inputRef={inputRef}
+                  onPointerDown={handleNodePointerDown}
+                  onClick={handleNodeClick}
+                  onEdit={startEdit}
+                  onLabel={(id, label) => commit(asDoc(setLabel(docRef.current, id, label)), `label:${id}`)}
+                  onInputKeyDown={handleInputKeyDown}
+                  onInputPaste={handleInputPaste}
+                  onInputBlur={(id) => {
+                    // Blur kommer också när en annan nod tar över skrivandet;
+                    // då har editingRef redan bytts och det finns inget att avsluta.
+                    if (editingRef.current === id) finishEdit();
+                  }}
+                  onOpenNote={(id) => {
+                    select(id);
+                    openPanel('note');
+                  }}
+                  onExpand={(id) => {
+                    const next = toggleCollapsed(docRef.current, id);
+                    if (next) commit(asDoc(next));
+                    select(id);
+                    focusMap();
+                  }}
+                />
+              ))}
             </div>
           </div>
         </div>

@@ -113,6 +113,11 @@ describe('resolveNodeExtraKey', () => {
     expect(resolveNodeExtraKey(key('Digit9', { altKey: true, shiftKey: true }))).toEqual({ type: 'icon', icon: null });
   });
 
+  it('Alt+Shift+0 nollställer nodens placering, Alt+0 är fortfarande färg', () => {
+    expect(resolveNodeExtraKey(key('Digit0', { altKey: true, shiftKey: true }))).toEqual({ type: 'resetOffset' });
+    expect(resolveNodeExtraKey(key('Digit0', { altKey: true }))).toBeNull();
+  });
+
   it('släpper tangenter utan Alt, så att n, l och i skriver i noden', () => {
     ['KeyN', 'KeyL', 'KeyI', 'Digit1'].forEach((code) => {
       expect(resolveNodeExtraKey(key(code))).toBeNull();
@@ -122,7 +127,6 @@ describe('resolveNodeExtraKey', () => {
 
   it('släpper Alt+siffra (färg), AltGr (Ctrl+Alt) och Alt+Shift+bokstav', () => {
     expect(resolveNodeExtraKey(key('Digit1', { altKey: true }))).toBeNull();
-    expect(resolveNodeExtraKey(key('Digit0', { altKey: true, shiftKey: true }))).toBeNull();
     expect(resolveNodeExtraKey(key('KeyN', { altKey: true, ctrlKey: true }))).toBeNull();
     expect(resolveNodeExtraKey(key('KeyN', { altKey: true, metaKey: true }))).toBeNull();
     expect(resolveNodeExtraKey(key('KeyN', { altKey: true, shiftKey: true }))).toBeNull();
