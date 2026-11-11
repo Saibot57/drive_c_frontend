@@ -745,8 +745,7 @@ som bara träder in när `image` finns; befintliga layouttester oförändrade.
 
 ### Steg 5: Fri placering (FE)
 
-- [x] Genomfört: 2026-11-11, grenen `claude/mindmap-steg-3` (omstartad från
-  main efter #269)
+- [x] Genomfört: 2026-11-11, #270
 
 **Så blev det.** Nya filer: `utils/mindmapPlacement.ts` (+ test, 21 st, som
 också prövar förskjutningen i layouten och trädfunktionerna) och
