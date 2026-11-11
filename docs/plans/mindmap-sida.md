@@ -7,6 +7,78 @@ avsnitt 1). Den är tänkt att följas steg för steg av agenter: varje steg är
 en PR per repo, lämnar appen hel och bockas av här av den session som gör
 det. Läs `CLAUDE.md` i båda repona först, sedan bara det steg du ska göra.
 
+## Läget 2026-11-11
+
+**Alla steg 0–8 är byggda.** Det som återstår för målet är inte kod utan
+prov: listan "Kvar för målet" nedan. Statusen blir "Genomförd" när den är
+avbockad.
+
+| Steg | Vad | PR |
+|---|---|---|
+| 0 | Delad kärna lyft ur workspace-kortet | #267 |
+| 1 | Backend `/api/mindmap` | backend #60 |
+| 2 | Sidan med lista och editor | #268 |
+| 3 | Zoom, panorering, minikarta | #268 |
+| 4 | Anteckningar, länkar, bilder, ikoner | #269 |
+| 5 | Fri placering | #270 |
+| 6 | Tvärlänkar | #271 |
+| 7 | Import och export | #272 |
+| 8 | Visa bara grenen, presentationsläge | #273 |
+
+Sidan har vuxit från ingenting till 100 testfiler och 1 601 tester i
+frontend (82 och 1 287 före steg 0) och 12 nya tester i backend.
+
+### Kvar för målet
+
+Görs av Tobias; bocka av här.
+
+- [ ] Backend deployad och bekräftad: `GET /api/mindmap` med token ger
+  `{"success": true, "data": []}` eller en lista. Ingen session har kunnat
+  starta appfabriken (den kräver MySQL), så att routen är registrerad i
+  `app.py` är läst i koden men inte kört.
+- [ ] Regressionslistan i avsnitt 8, alla fem punkter, i produktion eller
+  en förhandsvisning. Viktigast är punkt 1: workspace-kortet för mindmap.
+  Ingen session har öppnat det i en webbläsare sedan steg 0 flyttade dess
+  kärna; skyddet hittills är att dess filer är orörda efter steg 0 och att
+  dess tester är gröna.
+- [ ] En karta på 50+ noder skriven utan mus annat än för att zooma.
+- [ ] En presentation på riktig skärm: Alt+P, mellanslag genom kartan, Esc.
+- [ ] En riktig `.mup`-fil från mindmup.com importerad. Läsaren är skriven
+  efter MindMups källkod och prövad mot fixturer skrivna för hand.
+
+### Inte kontrollerat i någon session
+
+Samlat ur stegen, så att det står på ett ställe. Allt är byggt och prövat
+i Chromium utan fönster mot ett mock-API med backendens regler.
+
+- **Riktig backend och riktig bildproxy.** En verklig Drive-bild och en
+  verklig webbild i en nod (steg 4).
+- **Safari, Firefox och Mac.** Urklipp med bild, inklistring av en gren
+  (webbläsaren kan tvätta bort `data-mindmap`; då klistras dispositionen
+  in utan fälten), Alt- och Cmd-tangenterna, helskärm.
+- **Webbläsarens egen zoom** (Ctrl+0, Ctrl++ och Ctrl+- utanför kartan)
+  tillsammans med kartans.
+- **Projektor och presentationsfjärr.**
+- **Pekskärm.** Utanför planen (avsnitt 9), men sidan är inte prövad där.
+
+### Känt, att ta ställning till
+
+- `MindmapCanvas.tsx` är 1 156 rader. `CLAUDE.md` varnar för sådana filer.
+  Nästa ändring i den bör börja med att dela ut något, till exempel
+  pekarens händelser (drag, panorering) till en egen hook.
+- Tvärlänkarnas kurvor ligger ovanpå noderna och kan gå över en nod som
+  står mellan ändarna; i en tät karta syns det (steg 6).
+- I grenvyn följer ett släpp på tom yta hela kartans regler om sidor, så en
+  nod kan stanna vid kartans rot fast den släpptes längre bort (steg 8a).
+- `services/http.ts` och backendens `api/validation.py` används bara av
+  mindmap. Arkitekturplanens steg 3 och 4 flyttar de andra dit.
+
+### Efter målet
+
+Steg 9 (delning med kollega) görs bara om Tobias ber om det. Det som lagts
+utanför planen står i avsnitt 9: uppladdning av bilder till Drive,
+redigerbar disposition, ram runt en gren, pek och nyp, publik länk.
+
 ## Mål
 
 En egen sida, `/features/mindmap`, där man skriver tankekartor i MindMups
@@ -417,10 +489,9 @@ kortet ändras. `sanitizeMindmap` prövas mot kortets befintliga fixturer.
 
 ### Steg 1: Backend `/api/mindmap` (BE)
 
-- [x] Koden genomförd 2026-11-10 på backend-grenen
-  `claude/stoic-franklin-774m9t` (PR-numret skrivs in när PR:en finns).
-  Deployen återstår och görs av Tobias; först då är steget klart enligt
-  "Klart när".
+- [x] Koden genomförd 2026-11-10 (backend #60). Deployen görs av Tobias;
+  först när den är bekräftad är steget klart enligt "Klart när" (se "Kvar
+  för målet" överst).
   - `api/validation.py` har `PayloadError`, `is_int`, `text`, `integer`
     och `json_document`. Bara `mindmap_routes` importerar därifrån.
     Noterat under steg 3 i `arkitektur-2026-11.md`.
@@ -1061,8 +1132,8 @@ PDF.
 
 ### Steg 8: Presentationsläge (FE)
 
-- [x] Genomfört: 2026-11-11 (PR-numret skrivs in när PR:en finns). "Så blev
-  det", avvikelser och kontroller står i detaljplanen.
+- [x] Genomfört: 2026-11-11, #273. "Så blev det", avvikelser och kontroller
+  står i detaljplanen.
 
 Detaljplanen står i [`mindmap-presentation.md`](mindmap-presentation.md),
 skriven 2026-11-11. Den delar steget i 8a (visa bara grenen) och 8b

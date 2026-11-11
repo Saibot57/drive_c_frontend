@@ -1,6 +1,6 @@
 # Mindmap steg 8: visa bara grenen och presentationsläge
 
-Status: Genomförd 2026-11-11
+Status: Genomförd 2026-11-11 (#273)
 
 Det här är detaljplanen för steg 8 i [`mindmap-sida.md`](mindmap-sida.md).
 Skyddsreglerna där gäller oförändrade. Steget är det sista för målet och
