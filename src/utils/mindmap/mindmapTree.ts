@@ -291,6 +291,48 @@ export function setIcon(content: MindmapContent, id: string, icon: MindmapIcon |
   return setField(content, id, 'icon', icon);
 }
 
+/**
+ * Nodens manuella förskjutning från den automatiska platsen. `null`, eller
+ * en förskjutning på noll, tar bort den. Roten har ingen: den är kartans mitt.
+ */
+export function setOffset(
+  content: MindmapContent,
+  id: string,
+  offset: { dx: number; dy: number } | null,
+): MindmapContent {
+  if (id === content.root.id) return content;
+  const keep = offset && Number.isFinite(offset.dx) && Number.isFinite(offset.dy) && (offset.dx !== 0 || offset.dy !== 0);
+  return withRoot(content, updateNode(content.root, id, (node) => {
+    if (keep) return { ...node, offset: { dx: offset.dx, dy: offset.dy } };
+    if (node.offset === undefined) return node;
+    const { offset: _offset, ...rest } = node;
+    return rest;
+  }));
+}
+
+/** Finns det någon manuell förskjutning i kartan? */
+export function hasOffsets(content: MindmapContent): boolean {
+  const any = (node: MindmapNode): boolean => node.offset !== undefined || node.children.some(any);
+  return content.root.children.some(any);
+}
+
+/** Tar bort alla manuella förskjutningar. Grenar utan någon behåller sin identitet. */
+export function clearOffsets(content: MindmapContent): MindmapContent {
+  const clear = (node: MindmapNode): MindmapNode => {
+    let changed = node.offset !== undefined;
+    const children = node.children.map((child) => {
+      const cleared = clear(child);
+      if (cleared !== child) changed = true;
+      return cleared;
+    });
+    if (!changed) return node;
+    const { offset: _offset, ...rest } = node;
+    return { ...rest, children };
+  };
+  const root = clear(content.root);
+  return root === content.root ? content : withRoot(content, root);
+}
+
 /** Sätter färgen på noden och alla under den, också i hopfällda grenar. */
 export function setColorDeep(content: MindmapContent, id: string, color: MindmapColor | null): MindmapContent {
   const paint = (node: MindmapNode): MindmapNode => {

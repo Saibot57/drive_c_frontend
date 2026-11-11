@@ -130,8 +130,11 @@
   outline-offset: 2px;
 }
 
+/* Noden som dras följer pekaren. Den släpper igenom pekaren, så att
+   elementFromPoint hittar noden under den (släppmålet). */
 .mm__node--dragged {
-  opacity: 0.45;
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .mm__node--drop {

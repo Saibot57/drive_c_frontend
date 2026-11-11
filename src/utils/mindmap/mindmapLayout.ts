@@ -272,6 +272,45 @@ export function layoutMindmap(
     placeChildren({ id: root.id, edgeX, cy: 0 }, kids, anchor, side, 1);
   });
 
+  // Manuella förskjutningar (`offset`) läggs på efter den automatiska
+  // layouten: en nod flyttar hela sin gren, syskonen står kvar. En karta
+  // utan förskjutningar går inte igenom steget och blir exakt som förut.
+  const shifts = new Map<string, { dx: number; dy: number }>();
+  let shifted = false;
+  const collectShifts = (node: MindmapNode, dx: number, dy: number, isRoot: boolean) => {
+    let x = dx;
+    let y = dy;
+    if (!isRoot && node.offset) {
+      x += node.offset.dx;
+      y += node.offset.dy;
+      shifted = true;
+    }
+    shifts.set(node.id, { dx: x, dy: y });
+    visibleChildren(node).forEach((child) => collectShifts(child, x, y, false));
+  };
+  collectShifts(root, 0, 0, true);
+  if (shifted) {
+    nodes.forEach((node) => {
+      const shift = shifts.get(node.id);
+      if (!shift) return;
+      node.x += shift.dx;
+      node.y += shift.dy;
+    });
+    // Kanten går från förälderns nya plats till barnets.
+    edges.forEach((edge) => {
+      const from = shifts.get(edge.fromId);
+      const to = shifts.get(edge.toId);
+      if (from) {
+        edge.x1 += from.dx;
+        edge.y1 += from.dy;
+      }
+      if (to) {
+        edge.x2 += to.dx;
+        edge.y2 += to.dy;
+      }
+    });
+  }
+
   const minX = Math.min(...nodes.map((n) => n.x));
   const minY = Math.min(...nodes.map((n) => n.y));
   const maxX = Math.max(...nodes.map((n) => n.x + n.width));
@@ -279,13 +318,13 @@ export function layoutMindmap(
   const dx = metrics.margin - minX;
   const dy = metrics.margin - minY;
 
-  const shifted = nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }));
+  const placed = nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }));
   return {
-    nodes: shifted,
+    nodes: placed,
     edges: edges.map((e) => ({ ...e, x1: e.x1 + dx, y1: e.y1 + dy, x2: e.x2 + dx, y2: e.y2 + dy })),
     width: Math.ceil(maxX - minX + 2 * metrics.margin),
     height: Math.ceil(maxY - minY + 2 * metrics.margin),
-    byId: new Map(shifted.map((n) => [n.id, n])),
+    byId: new Map(placed.map((n) => [n.id, n])),
   };
 }
 

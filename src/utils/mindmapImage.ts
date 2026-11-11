@@ -90,7 +90,9 @@ export function normalizeLink(rawInput: string): string | null {
 
 export type NodeExtraKeyAction =
   | { type: 'panel'; field: 'note' | 'link' | 'image' }
-  | { type: 'icon'; icon: MindmapIcon | null };
+  | { type: 'icon'; icon: MindmapIcon | null }
+  /** Alt+Shift+0: nodens manuella placering tas bort (planens steg 5). */
+  | { type: 'resetOffset' };
 
 export interface NodeExtraKeyInput {
   code: string;
@@ -104,7 +106,8 @@ const PANEL_KEYS: Record<string, 'note' | 'link' | 'image'> = { KeyN: 'note', Ke
 
 /**
  * Alt+N, Alt+L och Alt+I öppnar panelen på anteckning, länk och bild;
- * Alt+Shift+1–8 sätter ikon och Alt+Shift+9 tar bort den. Läses med `code`:
+ * Alt+Shift+1–8 sätter ikon och Alt+Shift+9 tar bort den; Alt+Shift+0
+ * nollställer nodens placering. Läses med `code`:
  * Alt ger specialtecken på Mac. Måste prövas före resolveMindmapKey, som
  * annars tar Alt+Shift+siffra för en färg.
  */
@@ -114,6 +117,7 @@ export function resolveNodeExtraKey(e: NodeExtraKeyInput): NodeExtraKeyAction | 
     const field = PANEL_KEYS[e.code];
     return field ? { type: 'panel', field } : null;
   }
+  if (e.code === 'Digit0') return { type: 'resetOffset' };
   const digit = /^Digit([1-9])$/.exec(e.code);
   if (!digit) return null;
   const index = Number(digit[1]) - 1;

@@ -745,7 +745,58 @@ som bara träder in när `image` finns; befintliga layouttester oförändrade.
 
 ### Steg 5: Fri placering (FE)
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11, #270
+
+**Så blev det.** Nya filer: `utils/mindmapPlacement.ts` (+ test, 21 st, som
+också prövar förskjutningen i layouten och trädfunktionerna) och
+`components/mindmap/MindmapNodeView.tsx`. Efter steget: 93 testfiler,
+1 444 tester.
+
+- Medan en nod dras ritas kartan som om den redan släppts där: grenen och
+  kanterna följer pekaren. Dokumentet ändras först vid släppet, som ett
+  ångra-steg. Den dragna noden släpper igenom pekaren, så att
+  `elementFromPoint` hittar noden under den.
+- Släpp på en annan nod: grenen blir dess barn och förskjutningen tas bort.
+  Släpp på tom yta: `placeNode` lägger draget ovanpå den förskjutning som
+  fanns, avrundat till hela px. Draget räknas om från skärmens px med
+  zoomen.
+- Också indrag och utdrag med tangenterna tar bort nodens förskjutning: den
+  gällde platsen under den gamla föräldern.
+- I `both`: en gren direkt under roten som släpps på andra sidan byter
+  `side`, och förskjutningen räknas om så att noden hamnar där den släpptes.
+  Syskonens sidor sparas först, så att de står kvar. En djupare nod stannar
+  vid rotens mitt.
+- Alt+Shift+0 tar bort förskjutningen på den markerade noden (inte på
+  noderna under den). Knappen i verktygsraden tar bort alla och är grå när
+  det inte finns några.
+- Nodens ritning är utbruten ur `MindmapCanvas.tsx` till
+  `MindmapNodeView.tsx`, som steg 4 bad om. Canvasen är 996 rader.
+
+**Delad kod (skyddsregel 6).** `layoutMindmap` lägger på `offset` efter
+den vanliga layouten, utan villkor, som planen säger. En karta utan
+`offset` går inte igenom steget och blir exakt som förut (test).
+Workspace-kortet kan inte skapa förskjutningar, men ett kort som fått en
+karta med `offset` i datat ritar den förskjuten, likadant i kort och
+export. `mindmapTree.ts` har nya `setOffset`, `hasOffsets` och
+`clearOffsets`.
+
+**Kontrollerat 2026-11-11.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium mot mock-API:t: dra en
+nod till tom yta (grenen följer, syskon och rot står still), dra vid 200 %
+(100 skärmpx blir 50 i kartan), klick direkt efter ett drag, ångra,
+Alt+Shift+0, dra till en annan nod (blir barn, förskjutningen borta),
+nollställ hela kartan, sidbyte i `both` (noden hamnar där den släpptes),
+allt kvar efter omladdning. PNG-exporten har samma inbördes läge som
+skärmen. Skärmbilder i Neo och Kronberg.
+
+**Inte kontrollerat.** Riktig backend. Workspace-kortet i webbläsaren.
+Pekskärm. En karta på 300 noder under drag (layouten räknas om för varje
+pekarrörelse; mätt textbredd är cachad, men det är inte provat i den
+storleken).
+
+**Kvar att tänka på.** Fri placering låter noder ligga över varandra;
+inget hindrar det. Tvärlänkarna i steg 6 ska ritas till nodernas
+förskjutna platser, som kanterna gör.
 
 **Mål.** Dra en nod så förskjuts den (och dess gren) från den automatiska
 platsen och stannar där; förskjutningen sparas som `offset` och följer med
