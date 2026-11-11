@@ -664,3 +664,49 @@
   font-family: inherit;
   font-size: 0.75rem;
 }
+
+/* "Visa bara grenen": listen uppe till vänster; länkraden har mitten. */
+.mm__branchbar {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.75rem;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.3125rem 0.5rem 0.3125rem 0.625rem;
+  border: var(--sp-border);
+  border-radius: var(--sp-radius-sm);
+  background: var(--ui-mark-yellow);
+  box-shadow: var(--sp-shadow-sm);
+  color: var(--ui-mark-fg);
+  font-size: 0.8125rem;
+}
+
+.mm__branchbar-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm__branchbar-exit {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-paper);
+  color: var(--ui-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mm__branchbar-exit:hover {
+  background: var(--ui-surface-3);
+}

@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   ChevronsDownUp,
   Download,
+  Focus,
   Keyboard,
   Palette,
   ListTree,
@@ -47,6 +48,9 @@ interface MindmapToolbarProps {
   onTransparent?: (transparent: boolean) => void;
   /** En vald fil att importera som ny karta. Utan den visas ingen knapp. */
   onImport?: (file: File) => void;
+  /** "Visa bara grenen" är på. */
+  branchActive?: boolean;
+  onToggleBranch?: () => void;
   /** Zoomnivån och dess knappar (MindmapZoom). */
   zoom?: React.ReactNode;
   /** Till höger: sparstatus och kartans namn. */
@@ -73,6 +77,8 @@ export default function MindmapToolbar({
   transparent,
   onTransparent,
   onImport,
+  branchActive,
+  onToggleBranch,
   zoom,
   status,
 }: MindmapToolbarProps) {
@@ -150,6 +156,19 @@ export default function MindmapToolbar({
           aria-label="Nollställ placeringen i hela kartan"
         >
           <ListTree size={15} />
+        </Button>
+      )}
+      {onToggleBranch && (
+        <Button
+          size="sm"
+          variant="neutral"
+          className={tool}
+          onClick={onToggleBranch}
+          title={branchActive ? 'Visa hela kartan (Esc)' : 'Visa bara grenen (Alt+Enter)'}
+          aria-label={branchActive ? 'Visa hela kartan' : 'Visa bara grenen'}
+          aria-pressed={!!branchActive}
+        >
+          <Focus size={15} />
         </Button>
       )}
       {onTogglePanel && (

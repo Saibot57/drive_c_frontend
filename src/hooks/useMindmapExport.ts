@@ -29,8 +29,10 @@ import { mindmapPdfBlob, planMindmapPdf } from '@/utils/mindmapPdf';
 export type MindmapFileExportKind = 'image' | 'png' | 'pdf' | 'markdown' | 'json';
 
 interface MindmapExportDeps {
-  /** Det senaste dokumentet, läst när exporten börjar. */
+  /** Det som visas (hela kartan, eller grenen i grenvyn), läst när exporten börjar. */
   getDoc: () => MindmapDoc;
+  /** Hela kartan, till JSON-filen. Utan den gäller `getDoc`. */
+  getFileDoc?: () => MindmapDoc;
   title: string;
   /** Paletten i standardutseendet, eller `null` om kartan inte är på sidan. */
   readPalette: () => MindmapPalette | null;
@@ -68,7 +70,7 @@ export function useMindmapExport(deps: MindmapExportDeps) {
   }, []);
 
   const exportAs = useCallback((kind: MindmapFileExportKind) => {
-    const { getDoc, title, flash } = depsRef.current;
+    const { getDoc, getFileDoc, title, flash } = depsRef.current;
     const doc = getDoc();
     const fileName = (extension: string) => mindmapExportName(title, doc.root.label, extension);
 
@@ -77,7 +79,10 @@ export function useMindmapExport(deps: MindmapExportDeps) {
       return;
     }
     if (kind === 'json') {
-      downloadBlob(new Blob([toMindmapFile(title || doc.root.label, doc)], { type: 'application/json' }), fileName('json'));
+      // Filen är en säkerhetskopia: alltid hela kartan, också när bara en gren visas.
+      const whole = getFileDoc?.() ?? doc;
+      const name = mindmapExportName(title, whole.root.label, 'json');
+      downloadBlob(new Blob([toMindmapFile(title || whole.root.label, whole)], { type: 'application/json' }), name);
       return;
     }
     if (kind === 'pdf') {

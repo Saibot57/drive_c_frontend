@@ -88,9 +88,14 @@ interface Options {
   bounds: MindmapRect;
   /** Falskt tills texten är mätt; den första vyn räknas på rätt mått. */
   ready: boolean;
+  /**
+   * Om vyn ska sparas som kartans (förval sant). Falskt medan bara en gren
+   * visas: den vyn är tillfällig och får inte ersätta hela kartans.
+   */
+  persist?: boolean;
 }
 
-export function useMindmapViewport({ mapId, bounds, ready }: Options): MindmapViewport {
+export function useMindmapViewport({ mapId, bounds, ready, persist = true }: Options): MindmapViewport {
   const viewportRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
 
@@ -107,6 +112,8 @@ export function useMindmapViewport({ mapId, bounds, ready }: Options): MindmapVi
   const dirty = useRef(false);
   const mapIdRef = useRef(mapId);
   mapIdRef.current = mapId;
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
 
   const paint = useCallback((smooth: boolean) => {
     const layer = layerRef.current;
@@ -152,7 +159,7 @@ export function useMindmapViewport({ mapId, bounds, ready }: Options): MindmapVi
 
   const change = useCallback<MindmapViewport['change']>((update, smooth = false) => {
     if (initedFor.current === null) return;
-    set(update(viewRef.current, { size: sizeRef.current, bounds: boundsRef.current }), smooth, true);
+    set(update(viewRef.current, { size: sizeRef.current, bounds: boundsRef.current }), smooth, persistRef.current);
   }, [set]);
 
   /** Läser in kartans sparade vy, eller passar in kartan första gången. */
@@ -181,6 +188,12 @@ export function useMindmapViewport({ mapId, bounds, ready }: Options): MindmapVi
     if (ready) init();
   }, [mapId, ready, init]);
   useEffect(() => flushSave, [flushSave]);
+
+  // När vyn slutar sparas (en gren visas) skrivs det som väntade först, medan
+  // vyn ännu är hela kartans. Layout-effekt: den ska hinna före vyns byte.
+  useIsomorphicLayoutEffect(() => {
+    if (!persist) flushSave();
+  }, [persist, flushSave]);
 
   const readyRef = useRef(ready);
   readyRef.current = ready;
@@ -219,7 +232,7 @@ export function useMindmapViewport({ mapId, bounds, ready }: Options): MindmapVi
       );
       sizeRef.current = size;
       viewRef.current = clampView(moved, boundsRef.current, size);
-      dirty.current = true;
+      if (persistRef.current) dirty.current = true;
       paint(false);
     });
     observer?.observe(el);

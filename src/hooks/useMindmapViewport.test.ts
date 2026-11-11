@@ -168,4 +168,28 @@ describe('useMindmapViewport', () => {
     expect(h.result.current.getView()).toEqual({ x: 400, y: 300, zoom: 1 });
     h.unmount();
   });
+
+  it('sparar inte vyn medan persist är falsk, men skriver först det som väntade', () => {
+    const h = renderViewport({ mapId: 'a', bounds, ready: true });
+    act(() => { h.result.current.change((view) => panBy(view, 10, 0)); });
+    // Sparningen väntar ännu. När en gren börjar visas skrivs hela kartans vy direkt.
+    expect(window.localStorage.getItem(MINDMAP_VIEW_KEY)).toBeNull();
+    h.rerender({ persist: false });
+    expect(stored().a).toMatchObject({ x: 410, y: 300, zoom: 1 });
+
+    // Grenens vy är tillfällig: den skrivs varken efter en stund eller när sidan lämnas.
+    act(() => { h.result.current.change((view) => panBy(view, 200, 50)); });
+    act(() => { vi.advanceTimersByTime(2000); });
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+    expect(stored().a).toMatchObject({ x: 410, y: 300, zoom: 1 });
+    expect(h.result.current.getView()).toMatchObject({ x: 610, y: 350 });
+
+    // Tillbaka i hela kartan sparas vyn igen.
+    h.rerender({ persist: true });
+    act(() => { h.result.current.change(() => ({ x: 410, y: 300, zoom: 1 })); });
+    act(() => { h.result.current.change((view) => panBy(view, -10, 0)); });
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(stored().a).toMatchObject({ x: 400, y: 300, zoom: 1 });
+    h.unmount();
+  });
 });
