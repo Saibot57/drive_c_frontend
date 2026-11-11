@@ -917,7 +917,7 @@ inget om `crossLinks`, och den delade tvätten rör dem inte.
 
 ### Steg 7: Import och export (FE)
 
-- [x] Genomfört: 2026-11-11
+- [x] Genomfört: 2026-11-11, #272
 
 **Så blev det.** Nya filer: `utils/mindmapMup.ts` (MindMup, färg, HTML
 till text), `utils/mindmapMarkdown.ts`, `utils/mindmapFile.ts` (sidans
