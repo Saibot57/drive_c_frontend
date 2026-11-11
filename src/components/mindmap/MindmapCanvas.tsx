@@ -64,6 +64,8 @@ import { useMindmapExport } from '@/hooks/useMindmapExport';
 import { isCopyImageKey } from '@/utils/mindmapFile';
 import { useMindmapViewport } from '@/hooks/useMindmapViewport';
 import { useMindmapBranchView } from '@/hooks/useMindmapBranchView';
+import { useMindmapPresenting } from '@/hooks/useMindmapPresenting';
+import { isPresentKey } from '@/utils/mindmapPresent';
 import { isEditableElement } from '@/utils/dom';
 import { loadDrawSymbols, LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from './mindmapIcons';
 import { canCopyImage, copyOutline, fontOf, readPalette } from './mindmapCanvasIo';
@@ -73,6 +75,7 @@ import { MindmapLinkLayer } from './MindmapLinkLayer';
 import { MindmapMinimap } from './MindmapMinimap';
 import { MINDMAP_PLACEHOLDER, MindmapNodeView } from './MindmapNodeView';
 import { MindmapNodePanel, type MindmapPanelField } from './MindmapNodePanel';
+import { MindmapPresent } from './MindmapPresent';
 import MindmapToolbar, { type MindmapExportKind, type MindmapMenu } from './MindmapToolbar';
 import { MindmapZoom } from './MindmapZoom';
 
@@ -340,6 +343,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   // Länkarna ritas ur det som visas; länkar ut ur en gren finns kvar i dokumentet.
   const links = useMindmapLinks({ mapId, doc: shown, docRef, layout, commit, flash, focusMap, currentId, toLayoutPoint, nodeAt });
   const branch = useMindmapBranchView({ mapId, branchId, wanted: branchWanted, setWanted: setBranchWanted, viewport });
+  // Presentationsläget ritas inuti kartans ruta, som går i helskärm (del 8b).
+  const presenting = useMindmapPresenting(rootRef, mapId);
 
   /**
    * Slutar skriva. En tom nod utan barn tas bort: den blev över när man
@@ -600,6 +605,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     }
   };
 
+  /** Startar presentationen. Direkt i händelsen: helskärm kräver en användarhandling. */
+  const startPresenting = () => {
+    if (editingRef.current) finishEdit();
+    setMenu(null);
+    presenting.start();
+  };
+
   const handleMapKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Alt+Shift+C kopierar kartan som bild, också medan man skriver. Före
     // resolveMindmapKey, och direkt i händelsen: Safari kräver det för urklipp.
@@ -619,6 +631,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         focusMap();
       }
       setMenu(null);
+      return;
+    }
+    // Alt+P presenterar det som visas, också från nodens textfält.
+    if (isPresentKey(e.nativeEvent) && (editingRef.current || !isEditableElement(e.target))) {
+      e.preventDefault();
+      e.stopPropagation();
+      startPresenting();
       return;
     }
     // Alt+Enter visar bara grenen (också från nodens textfält); Esc visar hela kartan.
@@ -952,6 +971,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         onImport={onImport}
         branchActive={branchId !== null}
         onToggleBranch={toggleBranch}
+        onPresent={startPresenting}
         zoom={<MindmapZoom viewport={viewport} />}
         status={status}
       />
@@ -1105,6 +1125,18 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         />
       )}
       </div>
+
+      {presenting.active && (
+        <MindmapPresent
+          doc={shown}
+          layoutOf={layoutOf}
+          images={images}
+          onClose={() => {
+            presenting.stop();
+            focusMap();
+          }}
+        />
+      )}
 
       {/* Symbolerna som SVG, till bildexporten (loadDrawSymbols). */}
       <div ref={symbolsRef} hidden aria-hidden="true">
