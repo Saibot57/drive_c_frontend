@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { MindmapColor, MindmapContent, MindmapLayout } from '@/types/mindmap';
-import { MINDMAP_COLORS } from '@/types/mindmap';
+import type { MindmapColor, MindmapContent, MindmapIcon, MindmapLayout, MindmapNode } from '@/types/mindmap';
+import { MINDMAP_COLORS, MINDMAP_ICONS } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import {
   addChild,
@@ -17,23 +17,40 @@ import {
   navigate,
   outdent,
   setColor,
+  setColorDeep,
+  setIcon,
+  setImage,
   setLabel,
   setLayout,
+  setLink,
+  setNote,
   sideOf,
   toggleCollapsed,
 } from '@/utils/mindmap/mindmapTree';
 import { breakCoalescing, emptyHistory, recordChange, redo, undo } from '@/utils/mindmap/mindmapHistory';
 import { resolveMindmapKey, type MindmapAction, type MindmapMode } from '@/utils/mindmap/mindmapKeys';
-import { edgePath, layoutMindmap, MINDMAP_METRICS, type MeasureText } from '@/utils/mindmap/mindmapLayout';
+import {
+  edgePath,
+  layoutMindmap,
+  MINDMAP_EXTRA_METRICS,
+  MINDMAP_METRICS,
+  type MeasureText,
+} from '@/utils/mindmap/mindmapLayout';
 import { parseOutlineHtml, parseOutlineText } from '@/utils/mindmap/mindmapOutline';
 import { toOutlineHtml, toOutlineText, type OutlineStyle } from '@/utils/mindmap/mindmapOutline';
-import { canvasToPng, renderMindmapCanvas, type MindmapPalette } from '@/utils/mindmap/mindmapDraw';
+import { canvasToPng, renderMindmapCanvas, type MindmapDrawOptions, type MindmapPalette } from '@/utils/mindmap/mindmapDraw';
+import { readBranchData, withBranchData } from '@/utils/mindmapClipboard';
 import { removeNodeFromDoc } from '@/utils/mindmapDoc';
+import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
+import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapViewport } from '@/hooks/useMindmapViewport';
 import { downloadBlob, toFileSlug } from '@/utils/download';
 import { isEditableElement } from '@/utils/dom';
+import { loadDrawSymbols, LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from './mindmapIcons';
 import { MindmapMinimap } from './MindmapMinimap';
+import { MindmapNodeImage } from './MindmapNodeImage';
+import { MindmapNodePanel, type MindmapPanelField } from './MindmapNodePanel';
 import MindmapToolbar, { type MindmapExportKind, type MindmapMenu } from './MindmapToolbar';
 import { MindmapZoom } from './MindmapZoom';
 
@@ -105,10 +122,16 @@ function readPalette(
 const canCopyImage = () =>
   typeof window !== 'undefined' && typeof ClipboardItem !== 'undefined' && !!navigator.clipboard?.write;
 
-/** Lägger en disposition på urklipp som både HTML och text; Google Docs tar HTML-versionen. */
-async function copyOutline(node: MindmapDoc['root'], style: OutlineStyle): Promise<void> {
-  const html = `<meta charset="utf-8">${toOutlineHtml(node, style)}`;
-  const text = toOutlineText(node);
+/**
+ * Lägger en disposition på urklipp som både HTML och text; Google Docs tar
+ * HTML-versionen. Anteckningarna följer med som indrag. Med `withBranch`
+ * ligger också grenen själv i HTML:en (mindmapClipboard), så att den kan
+ * klistras in i en karta med anteckning, länk, bild, ikon och färg kvar.
+ */
+async function copyOutline(node: MindmapDoc['root'], style: OutlineStyle, withBranch = false): Promise<void> {
+  const outline = toOutlineHtml(node, style, { notes: true });
+  const html = `<meta charset="utf-8">${withBranch ? withBranchData(outline, node) : outline}`;
+  const text = toOutlineText(node, { notes: true });
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
     await navigator.clipboard.write([
       new ClipboardItem({
@@ -215,9 +238,38 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   }, [fonts]);
 
   const layout = useMemo(
-    () => layoutMindmap(doc, (text, isRoot) => measure(text || PLACEHOLDER, isRoot)),
+    () => layoutMindmap(doc, (text, isRoot) => measure(text || PLACEHOLDER, isRoot), MINDMAP_METRICS, { extras: true }),
     [doc, measure],
   );
+
+  /* ── Bilder och panel ── */
+
+  const images = useMindmapImages(doc.root);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelFocus, setPanelFocus] = useState<{ field: MindmapPanelField; tick: number } | null>(null);
+  const symbolsRef = useRef<HTMLDivElement>(null);
+
+  const openPanel = useCallback((field: MindmapPanelField) => {
+    setPanelOpen(true);
+    setPanelFocus((current) => ({ field, tick: (current?.tick ?? 0) + 1 }));
+  }, []);
+
+  // En bild som hämtats men saknar mått får dem sparade, så att layouten och
+  // exporten vet höjden nästa gång utan att vänta på bilden. Inte ett steg i
+  // ångra-historiken: det är inget användaren gjort.
+  useEffect(() => {
+    let next: MindmapContent = docRef.current;
+    images.refs.forEach((ref) => {
+      const aspect = images.get(ref.key)?.aspect;
+      const node = findNode(next.root, ref.nodeId);
+      if (!aspect || !node?.image || node.image.aspect !== undefined) return;
+      if (imageSourceKey(node.image.source) !== ref.key) return;
+      next = setImage(next, ref.nodeId, { ...node.image, aspect: Math.round(aspect * 1000) / 1000 });
+    });
+    if (next === docRef.current) return;
+    docRef.current = asDoc(next);
+    onChangeRef.current(asDoc(next));
+  }, [images]);
 
   /* ── Vyn ── */
 
@@ -325,17 +377,21 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     const id = currentId();
 
     switch (action.type) {
+      // En ny nod får förälderns färg, så att en färgad gren fortsätter i
+      // sin färg. Färgen sparas på noden; inget arv räknas ut vid ritning.
       case 'addChild': {
         const result = addChild(d, id);
         if (!result) return;
-        commit(asDoc(result.content));
+        const color = findNode(d.root, id)?.color;
+        commit(asDoc(color ? setColor(result.content, result.id, color) : result.content));
         startEdit(result.id);
         return;
       }
       case 'addSibling': {
         const result = addSibling(d, id, action.where);
         if (!result) return;
-        commit(asDoc(result.content));
+        const parent = id === d.root.id ? d.root : findParent(d.root, id)?.parent;
+        commit(asDoc(parent?.color ? setColor(result.content, result.id, parent.color) : result.content));
         startEdit(result.id);
         return;
       }
@@ -424,7 +480,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
       case 'cut': {
         const node = findNode(d.root, id);
         if (!node) return;
-        copyOutline(node, 'list')
+        copyOutline(node, 'list', true)
           .then(() => flash(action.type === 'cut' ? 'Grenen är urklippt.' : 'Grenen är kopierad som punktlista.'))
           .catch(() => flash('Kunde inte kopiera.', 'error'));
         if (action.type === 'cut') {
@@ -477,8 +533,29 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     return true;
   };
 
+  /**
+   * Alt+N, Alt+L, Alt+I och Alt+Shift+siffra: nodens panel och ikon. Som
+   * vyns tangenter gäller de också medan man skriver i en nod, och de tas
+   * före resolveMindmapKey, som annars läser Alt+Shift+siffra som en färg.
+   */
+  const handleExtraKey = (e: React.KeyboardEvent<HTMLDivElement>): boolean => {
+    const action = resolveNodeExtraKey(e.nativeEvent);
+    if (!action) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    setMenu(null);
+    const id = editingRef.current ?? currentId();
+    if (action.type === 'icon') {
+      commit(asDoc(setIcon(docRef.current, id, action.icon)));
+    } else {
+      select(id);
+      openPanel(action.field);
+    }
+    return true;
+  };
+
   const handleMapKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (handleViewKey(e)) return;
+    if (handleViewKey(e) || handleExtraKey(e)) return;
     if (editingRef.current || isEditableElement(e.target)) return;
     const action = resolveMindmapKey(e.nativeEvent, 'nav', keyContext(currentId()));
     if (!action) return;
@@ -502,8 +579,10 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   const pasteOutline = (e: React.ClipboardEvent, parentId: string): boolean => {
     const html = e.clipboardData.getData('text/html');
     const text = e.clipboardData.getData('text/plain');
-    const fromHtml = html ? parseOutlineHtml(new DOMParser().parseFromString(html, 'text/html')) : null;
-    const nodes = fromHtml ?? parseOutlineText(text);
+    const parsed = html ? new DOMParser().parseFromString(html, 'text/html') : null;
+    // En gren kopierad från en karta kommer med allt; annars gäller dispositionen.
+    const branch = parsed ? readBranchData(parsed) : null;
+    const nodes = branch ? [branch] : (parsed ? parseOutlineHtml(parsed) : null) ?? parseOutlineText(text);
     const next = addChildren(docRef.current, parentId, nodes);
     if (!next) return false;
     e.preventDefault();
@@ -670,8 +749,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     const root = probeRootRef.current;
     if (!container || !node || !root) return;
     // Bilden ritas först när typsnitten finns, annars blir texten fel.
+    // Symbolerna laddas i bildens färger; nodernas bilder är redan avkodade.
     const png = (document.fonts?.ready ?? Promise.resolve())
-      .then(() => canvasToPng(renderMindmapCanvas(d, readPalette(container, { node, root }))));
+      .then(async () => {
+        const palette = readPalette(container, { node, root });
+        const symbols = symbolsRef.current ? await loadDrawSymbols(symbolsRef.current, palette.text) : undefined;
+        return canvasToPng(renderMindmapCanvas(d, palette, { extras: true, images: images.forDraw(), symbols }));
+      });
 
     if (kind === 'image') {
       navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
@@ -693,6 +777,20 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     return container && node && root ? readPalette(container, { node, root }, true) : null;
   }, []);
 
+  /** Minikartan ritar samma former som skärmen, med bilderna men utan symboler. */
+  const minimapDrawOptions = useCallback(
+    (): MindmapDrawOptions => ({ extras: true, images: images.forDraw() }),
+    [images],
+  );
+
+  /** En ändring från panelen på den markerade noden. `historyKey` slår ihop tangenttryck till ett ångra-steg. */
+  const panelNode: MindmapNode | null = selectedId ? findNode(doc.root, selectedId) : null;
+  const changePanelNode = (update: (d: MindmapDoc, id: string) => MindmapContent, historyKey: string | null = null) => {
+    const id = selectedRef.current;
+    if (!id || !findNode(docRef.current.root, id)) return;
+    commit(asDoc(update(docRef.current, id)), historyKey ? `${historyKey}:${id}` : null);
+  };
+
   const toolbarAction = (action: MindmapAction) => {
     setMenu(null);
     run(action, 'nav');
@@ -700,6 +798,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   };
 
   const m = MINDMAP_METRICS;
+  const x = MINDMAP_EXTRA_METRICS;
+  /** Bildkällans nyckel per nod, för att slå upp bildens läge. */
+  const imageKeys = new Map(images.refs.map((ref) => [ref.nodeId, ref.key]));
 
   return (
     <div ref={rootRef} className={`mm flex h-full flex-col${dragId ? ' mm--dragging' : ''}${panning ? ' mm--panning' : ''}`}>
@@ -710,7 +811,17 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
         onMenu={setMenu}
         onAddChild={() => toolbarAction({ type: 'addChild' })}
         onToggleCollapse={() => toolbarAction({ type: 'toggleCollapse' })}
-        onColor={(color: MindmapColor | null) => toolbarAction({ type: 'color', color })}
+        onColor={(color: MindmapColor | null, wholeBranch: boolean) => {
+          if (!wholeBranch) {
+            toolbarAction({ type: 'color', color });
+            return;
+          }
+          setMenu(null);
+          commit(asDoc(setColorDeep(docRef.current, currentId(), color)));
+          focusMap();
+        }}
+        panelOpen={panelOpen}
+        onTogglePanel={() => setPanelOpen((open) => !open)}
         onLayout={(next: MindmapLayout) => {
           setMenu(null);
           commit(asDoc(setLayout(docRef.current, next)));
@@ -722,7 +833,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
         status={status}
       />
 
-      <div className="relative min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1">
+      <div className="relative min-h-0 min-w-0 flex-1">
         <div
           ref={scrollRef}
           className="mm__viewport"
@@ -757,9 +869,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
               {layout.nodes.map((node) => {
                 const isEditing = editingId === node.id;
+                const NodeIcon = node.icon ? MINDMAP_ICON_COMPONENTS[node.icon] : null;
                 const classes = [
                   'mm__node',
                   node.isRoot && 'mm__node--root',
+                  node.image && 'mm__node--image',
                   node.color && `mm__node--${node.color}`,
                   selectedId === node.id && 'mm__node--selected',
                   isEditing && 'mm__node--editing',
@@ -772,17 +886,19 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
                     key={node.id}
                     data-mm-id={node.id}
                     className={classes}
-                    style={{
-                      left: node.x,
-                      top: node.y,
-                      width: node.width,
-                      height: node.height,
-                      paddingInline: node.isRoot ? m.rootPadX : m.padX,
-                    }}
+                    style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
                     onPointerDown={(e) => handleNodePointerDown(e, node.id)}
                     onClick={() => handleNodeClick(node.id)}
                     onDoubleClick={() => startEdit(node.id)}
                   >
+                    <div
+                      className="mm__row"
+                      style={{
+                        height: node.rowHeight ? node.rowHeight - 2 * (node.isRoot ? m.rootBorder : m.border) : undefined,
+                        paddingInline: node.isRoot ? m.rootPadX : m.padX,
+                      }}
+                    >
+                    {NodeIcon && <span className="mm__icon" aria-hidden="true"><NodeIcon size={x.iconSize} /></span>}
                     {isEditing ? (
                       <input
                         ref={inputRef}
@@ -809,6 +925,39 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
                         {node.label || PLACEHOLDER}
                       </span>
                     )}
+                    {node.hasNote && (
+                      <button
+                        type="button"
+                        className="mm__marker"
+                        tabIndex={-1}
+                        title="Anteckning (Alt+N)"
+                        aria-label="Visa anteckningen"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          select(node.id);
+                          openPanel('note');
+                        }}
+                      >
+                        <NoteSymbol size={x.markerSize} />
+                      </button>
+                    )}
+                    {node.link && (
+                      <a
+                        className="mm__marker"
+                        href={node.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        tabIndex={-1}
+                        title={node.link}
+                        aria-label="Öppna länken i en ny flik"
+                        draggable={false}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <LinkSymbol size={x.markerSize} />
+                      </a>
+                    )}
                     {node.hiddenCount > 0 && (
                       <button
                         type="button"
@@ -828,6 +977,14 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
                         +{node.hiddenCount}
                       </button>
                     )}
+                    </div>
+                    {node.image && (
+                      <MindmapNodeImage
+                        width={node.image.width}
+                        height={node.image.height}
+                        state={imageKeys.get(node.id) ? images.get(imageKeys.get(node.id)!) : undefined}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -835,13 +992,50 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
           </div>
         </div>
 
-        <MindmapMinimap viewport={viewport} doc={doc} bounds={bounds} readPalette={readMinimapPalette} />
+        <MindmapMinimap
+          viewport={viewport}
+          doc={doc}
+          bounds={bounds}
+          readPalette={readMinimapPalette}
+          drawOptions={minimapDrawOptions}
+        />
 
         {notice && (
           <div className={`mm__notice mm__notice--${notice.tone}`} role="status">
             {notice.text}
           </div>
         )}
+      </div>
+
+      {panelOpen && (
+        <MindmapNodePanel
+          node={panelNode}
+          focus={panelFocus}
+          imageState={panelNode?.image ? images.get(imageSourceKey(panelNode.image.source)) : undefined}
+          onNote={(note) => changePanelNode((d, id) => setNote(d, id, note), 'note')}
+          onLink={(link) => changePanelNode((d, id) => setLink(d, id, link))}
+          onImage={(image) => changePanelNode((d, id) => setImage(d, id, image))}
+          onIcon={(icon) => changePanelNode((d, id) => setIcon(d, id, icon))}
+          onRetryImage={() => {
+            if (panelNode?.image) images.retry(imageSourceKey(panelNode.image.source));
+          }}
+          onClose={() => {
+            setPanelOpen(false);
+            focusMap();
+          }}
+          onReturn={focusMap}
+        />
+      )}
+      </div>
+
+      {/* Symbolerna som SVG, till bildexporten (loadDrawSymbols). */}
+      <div ref={symbolsRef} hidden aria-hidden="true">
+        {MINDMAP_ICONS.map((icon: MindmapIcon) => {
+          const Icon = MINDMAP_ICON_COMPONENTS[icon];
+          return <Icon key={icon} data-mm-symbol={icon} />;
+        })}
+        <NoteSymbol data-mm-symbol="note" />
+        <LinkSymbol data-mm-symbol="link" />
       </div>
 
       {/* Mätnoder: typsnittet för textmätningen läses härifrån. */}

@@ -93,7 +93,9 @@
   position: absolute;
   box-sizing: border-box;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   border: 1px solid var(--mm-node-border);
   border-radius: var(--mm-radius);
   background: var(--mm-node-bg);
@@ -142,6 +144,77 @@
 .mm--panning .mm__viewport,
 .mm--panning .mm__node {
   cursor: grabbing;
+}
+
+/* Raden med ikon, etikett, symboler och "+3". Bredderna speglas av
+   MINDMAP_EXTRA_METRICS i mindmapLayout.ts (iconWidth, markerWidth). */
+.mm__row {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.mm__icon,
+.mm__marker {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  color: var(--mm-text);
+}
+
+.mm__icon {
+  width: 20px;
+  justify-content: flex-start;
+}
+
+.mm__marker {
+  width: 18px;
+  height: 18px;
+  justify-content: flex-end;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.mm__marker:hover {
+  opacity: 1;
+}
+
+/* En nod med bild: etiketten överst, bilden under. Hörnradien speglas av
+   imageNodeRadius; en pill hade skurit av bildens hörn. */
+.mm__node--image {
+  justify-content: flex-start;
+  border-radius: min(var(--mm-radius), 10px);
+}
+
+.mm__image {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--mm-badge-bg);
+  pointer-events: none;
+}
+
+.mm__image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.mm__image-status {
+  padding: 0.25rem;
+  color: var(--mm-badge-text);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
 }
 
 .mm__label {
@@ -203,6 +276,17 @@
   display: flex;
   gap: 0.375rem;
   padding: 0.5rem;
+}
+
+.mm__swatch-option {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0 0.5rem 0.5rem;
+  color: var(--mm-text);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .mm__swatch {
@@ -342,6 +426,81 @@
 .mm__notice--error {
   background: var(--ui-mark-pink);
   color: var(--ui-mark-fg);
+}
+
+/* Panelen till höger om kartan: anteckning, länk, bild och ikon. */
+.mm__panel {
+  display: flex;
+  flex: 0 0 18rem;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--ui-line);
+  background: var(--ui-surface);
+}
+
+.mm__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.mm__panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-height: 0;
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+
+.mm__panel-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  color: var(--ui-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mm__panel-label:first-child {
+  margin-top: 0;
+}
+
+.mm__panel-label kbd {
+  font-family: inherit;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mm__panel-error {
+  color: var(--ui-danger);
+  font-size: 0.75rem;
+}
+
+.mm__panel-image {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+/* På en smal skärm ligger panelen över kartan i stället för bredvid. */
+@media (max-width: 640px) {
+  .mm__panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 7;
+    width: min(18rem, 90%);
+    box-shadow: var(--sp-shadow-sm);
+  }
 }
 
 /* Hjälprutan: tabellen med kortkommandon. */

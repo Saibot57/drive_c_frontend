@@ -59,8 +59,12 @@ export interface MindmapNode {
   note?: string;
   /** http(s)-URL. */
   link?: string;
-  /** Bild under etiketten. `width` i px vid zoom 1; saknas betyder sidans förval. */
-  image?: { source: MindmapImageSource; width?: number };
+  /**
+   * Bild under etiketten. `width` i px vid zoom 1; saknas betyder sidans förval.
+   * `aspect` är höjd/bredd, mätt när bilden lagts in, så att layouten vet
+   * höjden innan bilden laddats och exporten får samma mått som skärmen.
+   */
+  image?: { source: MindmapImageSource; width?: number; aspect?: number };
   icon?: MindmapIcon;
   /** Manuell förskjutning från den automatiska platsen, i px vid zoom 1. */
   offset?: { dx: number; dy: number };

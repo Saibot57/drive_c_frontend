@@ -21,12 +21,34 @@ const escapeHtml = (text: string) =>
 const meaningful = (node: MindmapNode): boolean =>
   node.label.trim() !== '' || node.children.some(meaningful);
 
-/** Indenterad text: noden först, sedan barnen som "- " med två blanksteg per nivå. */
-export function toOutlineText(node: MindmapNode): string {
-  const lines = [node.label.trim()];
+export interface OutlineOptions {
+  /**
+   * Ta med nodernas anteckningar, som ett indrag under noden. Mindmap-sidan
+   * sätter den; workspace-kortet har inga anteckningar att visa.
+   */
+  notes?: boolean;
+}
+
+const noteLines = (node: MindmapNode, options: OutlineOptions): string[] =>
+  options.notes && node.note?.trim()
+    ? node.note.trim().split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    : [];
+
+/** Anteckningen i kursiv, med radbrytningarna kvar. */
+const noteHtml = (node: MindmapNode, options: OutlineOptions): string =>
+  noteLines(node, options).map(escapeHtml).join('<br>');
+
+/**
+ * Indenterad text: noden först, sedan barnen som "- " med två blanksteg per
+ * nivå. En anteckning står på raderna under sin nod, indragen under texten.
+ */
+export function toOutlineText(node: MindmapNode, options: OutlineOptions = {}): string {
+  const lines = [node.label.trim(), ...noteLines(node, options).map((line) => `  ${line}`)];
   const walk = (children: MindmapNode[], depth: number) => {
     children.filter(meaningful).forEach((child) => {
-      lines.push(`${'  '.repeat(depth)}- ${child.label.trim()}`);
+      const indent = '  '.repeat(depth);
+      lines.push(`${indent}- ${child.label.trim()}`);
+      noteLines(child, options).forEach((line) => lines.push(`${indent}  ${line}`));
       walk(child.children, depth + 1);
     });
   };
@@ -34,11 +56,14 @@ export function toOutlineText(node: MindmapNode): string {
   return lines.join('\n');
 }
 
-function listHtml(children: MindmapNode[]): string {
+function listHtml(children: MindmapNode[], options: OutlineOptions = {}): string {
   const items = children.filter(meaningful);
   if (items.length === 0) return '';
   return `<ul>${items
-    .map((child) => `<li>${escapeHtml(child.label.trim())}${listHtml(child.children)}</li>`)
+    .map((child) => {
+      const note = noteHtml(child, options);
+      return `<li>${escapeHtml(child.label.trim())}${note ? `<br><i>${note}</i>` : ''}${listHtml(child.children, options)}</li>`;
+    })
     .join('')}</ul>`;
 }
 
@@ -47,17 +72,21 @@ function listHtml(children: MindmapNode[]): string {
  * `headings`: noden blir rubrik 1, barnen rubrik 2, barnbarnen rubrik 3 och
  * det som ligger djupare punkter — en planering att skriva vidare i.
  */
-export function toOutlineHtml(node: MindmapNode, style: OutlineStyle): string {
+export function toOutlineHtml(node: MindmapNode, style: OutlineStyle, options: OutlineOptions = {}): string {
   const title = escapeHtml(node.label.trim());
+  const paragraph = (of: MindmapNode) => {
+    const note = noteHtml(of, options);
+    return note ? `<p><i>${note}</i></p>` : '';
+  };
   if (style === 'list') {
-    return `<p><strong>${title}</strong></p>${listHtml(node.children)}`;
+    return `<p><strong>${title}</strong></p>${paragraph(node)}${listHtml(node.children, options)}`;
   }
-  const parts = [`<h1>${title}</h1>`];
+  const parts = [`<h1>${title}</h1>`, paragraph(node)];
   node.children.filter(meaningful).forEach((child) => {
-    parts.push(`<h2>${escapeHtml(child.label.trim())}</h2>`);
+    parts.push(`<h2>${escapeHtml(child.label.trim())}</h2>`, paragraph(child));
     child.children.filter(meaningful).forEach((grandchild) => {
-      parts.push(`<h3>${escapeHtml(grandchild.label.trim())}</h3>`);
-      parts.push(listHtml(grandchild.children));
+      parts.push(`<h3>${escapeHtml(grandchild.label.trim())}</h3>`, paragraph(grandchild));
+      parts.push(listHtml(grandchild.children, options));
     });
   });
   return parts.join('');

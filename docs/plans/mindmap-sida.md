@@ -453,9 +453,7 @@ annan route importerar. Enda ändringen i befintlig kod är registreringen.
 
 ### Steg 2: Sidan med lista och editor (FE, första synliga steget)
 
-- [x] Koden genomförd 2026-11-10 på grenen `claude/stoic-franklin-774m9t`
-  (PR-numret skrivs in när PR:en finns). Slås ihop först när backend (#60)
-  är deployad.
+- [x] Genomfört 2026-11-10, #268 (tillsammans med steg 3).
   - Avvikelse: `services/http.ts` med `readData` (ordagrant
     `arbetslagService`:s) och `http.test.ts` är skapad, eftersom ingen
     befintlig uppackare är exporterad och `CLAUDE.md` förbjuder en till
@@ -529,7 +527,7 @@ som redan används.
 
 ### Steg 3: Zoom, panorering och stor yta (FE)
 
-- [x] Genomfört: 2026-11-11, grenen `claude/mindmap-steg-3` (bygger på steg 2)
+- [x] Genomfört: 2026-11-11, #268
 
 **Så blev det.** Nya filer: `utils/mindmapViewport.ts` (+ test, 44 st),
 `hooks/useMindmapViewport.ts` (+ test, 10 st),
@@ -621,7 +619,79 @@ smidig att panorera i.
 
 ### Steg 4: Anteckningar, länkar, bilder och ikoner (FE)
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11, #269
+
+**Så blev det.** Nya filer: `utils/mindmapImage.ts` (bildkälla, länk,
+tangenter; + test), `utils/mindmapClipboard.ts` (+ test),
+`hooks/useMindmapImages.ts`, `components/mindmap/MindmapNodePanel.tsx`,
+`MindmapNodeImage.tsx` och `mindmapIcons.ts`, samt
+`utils/mindmap/mindmapExtras.test.ts` för tilläggen i den delade kärnan.
+Efter steget: 92 testfiler, 1 422 tester.
+
+- Panelen öppnas med Alt+N, Alt+L eller Alt+I (fokus i rätt fält), med
+  knappen i verktygsraden eller med anteckningssymbolen på en nod. Esc i ett
+  fält går tillbaka till kartan och panelen står kvar. Tangenterna gäller
+  också medan man skriver i en nod.
+- En länk utan schema får `https://` framför sig; annat än http(s) avvisas
+  med en text i panelen.
+- Bilden hämtas genom Workspaces bildproxy (`mindmapService.fetchImage`),
+  blir en blob-URL och visas i tre bredder (96, 160, 280 px). Måtten mäts
+  när bilden hämtats och sparas då som `aspect` utan ett eget ångra-steg.
+  Samma källa på flera noder hämtas en gång.
+- En ny nod får förälderns färg. Färgmenyn har kryssrutan "Hela grenen".
+- Ctrl+C och Ctrl+X lägger grenen i `data-mindmap` på en omslutande `<div>`
+  runt dispositionen. Chromium behåller attributet genom urklippet
+  (kontrollerat med riktigt urklipp).
+- Anteckningen följer med i "Kopiera som punktlista" och "rubriker", i
+  kursiv under noden.
+
+**Delad kod (skyddsregel 6), allt valfritt och avstängt för kortet.**
+
+- `types/mindmap.ts`: `image.aspect?`; `sanitizeMindmap` läser den.
+- `mindmapTree.ts`: nya `setNote`, `setLink`, `setImage`, `setIcon`,
+  `setColorDeep`, `cloneWithNewIds`.
+- `mindmapLayout.ts`: en fjärde, valfri parameter `{ extras }`. Bara med
+  den får ikon, symboler och bild plats; `LaidOutNode` har då de valfria
+  fälten `icon`, `hasNote`, `link`, `contentX`, `rowHeight`, `image`.
+- `mindmapDraw.ts`: `options` har fått `extras`, `images` och `symbols`.
+- `mindmapOutline.ts`: `toOutlineText` och `toOutlineHtml` har en valfri
+  sista parameter `{ notes }`.
+
+Ett test visar att layouten utan `extras` är densamma med och utan fälten,
+och ett att dispositionen utan `notes` är som förut.
+
+**Avvikelser från texten ovan.**
+
+- Layoutens tillägg träder in med `extras`, inte så fort `image` finns.
+  Annars hade ett kort med en bild i datat fått ett tomt utrymme i noden,
+  eftersom kortet inte ritar bilden.
+- `images` ligger i `renderMindmapCanvas` tredje parameter (`options`), som
+  redan fanns sedan steg 3, inte som en egen tredje parameter.
+- Symbolerna i PNG:n är sidans lucide-ikoner, lästa som SVG ur ett gömt
+  förråd och laddade som bilder före ritandet (`loadDrawSymbols`).
+  Minikartan ritar formerna och bilderna men inte symbolerna.
+
+**Kontrollerat 2026-11-11.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium mot ett mock-API med en
+bildproxy: anteckning, länk (också en avvisad `javascript:`), bild från
+webben, bild med Drive-länk, en trasig bild ("Kunde inte hämta bild" i
+noden och serverns fel i panelen), ikoner med Alt+Shift+siffra, färgarv
+till barn och syskon, "Hela grenen" och ångra, länksymbolen öppnar en ny
+flik, Ctrl+C och Ctrl+V av en gren med allt kvar och nya id, PNG-exporten
+med ikoner, symboler, bilder och tom ram, dispositionen med anteckningar,
+allt kvar efter omladdning. Skärmbilder i Neo och Kronberg.
+
+**Inte kontrollerat.** Riktig backend och riktig bildproxy, alltså en
+verklig Drive-fil och en verklig webbild (mocken svarar med en genererad
+PNG). Workspace-kortet i webbläsaren med en karta som har anteckningar
+(dess filer är orörda och dess tester gröna). Inklistring av en gren i
+Firefox och Safari, som kan tvätta bort `data-mindmap` ur urklippet; då
+klistras dispositionen in utan fälten. Mac (Alt ger specialtecken;
+tangenterna läses med `code`).
+
+**Kvar att tänka på.** `MindmapCanvas.tsx` är nu drygt 1 000 rader. Nästa
+steg bör bryta ut nodernas ritning till en egen fil innan det lägger till
+mer.
 
 **Mål.** En markerad nod kan få en anteckning (visas som en liten symbol
 på noden, texten i en panel till höger som öppnas med Alt+N), en länk

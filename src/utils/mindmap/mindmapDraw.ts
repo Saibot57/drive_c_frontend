@@ -1,5 +1,10 @@
-import type { MindmapColor, MindmapContent } from '@/types/mindmap';
-import { layoutMindmap, MINDMAP_METRICS, type MindmapLayoutResult } from './mindmapLayout';
+import type { MindmapColor, MindmapContent, MindmapIcon } from '@/types/mindmap';
+import {
+  layoutMindmap,
+  MINDMAP_EXTRA_METRICS,
+  MINDMAP_METRICS,
+  type MindmapLayoutResult,
+} from './mindmapLayout';
 
 /*
  * Ritar en mindmap på en Canvas, med en palett som anroparen läser ur sin
@@ -30,8 +35,19 @@ export interface MindmapPalette {
   rootFont: string;
 }
 
-function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  const r = Math.min(h / 2, w / 2);
+function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, radius = Infinity) {
+  const r = Math.min(h / 2, w / 2, radius);
+  if (r < h / 2) {
+    // Rundad rektangel: en nod med bild.
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    return;
+  }
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y);
@@ -41,9 +57,27 @@ function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h:
   ctx.closePath();
 }
 
+/** Färdigladdade symboler att rita på noderna. Saknas en ritas den inte. */
+export interface MindmapDrawSymbols {
+  icons?: Partial<Record<MindmapIcon, CanvasImageSource>>;
+  note?: CanvasImageSource;
+  link?: CanvasImageSource;
+}
+
 export interface MindmapDrawOptions {
   /** Bildpunkter per enhet i layouten. Utan värde gäller exportens skala. */
   scale?: number;
+  /**
+   * Mindmap-sidans tillägg: ikon, symboler för anteckning och länk, bild.
+   * Workspace-kortet anger den inte och får bilden som förut.
+   */
+  extras?: boolean;
+  /**
+   * Nodernas bilder, per nod-id, laddade och avkodade av anroparen så att
+   * ritandet förblir synkront. En bild som saknas ritas som en tom ram.
+   */
+  images?: Map<string, CanvasImageSource>;
+  symbols?: MindmapDrawSymbols;
 }
 
 /**
@@ -63,8 +97,9 @@ export function renderMindmapCanvas(
     ctx.font = isRoot ? palette.rootFont : palette.font;
     return ctx.measureText(text).width;
   };
-  const layout: MindmapLayoutResult = layoutMindmap(content, measure);
+  const layout: MindmapLayoutResult = layoutMindmap(content, measure, MINDMAP_METRICS, { extras: options.extras });
   const m = MINDMAP_METRICS;
+  const xm = MINDMAP_EXTRA_METRICS;
 
   const scale = options.scale ?? IMAGE_SCALE;
   canvas.width = layout.width * scale;
@@ -89,7 +124,14 @@ export function renderMindmapCanvas(
     const border = node.isRoot ? m.rootBorder : m.border;
     const pad = node.isRoot ? m.rootPadX : m.padX;
     // Kanten ritas på insidan, som border-box i kortet.
-    pill(ctx, node.x + border / 2, node.y + border / 2, node.width - border, node.height - border);
+    pill(
+      ctx,
+      node.x + border / 2,
+      node.y + border / 2,
+      node.width - border,
+      node.height - border,
+      node.image ? xm.imageNodeRadius : Infinity,
+    );
     ctx.fillStyle = node.color
       ? palette.colors[node.color]
       : node.isRoot ? palette.rootBg : palette.nodeBg;
@@ -98,16 +140,39 @@ export function renderMindmapCanvas(
     ctx.strokeStyle = node.isRoot ? palette.rootBorder : palette.nodeBorder;
     ctx.stroke();
 
-    const cy = node.y + node.height / 2;
+    const cy = node.y + (node.rowHeight ?? node.height) / 2;
+    let left = node.x + (node.contentX ?? border + pad);
+
+    const symbol = (image: CanvasImageSource | undefined, slot: number, size: number, atEnd: boolean) => {
+      // Ikonen står först i sin lucka, symbolerna sist i sin: luften hamnar mot texten.
+      if (image) ctx.drawImage(image, atEnd ? left + slot - size : left, cy - size / 2, size, size);
+      left += slot;
+    };
+
+    if (node.icon) symbol(options.symbols?.icons?.[node.icon], xm.iconWidth, xm.iconSize, false);
     ctx.font = node.isRoot ? palette.rootFont : palette.font;
     ctx.fillStyle = palette.text;
-    ctx.fillText(node.label, node.x + border + pad + node.labelWidth / 2, cy);
+    ctx.fillText(node.label, left + node.labelWidth / 2, cy);
+    left += node.labelWidth;
+    if (node.hasNote) symbol(options.symbols?.note, xm.markerWidth, xm.markerSize, true);
+    if (node.link) symbol(options.symbols?.link, xm.markerWidth, xm.markerSize, true);
 
     if (node.hiddenCount > 0) {
-      const bx = node.x + border + pad + node.labelWidth + m.badgeWidth / 2;
       ctx.font = palette.font;
       ctx.fillStyle = palette.badgeText;
-      ctx.fillText(`+${node.hiddenCount}`, bx, cy);
+      ctx.fillText(`+${node.hiddenCount}`, left + m.badgeWidth / 2, cy);
+    }
+
+    if (node.image) {
+      const box = node.image;
+      const image = options.images?.get(node.id);
+      if (image) {
+        ctx.drawImage(image, node.x + box.x, node.y + box.y, box.width, box.height);
+      } else {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = palette.nodeBorder;
+        ctx.strokeRect(node.x + box.x + 0.5, node.y + box.y + 0.5, box.width - 1, box.height - 1);
+      }
     }
   });
   return canvas;

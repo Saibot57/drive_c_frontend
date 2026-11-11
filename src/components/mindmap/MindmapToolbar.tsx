@@ -6,11 +6,13 @@ import {
   Download,
   Keyboard,
   Palette,
+  PanelRight,
   Plus,
   Redo2,
   Undo2,
   X,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { MINDMAP_COLORS, MINDMAP_COLOR_LABELS, type MindmapColor, type MindmapLayout } from '@/types/mindmap';
 import { MindmapHelp } from './MindmapHelp';
@@ -26,7 +28,11 @@ interface MindmapToolbarProps {
   onMenu: (menu: MindmapMenu) => void;
   onAddChild: () => void;
   onToggleCollapse: () => void;
-  onColor: (color: MindmapColor | null) => void;
+  /** `wholeBranch`: färgen sätts på noden och alla under den. */
+  onColor: (color: MindmapColor | null, wholeBranch: boolean) => void;
+  /** Panelen med anteckning, länk, bild och ikon. */
+  panelOpen?: boolean;
+  onTogglePanel?: () => void;
   onLayout: (layout: MindmapLayout) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -46,6 +52,8 @@ export default function MindmapToolbar({
   onAddChild,
   onToggleCollapse,
   onColor,
+  panelOpen,
+  onTogglePanel,
   onLayout,
   onUndo,
   onRedo,
@@ -59,6 +67,7 @@ export default function MindmapToolbar({
     onExport(kind);
   };
   const tool = 'sp-btn h-8 w-8 p-0';
+  const [wholeBranch, setWholeBranch] = useState(false);
 
   return (
     <div className="relative flex flex-wrap items-center gap-2 border-b border-ui-line px-3 py-2">
@@ -78,20 +87,26 @@ export default function MindmapToolbar({
           <Palette size={15} />
         </Button>
         {menu === 'color' && (
-          <div className="mm__popover mm__swatches">
-            {MINDMAP_COLORS.map((color, index) => (
-              <button
-                key={color}
-                type="button"
-                className={`mm__swatch mm__swatch--${color}`}
-                onClick={() => onColor(color)}
-                title={`${MINDMAP_COLOR_LABELS[color]} (Alt+${index + 1})`}
-                aria-label={MINDMAP_COLOR_LABELS[color]}
-              />
-            ))}
-            <button type="button" className="mm__swatch mm__swatch--none" onClick={() => onColor(null)} title="Ingen färg (Alt+0)" aria-label="Ingen färg">
-              <X size={11} />
-            </button>
+          <div className="mm__popover">
+            <div className="mm__swatches">
+              {MINDMAP_COLORS.map((color, index) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`mm__swatch mm__swatch--${color}`}
+                  onClick={() => onColor(color, wholeBranch)}
+                  title={`${MINDMAP_COLOR_LABELS[color]} (Alt+${index + 1})`}
+                  aria-label={MINDMAP_COLOR_LABELS[color]}
+                />
+              ))}
+              <button type="button" className="mm__swatch mm__swatch--none" onClick={() => onColor(null, wholeBranch)} title="Ingen färg (Alt+0)" aria-label="Ingen färg">
+                <X size={11} />
+              </button>
+            </div>
+            <label className="mm__swatch-option">
+              <input type="checkbox" checked={wholeBranch} onChange={(e) => setWholeBranch(e.target.checked)} />
+              Hela grenen
+            </label>
           </div>
         )}
       </div>
@@ -109,6 +124,19 @@ export default function MindmapToolbar({
       >
         <ArrowLeftRight size={15} />
       </Button>
+      {onTogglePanel && (
+        <Button
+          size="sm"
+          variant="neutral"
+          className={tool}
+          onClick={onTogglePanel}
+          title="Anteckning, länk, bild och ikon (Alt+N)"
+          aria-label="Anteckning, länk, bild och ikon"
+          aria-pressed={panelOpen}
+        >
+          <PanelRight size={15} />
+        </Button>
+      )}
       <span className="mx-1 h-5 w-px bg-ui-line" aria-hidden />
       <Button size="sm" variant="neutral" className={tool} onClick={onUndo} title="Ångra (Ctrl+Z)" aria-label="Ångra">
         <Undo2 size={15} />

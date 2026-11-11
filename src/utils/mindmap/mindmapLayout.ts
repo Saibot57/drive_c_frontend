@@ -1,4 +1,4 @@
-import type { MindmapColor, MindmapContent, MindmapNode, MindmapSide } from '@/types/mindmap';
+import type { MindmapColor, MindmapContent, MindmapIcon, MindmapNode, MindmapSide } from '@/types/mindmap';
 import { countDescendants, rootChildSides } from './mindmapTree';
 
 /*
@@ -48,6 +48,45 @@ export const MINDMAP_METRICS: MindmapMetrics = {
   slack: 2,
 };
 
+/**
+ * Mått för Mindmap-sidans tillägg på noderna (ikon, symboler för anteckning
+ * och länk, bild). Gäller bara när layouten körs med `extras`.
+ */
+export const MINDMAP_EXTRA_METRICS = {
+  /** Ikonen före etiketten, med luften mot texten. */
+  iconWidth: 20,
+  iconSize: 14,
+  /** En symbol efter etiketten (anteckning, länk), med luften före. */
+  markerWidth: 18,
+  markerSize: 12,
+  /** Bildens bredd när noden inte anger någon. */
+  imageWidth: 160,
+  minImageWidth: 40,
+  maxImageWidth: 600,
+  /** Höjd/bredd innan bilden är mätt. */
+  imageAspect: 0.75,
+  /** Luft mellan bilden och nodens kant, åt sidorna och nedåt. */
+  imagePad: 8,
+  /** Hörnradie på en nod med bild; en pill hade skurit av bildens hörn. */
+  imageNodeRadius: 10,
+} as const;
+
+/** Bildens mått på skärmen och i exporten, i px vid zoom 1. */
+export function mindmapImageSize(image: NonNullable<MindmapNode['image']>): { width: number; height: number } {
+  const e = MINDMAP_EXTRA_METRICS;
+  const width = Math.round(Math.min(e.maxImageWidth, Math.max(e.minImageWidth, image.width ?? e.imageWidth)));
+  const aspect = Math.min(4, Math.max(0.1, image.aspect ?? e.imageAspect));
+  return { width, height: Math.round(width * aspect) };
+}
+
+export interface MindmapLayoutOptions {
+  /**
+   * Ge plats för ikon, symboler och bild. Mindmap-sidan sätter den;
+   * workspace-kortet visar inte tilläggen och får layouten som förut.
+   */
+  extras?: boolean;
+}
+
 export type MeasureText = (text: string, isRoot: boolean) => number;
 
 export interface LaidOutNode {
@@ -65,6 +104,17 @@ export interface LaidOutNode {
   isRoot: boolean;
   /** Antal gömda noder under en hopfälld nod, annars 0. */
   hiddenCount: number;
+  /*
+   * Nedan: bara med `extras`. Lägena är räknade från nodens övre vänstra hörn.
+   */
+  icon?: MindmapIcon;
+  hasNote?: boolean;
+  link?: string;
+  /** Där radens innehåll börjar (ikonen, annars etiketten). */
+  contentX?: number;
+  /** Höjden på raden med etiketten; resten av noden är bilden. */
+  rowHeight?: number;
+  image?: { x: number; y: number; width: number; height: number };
 }
 
 export interface LaidOutEdge {
@@ -88,18 +138,49 @@ export function layoutMindmap(
   content: MindmapContent,
   measure: MeasureText,
   metrics: MindmapMetrics = MINDMAP_METRICS,
+  options: MindmapLayoutOptions = {},
 ): MindmapLayoutResult {
   const { root } = content;
   const nodes: LaidOutNode[] = [];
   const edges: LaidOutEdge[] = [];
+  const xm = MINDMAP_EXTRA_METRICS;
 
-  const sizeOf = (node: MindmapNode, isRoot: boolean) => {
+  type Extras = Pick<LaidOutNode, 'icon' | 'hasNote' | 'link' | 'contentX' | 'rowHeight' | 'image'>;
+  type Size = { width: number; labelWidth: number; hiddenCount: number; height: number; extras: Extras };
+
+  const sizes = new Map<string, Size>();
+  const sizeOf = (node: MindmapNode, isRoot: boolean): Size => {
+    const cached = sizes.get(node.id);
+    if (cached) return cached;
     const labelWidth = Math.ceil(Math.max(metrics.minLabelWidth, measure(node.label, isRoot) + metrics.slack));
     const pad = isRoot ? metrics.rootPadX : metrics.padX;
     const border = isRoot ? metrics.rootBorder : metrics.border;
     const hiddenCount = node.collapsed && !isRoot ? countDescendants(node) : 0;
-    const width = labelWidth + 2 * pad + 2 * border + (hiddenCount > 0 ? metrics.badgeWidth : 0);
-    return { width, labelWidth, hiddenCount, height: isRoot ? metrics.rootHeight : metrics.nodeHeight };
+    const baseHeight = isRoot ? metrics.rootHeight : metrics.nodeHeight;
+    let width = labelWidth + 2 * pad + 2 * border + (hiddenCount > 0 ? metrics.badgeWidth : 0);
+    let height = baseHeight;
+    const extras: Extras = {};
+
+    if (options.extras) {
+      const markers = (node.note ? 1 : 0) + (node.link ? 1 : 0);
+      const rowWidth = width + (node.icon ? xm.iconWidth : 0) + markers * xm.markerWidth;
+      width = rowWidth;
+      if (node.icon) extras.icon = node.icon;
+      if (node.note) extras.hasNote = true;
+      if (node.link) extras.link = node.link;
+      if (node.image) {
+        const image = mindmapImageSize(node.image);
+        width = Math.max(rowWidth, image.width + 2 * (xm.imagePad + border));
+        height = baseHeight + image.height + xm.imagePad;
+        extras.rowHeight = baseHeight;
+        extras.image = { x: (width - image.width) / 2, y: baseHeight - border, ...image };
+      }
+      extras.contentX = (width - rowWidth) / 2 + border + pad;
+    }
+
+    const size = { width, labelWidth, hiddenCount, height, extras };
+    sizes.set(node.id, size);
+    return size;
   };
 
   const visibleChildren = (node: MindmapNode) => (node.collapsed ? [] : node.children);
@@ -109,7 +190,8 @@ export function layoutMindmap(
     const cached = heights.get(node.id);
     if (cached !== undefined) return cached;
     const kids = visibleChildren(node);
-    const own = metrics.nodeHeight;
+    // En nod med bild är högre än en rad och behöver sin egen höjd.
+    const own = options.extras ? Math.max(metrics.nodeHeight, sizeOf(node, false).height) : metrics.nodeHeight;
     const total = kids.length === 0
       ? own
       : Math.max(own, kids.reduce((sum, kid) => sum + subtreeHeight(kid), 0) + metrics.vGap * (kids.length - 1));
@@ -157,6 +239,7 @@ export function layoutMindmap(
       color: node.color,
       isRoot: false,
       hiddenCount: size.hiddenCount,
+      ...size.extras,
     });
     const edgeX = side === 'right' ? x + size.width : x;
     const childAnchor = side === 'right' ? x + size.width + metrics.hGap : x - metrics.hGap;
@@ -178,6 +261,7 @@ export function layoutMindmap(
     color: root.color,
     isRoot: true,
     hiddenCount: 0,
+    ...rootSize.extras,
   });
 
   const sides = rootChildSides(content);
