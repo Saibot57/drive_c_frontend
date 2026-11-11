@@ -1061,7 +1061,8 @@ PDF.
 
 ### Steg 8: Presentationsläge (FE)
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11 (PR-numret skrivs in när PR:en finns). "Så blev
+  det", avvikelser och kontroller står i detaljplanen.
 
 Detaljplanen står i [`mindmap-presentation.md`](mindmap-presentation.md),
 skriven 2026-11-11. Den delar steget i 8a (visa bara grenen) och 8b

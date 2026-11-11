@@ -1,6 +1,6 @@
 # Mindmap steg 8: visa bara grenen och presentationsläge
 
-Status: Planerad
+Status: Genomförd 2026-11-11
 
 Det här är detaljplanen för steg 8 i [`mindmap-sida.md`](mindmap-sida.md).
 Skyddsreglerna där gäller oförändrade. Steget är det sista för målet och
@@ -108,7 +108,37 @@ workspace-kortet rörs inte alls.
 
 ### 8a. Visa bara grenen
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11
+
+**Så blev det.** Nya filer: `utils/mindmapBranch.ts` (+test, 22 st),
+`hooks/useMindmapBranchView.ts`, `components/mindmap/MindmapBranchBar.tsx`.
+Efter delen: 99 testfiler, 1 574 tester.
+
+- Avvikelse: Delete och Ctrl+X på grenens rot ger ett meddelande i stället
+  för att göra ingenting tyst ("Det är grenens rot. Visa hela kartan (Esc)
+  …"). Alt+Enter på kartans rot säger också varför inget händer.
+- Avvikelse: reglerna för grenens rot (`branchRootAction`), tangenterna
+  (`resolveBranchKey`) och förskjutningen utan sidregler (`offsetBy`)
+  ligger också i `utils/mindmapBranch.ts`, med test, så att `MindmapCanvas`
+  bara anropar dem.
+- Avvikelse: `fontOf`, `readPalette`, `canCopyImage` och `copyOutline`
+  flyttade oförändrade från `MindmapCanvas.tsx` till
+  `components/mindmap/mindmapCanvasIo.ts` (kontrollerat med `diff` mot
+  originalet), eftersom tillägget annars hade gått över planens gräns.
+- Alt+Enter på en nod inne i en gren visar den noden i stället (en gren i
+  grenen); hela kartans vy är ändå den som kommer tillbaka.
+- Släpp på tom yta följer hela kartans regler. I layouten `both` kan en nod
+  därför stanna vid kartans rot fast den i grenvyn släpptes längre bort.
+- Knappen i verktygsraden (`Focus`-ikonen) växlar som Alt+Enter.
+
+### 8a. Kontroller
+
+28 kontroller i Playwright mot mock-API:t, alla gröna: gren till höger och
+till vänster, grenens rot (Delete, Alt+pil, Shift+Tab, mellanslag, Enter),
+nya noder hamnar rätt i hela dokumentet, länken ut ur grenen finns kvar,
+drag till tom yta och ångra, disposition i grenen, Esc och vyn tillbaka,
+vyn i grenen skrivs inte till lagringen och överlever omladdning, gren i
+gren, ångra som tar bort grenens rot, knappen, Kronberg.
 
 1. `utils/mindmapBranch.ts` med test, skrivet först: grenen till höger och
    till vänster, rotens fält rensade, tvärlänkar in och ut, okänd nod och
@@ -125,7 +155,42 @@ och Enter, och stänga med Esc, och hela kartan då står där den stod.
 
 ### 8b. Presentationsläget
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11
+
+**Så blev det.** Nya filer: `utils/mindmapPresent.ts` (+test, 27 st),
+`hooks/useMindmapPresenting.ts`, `components/mindmap/MindmapPresent.tsx`.
+Efter delen: 100 testfiler, 1 601 tester. `MindmapCanvas.tsx` är 1 156
+rader (1 098 före steget).
+
+- Avvikelse: Shift+mellanslag backar, som i ett bildspel.
+- Avvikelse: en räknare nere till vänster ("3 av 12") och en rad med
+  tangenterna. Ett kryss nere till höger avslutar.
+- Nya noder tonas in; lagret flyttas mjukt. Båda stängs av med
+  `prefers-reduced-motion`.
+- Nästa efter att allt är utfällt gör ingenting. Har man hoppat med
+  pilarna och bara tidigare grenar är kvar tas den första av dem.
+- Anteckningar visas inte i presentationen (de kan vara lärarens egna);
+  länksymbolen går att klicka.
+- Alt+P och Alt+Enter gäller när kartan eller en nods textfält har fokus,
+  inte från panelens fält.
+
+### 8b. Kontroller
+
+34 kontroller i Playwright, alla gröna: helskärm på kartans ruta (fungerar
+i Chromium utan fönster), start, räknaren, stegen fram i läsordning och
+tillbaka, PageDown/PageUp/Backspace, Home, syskonhopp, klick, att
+dubbelklick och bokstäver inte redigerar, Esc, fokus tillbaka i kartan,
+**ingen sparning skickas och dokumentet på servern är oförändrat**,
+knappen och krysset, presentation från en gren, Alt+P från nodens
+textfält, Kronberg. Därtill 13 regressionskontroller av sidan: skriva,
+färg, hopfällning, zoom, tvärlänk, anteckning, Esc utan gren, ta bort och
+ångra, PNG och JSON, sparning.
+
+**Inte kontrollerat:** helskärm på en riktig projektor eller andra skärm,
+en presentationsfjärr, Safari och Firefox, och riktig backend. Workspace
+och övriga sidor är inte öppnade i webbläsaren; inga av deras filer är
+ändrade (se `git diff --stat` mot steg 7: bara `docs/plans/` och sidans
+egna filer).
 
 1. `utils/mindmapPresent.ts` med test, skrivet först: nästa och tillbaka
    är varandras motsats, läsordningen är djupet först, syskonhopp, klick,
