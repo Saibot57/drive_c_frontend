@@ -115,8 +115,12 @@ export interface MindmapNode {
   note?: string;
   /** Steg 4. http(s)-URL. */
   link?: string;
-  /** Steg 4. Bilden visas under etiketten, `width` i px på skärmen (förval 160). */
-  image?: { source: MindmapImageSource; width?: number };
+  /**
+   * Steg 4. Bilden visas under etiketten, `width` i px på skärmen (förval 160).
+   * `aspect` är höjd/bredd, mätt en gång när bilden läggs in, så att layouten
+   * vet höjden innan bilden laddats och exporten får samma mått som skärmen.
+   */
+  image?: { source: MindmapImageSource; width?: number; aspect?: number };
   /** Steg 4. */
   icon?: MindmapIcon;
   /** Steg 5. Manuell förskjutning från den automatiska platsen, i px vid zoom 1. */
@@ -152,6 +156,7 @@ export interface MindmapCrossLink {
   to: string;     // nod-id
   label?: string;
   arrow?: 'none' | 'to' | 'both';   // förval 'to'
+  color?: MindmapColor;             // steg 6, t.ex. stöd och invändning
 }
 
 /** Det som sparas i backendens `doc`. */
@@ -448,7 +453,33 @@ annan route importerar. Enda ändringen i befintlig kod är registreringen.
 
 ### Steg 2: Sidan med lista och editor (FE, första synliga steget)
 
-- [ ] Genomfört: –
+- [x] Koden genomförd 2026-11-10 på grenen `claude/stoic-franklin-774m9t`
+  (PR-numret skrivs in när PR:en finns). Slås ihop först när backend (#60)
+  är deployad.
+  - Avvikelse: `services/http.ts` med `readData` (ordagrant
+    `arbetslagService`:s) och `http.test.ts` är skapad, eftersom ingen
+    befintlig uppackare är exporterad och `CLAUDE.md` förbjuder en till
+    kopia. Bara `mindmapService` använder den; noterat under steg 4 i
+    `arkitektur-2026-11.md`.
+  - Avvikelse: namnbyte sker i listans rad (som Arbetslags "Sparade
+    upplägg"), inte i en dialog.
+  - Avvikelse: `mindmap.lastOpen.v1` läses direkt ur localStorage med
+    `sanitizeLastOpen`, inte med `usePersistentState`, eftersom listan
+    hämtas innan den hookens effekt hunnit läsa värdet. Skrivs med samma
+    JSON-form.
+  - Konfliktrutan har "Ladda den sparade versionen" och "Behåll min";
+    "Behåll min" skriver hela dokumentet inklusive namnet.
+  - `changedLabel` är en kopia av Arbetslags (10 rader) i
+    `utils/mindmapDoc.ts`, för att inte importera från en annan feature.
+  - Kontroller: `tsc`, `lint`, `test` (87 filer, 1 325 tester, 28 nya),
+    `build` gröna. Visuellt mot ett mock-API i Playwright: skriva 6 noder
+    med Tab/Enter/pilar, färg med Alt+3, autosparning, byta namn,
+    kopiera, exportmeny, hjälpruta, båda temana, konflikt från en annan
+    flik med "Behåll min", ta bort den öppna kartan. Inga fel i konsolen
+    utöver det väntade 409-svaret.
+  - Inte kontrollerat: mot riktig backend (kräver deploy av #60);
+    regressionslistan i avsnitt 8 i webbläsaren (kortet i Workspace och
+    menyns siffror 1–6). Gör det i PR:ens förhandsvisning.
 
 **Mål.** `/features/mindmap` i menyn (Ctrl+Shift+7). En lista med sparade
 kartor till vänster (hopfällbar), kartan till höger med allt kortet kan i
@@ -498,10 +529,73 @@ som redan används.
 
 ### Steg 3: Zoom, panorering och stor yta (FE)
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11, grenen `claude/mindmap-steg-3` (bygger på steg 2)
+
+**Så blev det.** Nya filer: `utils/mindmapViewport.ts` (+ test, 44 st),
+`hooks/useMindmapViewport.ts` (+ test, 10 st),
+`components/mindmap/MindmapZoom.tsx` och `MindmapMinimap.tsx`. Ändrade:
+`MindmapCanvas.tsx`, `MindmapToolbar.tsx`, `MindmapHelp.tsx`, `mindmap.css`.
+Efter steget: 89 testfiler, 1 379 tester.
+
+- Rullningsytan (`.mm__scroll`, `.mm__stage`) är borta. Kartan ligger i
+  `.mm__layer` inuti `.mm__viewport` (`overflow: clip`). **Rotnodens mitt är
+  lagrets origo**, så roten ligger still när kartan växer och en sparad vy
+  gäller också efter att noder lagts till.
+- Vyn är inte React-state i kartan: hooken sätter lagrets `transform` direkt
+  och zoomnivån och minikartan prenumererar själva. Kartans 300 noder ritas
+  inte om vid panorering.
+- `fitToBounds` förstorar inte över 100 %, så en ny karta med en nod står i
+  mitten i normal storlek. `clampView` håller alltid 48 px av kartan kvar i
+  ytan. När ytan byter storlek (listan fälls ihop) behålls ytans mitt.
+- Den mjuka övergången (180 ms) gäller bara hopp: passa in, centrera,
+  zoomsteg, klick i minikartan och när ytan följer markeringen. Hjul och
+  drag har ingen. `prefers-reduced-motion` stänger av den.
+- När kartan får fokus och roten markeras av det flyttas inte vyn; annars
+  hade ett klick på tom yta för att panorera kastat en tillbaka till roten.
+- Verktygsraden har zooma ut, nivån (klick ger 100 %), zooma in och passa
+  in. Knapparna tar inte fokus, så man kan zooma medan man skriver i en nod.
+  Ctrl+0, Ctrl+., Ctrl++ och Ctrl+- gäller också medan man skriver.
+- Minikartan är högst 168 × 200 px och följer kartans form (en disposition
+  växer nedåt och blir en smal remsa). Den göms under 640 px skärmbredd.
+  Bild och ram uppdateras genom samma strypning (`createFrameThrottle`,
+  100 ms).
+- Meddelanderutan (`.mm__notice`) flyttade till nedre vänstra hörnet;
+  minikartan har det högra.
+- Pekdrag på tom yta panorerar (`touch-action: none` på ytan). Nypzoom med
+  två fingrar på pekskärm finns inte; styrplattans nyp kommer som Ctrl+hjul
+  och fungerar.
+
+**Delad kod (skyddsregel 6).** `renderMindmapCanvas` i
+`utils/mindmap/mindmapDraw.ts` fick en tredje, valfri parameter
+(`{ scale }`) för minikartan. Utan den ritas bilden som förut i skala 2;
+kortets anrop är oförändrat.
+
+**Rättat i steg 2-koden på vägen.** Efter att en nod dragits och släppts på
+en annan svaldes nästa klick på en nod (`suppressClick` nollställdes bara av
+ett klick som aldrig kom). Den nollställs nu vid nästa nedtryckning.
+
+**Kontrollerat 2026-11-11.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium (Playwright) mot ett
+mock-API: karta skriven med Tab och Enter; 300 rader inklistrade (305
+noder); Ctrl+hjul håller noden under pekaren stilla och stannar vid 25 och
+300 %; hjul, vänsterdrag på tom yta och mittknapp på en nod panorerar;
+Ctrl+0, Ctrl+., Ctrl++ och Ctrl+-; klick i minikartan; dra en nod till ny
+förälder vid 50 % och 200 %; PNG-exporten är bit för bit densamma vid 50 %
+och 200 %; 40 pilsteg håller markeringen synlig; textfältet behåller fokus
+och ytan rullar inte; vyn är kvar efter omladdning; Ctrl+hjul utanför
+kartan rör inte kartans zoom. Skärmbilder i Neo och Kronberg.
+
+**Inte kontrollerat.** Riktig backend. Workspace-kortet i webbläsaren
+(dess filer är orörda och dess tester gröna). Att Ctrl+0, Ctrl++ och Ctrl+-
+utanför kartan ger webbläsarens egen zoom och att kartan tål den:
+webbläsarens zoom går inte att styra i huvudlös Chromium. Firefox, Safari
+och Mac (Cmd). Pekskärm. "Kopiera som bild" (samma kod som PNG-exporten
+fram till urklippet).
 
 **Mål.** Kartan har ingen praktisk gräns. Ctrl+hjul zoomar kring pekaren
-(25–300 %), hjul panorerar, dra på tom yta panorerar, Ctrl+0 passar in
+(25–300 %), hjul panorerar, dra på tom yta panorerar, dra med mittknappen
+panorerar också när pekaren står på en nod (täta kartor har lite tom yta),
+Ctrl+0 passar in
 hela kartan, Ctrl+. centrerar på markerad nod, Ctrl++ och Ctrl+- zoomar i
 steg (webbläsarens egen zoom stoppas med `preventDefault` medan kartan har
 fokus; utanför kartan gäller webbläsarens). Den
@@ -544,8 +638,33 @@ test), layouten tar höjd för bilden (`mindmapLayout.ts`: en nod med bild
 får `height += imageHeight + gap`; test), `mindmapDraw` ritar symboler
 och bild, `mindmapOutline` tar med anteckningen.
 
+Tre tillägg efter genomgången 2026-11-10 (avsnitt 12):
+
+- **Kopiera en gren med allt.** Ctrl+C/X lägger grenen som JSON i ett
+  `data-mindmap`-attribut på dispositionens yttersta HTML-element, bredvid
+  listan som redan skrivs. Ctrl+V läser attributet först: grenen tvättas
+  (`sanitizeMindmap` på `{root: gren}`), får nya id med
+  `cloneWithNewIds` (ny ren funktion i `mindmapTree.ts`, test) och läggs
+  in med `note`, `link`, `image`, `icon` och `color` kvar. Saknas
+  attributet gäller dispositionen som förut. Det fungerar mellan kartor
+  och flikar, och Google Docs bryr sig inte om attributet. Utan detta
+  tappar klipp ut och klistra in anteckningar och bilder tyst från och
+  med det här steget. Tvärlänkar följer inte med.
+- **Färg på en hel gren.** En ny nod får förälderns färg när den skapas
+  (bara på sidan: i `MindmapCanvas` efter `addChild`/`addSibling`).
+  Färgmenyn får valet "Hela grenen", som sätter färgen på noden och alla
+  under den (`setColorDeep` i `mindmapTree.ts`, test). Färgen är alltid
+  sparad på noden; inget arv räknas ut vid ritning, så layout, export och
+  kortet behöver inte veta något.
+- **Bildens mått och export.** När en bild läggs in mäts den och
+  `aspect` sparas. `renderMindmapCanvas` får en valfri tredje parameter
+  `images: Map<nodId, CanvasImageSource>`; sidan laddar och avkodar
+  bilderna (`await img.decode()`) innan den anropar, och ritandet förblir
+  synkront. En bild som inte gick att ladda ritas som en tom ram.
+
 **Testa.** Trädfunktionerna, layouthöjden, `parseImageSource`, dispositionen
-med anteckning. Manuellt: en bild från Drive och en från webben; en trasig
+med anteckning, `cloneWithNewIds` (nya id, fälten kvar), `setColorDeep`,
+inklistring med och utan `data-mindmap`. Manuellt: en bild från Drive och en från webben; en trasig
 länk visar "Kunde inte hämta bild" i noden, inte en krasch. Skyddsregel 1:
 kortet visar en karta med anteckningar utan symboler och utan fel.
 
@@ -589,7 +708,10 @@ offset).
 Enter) på en annan nod avslutar. Länken ritas som en streckad kurva med
 pil, kan få en etikett (dubbelklick på kurvan), bytas riktning och tas bort
 (markera kurvan, Delete). Länkar till en hopfälld gren ritas till den
-synliga förfadern. Tas en nod bort försvinner dess länkar.
+synliga förfadern. Tas en nod bort försvinner dess länkar. Med musen:
+Shift+dra från en nod till en annan drar en streckad linje och skapar
+länken vid släpp (vanligt drag flyttar noden som förut). En länk kan få
+en av de sex färgerna, till exempel grön för stöd och rosa för invändning.
 
 **Gör.** `addCrossLink/removeCrossLink/setCrossLinkLabel` i
 `utils/mindmapDoc.ts` med MindMups regler (inte till sig själv, inte
@@ -597,7 +719,17 @@ förälder–barn, högst en per par) och test. Kurvan ritas i samma SVG som
 kanterna, i ett eget lager ovanpå. `mindmapDraw` ritar dem. Dispositionen
 nämner dem i en lista sist ("Länkar: A → B").
 
-**Testa.** Reglerna, borttagning vid `removeNodeFromDoc`, hopfälld gren.
+Ändpunkterna räknas av en enda ren funktion, `crossLinkGeometry(layout,
+doc)` i `utils/mindmapDoc.ts`, som både SVG-lagret och `mindmapDraw`
+använder. Den läser nodernas slutliga rutor ur layouten (efter `offset`
+från steg 5), byter en gömd nod mot närmaste synliga förfader och hoppar
+över en länk vars båda ändar hamnar på samma nod eller på förälder och
+barn. Färgen ritas som en bred linje i markeringsfärgen med en tunn linje
+i `--mm-line` ovanpå: pastellfärgerna syns inte som tunna streck mot
+Kronbergs bakgrund.
+
+**Testa.** Reglerna, borttagning vid `removeNodeFromDoc`, hopfälld gren,
+`crossLinkGeometry` med en flyttad gren och med en gömd ände.
 
 **Klart när** tvärlänkar syns, går att redigera och följer med i PNG:n.
 
@@ -634,6 +766,12 @@ sidans eget format (och läsa in det igen).
   marginal; filnamn med `toFileSlug`. Inget test (DOM).
 - Menyn "Exportera" och "Importera" i verktygsraden. Import skapar alltid
   en ny karta; den öppna skrivs aldrig över.
+- Alt+Shift+C kopierar kartan som bild (finns i menyn sedan steg 2). Inte
+  Ctrl+Shift+C: den öppnar webbläsarens inspektör. Läses med `e.code`.
+- Valet "Genomskinlig bakgrund" i exportmenyn: sidans `readPalette` ger
+  `background: 'transparent'`. `mindmapDraw` behöver inte ändras.
+- PDF: en sida, beslutat 2026-11-10. Bilden ritas i en skala som ger minst
+  150 punkter per tum på sidan, så att en stor karta inte blir suddig.
 
 **Testa.** `.mup`-fixturerna, Markdown, JSON ut och in ger samma dokument.
 
@@ -652,6 +790,17 @@ Mellanslag eller högerpil fäller ut nästa gren i läsordning, vänsterpil
 fäller ihop, pilarna upp/ned går mellan grenar, `Esc` avslutar. Vyn
 zoomar och centrerar mjukt på det som fälls ut. Ändringar i
 presentationsläget sparas inte (hopfällningen är lokal).
+
+**Visa bara grenen.** Alt+Enter på en markerad nod visar den noden som
+rot och gömmer resten; en list överst säger "Visar grenen X. Esc visar
+hela kartan." Det är ett läge i vyn (`viewRootId` i `MindmapCanvas`),
+dokumentet rörs inte, och redigering fungerar som vanligt inuti grenen.
+Presentationsläget startar från den visade grenen. Hör hit och inte till
+steg 3, eftersom båda lägena är "en annan rot och lokal hopfällning", och
+för att bilder, förskjutningar och tvärlänkar då redan finns: tvärlänkar
+ut ur grenen ritas inte, pil vänster från grenens rot stannar, och tas
+grenens rot bort eller flyttas visas hela kartan igen
+(`utils/mindmapPresent.ts`: `subtreeDoc`, `clampToSubtree`, test).
 
 **Gör.** `MindmapPresent.tsx` med egen lokal `collapsed`-uppsättning
 (inte dokumentets), `utils/mindmapPresent.ts` med `nextStep/prevStep`
@@ -681,7 +830,7 @@ Kortets lista (`MINDMAP_SHORTCUTS`) gäller rakt av. Sidan lägger till:
 | Tangent | Vad | Steg |
 |---|---|---|
 | Ctrl+hjul, Ctrl++, Ctrl+- | Zooma | 3 |
-| Hjul, dra på tom yta | Panorera | 3 |
+| Hjul, dra på tom yta, dra med mittknappen | Panorera | 3 |
 | Ctrl+0 | Passa in hela kartan | 3 |
 | Ctrl+. | Centrera på markerad nod | 3 |
 | Alt+N | Anteckning | 4 |
@@ -689,7 +838,9 @@ Kortets lista (`MINDMAP_SHORTCUTS`) gäller rakt av. Sidan lägger till:
 | Alt+I | Bild | 4 |
 | Alt+Shift+1–8 | Ikon (Alt+Shift+9 tar bort) | 4 |
 | Alt+Shift+0 | Nollställ placering på en flyttad nod | 5 |
-| Ctrl+L | Börja tvärlänk | 6 |
+| Ctrl+L, Shift+dra | Börja tvärlänk | 6 |
+| Alt+Shift+C | Kopiera kartan som bild | 7 |
+| Alt+Enter | Visa bara grenen (Esc visar hela) | 8 |
 | F5 | Presentationsläge | 8 |
 | Ctrl+Shift+7 | Gå till Mindmap | 2 |
 
@@ -754,17 +905,34 @@ och efter varje steg som rört en delad fil:
 - **Kortet använder sidans editor.** Bara om kortet behöver något sidan har.
   Då ersätts `MindmapEditor.tsx` med `MindmapCanvas` i ett eget steg med
   egen regressionsrunda.
+- **Redigerbar disposition** (kartan som punktlista bredvid). En andra
+  editor med eget fokus och egna tangenter över samma träd; operationerna
+  finns, men vyn är i storlek med `MindmapCanvas`. Tills dess: Ctrl+C på
+  roten, redigera i ett dokument, klistra in igen.
+- **Ram runt en gren** (XMinds "boundary"). Som `boundaries?: { nodeId,
+  label? }[]` i `MindmapDoc`, inte på noden. Kräver att layouten ger
+  grenen luft för ramen och etiketten, alltså ett valfritt tillägg i den
+  delade layouten; utan det ligger ramen över grannarna.
+- **Avstått:** panorera med mellanslag + dra (mellanslag fäller redan
+  ihop grenen vid nedtryck; mittknappen och hjulet gör jobbet), och
+  färgarv som räknas ut vid ritning (pastellfärgerna bär inte som linjer,
+  och en nod under en färgad gren hade inte kunnat vara ofärgad; se
+  steg 4 för lösningen i data).
 - **Google-konto i appen**, samarbete i realtid, MindMups mått
   ("measurements") och storyboards, flerradiga noder (en nod är en rad;
   anteckningen tar resten).
 
 ## 10. Öppna frågor
 
-Inga som stoppar steg 0–2. Två att svara på innan steg 4 respektive 7:
+Besvarade 2026-11-10:
 
-1. Ikonlistan i 2.1 (åtta stycken) är ett förslag. Vilka vill du ha?
-2. Ska PDF:en vara en sida (hela kartan nedskalad) eller delas på flera
-   sidor vid stora kartor? Planen säger en sida, A4 eller A3.
+1. Ikonlistan i 2.1 behålls: åtta ikoner, Alt+Shift+1–8, Alt+Shift+9 tar
+   bort.
+2. PDF:en är en sida, liggande A4 eller A3. Ingen uppdelning på flera
+   sidor; den klipper mitt i noder och länkar.
+
+En öppen, att svara på före steg 8: `F5` för presentationsläget laddar om
+sidan när kartan inte har fokus. Förslag: Alt+P i stället, med knappen kvar.
 
 ## 11. Arbetsgång för en agent
 
@@ -777,3 +945,20 @@ Inga som stoppar steg 0–2. Två att svara på innan steg 4 respektive 7:
    steget, och uppdatera raden i `docs/plans/README.md`.
 5. Rör du något utanför listan i skyddsregel 2: skriv "Avvikelse" med
    skälet under steget. Rör du inget sådant: skriv inget.
+
+## 12. Genomgången 2026-11-10
+
+Nio förslag ur en jämförelse med XMind, Excalidraw, Coggle, diagrams.net
+och MindMup gicks igenom efter steg 2. Resultatet står där det hör hemma:
+
+| Förslag | Beslut | Var |
+|---|---|---|
+| Färgarv på grenar | Med, men i data: ny nod får förälderns färg, och "Hela grenen" | steg 4 |
+| Visa bara en gren | Med | steg 8 |
+| Redigerbar disposition | Utanför planen | avsnitt 9 |
+| Ram runt en gren | Utanför planen | avsnitt 9 |
+| Kopiera kartan som bild med tangent, genomskinlig bakgrund | Med, Alt+Shift+C | steg 7 |
+| Panorera med mellanslag + dra | Avstått; mittknappen i stället | steg 3 |
+| Tvärlänk med Shift+dra | Med | steg 6 |
+| Färg på tvärlänkar | Med | steg 6 |
+| Kopiera en gren med alla fält | Med, och nödvändigt | steg 4 |

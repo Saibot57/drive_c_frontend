@@ -41,8 +41,20 @@ function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h:
   ctx.closePath();
 }
 
-/** Ritar kartan på en ny canvas. Hopfällda grenar ritas hopfällda, som på skärmen. */
-export function renderMindmapCanvas(content: MindmapContent, palette: MindmapPalette): HTMLCanvasElement {
+export interface MindmapDrawOptions {
+  /** Bildpunkter per enhet i layouten. Utan värde gäller exportens skala. */
+  scale?: number;
+}
+
+/**
+ * Ritar kartan på en ny canvas. Hopfällda grenar ritas hopfällda, som på skärmen.
+ * `options.scale` ger en mindre bild, till Mindmap-sidans minikarta.
+ */
+export function renderMindmapCanvas(
+  content: MindmapContent,
+  palette: MindmapPalette,
+  options: MindmapDrawOptions = {},
+): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas saknas');
@@ -54,9 +66,10 @@ export function renderMindmapCanvas(content: MindmapContent, palette: MindmapPal
   const layout: MindmapLayoutResult = layoutMindmap(content, measure);
   const m = MINDMAP_METRICS;
 
-  canvas.width = layout.width * IMAGE_SCALE;
-  canvas.height = layout.height * IMAGE_SCALE;
-  ctx.scale(IMAGE_SCALE, IMAGE_SCALE);
+  const scale = options.scale ?? IMAGE_SCALE;
+  canvas.width = layout.width * scale;
+  canvas.height = layout.height * scale;
+  ctx.scale(scale, scale);
   ctx.fillStyle = palette.background;
   ctx.fillRect(0, 0, layout.width, layout.height);
 

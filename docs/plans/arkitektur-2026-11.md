@@ -42,6 +42,10 @@ skriver avvikelser under steget och uppdaterar fyndets rad i backend-repots
     flyttar de befintliga routes-filerna dit.
 - [ ] **4. `services/http.ts` med `http.test.ts`** (F14; FE). Flytta
   `termService` och `narvaroService`.
+  - Filen `services/http.ts` finns sedan 2026-11-10 (mindmap-planens
+    steg 2) med `readData`, ordagrant `arbetslagService`:s, och
+    `http.test.ts`; bara `mindmapService` använder den än. Det här steget
+    flyttar de befintliga services dit.
 - [ ] **5. Backendhygien** (F5; BE): ta bort rotskripten och
   `drive_contents.json` enligt rapportens avsnitt 6, spärra
   `requirements.txt`, ta bort `bcrypt`, rätta `ping_connection`.
