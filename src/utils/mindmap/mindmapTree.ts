@@ -105,12 +105,13 @@ function sanitizeNode(raw: Record<string, unknown>, seen: Set<string>, depth: nu
 }
 
 function sanitizeImage(raw: unknown): MindmapNode['image'] | null {
-  const value = raw as { source?: unknown; width?: unknown } | null;
+  const value = raw as { source?: unknown; width?: unknown; aspect?: unknown } | null;
   if (!value || typeof value !== 'object') return null;
   const source = sanitizeImageSource(value.source);
   if (!source) return null;
   const image: NonNullable<MindmapNode['image']> = { source };
   if (isFiniteNumber(value.width) && value.width > 0) image.width = value.width;
+  if (isFiniteNumber(value.aspect) && value.aspect > 0) image.aspect = value.aspect;
   return image;
 }
 
@@ -250,6 +251,64 @@ export function setColor(content: MindmapContent, id: string, color: MindmapColo
     const { color: _color, ...rest } = node;
     return rest;
   }));
+}
+
+/** Sätter eller tar bort (`null`) ett valfritt fält på en nod. */
+function setField<K extends 'note' | 'link' | 'image' | 'icon'>(
+  content: MindmapContent,
+  id: string,
+  key: K,
+  value: MindmapNode[K] | null,
+): MindmapContent {
+  return withRoot(content, updateNode(content.root, id, (node) => {
+    if (value !== null && value !== undefined) return { ...node, [key]: value };
+    if (node[key] === undefined) return node;
+    const rest = { ...node };
+    delete rest[key];
+    return rest;
+  }));
+}
+
+/** Anteckningen bakom noden. Tom text eller `null` tar bort den. */
+export function setNote(content: MindmapContent, id: string, note: string | null): MindmapContent {
+  return setField(content, id, 'note', note ? note.slice(0, MINDMAP_NOTE_MAX_LENGTH) : null);
+}
+
+/** Nodens länk. Anroparen ser till att den börjar med http:// eller https://. */
+export function setLink(content: MindmapContent, id: string, link: string | null): MindmapContent {
+  return setField(content, id, 'link', link || null);
+}
+
+export function setImage(
+  content: MindmapContent,
+  id: string,
+  image: NonNullable<MindmapNode['image']> | null,
+): MindmapContent {
+  return setField(content, id, 'image', image);
+}
+
+export function setIcon(content: MindmapContent, id: string, icon: MindmapIcon | null): MindmapContent {
+  return setField(content, id, 'icon', icon);
+}
+
+/** Sätter färgen på noden och alla under den, också i hopfällda grenar. */
+export function setColorDeep(content: MindmapContent, id: string, color: MindmapColor | null): MindmapContent {
+  const paint = (node: MindmapNode): MindmapNode => {
+    const children = node.children.map(paint);
+    if (color) return { ...node, color, children };
+    const { color: _color, ...rest } = node;
+    return { ...rest, children };
+  };
+  return withRoot(content, updateNode(content.root, id, paint));
+}
+
+/**
+ * En kopia av grenen där varje nod har ett nytt id. Allt annat följer med
+ * (anteckning, länk, bild, ikon, färg), så att en inklistrad gren inte
+ * krockar med den den kopierades från.
+ */
+export function cloneWithNewIds(node: MindmapNode): MindmapNode {
+  return { ...node, id: newNodeId(), children: node.children.map(cloneWithNewIds) };
 }
 
 export function toggleCollapsed(content: MindmapContent, id: string): MindmapContent | null {

@@ -63,4 +63,20 @@ describe('mindmapService', () => {
     expect(fetch.mock.calls[0][0]).toMatch(/\/mindmap\/a%20b$/);
     expect(fetch.mock.calls[0][1].method).toBe('DELETE');
   });
+
+  it('hämtar en bild genom bildproxyn och ger serverns fel när det inte går', async () => {
+    const blob = new Blob(['x'], { type: 'image/png' });
+    const ok = vi.fn().mockResolvedValue({ ok: true, status: 200, blob: async () => blob });
+    vi.stubGlobal('fetch', ok);
+    await expect(mindmapService.fetchImage({ kind: 'gdrive', fileId: 'f1' })).resolves.toBe(blob);
+    const [url, init] = ok.mock.calls[0];
+    expect(String(url)).toMatch(/\/workspace\/image-proxy$/);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ source: { kind: 'gdrive', fileId: 'f1' }, resolution: 'preview' });
+
+    vi.stubGlobal('fetch', respond(404, { success: false, error: 'Bilden finns inte.' }));
+    await expect(mindmapService.fetchImage({ kind: 'url', url: 'https://example.org/a.png' })).rejects.toThrow('Bilden finns inte.');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => { throw new Error('html'); } }));
+    await expect(mindmapService.fetchImage({ kind: 'url', url: 'https://example.org/a.png' })).rejects.toThrow('Kunde inte hämta bild.');
+  });
 });

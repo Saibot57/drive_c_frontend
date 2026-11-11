@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapViewport } from '@/hooks/useMindmapViewport';
-import { renderMindmapCanvas, type MindmapPalette } from '@/utils/mindmap/mindmapDraw';
+import { renderMindmapCanvas, type MindmapDrawOptions, type MindmapPalette } from '@/utils/mindmap/mindmapDraw';
 import {
   createFrameThrottle,
   minimapFrame,
@@ -28,6 +28,8 @@ interface MindmapMinimapProps {
   bounds: MindmapRect;
   /** Färger och typsnitt i det tema som visas. `null` innan kartan är ritad. */
   readPalette: () => MindmapPalette | null;
+  /** Det som ska ritas utöver grundkartan (nodernas bilder). Byts funktionen ritas bilden om. */
+  drawOptions?: () => MindmapDrawOptions;
 }
 
 /**
@@ -35,13 +37,13 @@ interface MindmapMinimapProps {
  * som syns. Klick eller drag flyttar vyn dit. Kartbilden ritas med samma
  * mindmapDraw som exporten, och allt uppdateras genom en strypt bildruta.
  */
-export function MindmapMinimap({ viewport, doc, bounds, readPalette }: MindmapMinimapProps) {
+export function MindmapMinimap({ viewport, doc, bounds, readPalette, drawOptions }: MindmapMinimapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
 
-  const latest = useRef({ doc, bounds, readPalette });
-  latest.current = { doc, bounds, readPalette };
+  const latest = useRef({ doc, bounds, readPalette, drawOptions });
+  latest.current = { doc, bounds, readPalette, drawOptions };
   /** Kartbilden behöver ritas om: kartan eller temat har ändrats. */
   const stale = useRef(true);
   const throttle = useRef<ReturnType<typeof createFrameThrottle> | null>(null);
@@ -52,7 +54,7 @@ export function MindmapMinimap({ viewport, doc, bounds, readPalette }: MindmapMi
       const canvas = canvasRef.current;
       const frame = frameRef.current;
       if (!map || !canvas || !frame) return;
-      const { doc: d, bounds: b, readPalette: read } = latest.current;
+      const { doc: d, bounds: b, readPalette: read, drawOptions: options } = latest.current;
       const scale = minimapScale(b, BOX);
 
       if (stale.current) {
@@ -62,7 +64,10 @@ export function MindmapMinimap({ viewport, doc, bounds, readPalette }: MindmapMi
         map.style.width = `${b.width * scale}px`;
         map.style.height = `${b.height * scale}px`;
         try {
-          const image = renderMindmapCanvas(d, palette, { scale: scale * (window.devicePixelRatio || 1) });
+          const image = renderMindmapCanvas(d, palette, {
+            ...options?.(),
+            scale: scale * (window.devicePixelRatio || 1),
+          });
           canvas.width = image.width;
           canvas.height = image.height;
           canvas.getContext('2d')?.drawImage(image, 0, 0);
@@ -103,7 +108,7 @@ export function MindmapMinimap({ viewport, doc, bounds, readPalette }: MindmapMi
   useEffect(() => {
     stale.current = true;
     throttle.current?.schedule();
-  }, [doc, bounds]);
+  }, [doc, bounds, drawOptions]);
 
   const moveTo = (e: React.PointerEvent, smooth: boolean) => {
     const map = mapRef.current;

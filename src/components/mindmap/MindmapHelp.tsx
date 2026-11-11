@@ -17,6 +17,11 @@ const PAGE_SHORTCUTS: { group: string; items: { keys: string; what: string }[] }
       { keys: 'Ctrl+0', what: 'Passa in hela kartan' },
       { keys: 'Ctrl+.', what: 'Centrera på den markerade noden' },
       { keys: 'Klick i minikartan', what: 'Flytta vyn dit' },
+      { keys: 'Alt+N', what: 'Anteckning på noden (Esc går tillbaka till kartan)' },
+      { keys: 'Alt+L', what: 'Länk på noden' },
+      { keys: 'Alt+I', what: 'Bild i noden' },
+      { keys: 'Alt+Shift+1–8', what: 'Ikon (Alt+Shift+9 tar bort)' },
+      { keys: 'Ctrl+C / X / V', what: 'Grenen följer med hel: anteckning, länk, bild, ikon och färg' },
     ],
   },
 ];

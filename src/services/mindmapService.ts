@@ -1,6 +1,7 @@
 import { fetchWithAuth } from './authService';
 import { readData } from './http';
 import { API_URL } from '@/config/api';
+import type { MindmapImageSource } from '@/types/mindmap';
 import type { MindmapDoc, MindmapMap, MindmapSummary } from '@/types/mindmapDoc';
 import { sanitizeMap, sanitizeSummary } from '@/utils/mindmapDoc';
 
@@ -66,6 +67,24 @@ export const mindmapService = {
       );
     }
     return toMap(await readData(response, 'Kunde inte spara kartan.'), 'Kartan gick inte att läsa.');
+  },
+
+  /**
+   * En nods bild, genom samma bildproxy som Workspace
+   * (`/api/workspace/image-proxy`). Svaret är bilden själv, inte JSON; bara
+   * felen har formen `{ success, error }`. Drive-bilder hämtas i Drives
+   * förhandsstorlek, som räcker gott för en nod.
+   */
+  async fetchImage(source: MindmapImageSource): Promise<Blob> {
+    const response = await fetchWithAuth(`${API_URL}/workspace/image-proxy`, {
+      method: 'POST',
+      body: JSON.stringify({ source, resolution: 'preview' }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.error || 'Kunde inte hämta bild.');
+    }
+    return response.blob();
   },
 
   async remove(id: string): Promise<void> {
