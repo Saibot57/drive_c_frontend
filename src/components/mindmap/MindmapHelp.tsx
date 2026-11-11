@@ -28,6 +28,19 @@ const PAGE_SHORTCUTS: { group: string; items: { keys: string; what: string }[] }
       { keys: 'Alt+Shift+1–8', what: 'Ikon (Alt+Shift+9 tar bort)' },
       { keys: 'Ctrl+C / X / V', what: 'Grenen följer med hel: anteckning, länk, bild, ikon och färg' },
       { keys: 'Alt+Shift+C', what: 'Kopiera kartan som bild' },
+      { keys: 'Alt+Enter', what: 'Visa bara grenen under noden (Esc visar hela kartan)' },
+      { keys: 'Alt+P', what: 'Presentera det som visas, i helskärm' },
+    ],
+  },
+  {
+    group: 'Presentationen',
+    items: [
+      { keys: 'Mellanslag / → / PageDown', what: 'Fäll ut nästa gren' },
+      { keys: '← / Backspace / PageUp', what: 'Ett steg tillbaka' },
+      { keys: '↑ ↓', what: 'Föregående eller nästa gren på samma nivå' },
+      { keys: 'Home', what: 'Från början' },
+      { keys: 'Klick på en nod', what: 'Fäll ut eller ihop den' },
+      { keys: 'Esc', what: 'Avsluta. Ingenting i kartan har ändrats.' },
     ],
   },
 ];

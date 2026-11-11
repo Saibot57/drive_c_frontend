@@ -664,3 +664,150 @@
   font-family: inherit;
   font-size: 0.75rem;
 }
+
+/* "Visa bara grenen": listen uppe till vänster; länkraden har mitten. */
+.mm__branchbar {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.75rem;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.3125rem 0.5rem 0.3125rem 0.625rem;
+  border: var(--sp-border);
+  border-radius: var(--sp-radius-sm);
+  background: var(--ui-mark-yellow);
+  box-shadow: var(--sp-shadow-sm);
+  color: var(--ui-mark-fg);
+  font-size: 0.8125rem;
+}
+
+.mm__branchbar-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm__branchbar-exit {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-paper);
+  color: var(--ui-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mm__branchbar-exit:hover {
+  background: var(--ui-surface-3);
+}
+
+/* ── Presentationsläget ──
+   Täcker kartans ruta, som är i helskärm när webbläsaren tillåter det.
+   Noderna är kartans egna (.mm__node); lagret flyttas och skalas med en
+   mjuk övergång för varje steg. */
+.mm:fullscreen {
+  background: var(--ui-bg);
+}
+
+.mm-present {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background: var(--ui-bg);
+  outline: none;
+  cursor: default;
+}
+
+.mm-present__layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  transition: transform 320ms ease;
+}
+
+.mm-present .mm__node {
+  cursor: pointer;
+  animation: mm-present-in 240ms ease-out;
+}
+
+.mm-present .mm__node--selected {
+  outline: 2px solid var(--mm-select);
+  outline-offset: 2px;
+}
+
+/* Länkarna går inte att markera här. */
+.mm-present .mm__link-hit {
+  pointer-events: none;
+}
+
+@keyframes mm-present-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-present__layer {
+    transition: none;
+  }
+
+  .mm-present .mm__node {
+    animation: none;
+  }
+}
+
+.mm-present__bar {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ui-muted);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.mm-present__progress {
+  font-family: var(--ui-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.mm-present__hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm-present__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-paper);
+  color: var(--ui-ink);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.mm-present__close:hover {
+  background: var(--ui-surface-3);
+}

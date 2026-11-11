@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { MindmapColor, MindmapContent, MindmapIcon, MindmapLayout, MindmapNode } from '@/types/mindmap';
-import { MINDMAP_COLORS, MINDMAP_ICONS } from '@/types/mindmap';
+import { MINDMAP_ICONS } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import {
   addChild,
@@ -39,9 +39,19 @@ import {
   type MeasureText,
 } from '@/utils/mindmap/mindmapLayout';
 import { parseOutlineHtml, parseOutlineText } from '@/utils/mindmap/mindmapOutline';
-import { toOutlineHtml, toOutlineText, type OutlineStyle } from '@/utils/mindmap/mindmapOutline';
 import type { MindmapDrawOptions, MindmapPalette } from '@/utils/mindmap/mindmapDraw';
-import { readBranchData, withBranchData } from '@/utils/mindmapClipboard';
+import {
+  BRANCH_ROOT_REFUSAL,
+  branchDoc,
+  branchRootAction,
+  branchRootId,
+  clampToBranch,
+  isViewRootChild,
+  offsetBy,
+  resolveBranchKey,
+  viewRootOf,
+} from '@/utils/mindmapBranch';
+import { readBranchData } from '@/utils/mindmapClipboard';
 import { crossLinkOutline } from '@/utils/mindmapCrossLinks';
 import { drawCrossLinks } from '@/utils/mindmapCrossLinkDraw';
 import { pruneCrossLinks, removeNodeFromDoc } from '@/utils/mindmapDoc';
@@ -53,13 +63,19 @@ import { useMindmapLinks } from '@/hooks/useMindmapLinks';
 import { useMindmapExport } from '@/hooks/useMindmapExport';
 import { isCopyImageKey } from '@/utils/mindmapFile';
 import { useMindmapViewport } from '@/hooks/useMindmapViewport';
+import { useMindmapBranchView } from '@/hooks/useMindmapBranchView';
+import { useMindmapPresenting } from '@/hooks/useMindmapPresenting';
+import { isPresentKey } from '@/utils/mindmapPresent';
 import { isEditableElement } from '@/utils/dom';
 import { loadDrawSymbols, LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from './mindmapIcons';
+import { canCopyImage, copyOutline, fontOf, readPalette } from './mindmapCanvasIo';
+import { MindmapBranchBar } from './MindmapBranchBar';
 import { MindmapLinkBar } from './MindmapLinkBar';
 import { MindmapLinkLayer } from './MindmapLinkLayer';
 import { MindmapMinimap } from './MindmapMinimap';
 import { MINDMAP_PLACEHOLDER, MindmapNodeView } from './MindmapNodeView';
 import { MindmapNodePanel, type MindmapPanelField } from './MindmapNodePanel';
+import { MindmapPresent } from './MindmapPresent';
 import MindmapToolbar, { type MindmapExportKind, type MindmapMenu } from './MindmapToolbar';
 import { MindmapZoom } from './MindmapZoom';
 
@@ -87,76 +103,6 @@ type Notice = { text: string; tone: 'success' | 'error' };
 
 /** Trädoperationerna sprider dokumentet, så tvärlänkarna följer med; typen vet det inte. */
 const asDoc = (content: MindmapContent): MindmapDoc => content as MindmapDoc;
-
-const fontOf = (style: CSSStyleDeclaration) => `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-
-/**
- * Läser färgerna ur CSS-variablerna på `.mm` och typsnitten ur två mätnoder.
- * Bilden är något som delas med andra och ritas därför i standardutseendet,
- * som kortets export: temat tas bort medan värdena läses och sätts tillbaka
- * direkt, i samma uppgift, så sidan hinner aldrig ritas om utan tema.
- * Minikartan visas på sidan och läser i stället med temat kvar (`keepTheme`).
- */
-function readPalette(
-  container: HTMLElement,
-  probes: { node: HTMLElement; root: HTMLElement },
-  keepTheme = false,
-): MindmapPalette {
-  const html = document.documentElement;
-  const theme = keepTheme ? null : html.getAttribute('data-theme');
-  if (theme !== null) html.removeAttribute('data-theme');
-  try {
-    const style = getComputedStyle(container);
-    const read = (name: string) => style.getPropertyValue(name).trim();
-    return {
-      background: read('--mm-image-bg'),
-      line: read('--mm-line'),
-      text: read('--mm-text'),
-      nodeBg: read('--mm-node-bg'),
-      nodeBorder: read('--mm-node-border'),
-      rootBg: read('--mm-root-bg'),
-      rootBorder: read('--mm-root-border'),
-      badgeBg: read('--mm-badge-bg'),
-      badgeText: read('--mm-badge-text'),
-      colors: Object.fromEntries(MINDMAP_COLORS.map((color) => [color, read(`--mm-c-${color}`)])) as Record<MindmapColor, string>,
-      font: fontOf(getComputedStyle(probes.node)),
-      rootFont: fontOf(getComputedStyle(probes.root)),
-    };
-  } finally {
-    if (theme !== null) html.setAttribute('data-theme', theme);
-  }
-}
-
-const canCopyImage = () =>
-  typeof window !== 'undefined' && typeof ClipboardItem !== 'undefined' && !!navigator.clipboard?.write;
-
-/**
- * Lägger en disposition på urklipp som både HTML och text; Google Docs tar
- * HTML-versionen. Anteckningarna följer med som indrag. Med `withBranch`
- * ligger också grenen själv i HTML:en (mindmapClipboard), så att den kan
- * klistras in i en karta med anteckning, länk, bild, ikon och färg kvar.
- */
-async function copyOutline(
-  node: MindmapDoc['root'],
-  style: OutlineStyle,
-  withBranch = false,
-  /** Läggs sist: hela kartans tvärlänkar (crossLinkOutline). */
-  tail: { text: string; html: string } = { text: '', html: '' },
-): Promise<void> {
-  const outline = toOutlineHtml(node, style, { notes: true }) + tail.html;
-  const html = `<meta charset="utf-8">${withBranch ? withBranchData(outline, node) : outline}`;
-  const text = toOutlineText(node, { notes: true }) + tail.text;
-  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'text/html': new Blob([html], { type: 'text/html' }),
-        'text/plain': new Blob([text], { type: 'text/plain' }),
-      }),
-    ]);
-    return;
-  }
-  await navigator.clipboard.writeText(text);
-}
 
 /*
  * Kartan på Mindmap-sidan, i MindMups anda: två lägen, en markerad nod (nav)
@@ -205,6 +151,17 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   /** Sätts när markeringen kommer av att kartan fick fokus; då ska vyn inte flytta sig. */
   const skipReveal = useRef(false);
   const selectedOnDown = useRef(false);
+
+  /*
+   * "Visa bara grenen": noden som visas som rot, eller `null` för hela
+   * kartan. `shown` är det som ritas; allt som ändrar kartan arbetar på hela
+   * dokumentet (docs/plans/mindmap-presentation.md, del 8a).
+   */
+  const [branchWanted, setBranchWanted] = useState<string | null>(null);
+  const branchId = branchRootId(doc, branchWanted);
+  const branchIdRef = useRef(branchId);
+  branchIdRef.current = branchId;
+  const shown = useMemo(() => branchDoc(doc, branchId), [doc, branchId]);
 
   const [menu, setMenu] = useState<MindmapMenu>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -263,10 +220,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   // Medan en nod dras ritas kartan som om den redan släppts där, så att
   // grenen och kanterna följer pekaren. Dokumentet ändras först vid släppet.
   const layout = useMemo(() => {
-    if (!dragMove) return layoutOf(doc);
+    if (!dragMove) return layoutOf(shown);
     const base = findNode(doc.root, dragMove.id)?.offset ?? { dx: 0, dy: 0 };
-    return layoutOf(setOffset(doc, dragMove.id, { dx: base.dx + dragMove.dx, dy: base.dy + dragMove.dy }));
-  }, [doc, dragMove, layoutOf]);
+    const moved = setOffset(doc, dragMove.id, { dx: base.dx + dragMove.dx, dy: base.dy + dragMove.dy });
+    return layoutOf(branchDoc(asDoc(moved), branchId));
+  }, [doc, shown, branchId, dragMove, layoutOf]);
 
   /* ── Bilder och panel ── */
 
@@ -311,7 +269,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     () => ({ x: -origin.x, y: -origin.y, width: layout.width, height: layout.height }),
     [origin, layout.width, layout.height],
   );
-  const viewport = useMindmapViewport({ mapId, bounds, ready: fonts !== null });
+  // Grenens vy är tillfällig; bara hela kartans sparas.
+  const viewport = useMindmapViewport({ mapId, bounds, ready: fonts !== null, persist: branchId === null });
   const scrollRef = viewport.viewportRef;
 
   /** Nodens ruta i kartans koordinater, eller `null` om den inte syns (hopfälld gren). */
@@ -322,11 +281,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
   /* ── Grundsteg ── */
 
-  const currentId = useCallback((): string => {
-    const id = selectedRef.current;
-    const d = docRef.current;
-    return id && findNode(d.root, id) ? id : d.root.id;
-  }, []);
+  /** Den markerade noden, om den syns; annars roten i det som visas. */
+  const currentId = useCallback(
+    (): string => clampToBranch(docRef.current, branchIdRef.current, selectedRef.current),
+    [],
+  );
 
   const select = useCallback((id: string | null) => {
     selectedRef.current = id;
@@ -381,7 +340,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     return hit && scrollRef.current?.contains(hit) ? hit.dataset.mmId ?? null : null;
   }, [scrollRef]);
 
-  const links = useMindmapLinks({ mapId, doc, docRef, layout, commit, flash, focusMap, currentId, toLayoutPoint, nodeAt });
+  // Länkarna ritas ur det som visas; länkar ut ur en gren finns kvar i dokumentet.
+  const links = useMindmapLinks({ mapId, doc: shown, docRef, layout, commit, flash, focusMap, currentId, toLayoutPoint, nodeAt });
+  const branch = useMindmapBranchView({ mapId, branchId, wanted: branchWanted, setWanted: setBranchWanted, viewport });
+  // Presentationsläget ritas inuti kartans ruta, som går i helskärm (del 8b).
+  const presenting = useMindmapPresenting(rootRef, mapId);
 
   /**
    * Slutar skriva. En tom nod utan barn tas bort: den blev över när man
@@ -397,7 +360,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
     const d = docRef.current;
     const node = findNode(d.root, id);
-    if (node && id !== d.root.id && node.label.trim() === '' && node.children.length === 0) {
+    const top = viewRootOf(d, branchIdRef.current).id;
+    if (node && id !== top && node.label.trim() === '' && node.children.length === 0) {
       const removed = removeNodeFromDoc(d, id);
       if (removed) {
         docRef.current = removed.doc;
@@ -416,9 +380,22 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
   /* ── Handlingar ── */
 
-  const run = useCallback((action: MindmapAction, mode: MindmapMode) => {
+  const run = useCallback((requested: MindmapAction, mode: MindmapMode) => {
     const d = docRef.current;
     const id = currentId();
+    const branchRoot = branchIdRef.current;
+
+    // Grenens rot beter sig som kartans rot (mindmapBranch.branchRootAction).
+    let action = requested;
+    if (branchRoot && id === branchRoot) {
+      const allowed = branchRootAction(requested);
+      if (allowed === 'ignore') return;
+      if (allowed === 'refuse') {
+        flash(BRANCH_ROOT_REFUSAL);
+        return;
+      }
+      action = allowed;
+    }
 
     switch (action.type) {
       // En ny nod får förälderns färg, så att en färgad gren fortsätter i
@@ -447,13 +424,15 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         return;
       }
       case 'outdent': {
-        if (findParent(d.root, id)?.parent.id === d.root.id) return;
+        // Under den visade roten finns ingen nivå att lyfta till.
+        if (isViewRootChild(d, branchRoot, id)) return;
         const next = outdent(d, id);
         if (next) commit(asDoc(setOffset(next, id, null)));
         return;
       }
       case 'navigate': {
-        const target = navigate(d, id, action.direction);
+        // I det som visas: pil mot grenens rot stannar där.
+        const target = navigate(branchDoc(d, branchRoot), id, action.direction);
         if (!target) return;
         if (mode === 'edit') startEdit(target);
         else select(target);
@@ -467,6 +446,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
           const side = sideOf(d, id);
           if (!side) return;
           const outward = side === 'right' ? 'right' : 'left';
+          // Ett barn till grenens rot kan inte lyftas ut ur grenen.
+          if (branchRoot && action.direction !== outward && isViewRootChild(d, branchRoot, id)) return;
           next = action.direction === outward ? indent(d, id) : outdent(d, id);
           if (next) next = setOffset(next, id, null);
         }
@@ -513,9 +494,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         const restored = asDoc(step.snapshot.content);
         docRef.current = restored;
         onChangeRef.current(restored);
-        const target = findNode(restored.root, step.snapshot.selectedId)
-          ? step.snapshot.selectedId
-          : restored.root.id;
+        // Markeringen hålls inom det som visas efter steget.
+        const target = clampToBranch(restored, branchRoot, step.snapshot.selectedId);
         if (mode === 'edit') {
           editingRef.current = target;
           setEditingId(target);
@@ -548,12 +528,14 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const keyContext = useCallback((id: string) => {
     const d = docRef.current;
     const node = findNode(d.root, id);
+    // Räknat från roten i det som visas: grenens rot är "roten" i en gren.
+    const top = viewRootOf(d, branchIdRef.current).id;
     return {
-      isRoot: id === d.root.id,
-      parentIsRoot: findParent(d.root, id)?.parent.id === d.root.id,
+      isRoot: id === top,
+      parentIsRoot: findParent(d.root, id)?.parent.id === top,
       labelEmpty: (node?.label ?? '') === '',
       hasChildren: (node?.children.length ?? 0) > 0,
-      hasPreviousSibling: indent(d, id) !== null,
+      hasPreviousSibling: id !== top && indent(d, id) !== null,
     };
   }, []);
 
@@ -604,6 +586,32 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     return true;
   };
 
+  /**
+   * Visar den markerade noden som rot, eller hela kartan igen om det är den
+   * som redan visas. På kartans rot finns inget att visa.
+   */
+  const toggleBranch = () => {
+    const id = editingRef.current ?? currentId();
+    if (editingRef.current) finishEdit();
+    focusMap();
+    const d = docRef.current;
+    // Noden kan ha tagits bort när skrivandet slutade (en tom nod).
+    if (!findNode(d.root, id)) return;
+    if (id === branchIdRef.current) branch.exit();
+    else if (id === d.root.id) flash('Roten visar redan hela kartan. Markera en gren först.');
+    else {
+      select(id);
+      branch.enter(id);
+    }
+  };
+
+  /** Startar presentationen. Direkt i händelsen: helskärm kräver en användarhandling. */
+  const startPresenting = () => {
+    if (editingRef.current) finishEdit();
+    setMenu(null);
+    presenting.start();
+  };
+
   const handleMapKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Alt+Shift+C kopierar kartan som bild, också medan man skriver. Före
     // resolveMindmapKey, och direkt i händelsen: Safari kräver det för urklipp.
@@ -623,6 +631,24 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         focusMap();
       }
       setMenu(null);
+      return;
+    }
+    // Alt+P presenterar det som visas, också från nodens textfält.
+    if (isPresentKey(e.nativeEvent) && (editingRef.current || !isEditableElement(e.target))) {
+      e.preventDefault();
+      e.stopPropagation();
+      startPresenting();
+      return;
+    }
+    // Alt+Enter visar bara grenen (också från nodens textfält); Esc visar hela kartan.
+    const branchKey = resolveBranchKey(e.nativeEvent, branchIdRef.current !== null);
+    const inField = !editingRef.current && isEditableElement(e.target);
+    if (branchKey && !inField && (branchKey === 'toggle' || !editingRef.current)) {
+      e.preventDefault();
+      e.stopPropagation();
+      setMenu(null);
+      if (branchKey === 'exit') branch.exit();
+      else toggleBranch();
       return;
     }
     if (editingRef.current || isEditableElement(e.target)) return;
@@ -695,7 +721,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       links.beginDrag(e, id);
       return;
     }
-    if (editingRef.current === id || id === docRef.current.root.id) return;
+    // Roten i det som visas står still.
+    if (editingRef.current === id || id === viewRootOf(docRef.current, branchIdRef.current).id) return;
 
     const start = { x: e.clientX, y: e.clientY };
     let active = false;
@@ -734,9 +761,12 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       if (ev.type === 'pointercancel') return;
       // På en annan nod: grenen blir dess barn och står på sin automatiska
       // plats där. På tom yta: noden stannar där den släpptes.
+      // I en gren kan noden vara gömd i hela kartan (en förfader är hopfälld);
+      // då kan placeNode inte räkna, och förskjutningen läggs på direkt.
       const next = target
         ? moveNode(setOffset(docRef.current, id, null), id, target)
-        : placeNode(docRef.current, id, moved, layoutOf);
+        : placeNode(docRef.current, id, moved, layoutOf)
+          ?? (branchIdRef.current ? offsetBy(docRef.current, id, moved) : null);
       if (next) {
         commit(asDoc(next));
         select(id);
@@ -832,8 +862,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
   /* ── Export ── */
 
+  // Det som visas exporteras: i en gren gäller bild, PDF och Markdown grenen.
+  // JSON är en säkerhetskopia och är alltid hela kartan.
   const exporter = useMindmapExport({
-    getDoc: () => docRef.current,
+    getDoc: () => branchDoc(docRef.current, branchIdRef.current),
+    getFileDoc: () => docRef.current,
     title,
     readPalette: () => {
       const container = rootRef.current;
@@ -847,7 +880,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   });
 
   const handleExport = (kind: MindmapExportKind) => {
-    const d = docRef.current;
+    const d = branchDoc(docRef.current, branchIdRef.current);
     if (kind === 'list' || kind === 'headings') {
       copyOutline(d.root, kind, false, crossLinkOutline(d))
         .then(() => flash(kind === 'list'
@@ -876,7 +909,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       images: images.forDraw(),
       overlay: (ctx, drawn) => {
         const palette = readMinimapPalette();
-        if (palette) drawCrossLinks(ctx, drawn, docRef.current, palette);
+        if (palette) drawCrossLinks(ctx, drawn, branchDoc(docRef.current, branchIdRef.current), palette);
       },
     }),
     [images, readMinimapPalette],
@@ -936,6 +969,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         transparent={exporter.transparent}
         onTransparent={exporter.setTransparent}
         onImport={onImport}
+        branchActive={branchId !== null}
+        onToggleBranch={toggleBranch}
+        onPresent={startPresenting}
         zoom={<MindmapZoom viewport={viewport} />}
         status={status}
       />
@@ -954,7 +990,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
               // Roten markeras, men vyn står kvar: den som klickar på tom yta
               // för att panorera ska inte kastas tillbaka till roten.
               skipReveal.current = true;
-              select(docRef.current.root.id);
+              select(viewRootOf(docRef.current, branchIdRef.current).id);
             }
           }}
           onPointerDown={handleViewportPointerDown}
@@ -1027,11 +1063,21 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
         <MindmapMinimap
           viewport={viewport}
-          doc={doc}
+          doc={shown}
           bounds={bounds}
           readPalette={readMinimapPalette}
           drawOptions={minimapDrawOptions}
         />
+
+        {branchId && (
+          <MindmapBranchBar
+            label={findNode(doc.root, branchId)?.label ?? ''}
+            onExit={() => {
+              branch.exit();
+              focusMap();
+            }}
+          />
+        )}
 
         {links.selected && (
           <MindmapLinkBar
@@ -1079,6 +1125,18 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         />
       )}
       </div>
+
+      {presenting.active && (
+        <MindmapPresent
+          doc={shown}
+          layoutOf={layoutOf}
+          images={images}
+          onClose={() => {
+            presenting.stop();
+            focusMap();
+          }}
+        />
+      )}
 
       {/* Symbolerna som SVG, till bildexporten (loadDrawSymbols). */}
       <div ref={symbolsRef} hidden aria-hidden="true">
