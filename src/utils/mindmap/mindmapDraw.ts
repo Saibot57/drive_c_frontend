@@ -78,6 +78,11 @@ export interface MindmapDrawOptions {
    */
   images?: Map<string, CanvasImageSource>;
   symbols?: MindmapDrawSymbols;
+  /**
+   * Ritar mer ovanpå kartan, i layoutens koordinater: Mindmap-sidans
+   * tvärlänkar. Anropas sist, med samma layout som noderna ritats efter.
+   */
+  overlay?: (ctx: CanvasRenderingContext2D, layout: MindmapLayoutResult) => void;
 }
 
 /**
@@ -175,6 +180,7 @@ export function renderMindmapCanvas(
       }
     }
   });
+  options.overlay?.(ctx, layout);
   return canvas;
 }
 

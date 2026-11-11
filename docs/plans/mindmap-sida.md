@@ -823,7 +823,66 @@ offset).
 
 ### Steg 6: Tvärlänkar (FE)
 
-- [ ] Genomfört: –
+- [x] Genomfört: 2026-11-11, grenen `claude/mindmap-steg-3` (omstartad från
+  main efter #270)
+
+**Så blev det.** Nya filer: `utils/mindmapCrossLinks.ts` (formerna,
+dispositionen, tangenten; + test, 23 st, som också prövar reglerna),
+`utils/mindmapCrossLinkDraw.ts`, `hooks/useMindmapLinks.ts`,
+`components/mindmap/MindmapLinkLayer.tsx` och `MindmapLinkBar.tsx`. Efter
+steget: 94 testfiler, 1 467 tester.
+
+- Ctrl+L på en markerad nod (också medan man skriver i den) börjar en länk.
+  En text nere till vänster säger vad som väntas. Klick på en nod, eller
+  pilar och Enter, avslutar; Esc avbryter. Andra tangenter sväljs i det
+  läget, så att ett tecken inte skriver över noden.
+- Shift+dra från en nod drar en streckad linje och gör länken vid släpp på
+  en annan nod. Släpp på tom yta gör ingenting. Också roten kan vara ände.
+- En ny länk är markerad direkt. Då visas en rad över kartan med etikett,
+  pil (en, båda, ingen), byt riktning, de sex färgerna och ta bort.
+  Dubbelklick på kurvan sätter fokus i etikettfältet; Enter eller F2 gör
+  detsamma, Delete tar bort, Esc avmarkerar.
+- En otillåten länk ger ett meddelande som säger reglerna.
+- `commit` i `MindmapCanvas` kör `pruneCrossLinks`: en flytt som gör två
+  länkade noder till förälder och barn tar bort länken, i samma ångra-steg.
+- Kurvan böjer åt sidan så att den inte ligger på trädets kanter. Sidan
+  beror på nodernas id, så en vänd länk ligger kvar.
+- "Kopiera som punktlista" och "rubriker" får "Länkar:" sist. Ctrl+C på en
+  gren tar inte med tvärlänkar.
+
+**Delad kod (skyddsregel 6).** `renderMindmapCanvas` fick det valfria
+`options.overlay(ctx, layout)`, som anropas sist. Sidan ritar tvärlänkarna
+genom det; den delade filen vet inget om dem. Kortets anrop är oförändrat.
+
+**Avvikelser från texten ovan.**
+
+- `crossLinkGeometry` ligger i `utils/mindmapCrossLinks.ts`, inte i
+  `mindmapDoc.ts`, tillsammans med det andra som rör formen. Reglerna och
+  operationerna ligger i `mindmapDoc.ts` som planen säger, och där finns
+  också `setCrossLinkArrow`, `reverseCrossLink` och `setCrossLinkColor`.
+- `mindmapDraw` ritar inte länkarna själv utan genom `overlay`, så att den
+  delade filen slipper känna till sidans dokumenttyp.
+- Etiketten redigeras i raden över kartan, inte på kurvan.
+- `MindmapCrossLink` har fått `color`, som avsnitt 2.2 beskriver;
+  `sanitizeMindmapDoc` läser den och klipper etiketten vid 80 tecken.
+
+**Kontrollerat 2026-11-11.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium mot mock-API:t: Ctrl+L
+med klick och med pilar och Enter, ett tecken i länkläget skriver inte över
+noden, en otillåten länk ger meddelandet, Esc avbryter, Shift+dra (noden
+flyttas inte), etikett och färg, byt riktning och pil åt båda håll, ångra,
+dubbelklick på kurvan, Delete på en markerad länk (noderna kvar), hopfälld
+gren (länken ritas till förfadern), kurvan följer en nod som dras, länken
+försvinner med noden, PNG-exporten med kurva, pil, färg och etikett,
+dispositionen med "Länkar:", allt kvar efter omladdning. Skärmbilder i Neo
+och Kronberg.
+
+**Inte kontrollerat.** Riktig backend. Workspace-kortet i webbläsaren. Mac
+(Cmd+L). Pekskärm, där Shift+dra inte finns; Ctrl+L kräver tangentbord.
+
+**Kvar att tänka på.** `MindmapCanvas.tsx` är 1 094 rader trots att
+länkarnas läge ligger i en egen hook. Kurvorna ligger ovanpå noderna och
+kan gå över en nod som står mellan ändarna; i en tät karta syns det.
 
 **Mål.** `Ctrl+L` på en markerad nod startar en länk; klick (eller pilar +
 Enter) på en annan nod avslutar. Länken ritas som en streckad kurva med

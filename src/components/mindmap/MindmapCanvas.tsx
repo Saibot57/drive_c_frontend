@@ -42,15 +42,20 @@ import { parseOutlineHtml, parseOutlineText } from '@/utils/mindmap/mindmapOutli
 import { toOutlineHtml, toOutlineText, type OutlineStyle } from '@/utils/mindmap/mindmapOutline';
 import { canvasToPng, renderMindmapCanvas, type MindmapDrawOptions, type MindmapPalette } from '@/utils/mindmap/mindmapDraw';
 import { readBranchData, withBranchData } from '@/utils/mindmapClipboard';
-import { removeNodeFromDoc } from '@/utils/mindmapDoc';
+import { crossLinkOutline } from '@/utils/mindmapCrossLinks';
+import { drawCrossLinks } from '@/utils/mindmapCrossLinkDraw';
+import { pruneCrossLinks, removeNodeFromDoc } from '@/utils/mindmapDoc';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
 import { placeNode } from '@/utils/mindmapPlacement';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
-import { panBy, resolveViewportKey, type MindmapRect } from '@/utils/mindmapViewport';
+import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
+import { useMindmapLinks } from '@/hooks/useMindmapLinks';
 import { useMindmapViewport } from '@/hooks/useMindmapViewport';
 import { downloadBlob, toFileSlug } from '@/utils/download';
 import { isEditableElement } from '@/utils/dom';
 import { loadDrawSymbols, LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from './mindmapIcons';
+import { MindmapLinkBar } from './MindmapLinkBar';
+import { MindmapLinkLayer } from './MindmapLinkLayer';
 import { MindmapMinimap } from './MindmapMinimap';
 import { MINDMAP_PLACEHOLDER, MindmapNodeView } from './MindmapNodeView';
 import { MindmapNodePanel, type MindmapPanelField } from './MindmapNodePanel';
@@ -128,10 +133,16 @@ const canCopyImage = () =>
  * ligger också grenen själv i HTML:en (mindmapClipboard), så att den kan
  * klistras in i en karta med anteckning, länk, bild, ikon och färg kvar.
  */
-async function copyOutline(node: MindmapDoc['root'], style: OutlineStyle, withBranch = false): Promise<void> {
-  const outline = toOutlineHtml(node, style, { notes: true });
+async function copyOutline(
+  node: MindmapDoc['root'],
+  style: OutlineStyle,
+  withBranch = false,
+  /** Läggs sist: hela kartans tvärlänkar (crossLinkOutline). */
+  tail: { text: string; html: string } = { text: '', html: '' },
+): Promise<void> {
+  const outline = toOutlineHtml(node, style, { notes: true }) + tail.html;
   const html = `<meta charset="utf-8">${withBranch ? withBranchData(outline, node) : outline}`;
-  const text = toOutlineText(node, { notes: true });
+  const text = toOutlineText(node, { notes: true }) + tail.text;
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
     await navigator.clipboard.write([
       new ClipboardItem({
@@ -329,8 +340,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
       { content: docRef.current, selectedId: currentId() },
       historyKey,
     );
-    docRef.current = next;
-    onChangeRef.current(next);
+    // En flytt kan göra två länkade noder till förälder och barn; den
+    // länken är då inte längre tillåten.
+    const pruned = pruneCrossLinks(next);
+    docRef.current = pruned;
+    onChangeRef.current(pruned);
   }, [currentId]);
 
   const flash = useCallback((text: string, tone: Notice['tone'] = 'success') => {
@@ -350,6 +364,21 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     select(null);
     setMenu(null);
   }, [mapId, select]);
+
+  /* ── Tvärlänkar ── */
+
+  const toLayoutPoint = useCallback((clientX: number, clientY: number) => {
+    const box = scrollRef.current?.getBoundingClientRect();
+    const world = toWorld(viewport.getView(), { x: clientX - (box?.left ?? 0), y: clientY - (box?.top ?? 0) });
+    return { x: world.x + origin.x, y: world.y + origin.y };
+  }, [origin, scrollRef, viewport]);
+
+  const nodeAt = useCallback((clientX: number, clientY: number): string | null => {
+    const hit = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-mm-id]');
+    return hit && scrollRef.current?.contains(hit) ? hit.dataset.mmId ?? null : null;
+  }, [scrollRef]);
+
+  const links = useMindmapLinks({ mapId, doc, docRef, layout, commit, flash, focusMap, currentId, toLayoutPoint, nodeAt });
 
   /**
    * Slutar skriva. En tom nod utan barn tas bort: den blev över när man
@@ -574,6 +603,15 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
   const handleMapKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (handleViewKey(e) || handleExtraKey(e)) return;
+    // Ctrl+L från ett textfält: skrivandet avslutas, länken börjar från noden.
+    if (links.handleKey(e)) {
+      if (editingRef.current) {
+        finishEdit();
+        focusMap();
+      }
+      setMenu(null);
+      return;
+    }
     if (editingRef.current || isEditableElement(e.target)) return;
     const action = resolveMindmapKey(e.nativeEvent, 'nav', keyContext(currentId()));
     if (!action) return;
@@ -638,6 +676,12 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
     // markerar roten, och då hade första klicket på roten börjat redigera.
     selectedOnDown.current = selectedRef.current === id && document.activeElement === scrollRef.current;
     setMenu(null);
+    // Shift+dra drar en tvärlänk i stället för att flytta noden.
+    if (e.shiftKey && editingRef.current !== id) {
+      suppressClick.current = true;
+      links.beginDrag(e, id);
+      return;
+    }
     if (editingRef.current === id || id === docRef.current.root.id) return;
 
     const start = { x: e.clientX, y: e.clientY };
@@ -699,6 +743,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     setMenu(null);
     if (e.button !== 0 && e.button !== 1) return;
+    // Ett klick på tom yta avmarkerar en tvärlänk.
+    if (e.button === 0) links.select(null);
     let last = { x: e.clientX, y: e.clientY };
     const pointerId = e.pointerId;
 
@@ -728,6 +774,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
       return;
     }
     if (editingRef.current === id) return;
+    // En påbörjad tvärlänk (Ctrl+L) avslutas på noden man klickar på.
+    if (links.linkFrom) {
+      selectedOnDown.current = false;
+      if (links.finish(id)) select(id);
+      return;
+    }
+    links.select(null);
     // Ett klick på den markerade noden börjar skriva i den, som i MindMup.
     const alreadySelected = selectedOnDown.current;
     selectedOnDown.current = false;
@@ -769,7 +822,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
   const handleExport = (kind: MindmapExportKind) => {
     const d = docRef.current;
     if (kind === 'list' || kind === 'headings') {
-      copyOutline(d.root, kind)
+      copyOutline(d.root, kind, false, crossLinkOutline(d))
         .then(() => flash(kind === 'list'
           ? 'Kopierad som punktlista. Klistra in i dokumentet.'
           : 'Kopierad som rubriker och punkter. Klistra in i dokumentet.'))
@@ -787,7 +840,12 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
       .then(async () => {
         const palette = readPalette(container, { node, root });
         const symbols = symbolsRef.current ? await loadDrawSymbols(symbolsRef.current, palette.text) : undefined;
-        return canvasToPng(renderMindmapCanvas(d, palette, { extras: true, images: images.forDraw(), symbols }));
+        return canvasToPng(renderMindmapCanvas(d, palette, {
+          extras: true,
+          images: images.forDraw(),
+          symbols,
+          overlay: (ctx, drawn) => drawCrossLinks(ctx, drawn, d, palette),
+        }));
       });
 
     if (kind === 'image') {
@@ -812,8 +870,15 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
 
   /** Minikartan ritar samma former som skärmen, med bilderna men utan symboler. */
   const minimapDrawOptions = useCallback(
-    (): MindmapDrawOptions => ({ extras: true, images: images.forDraw() }),
-    [images],
+    (): MindmapDrawOptions => ({
+      extras: true,
+      images: images.forDraw(),
+      overlay: (ctx, drawn) => {
+        const palette = readMinimapPalette();
+        if (palette) drawCrossLinks(ctx, drawn, docRef.current, palette);
+      },
+    }),
+    [images, readMinimapPalette],
   );
 
   /** En ändring från panelen på den markerade noden. `historyKey` slår ihop tangenttryck till ett ångra-steg. */
@@ -909,6 +974,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
                 <MindmapNodeView
                   key={node.id}
                   node={node}
+                  linking={links.linkFrom === node.id}
                   selected={selectedId === node.id}
                   editing={editingId === node.id}
                   dragged={dragId === node.id}
@@ -938,6 +1004,19 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
                   }}
                 />
               ))}
+
+              <MindmapLinkLayer
+                width={layout.width}
+                height={layout.height}
+                shapes={links.shapes}
+                selectedId={links.selected?.id ?? null}
+                draft={links.draft}
+                onSelect={(id) => {
+                  links.select(id);
+                  focusMap();
+                }}
+                onEditLabel={links.editLabel}
+              />
             </div>
           </div>
         </div>
@@ -950,9 +1029,28 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status }: M
           drawOptions={minimapDrawOptions}
         />
 
-        {notice && (
+        {links.selected && (
+          <MindmapLinkBar
+            link={links.selected}
+            fromLabel={findNode(doc.root, links.selected.from)?.label ?? ''}
+            toLabel={findNode(doc.root, links.selected.to)?.label ?? ''}
+            focusTick={links.labelFocusTick}
+            onLabel={links.setLabel}
+            onArrow={links.setArrow}
+            onReverse={links.reverse}
+            onColor={links.setColor}
+            onRemove={links.remove}
+            onReturn={focusMap}
+          />
+        )}
+
+        {notice ? (
           <div className={`mm__notice mm__notice--${notice.tone}`} role="status">
             {notice.text}
+          </div>
+        ) : links.linkFrom && !links.draft && (
+          <div className="mm__notice" role="status">
+            Välj noden som länken ska gå till: klicka på den, eller gå dit med pilarna och tryck Enter. Esc avbryter.
           </div>
         )}
       </div>

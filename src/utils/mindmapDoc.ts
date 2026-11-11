@@ -1,6 +1,7 @@
 import type { MindmapCrossLink, MindmapDoc, MindmapMap, MindmapSummary } from '@/types/mindmapDoc';
-import { MAX_MINDMAP_NAME_LENGTH } from '@/types/mindmapDoc';
-import { defaultMindmap, findNode, findParent, removeNode, sanitizeMindmap } from '@/utils/mindmap/mindmapTree';
+import { MAX_CROSS_LINK_LABEL_LENGTH, MAX_MINDMAP_NAME_LENGTH } from '@/types/mindmapDoc';
+import { MINDMAP_COLORS, type MindmapColor } from '@/types/mindmap';
+import { defaultMindmap, findNode, findParent, newNodeId, removeNode, sanitizeMindmap } from '@/utils/mindmap/mindmapTree';
 
 /*
  * Mindmap-sidans dokument: tvätt av det som läses från servern, och det som
@@ -55,7 +56,10 @@ export function sanitizeMindmapDoc(raw: unknown): MindmapDoc {
     while (seen.has(id)) id = `${id}-${seen.size + 1}`;
     seen.add(id);
     const clean: MindmapCrossLink = { id, from: link.from, to: link.to };
-    if (typeof link.label === 'string' && link.label) clean.label = link.label;
+    if (typeof link.label === 'string' && link.label) clean.label = link.label.slice(0, MAX_CROSS_LINK_LABEL_LENGTH);
+    if (typeof link.color === 'string' && (MINDMAP_COLORS as string[]).includes(link.color)) {
+      clean.color = link.color as MindmapColor;
+    }
     if (typeof link.arrow === 'string' && (ARROWS as readonly string[]).includes(link.arrow) && link.arrow !== 'to') {
       clean.arrow = link.arrow as MindmapCrossLink['arrow'];
     }
@@ -63,6 +67,65 @@ export function sanitizeMindmapDoc(raw: unknown): MindmapDoc {
   });
   const doc: MindmapDoc = links.length ? { ...content, crossLinks: links } : content;
   return pruneCrossLinks(doc);
+}
+
+/* ── Tvärlänkar ── */
+
+/** En ny tvärlänk mellan två noder, eller `null` när reglerna inte tillåter den. */
+export function addCrossLink(doc: MindmapDoc, from: string, to: string): { doc: MindmapDoc; id: string } | null {
+  if (!crossLinkAllowed(doc, from, to)) return null;
+  const id = newNodeId();
+  return { doc: { ...doc, crossLinks: [...(doc.crossLinks ?? []), { id, from, to }] }, id };
+}
+
+/** Byter ut en tvärlänk. Samma dokument om länken inte finns. */
+function updateCrossLink(
+  doc: MindmapDoc,
+  id: string,
+  update: (link: MindmapCrossLink) => MindmapCrossLink,
+): MindmapDoc {
+  const links = doc.crossLinks ?? [];
+  if (!links.some((link) => link.id === id)) return doc;
+  return { ...doc, crossLinks: links.map((link) => (link.id === id ? update(link) : link)) };
+}
+
+/** Tar bort en tvärlänk. Fältet försvinner med den sista. */
+export function removeCrossLink(doc: MindmapDoc, id: string): MindmapDoc {
+  const links = doc.crossLinks ?? [];
+  const kept = links.filter((link) => link.id !== id);
+  if (kept.length === links.length) return doc;
+  if (kept.length > 0) return { ...doc, crossLinks: kept };
+  const { crossLinks: _crossLinks, ...rest } = doc;
+  return rest;
+}
+
+/** Länkens etikett. En tom text tar bort den. */
+export function setCrossLinkLabel(doc: MindmapDoc, id: string, label: string): MindmapDoc {
+  return updateCrossLink(doc, id, (link) => {
+    const { label: _label, ...rest } = link;
+    const text = label.slice(0, MAX_CROSS_LINK_LABEL_LENGTH);
+    return text.trim() ? { ...rest, label: text } : rest;
+  });
+}
+
+/** Var pilen sitter. `to` är förvalet och sparas inte. */
+export function setCrossLinkArrow(doc: MindmapDoc, id: string, arrow: NonNullable<MindmapCrossLink['arrow']>): MindmapDoc {
+  return updateCrossLink(doc, id, (link) => {
+    const { arrow: _arrow, ...rest } = link;
+    return arrow === 'to' ? rest : { ...rest, arrow };
+  });
+}
+
+/** Vänder länken: den går från den nod den gick till. */
+export function reverseCrossLink(doc: MindmapDoc, id: string): MindmapDoc {
+  return updateCrossLink(doc, id, (link) => ({ ...link, from: link.to, to: link.from }));
+}
+
+export function setCrossLinkColor(doc: MindmapDoc, id: string, color: MindmapColor | null): MindmapDoc {
+  return updateCrossLink(doc, id, (link) => {
+    const { color: _color, ...rest } = link;
+    return color ? { ...rest, color } : rest;
+  });
 }
 
 /**
