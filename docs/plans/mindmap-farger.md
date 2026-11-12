@@ -262,7 +262,7 @@ Huvudplanens regler gäller. Här betyder de:
 
 ### A. Modell och ritning
 
-Byggd 2026-11-12 på grenen `claude/mindmap-farger`.
+Byggd 2026-11-12 (#278).
 
 - [x] 1. Typerna och tvätten (2.1).
 - [x] 2. `mindmapPaint.ts` med test (avsnitt 5).
@@ -307,7 +307,7 @@ när en nod färgas med Alt+1–6.
 
 ### B. Färgmenyn
 
-Byggd 2026-11-12 på grenen `claude/mindmap-farger`.
+Byggd 2026-11-12 (#278).
 
 - [x] 1. Utkast till paletten, visat för Tobias och godkänt.
 - [x] 2. `MindmapColorMenu.tsx`, palett, egen färg, senaste, "Hela grenen" med
