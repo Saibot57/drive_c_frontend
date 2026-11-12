@@ -30,6 +30,8 @@ const PAGE_SHORTCUTS: { group: string; items: { keys: string; what: string }[] }
       { keys: 'Alt+L', what: 'Länk på noden' },
       { keys: 'Alt+I', what: 'Bild i noden' },
       { keys: 'Alt+Shift+1–8', what: 'Ikon (Alt+Shift+9 tar bort)' },
+      { keys: 'Färgmenyn', what: 'Fler färger, egen färg och nyanser nedåt: noderna under en färgad nod blir ljusare, längst ned bara en kant' },
+      { keys: 'Alt+0 i en färgad gren', what: 'Noden och grenen under den blir ofärgade' },
       { keys: 'Ctrl+C / X / V', what: 'Grenen följer med hel: anteckning, länk, bild, ikon och färg' },
       { keys: 'Alt+Shift+C', what: 'Kopiera kartan som bild' },
       { keys: 'Alt+Enter', what: 'Visa bara grenen under noden (Esc visar hela kartan)' },

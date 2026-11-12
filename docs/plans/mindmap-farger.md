@@ -307,12 +307,39 @@ när en nod färgas med Alt+1–6.
 
 ### B. Färgmenyn
 
-1. Utkast till paletten, visat för Tobias.
-2. `MindmapColorMenu.tsx`, palett, egen färg, senaste, "Hela grenen" med
+Byggd 2026-11-12 på grenen `claude/mindmap-farger`.
+
+- [x] 1. Utkast till paletten, visat för Tobias och godkänt.
+- [x] 2. `MindmapColorMenu.tsx`, palett, egen färg, senaste, "Hela grenen" med
    `setBranchPaint`, "Nyanser nedåt".
-3. Hjälprutan (`MindmapHelp.tsx`) och kortkommandolistan om något ändrats
-   (det gör det inte enligt beslut 4).
-4. Kontroller och visuell kontroll.
+- [x] 3. Hjälprutan (`MindmapHelp.tsx`): två rader om färgmenyn och Alt+0.
+   Kortkommandolistan är oförändrad (beslut 4).
+- [x] 4. Kontroller och visuell kontroll.
+
+**Avvikelser i B:**
+
+- De senaste egna färgerna (`useRecentColors`) ägs av `MindmapToolbar`
+  och inte av menyn. Menyn stängs i samma klick som färgen sätts, och
+  `useRecentColors` sparar i en uppdaterare som aldrig körs för en
+  komponent som just tagits bort; i menyn sparades färgen därför inte.
+- Egen färg sätts när färgväljaren stängs (`change`), inte för varje
+  rörelse i den, så att den blir ett ångra-steg.
+- Nyanserna byts utan att menyn stängs, så att man ser skillnaden.
+- Tre små rena funktioner tillkom i `mindmapPaint.ts` med test:
+  `paintChoiceOf`, `isPaintChoice` och `sanitizeRecentColors`.
+  `MindmapCanvas.tsx` växte med 8 rader till (1 258).
+
+**Kontrollerat i B** (Chromium mot mock-API, båda temana): "Fler färger"
+fäller ut paletten och minns det; Röd ur paletten på en gren ger vit text
+och nyanser; en egen färg (`#0f766e`) genom färgväljaren sparas på noden
+och syns under "Senaste" med markering; "Mjuka" sätts för kartan och syns
+markerad; paletten och de senaste visas dämpade i Kronberg. `pnpm exec tsc
+--noEmit`, `pnpm lint`, `pnpm test` (106 filer, 1 693 tester) och `pnpm
+build` gröna.
+
+**Inte kontrollerat i B:** "Hela grenen" klickad i webbläsaren (logiken
+har test; menyn skickar bara flaggan vidare), och den riktiga
+färgväljaren i Chrome, Safari och Firefox (provet satte värdet med skript).
 
 ### C. `.mup`-importen
 
@@ -328,7 +355,9 @@ när en nod färgas med Alt+1–6.
 
 1. **Nyanser i en importerad `.mup`-karta.** Besvarad 2026-11-12: "Av",
    eftersom MindMup sparar färgen per nod och kartan ska se ut som där.
-2. **Paletten.** Utkastet visas i B1.
+2. **Paletten.** Utkastet godkändes 2026-11-12: tolv kulörer (röd,
+   orange, bärnsten, lime, grön, turkos, cyan, blå, indigo, lila, hallon,
+   brun) i en stark och en ljus rad. Ingen grå; den finns bland de sex.
 
 ## 5. Tester
 

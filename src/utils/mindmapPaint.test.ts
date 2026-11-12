@@ -6,6 +6,10 @@ import { defaultMindmapDoc, sanitizeMindmapDoc } from './mindmapDoc';
 import {
   colorForNewNode,
   inheritsColor,
+  isPaintChoice,
+  paintChoiceOf,
+  sanitizeRecentColors,
+  setShading,
   mixOklab,
   paintThemeOf,
   parsePercent,
@@ -256,5 +260,29 @@ describe('tvätten', () => {
     expect(sanitizeMindmapDoc({ ...base, shading: 'mycket' }).shading).toBeUndefined();
     expect('shading' in sanitizeMindmapDoc(base)).toBe(false);
     expect(defaultMindmapDoc().shading).toBe('short');
+  });
+});
+
+describe('menyns hjälpfunktioner', () => {
+  it('ger nodens sparade färg som val och jämför val', () => {
+    expect(paintChoiceOf(n('a', [], { customColor: '#aabbcc', color: 'blue' }))).toEqual({ customColor: '#aabbcc' });
+    expect(paintChoiceOf(n('a', [], { color: 'blue' }))).toEqual({ color: 'blue' });
+    expect(paintChoiceOf(n('a', [], { colorNone: true }))).toBeNull();
+    expect(paintChoiceOf(null)).toBeNull();
+    expect(isPaintChoice({ customColor: '#aabbcc' }, { customColor: '#AABBCC' })).toBe(true);
+    expect(isPaintChoice({ color: 'blue' }, { customColor: '#8fd0ff' })).toBe(false);
+    expect(isPaintChoice({ color: 'blue' }, { color: 'blue' })).toBe(true);
+    expect(isPaintChoice(null, { color: 'blue' })).toBe(false);
+  });
+
+  it('tvättar de senaste färgerna', () => {
+    expect(sanitizeRecentColors(['#AABBCC', '#aabbcc', 'röd', 3, '#123', '#112233'])).toEqual(['#aabbcc', '#112233']);
+  });
+
+  it('sätter nyanserna utan att röra trädet', () => {
+    const d = chain();
+    const next = setShading(d, 'soft');
+    expect(next.shading).toBe('soft');
+    expect(next.root).toBe(d.root);
   });
 });

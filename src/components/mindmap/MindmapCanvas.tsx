@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { MindmapColor, MindmapContent, MindmapIcon, MindmapLayout, MindmapNode } from '@/types/mindmap';
+import type { MindmapContent, MindmapIcon, MindmapLayout, MindmapNode } from '@/types/mindmap';
 import { MINDMAP_ICONS } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import {
@@ -59,7 +59,15 @@ import { readBranchData } from '@/utils/mindmapClipboard';
 import { crossLinkOutline } from '@/utils/mindmapCrossLinks';
 import { drawCrossLinks } from '@/utils/mindmapCrossLinkDraw';
 import { pruneCrossLinks, removeNodeFromDoc } from '@/utils/mindmapDoc';
-import { colorForNewNode, paintThemeOf, resolveMindmapPaint, setBranchPaint, setNodePaint } from '@/utils/mindmapPaint';
+import {
+  colorForNewNode,
+  paintChoiceOf,
+  paintThemeOf,
+  resolveMindmapPaint,
+  setBranchPaint,
+  setNodePaint,
+  setShading,
+} from '@/utils/mindmapPaint';
 import { useMindmapPaint } from '@/hooks/useMindmapPaint';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
 import { placeNode } from '@/utils/mindmapPlacement';
@@ -1026,15 +1034,15 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         onMenu={setMenu}
         onAddChild={() => toolbarAction({ type: 'addChild' })}
         onToggleCollapse={() => toolbarAction({ type: 'toggleCollapse' })}
-        onColor={(color: MindmapColor | null, wholeBranch: boolean) => {
-          if (!wholeBranch) {
-            toolbarAction({ type: 'color', color });
-            return;
-          }
+        onColor={(choice, wholeBranch) => {
           setMenu(null);
-          commit(setBranchPaint(docRef.current, currentId(), color ? { color } : null));
+          const d = docRef.current;
+          commit(wholeBranch ? setBranchPaint(d, currentId(), choice) : setNodePaint(d, currentId(), choice));
           focusMap();
         }}
+        currentColor={paintChoiceOf(panelNode)}
+        shading={doc.shading ?? 'off'}
+        onShading={(next) => commit(setShading(docRef.current, next))}
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((open) => !open)}
         canResetLayout={hasOffsets(doc)}

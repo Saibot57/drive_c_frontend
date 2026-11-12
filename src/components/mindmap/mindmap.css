@@ -471,6 +471,105 @@
 .mm__swatch--grey { background: var(--mm-c-grey); }
 .mm__swatch--none { background: var(--mm-node-bg); }
 
+/* Egna färger och paletten (docs/plans/mindmap-farger.md, del B). Rutan
+   visar färgen som noden får: i Kronberg dämpad som schemats kurser. */
+.mm__swatch--custom { background: var(--mm-swatch); }
+:root[data-theme="kronberg"] .mm__swatch--custom {
+  background: color-mix(in oklab, var(--mm-swatch) var(--ui-course-mix), var(--ui-course-base));
+}
+.mm__swatch--recent { border-style: dashed; }
+.mm__swatch[aria-pressed="true"] {
+  outline: 2px solid var(--mm-select);
+  outline-offset: 1px;
+}
+
+.mm__color-menu {
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 2rem));
+}
+
+.mm__color-more {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: none;
+  border-top: 1px solid var(--ui-line);
+  background: none;
+  color: var(--mm-text);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.mm__color-more:hover { background: var(--sp-menu-hover); }
+
+.mm__color-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-bottom: 0.5rem;
+}
+
+.mm__swatches--grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1.375rem);
+  padding-block: 0.125rem;
+}
+
+.mm__color-recent {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem 0;
+}
+
+.mm__color-caption {
+  color: var(--mm-faint);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.mm__color-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.25rem 0.5rem 0;
+  color: var(--mm-text);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.mm__color-pick:focus-within { outline: 2px solid var(--mm-select); outline-offset: 2px; }
+
+.mm__color-shading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-top: 1px solid var(--ui-line);
+}
+
+.mm__segmented {
+  display: flex;
+  border: 1px solid var(--mm-node-border);
+  border-radius: var(--sp-radius-sm);
+  overflow: hidden;
+}
+.mm__segmented button {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: var(--mm-node-bg);
+  color: var(--mm-text);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.mm__segmented button + button { border-left: 1px solid var(--mm-node-border); }
+.mm__segmented button:hover { background: var(--sp-menu-hover); }
+.mm__segmented button[aria-pressed="true"] {
+  background: var(--mm-root-bg);
+  font-weight: 600;
+}
+
 .mm__menu {
   display: flex;
   flex-direction: column;

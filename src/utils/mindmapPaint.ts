@@ -266,6 +266,29 @@ export function colorForNewNode(doc: MindmapDoc, parentId: string): MindmapPaint
   return null;
 }
 
+/** Nodens sparade färg som ett val, för att visa den i menyn; `null` utan. */
+export function paintChoiceOf(node: MindmapNode | null | undefined): MindmapPaintChoice | null {
+  if (node?.customColor) return { customColor: node.customColor };
+  if (node?.color) return { color: node.color };
+  return null;
+}
+
+/** Sant om valet är nodens sparade färg. Egna färger jämförs utan hänsyn till versaler. */
+export function isPaintChoice(current: MindmapPaintChoice | null, choice: MindmapPaintChoice): boolean {
+  if (!current) return false;
+  if ('color' in choice) return 'color' in current && current.color === choice.color;
+  return 'customColor' in current && current.customColor.toLowerCase() === choice.customColor.toLowerCase();
+}
+
+/** De senaste egna färgerna ur lagringen: bara `#rrggbb`, med gemener, utan dubbletter. */
+export function sanitizeRecentColors(raw: readonly unknown[]): string[] {
+  const seen = new Set<string>();
+  raw.forEach((value) => {
+    if (typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)) seen.add(value.toLowerCase());
+  });
+  return Array.from(seen);
+}
+
 /** Sätter nyanserna för kartan. */
 export function setShading(doc: MindmapDoc, shading: MindmapShading): MindmapDoc {
   return { ...doc, shading };
