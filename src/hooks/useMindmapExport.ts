@@ -11,7 +11,7 @@ import {
   type MindmapPalette,
 } from '@/utils/mindmap/mindmapDraw';
 import { layoutMindmap, MINDMAP_METRICS, MINDMAP_WRAP } from '@/utils/mindmap/mindmapLayout';
-import { drawRoutedEdges, placeRootInLayout } from '@/utils/mindmapRouting';
+import { drawRoutedEdges, finishMindmapLayout } from '@/utils/mindmapRouting';
 import { drawCrossLinks } from '@/utils/mindmapCrossLinkDraw';
 import { downloadBlob } from '@/utils/download';
 import { mindmapExportName, toMindmapFile } from '@/utils/mindmapFile';
@@ -72,7 +72,7 @@ export function useMindmapExport(deps: MindmapExportDeps) {
       images: images(),
       symbols,
       paint,
-      transform: (laid) => placeRootInLayout(laid, doc),
+      transform: (laid) => finishMindmapLayout(laid, doc),
       edges: (ctx, drawn) => drawRoutedEdges(ctx, drawn, doc),
       overlay: (ctx, drawn) => drawCrossLinks(ctx, drawn, doc, palette),
     });
@@ -102,7 +102,7 @@ export function useMindmapExport(deps: MindmapExportDeps) {
           // Layoutens mått med samma mätning som ritningen, för att välja sida och skala.
           const ctx = document.createElement('canvas').getContext('2d');
           if (!ctx) throw new Error('Canvas saknas');
-          const measured = placeRootInLayout(layoutMindmap(doc, (text, isRoot) => {
+          const measured = finishMindmapLayout(layoutMindmap(doc, (text, isRoot) => {
             ctx.font = isRoot ? palette.rootFont : palette.font;
             return ctx.measureText(text).width;
           }, MINDMAP_METRICS, { extras: true, wrap: MINDMAP_WRAP }), doc);

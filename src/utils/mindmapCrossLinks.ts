@@ -2,6 +2,15 @@ import type { MindmapNode } from '@/types/mindmap';
 import type { MindmapCrossLink, MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import { findNode, labelOneLine } from '@/utils/mindmap/mindmapTree';
+import { crossLinkPointsAbsolute, nearestSidesVia } from '@/utils/mindmapRouting';
+import {
+  anchorPointOut,
+  routeEdge,
+  routeEnds,
+  routeMidpoint,
+  routeToSvg,
+  type EdgeRoute,
+} from '@/utils/mindmapEdges';
 
 /*
  * Tvärlänkarnas form: var kurvan börjar och slutar, hur den böjer och var
@@ -30,6 +39,11 @@ export interface CrossLinkShape {
   middle: CrossLinkPoint;
   /** En triangel per pil. */
   heads: CrossLinkPoint[][];
+  /**
+   * Länkens väg när den har en form (del C i mindmap-placering.md). Saknas
+   * den är länken den böjda kurvan genom `control`.
+   */
+  route?: EdgeRoute;
 }
 
 /** Luft mellan nodens kant och kurvans ände. */
@@ -110,6 +124,44 @@ export function crossLinkGeometry(layout: MindmapLayoutResult, doc: MindmapDoc):
     const to = layout.byId.get(toId);
     if (!from || !to) return;
 
+    const arrow = link.arrow ?? 'to';
+    // Med brytpunkter går den böjda kurvan över i en kurva genom dem.
+    const linkShape = link.shape ?? (link.points ? 'curve' : undefined);
+    if (linkShape) {
+      // En form: samma linjer som grenarna, från de fästen som valts eller
+      // de sidor som vetter mot varandra.
+      const points = link.points ? crossLinkPointsAbsolute(from, to, link.points) : undefined;
+      const auto = nearestSidesVia(from, to, points);
+      const fromSide = link.fromAnchor ?? auto.from;
+      const toSide = link.toAnchor ?? auto.to;
+      const route = routeEdge({
+        start: anchorPointOut(from, fromSide, GAP),
+        startSide: fromSide,
+        end: anchorPointOut(to, toSide, GAP),
+        endSide: toSide,
+        shape: linkShape,
+        // Mitt emellan de noder som ritas; en gömd ände ersätts av sin förfader.
+        points,
+      });
+      const ends = routeEnds(route);
+      const routeHeads: CrossLinkPoint[][] = [];
+      if (arrow !== 'none') routeHeads.push(arrowHead(ends.end, ends.endFrom));
+      if (arrow === 'both') routeHeads.push(arrowHead(ends.start, ends.startFrom));
+      shapes.push({
+        id: link.id,
+        link,
+        fromId,
+        toId,
+        start: ends.start,
+        control: routeMidpoint(route),
+        end: ends.end,
+        middle: routeMidpoint(route),
+        heads: routeHeads,
+        route,
+      });
+      return;
+    }
+
     const a = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
     const b = { x: to.x + to.width / 2, y: to.y + to.height / 2 };
     const dx = b.x - a.x;
@@ -120,9 +172,9 @@ export function crossLinkGeometry(layout: MindmapLayoutResult, doc: MindmapDoc):
     // beror på nodernas id och inte på riktningen: en vänd länk ligger kvar.
     const bend = Math.min(70, Math.max(18, distance * 0.18)) * (fromId < toId ? 1 : -1);
     const control = { x: (a.x + b.x) / 2 - (dy / distance) * bend, y: (a.y + b.y) / 2 + (dx / distance) * bend };
-    const start = edgePoint(from, control);
-    const end = edgePoint(to, control);
-    const arrow = link.arrow ?? 'to';
+    // Ett valt fäste vid en ände flyttar dit; kurvan böjer som förut.
+    const start = link.fromAnchor ? anchorPointOut(from, link.fromAnchor, GAP) : edgePoint(from, control);
+    const end = link.toAnchor ? anchorPointOut(to, link.toAnchor, GAP) : edgePoint(to, control);
     const heads: CrossLinkPoint[][] = [];
     if (arrow !== 'none') heads.push(arrowHead(end, control));
     if (arrow === 'both') heads.push(arrowHead(start, control));
@@ -147,7 +199,9 @@ export function crossLinkGeometry(layout: MindmapLayoutResult, doc: MindmapDoc):
 
 /** Kurvan som SVG-väg. */
 export const crossLinkPath = (shape: CrossLinkShape): string =>
-  `M ${shape.start.x} ${shape.start.y} Q ${shape.control.x} ${shape.control.y} ${shape.end.x} ${shape.end.y}`;
+  shape.route
+    ? routeToSvg(shape.route)
+    : `M ${shape.start.x} ${shape.start.y} Q ${shape.control.x} ${shape.control.y} ${shape.end.x} ${shape.end.y}`;
 
 export const crossLinkHeadPoints = (head: CrossLinkPoint[]): string =>
   head.map((point) => `${point.x},${point.y}`).join(' ');

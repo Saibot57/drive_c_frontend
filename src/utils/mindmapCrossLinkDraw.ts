@@ -2,6 +2,7 @@ import type { MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapPalette } from '@/utils/mindmap/mindmapDraw';
 import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import { crossLinkGeometry } from '@/utils/mindmapCrossLinks';
+import { traceRoute } from '@/utils/mindmapEdges';
 
 /*
  * Ritar tvärlänkarna på bildexportens Canvas, med samma former som
@@ -23,6 +24,10 @@ export function drawCrossLinks(
   shapes.forEach((shape) => {
     const curve = () => {
       ctx.beginPath();
+      if (shape.route) {
+        traceRoute(ctx, shape.route);
+        return;
+      }
       ctx.moveTo(shape.start.x, shape.start.y);
       ctx.quadraticCurveTo(shape.control.x, shape.control.y, shape.end.x, shape.end.y);
     };

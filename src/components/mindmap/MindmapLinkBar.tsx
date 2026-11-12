@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { ArrowLeftRight, MoveHorizontal, MoveRight, Minus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MINDMAP_COLORS, MINDMAP_COLOR_LABELS, type MindmapColor } from '@/types/mindmap';
+import { MINDMAP_COLORS, MINDMAP_COLOR_LABELS, type MindmapAnchor, type MindmapColor, type MindmapEdgeShape } from '@/types/mindmap';
+import { AddPointButton, AnchorSelect, ShapeButtons } from './MindmapEdgeBar';
 import { MAX_CROSS_LINK_LABEL_LENGTH, type MindmapCrossLink } from '@/types/mindmapDoc';
 
 interface MindmapLinkBarProps {
@@ -17,6 +18,13 @@ interface MindmapLinkBarProps {
   onArrow: (arrow: NonNullable<MindmapCrossLink['arrow']>) => void;
   onReverse: () => void;
   onColor: (color: MindmapColor | null) => void;
+  /** Form och fästen (del C i docs/plans/mindmap-placering.md). */
+  onShape: (shape: MindmapEdgeShape | null) => void;
+  onAnchor: (end: 'from' | 'to', side: MindmapAnchor | null) => void;
+  /** Brytpunkter (del D). */
+  pointCount?: number;
+  onAddPoint?: () => void;
+  onClearPoints?: () => void;
   onRemove: () => void;
   /** Esc eller Enter i etikettfältet: tillbaka till kartan. */
   onReturn: () => void;
@@ -30,7 +38,7 @@ const ARROWS: { arrow: NonNullable<MindmapCrossLink['arrow']>; label: string; Ic
 
 /**
  * Raden som visas över kartan när en tvärlänk är markerad: etikett, pil,
- * riktning, färg och ta bort. Delete på tangentbordet tar också bort länken.
+ * riktning, form och fästen, färg och ta bort. Delete på tangentbordet tar också bort länken.
  */
 export function MindmapLinkBar({
   link,
@@ -41,6 +49,11 @@ export function MindmapLinkBar({
   onArrow,
   onReverse,
   onColor,
+  onShape,
+  onAnchor,
+  pointCount = 0,
+  onAddPoint,
+  onClearPoints,
   onRemove,
   onReturn,
 }: MindmapLinkBarProps) {
@@ -96,6 +109,15 @@ export function MindmapLinkBar({
           <X size={11} />
         </button>
       </span>
+      <ShapeButtons value={link.shape} noneLabel="Böjd" onChange={onShape} />
+      <AnchorSelect label="Start" value={link.fromAnchor} autoLabel="Auto" onChange={(side) => onAnchor('from', side)} />
+      <AnchorSelect label="Fäste" value={link.toAnchor} autoLabel="Auto" onChange={(side) => onAnchor('to', side)} />
+      {onAddPoint && <AddPointButton onClick={onAddPoint} />}
+      {onClearPoints && pointCount > 0 && (
+        <Button size="sm" variant="neutral" className="sp-btn h-7 px-2 text-xs" title="Ta bort länkens brytpunkter" onClick={onClearPoints}>
+          Rensa punkter
+        </Button>
+      )}
       <Button size="sm" variant="neutral" className={tool} title="Ta bort länken (Delete)" aria-label="Ta bort länken" onClick={onRemove}>
         <Trash2 size={14} />
       </Button>

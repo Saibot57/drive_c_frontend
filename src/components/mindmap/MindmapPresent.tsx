@@ -7,7 +7,6 @@ import type { MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapImages } from '@/hooks/useMindmapImages';
 import type { MindmapNodePaint } from '@/utils/mindmap/mindmapDraw';
 import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
-import { routeToSvg } from '@/utils/mindmapEdges';
 import { routeEdges } from '@/utils/mindmapRouting';
 import { crossLinkGeometry } from '@/utils/mindmapCrossLinks';
 import {
@@ -23,6 +22,7 @@ import {
   resolvePresentKey,
   type PresentState,
 } from '@/utils/mindmapPresent';
+import { MindmapEdgeLayer } from './MindmapEdgeLayer';
 import { MindmapLinkLayer } from './MindmapLinkLayer';
 import { MindmapNodeView } from './MindmapNodeView';
 
@@ -115,11 +115,7 @@ export function MindmapPresent({ doc, paints, layoutOf, images, onClose }: Mindm
           visibility: size.width > 0 ? 'visible' : 'hidden',
         }}
       >
-        <svg className="mm__edges" width={layout.width} height={layout.height} aria-hidden="true">
-          {routes.map((edge) => (
-            <path key={`${edge.fromId}-${edge.toId}`} d={routeToSvg(edge.route)} className="mm__edge" />
-          ))}
-        </svg>
+        <MindmapEdgeLayer width={layout.width} height={layout.height} routes={routes} />
 
         {layout.nodes.map((node) => (
           <MindmapNodeView

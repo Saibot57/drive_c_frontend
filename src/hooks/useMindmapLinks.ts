@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MindmapColor } from '@/types/mindmap';
+import type { MindmapAnchor, MindmapColor, MindmapEdgeShape } from '@/types/mindmap';
 import type { MindmapCrossLink, MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import { findNode } from '@/utils/mindmap/mindmapTree';
@@ -15,8 +15,10 @@ import {
   addCrossLink,
   removeCrossLink,
   reverseCrossLink,
+  setCrossLinkAnchor,
   setCrossLinkArrow,
   setCrossLinkColor,
+  setCrossLinkShape,
   setCrossLinkLabel,
 } from '@/utils/mindmapDoc';
 import { isEditableElement } from '@/utils/dom';
@@ -71,6 +73,8 @@ export interface MindmapLinks {
   setLabel: (label: string) => void;
   setArrow: (arrow: NonNullable<MindmapCrossLink['arrow']>) => void;
   setColor: (color: MindmapColor | null) => void;
+  setShape: (shape: MindmapEdgeShape | null) => void;
+  setAnchor: (end: 'from' | 'to', side: MindmapAnchor | null) => void;
   reverse: () => void;
   remove: () => void;
 }
@@ -255,6 +259,8 @@ export function useMindmapLinks({
     setLabel: (label) => change((d, id) => setCrossLinkLabel(d, id, label), 'link-label'),
     setArrow: (arrow) => change((d, id) => setCrossLinkArrow(d, id, arrow)),
     setColor: (color) => change((d, id) => setCrossLinkColor(d, id, color)),
+    setShape: (shape) => change((d, id) => setCrossLinkShape(d, id, shape)),
+    setAnchor: (end, side) => change((d, id) => setCrossLinkAnchor(d, id, end, side)),
     reverse: () => change((d, id) => reverseCrossLink(d, id)),
     remove,
   };
