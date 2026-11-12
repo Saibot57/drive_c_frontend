@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STAMPS, emptySession, setPersonNote } from '@/utils/narvaro';
+import { DEFAULT_STAMPS, emptySession, parsePasted, setPersonNote } from '@/utils/narvaro';
 import {
   byFirstName,
+  groupsForDate,
+  groupsOptions,
   isMobileMode,
   mobileSections,
   pickActiveStamp,
@@ -111,5 +113,75 @@ describe('pushUndo', () => {
   it('glömmer steg från andra pass', () => {
     const stack = pushUndo([entry('a', 'x'), entry('a', 'y')], entry('b', 'z'));
     expect(stack).toEqual([entry('b', 'z')]);
+  });
+});
+
+describe('grupper samma dag', () => {
+  const sess = '2026-11-02|Måndag|B';
+  const store = {
+    '2026-11-02|Måndag|C#Grund+Rosa': { groups: [['A', 'B'], ['C']] },
+    '2026-11-02|Måndag|B#Rosa': { groups: [['D']] },
+    '2026-11-02|Måndag|dag#Rosa': { groups: [['E']] },
+    '2026-11-02|Måndag|D#Rosa': { groups: [[]] },
+    '2026-11-02|Måndag|E#Borttagen': { groups: [['F']] },
+    '2026-11-03|Tisdag|B#Rosa': { groups: [['G']] },
+  };
+
+  it('hittar dagens pass med grupper, oavsett pass och klasser', () => {
+    const found = groupsForDate(store, sess, ['Grund', 'Rosa']);
+    expect(found.map(f => f.key)).toEqual([
+      '2026-11-02|Måndag|B#Rosa',
+      '2026-11-02|Måndag|C#Grund+Rosa',
+      '2026-11-02|Måndag|dag#Rosa',
+    ]);
+    expect(found[1]).toEqual({
+      key: '2026-11-02|Måndag|C#Grund+Rosa', sessKey: '2026-11-02|Måndag|C', which: 'C', classes: ['Grund', 'Rosa'], count: 3,
+    });
+  });
+
+  it('hoppar över tomma grupper och klasser som inte finns', () => {
+    const keys = groupsForDate(store, sess, ['Grund', 'Rosa']).map(f => f.key);
+    expect(keys).not.toContain('2026-11-02|Måndag|D#Rosa');
+    expect(keys).not.toContain('2026-11-02|Måndag|E#Borttagen');
+  });
+
+  it('sorterar kolumner efter längd, så att AA kommer efter Z', () => {
+    const wide = { [`${sess.slice(0, -1)}AA#Rosa`]: { groups: [['A']] }, [`${sess.slice(0, -1)}Z#Rosa`]: { groups: [['B']] } };
+    expect(groupsForDate(wide, sess, ['Rosa']).map(f => f.which)).toEqual(['Z', 'AA']);
+  });
+});
+
+describe('val av grupper i mobilen', () => {
+  const sheet = (name: string) => parsePasted([
+    '\tMåndag\t\tTisdag',
+    '\t8.30-9.45\t10.00-11.45\t8.30-9.45',
+    'TORA VEGA',
+    `${name}\tTRUE\tTRUE\tTRUE`,
+  ].join('\n'), '')!;
+  const sheets = { Rosa: sheet('Ali'), Grund: sheet('Nils') };
+  const sess = '2026-11-02|Måndag|B';
+  const store = {
+    '2026-11-02|Måndag|B#Rosa': { groups: [['Ali']] },
+    '2026-11-02|Måndag|C#Grund+Rosa': { groups: [['Ali'], ['Nils']] },
+    '2026-11-02|Måndag|dag#Grund': { groups: [['Nils']] },
+  };
+
+  it('ger passets tid och klasser, och vilket pass ett tryck byter till', () => {
+    const opts = groupsOptions(store, sess, '2026-11-02|Måndag|B#Rosa', sheets, {});
+    expect(opts).toEqual([
+      { key: '2026-11-02|Måndag|C#Grund+Rosa', label: '10.00-11.45 · Grund + Rosa', count: 2, classes: ['Grund', 'Rosa'], pass: 'c2' },
+      { key: '2026-11-02|Måndag|dag#Grund', label: 'Hela dagen · Grund', count: 1, classes: ['Grund'], pass: 'day' },
+    ]);
+  });
+
+  it('använder passets egna namn', () => {
+    const names = { '2026-11-02|Måndag|C': { Grund: 'Svenska', Rosa: 'Svenska' } };
+    const opts = groupsOptions(store, sess, '', sheets, names);
+    expect(opts.find(o => o.pass === 'c2')?.label).toBe('Svenska · Grund + Rosa');
+  });
+
+  it('hoppar över ett pass som inte längre finns i arket', () => {
+    const gone = { '2026-11-02|Måndag|Q#Rosa': { groups: [['Ali']] } };
+    expect(groupsOptions(gone, sess, '', sheets, {})).toEqual([]);
   });
 });

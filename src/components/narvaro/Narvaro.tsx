@@ -10,6 +10,7 @@ import { NarvaroNoteDialog } from '@/components/narvaro/NarvaroNoteDialog';
 import { STAMP_BG, StampTag } from '@/components/narvaro/stampStyle';
 import { NarvaroLock } from '@/components/narvaro/NarvaroLock';
 import { NarvaroMobile, NarvaroMobileHeader } from '@/components/narvaro/NarvaroMobile';
+import { MobileGroupChoices } from '@/components/narvaro/NarvaroMobileGroups';
 import { useAuth } from '@/contexts/AuthContext';
 import { NarvaroSaveStatus, useNarvaroSync } from '@/hooks/useNarvaroSync';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,7 @@ import {
   MAX_CLASS_NAME_LENGTH,
   MAX_PASS_NAME_LENGTH,
   cleanClassName,
+  classesOnDay,
   combineSheets,
   groupsKey,
   isConfident,
@@ -53,10 +55,12 @@ import {
   pastePreview,
   randomGroups,
   roster,
+  selectionForDay,
   sessionKey,
   sessionLabel,
   sessionText,
   setPersonNote,
+  toggleClassOnDay,
   toggleStamp,
   trimSessions,
 } from '@/utils/narvaro';
@@ -68,6 +72,7 @@ import {
   MobilePref,
   MobileView,
   isMobileMode,
+  groupsOptions,
   pickActiveStamp,
   sanitizeMobilePref,
   sanitizeStampId,
@@ -133,6 +138,8 @@ const chip = (pressed: boolean) => cn(
 export default function Narvaro() {
   const [now] = useState(() => new Date());
   const example = useMemo(exampleTable, []);
+  const [day, setDay] = useState(() => defaultDay(example, now));
+  const [pass, setPass] = useState<PassChoice>(() => defaultPass(example, defaultDay(example, now), now));
 
   const { user } = useAuth();
   const sync = useNarvaroSync(user?.id ?? null, now);
@@ -145,16 +152,23 @@ export default function Narvaro() {
   const unnamed = latest[''] ?? null;
   const allClasses = unnamed ? [...classNames, ''] : classNames;
   const [chosen, setChosen] = usePersistentState(VIEW_KEY, sanitizeView, NO_CLASSES);
-  // Alltid i klassernas ordning, oavsett i vilken ordning de valdes.
-  const picked = allClasses.filter(c => chosen.includes(c));
-  const selected = picked.length ? picked : allClasses.slice(0, 1);
+  const sheets = useMemo(
+    () => Object.fromEntries(Object.entries(latest).map(([k, ref]) => [k, ref.table])),
+    [latest],
+  );
+  // Alla klassers dagar, så att en dag finns kvar att välja även när de valda inte har den.
+  const allKey = allClasses.join('+');
+  const allDays = useMemo(() => combineSheets(sheets, allClasses).days, [sheets, allKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // En klass utan pass den dagen visas inte; i klassernas ordning, oavsett i vilken ordning de valdes.
+  const onDay = classesOnDay(sheets, allClasses, day);
+  const shownClasses = onDay.length ? onDay : allClasses;
+  const selected = selectionForDay(sheets, allClasses, chosen, day);
   const selectedKey = selected.join('+');
   const savedTable = useMemo(() => {
     if (!selected.length) return null;
-    const sheets = Object.fromEntries(Object.entries(latest).map(([k, ref]) => [k, ref.table]));
     return combineSheets(sheets, selected);
     // selectedKey står för `selected`, som är en ny lista varje rendering.
-  }, [latest, selectedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sheets, selectedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const stamps = sync.data.stamps;
   const savedNotes = sync.data.notes;
   const savedGroups = sync.data.groups;
@@ -163,8 +177,8 @@ export default function Narvaro() {
   const setSavedNotes = (next: NotesStore) => update(d => ({ ...d, notes: next }));
   const setSavedGroups = (next: GroupsStore) => update(d => ({ ...d, groups: next }));
   const toggleClass = (klass: string) => {
-    const next = selected.includes(klass) ? selected.filter(c => c !== klass) : [...selected, klass];
-    if (next.length) setChosen(next);
+    const next = toggleClassOnDay(selected, chosen, onDay, klass);
+    if (next) setChosen(next);
   };
 
   // Exemplet har egna anteckningar och grupper i minnet, så att det inte
@@ -175,6 +189,9 @@ export default function Narvaro() {
   const [exPassNames, setExPassNames] = useState<PassNames>({});
   const isExample = !savedTable || showExample;
   const table = isExample ? example : savedTable;
+  // Dagarna att välja bland, och tabellen en annan dag (de klasser som visas den dagen).
+  const days = isExample ? table.days : allDays;
+  const tableForDay = (d: string) => (isExample ? example : combineSheets(sheets, selectionForDay(sheets, allClasses, chosen, d)));
   const notes = isExample ? exNotes : savedNotes;
   const groups = isExample ? exGroups : savedGroups;
   const passNames = isExample ? exPassNames : savedPassNames;
@@ -182,8 +199,6 @@ export default function Narvaro() {
   const setGroups = isExample ? setExGroups : setSavedGroups;
 
   const [klass, setKlass] = useState('all');
-  const [day, setDay] = useState(() => defaultDay(example, now));
-  const [pass, setPass] = useState<PassChoice>(() => defaultPass(example, defaultDay(example, now), now));
   const [mode, setMode] = useState<Mode>('notes');
   const [stamp, setStamp] = useState<'note' | string>('note');
   const [newStamp, setNewStamp] = useState('');
@@ -228,14 +243,15 @@ export default function Narvaro() {
     setKlass(k => (k === 'all' || table.groups.includes(k) ? k : 'all'));
     if (initialized.current !== shownKind) {
       initialized.current = shownKind;
-      const d = defaultDay(table, now);
+      const d = defaultDay({ days }, now) ?? day;
       setDay(d);
-      setPass(defaultPass(table, d, now));
+      setPass(defaultPass(tableForDay(d), d, now));
       return;
     }
-    const d = table.days.includes(day) ? day : defaultDay(table, now);
+    const d = days.includes(day) ? day : defaultDay({ days }, now) ?? day;
     if (d !== day) setDay(d);
-    setPass(p => (p === 'day' || dayColumns(table, d).some(c => c.id === p) ? p : defaultPass(table, d, now)));
+    const t = tableForDay(d);
+    setPass(p => (p === 'day' || dayColumns(t, d).some(c => c.id === p) ? p : defaultPass(t, d, now)));
   }, [table, now, shownKind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -269,6 +285,15 @@ export default function Narvaro() {
   const active = present.filter(p => !excludedHere.has(p.name)).map(p => p.name);
   const stored = groups[gKey]?.groups;
   const view = stored ? groupView(stored, active) : null;
+  // Mobilen: andra pass samma dag som har grupper, när det valda saknar.
+  const groupChoices = mobile && !isExample && !stored ? groupsOptions(groups, key, gKey, sheets, passNames) : [];
+  const pickGroups = (k: string) => {
+    const c = groupChoices.find(x => x.key === k);
+    if (!c) return;
+    setChosen(c.classes);
+    setPass(c.pass);
+    setMobileView('groups');
+  };
   const showSchool = klass === 'all' && table.groups.length > 1;
   const showClassName = !isExample && selected.length > 1;
 
@@ -672,9 +697,9 @@ export default function Narvaro() {
 
         {(!mobile || pickerOpen) && (
         <section className="sp-card flex flex-col gap-3 p-4" aria-label="Urval">
-          {!isExample && allClasses.length > 1 && (
+          {!isExample && shownClasses.length > 1 && (
             <ChipRow label="Klass">
-              {allClasses.map(k => (
+              {shownClasses.map(k => (
                 <button
                   key={k}
                   type="button"
@@ -699,13 +724,13 @@ export default function Narvaro() {
             </ChipRow>
           )}
           <ChipRow label="Dag">
-            {table.days.map(d => (
+            {days.map(d => (
               <button
                 key={d}
                 type="button"
                 className={chip(day === d)}
                 aria-pressed={day === d}
-                onClick={() => { setDay(d); setPass(defaultPass(table, d, now)); }}
+                onClick={() => { setDay(d); setPass(defaultPass(tableForDay(d), d, now)); }}
               >
                 {d}
               </button>
@@ -894,6 +919,7 @@ export default function Narvaro() {
         </section>
         )}
 
+        {mobile && <MobileGroupChoices choices={groupChoices} onPick={pickGroups} />}
         {mobile && (
           <NarvaroMobile
             sessKey={key}
