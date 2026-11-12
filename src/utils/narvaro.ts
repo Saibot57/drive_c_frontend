@@ -269,7 +269,7 @@ export function defaultPass(table: AttendanceTable, day: string, now: Date): Pas
   return 'day';
 }
 
-export function defaultDay(table: AttendanceTable, now: Date): string {
+export function defaultDay(table: Pick<AttendanceTable, 'days'>, now: Date): string {
   const today = weekdayName(now);
   return table.days.includes(today) ? today : table.days[0];
 }
@@ -329,6 +329,47 @@ export function combineSheets(sheets: Record<string, AttendanceTable>, classes: 
     groups: Array.from(new Set(people.map(p => p.group).filter(Boolean))),
     days: Array.from(new Set(cols.map(c => c.day))),
   };
+}
+
+/** Klasserna (i given ordning) vars ark har minst ett pass den dagen. */
+export function classesOnDay(sheets: Record<string, AttendanceTable>, classes: readonly string[], day: string): string[] {
+  return classes.filter(c => sheets[c]?.cols.some(col => col.day === day));
+}
+
+/**
+ * De klasser som visas en viss dag. En vald klass utan pass den dagen faller
+ * bort för dagen men ligger kvar i det sparade valet. Finns ingen av de valda
+ * den dagen visas den första klass som har dagen. Har ingen klass dagen
+ * gäller valet som det är.
+ */
+export function selectionForDay(
+  sheets: Record<string, AttendanceTable>,
+  classes: readonly string[],
+  chosen: readonly string[],
+  day: string,
+): string[] {
+  const onDay = classesOnDay(sheets, classes, day);
+  const picked = classes.filter(c => chosen.includes(c));
+  if (!onDay.length) return picked.length ? picked : classes.slice(0, 1);
+  const here = onDay.filter(c => chosen.includes(c));
+  return here.length ? here : onDay.slice(0, 1);
+}
+
+/**
+ * Växlar en klass i dagens urval. Valda klasser som inte har dagen behålls i
+ * det sparade valet, så att de kommer tillbaka på sina dagar. `null` när
+ * dagens urval skulle bli tomt.
+ */
+export function toggleClassOnDay(
+  shown: readonly string[],
+  chosen: readonly string[],
+  onDay: readonly string[],
+  klass: string,
+): string[] | null {
+  const next = shown.includes(klass) ? shown.filter(c => c !== klass) : [...shown, klass];
+  if (!next.length) return null;
+  const elsewhere = onDay.length ? chosen.filter(c => !onDay.includes(c) && !next.includes(c)) : [];
+  return [...next, ...elsewhere];
 }
 
 export type ClassSuggestion = { klass: string; matched: number; total: number };

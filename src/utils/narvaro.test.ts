@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import {
+  selectionForDay,
+  toggleClassOnDay,
   cleanClassName,
+  classesOnDay,
   combineSheets,
   groupsKey,
   isConfident,
@@ -247,6 +250,37 @@ describe('klasser', () => {
     const one = combineSheets({ Rosa: rosa, Grund: grund }, ['Grund']);
     expect(one.people.map(p => p.klass)).toEqual(['Grund', 'Grund']);
     expect(one.cols).toHaveLength(4);
+  });
+
+  describe('klasser per dag', () => {
+    const oliv = parsePasted([
+      '\tOnsdag',
+      '\t8.30-9.45',
+      'TORA VEGA',
+      'Olle Oliv\tTRUE',
+    ].join('\n'), '')!;
+    const sheets = { Grund: grund, Oliv: oliv };
+    const all = ['Grund', 'Oliv'];
+
+    it('visar bara klasser som har pass den dagen', () => {
+      expect(classesOnDay(sheets, all, 'Måndag')).toEqual(['Grund']);
+      expect(classesOnDay(sheets, all, 'Onsdag')).toEqual(['Oliv']);
+      expect(classesOnDay(sheets, all, 'Fredag')).toEqual([]);
+    });
+
+    it('släpper en vald klass för dagen och tar annars den första som har dagen', () => {
+      expect(selectionForDay(sheets, all, ['Grund', 'Oliv'], 'Måndag')).toEqual(['Grund']);
+      expect(selectionForDay(sheets, all, ['Grund'], 'Onsdag')).toEqual(['Oliv']);
+      expect(selectionForDay(sheets, all, ['Oliv'], 'Fredag')).toEqual(['Oliv']);
+      expect(selectionForDay(sheets, all, [], 'Fredag')).toEqual(['Grund']);
+    });
+
+    it('behåller klasser från andra dagar i det sparade valet', () => {
+      expect(toggleClassOnDay(['Grund'], ['Grund', 'Oliv'], ['Grund', 'Rosa'], 'Rosa')).toEqual(['Grund', 'Rosa', 'Oliv']);
+      expect(toggleClassOnDay(['Grund', 'Rosa'], ['Grund', 'Rosa', 'Oliv'], ['Grund', 'Rosa'], 'Rosa')).toEqual(['Grund', 'Oliv']);
+      expect(toggleClassOnDay(['Grund'], ['Grund', 'Oliv'], ['Grund'], 'Grund')).toBeNull();
+      expect(toggleClassOnDay(['Grund', 'Oliv'], ['Grund', 'Oliv'], [], 'Oliv')).toEqual(['Grund']);
+    });
   });
 
   it('föreslår klassen vars namn känns igen', () => {
