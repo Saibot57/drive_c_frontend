@@ -41,6 +41,9 @@ import {
   sanitizePassNames,
   sessionLabel,
   setPassName,
+  firstNames,
+  groupsText,
+  splitName,
 } from '@/utils/narvaro';
 import { exampleTable } from '@/utils/narvaroExample';
 
@@ -357,5 +360,41 @@ describe('lagring', () => {
     expect(ex.people).toHaveLength(22);
     expect(ex.groups).toEqual(['KLASS A', 'KLASS B']);
     expect(sanitizeTable(JSON.parse(JSON.stringify(ex)))).toEqual(ex);
+  });
+});
+
+describe('groupsText', () => {
+  it('har bara förnamnen', () => {
+    const text = groupsText('Måndag 3/11 · 8.30-9.45', { groups: [['Amira Haddad', 'Nils Berg'], []], pool: ['Sara Lind'] });
+    expect(text).toBe('Måndag 3/11 · 8.30-9.45\n\nGrupp 1: Amira, Nils\nGrupp 2: (tom)\n\nInte indelade: Sara');
+  });
+
+  it('ger efternamnets initial bara åt dem som delar förnamn, även mellan grupper', () => {
+    const text = groupsText('Pass', { groups: [['Ali Hassan', 'Nils Berg'], ['Ali Said']], pool: [] });
+    expect(text).toBe('Pass\n\nGrupp 1: Ali H., Nils\nGrupp 2: Ali S.');
+  });
+
+  it('tar inte med klassen som combineSheets satt efter namnet', () => {
+    expect(groupsText('Pass', { groups: [['Ali Hassan (Rosa)', 'Nils Berg']], pool: [] })).toBe('Pass\n\nGrupp 1: Ali, Nils');
+  });
+
+  it('behåller ett namn med ett enda ord', () => {
+    expect(groupsText('Pass', { groups: [['Amira', 'Nils Berg']], pool: [] })).toBe('Pass\n\nGrupp 1: Amira, Nils');
+  });
+});
+
+describe('firstNames', () => {
+  it('skiljer två med exakt samma namn åt med klassen', () => {
+    const short = firstNames(['Ali Hassan (Rosa)', 'Ali Hassan (Grund)', 'Ali Said']);
+    expect(Array.from(short.values())).toEqual(['Ali H. (Rosa)', 'Ali H. (Grund)', 'Ali S.']);
+  });
+
+  it('låter ett namn utan efternamn stå kvar när förnamnet delas', () => {
+    expect(Array.from(firstNames(['Ali', 'Ali Said']).values())).toEqual(['Ali', 'Ali S.']);
+  });
+
+  it('splitName delar på första blanktecknet', () => {
+    expect(splitName('Anna Maria Ek')).toEqual(['Anna', 'Maria Ek']);
+    expect(splitName('Amira')).toEqual(['Amira', '']);
   });
 });

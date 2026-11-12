@@ -41,6 +41,7 @@ import {
   groupCount,
   groupView,
   groupsText,
+  splitName,
   historyKeys,
   isoWeek,
   moveToGroup,
@@ -128,11 +129,6 @@ const chip = (pressed: boolean) => cn(
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)] focus-visible:ring-offset-2',
   pressed ? 'bg-ui-ink text-ui-paper' : 'bg-ui-paper text-ui-ink hover:bg-ui-surface-3',
 );
-
-const splitName = (name: string) => {
-  const [first, ...rest] = name.split(/\s+/);
-  return [first, rest.join(' ')] as const;
-};
 
 export default function Narvaro() {
   const [now] = useState(() => new Date());
