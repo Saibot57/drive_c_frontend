@@ -22,6 +22,13 @@ export interface MindmapNodeViewProps {
   imageState: MindmapImageState | undefined;
   /** Textfältet i noden som redigeras; kartan sätter fokus i det. */
   inputRef: React.RefObject<HTMLTextAreaElement>;
+  /** Visa handtaget för nodens bredd (den markerade noden, utom medan man skriver). */
+  resizable?: boolean;
+  /** Bredden dras just nu. */
+  resizing?: boolean;
+  onResizeStart?: (e: React.PointerEvent<HTMLElement>, node: LaidOutNode) => void;
+  /** Dubbelklick på handtaget: tillbaka till standardbredden. */
+  onResizeReset?: (id: string) => void;
   onPointerDown: (e: React.PointerEvent<HTMLDivElement>, id: string) => void;
   onClick: (id: string) => void;
   onEdit: (id: string) => void;
@@ -50,6 +57,10 @@ export function MindmapNodeView({
   linking,
   imageState,
   inputRef,
+  resizable,
+  resizing,
+  onResizeStart,
+  onResizeReset,
   onPointerDown,
   onClick,
   onEdit,
@@ -170,6 +181,20 @@ export function MindmapNodeView({
         )}
       </div>
       {node.image && <MindmapNodeImage width={node.image.width} height={node.image.height} state={imageState} />}
+      {(resizable || resizing) && onResizeStart && (
+        // På kanten bort från roten: där noden växer.
+        <span
+          className={`mm__resize mm__resize--${node.side === 'left' ? 'left' : 'right'}${resizing ? ' mm__resize--active' : ''}`}
+          title="Dra för att ändra bredden (Ctrl+Shift+← →). Dubbelklick: standardbredd."
+          aria-hidden="true"
+          onPointerDown={(e) => onResizeStart(e, node)}
+          onClick={stop}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onResizeReset?.(node.id);
+          }}
+        />
+      )}
     </div>
   );
 }

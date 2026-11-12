@@ -1199,6 +1199,7 @@ Kortets lista (`MINDMAP_SHORTCUTS`) gäller rakt av. Sidan lägger till:
 | Alt+Enter | Visa bara grenen (Esc visar hela) | 8 |
 | Alt+P | Presentationsläge | 8 |
 | Ctrl+Enter (medan man skriver) | Ny rad i noden | [radbrytning](mindmap-radbrytning.md) A |
+| Ctrl+Shift+← → | Smalare eller bredare nod | [radbrytning](mindmap-radbrytning.md) B |
 | Ctrl+Shift+7 | Gå till Mindmap | 2 |
 
 **Inga genvägar utan modifierare utöver kortets.** Två skäl, båda

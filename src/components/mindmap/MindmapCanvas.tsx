@@ -27,6 +27,7 @@ import {
   setLink,
   setNote,
   setOffset,
+  setTextWidth,
   sideOf,
   toggleCollapsed,
 } from '@/utils/mindmap/mindmapTree';
@@ -41,6 +42,8 @@ import {
   type MeasureText,
 } from '@/utils/mindmap/mindmapLayout';
 import { caretLine, insertNewline, resolveLabelKey } from '@/utils/mindmapLabelKeys';
+import { resolveWidthKey, steppedTextWidth } from '@/utils/mindmapNodeWidth';
+import { useMindmapNodeWidth } from '@/hooks/useMindmapNodeWidth';
 import { parseOutlineHtml, parseOutlineText } from '@/utils/mindmap/mindmapOutline';
 import type { MindmapDrawOptions, MindmapPalette } from '@/utils/mindmap/mindmapDraw';
 import {
@@ -222,12 +225,31 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
   // Medan en nod dras ritas kartan som om den redan släppts där, så att
   // grenen och kanterna följer pekaren. Dokumentet ändras först vid släppet.
+  // Handtaget för nodens bredd (del B i docs/plans/mindmap-radbrytning.md).
+  // Callbackarna anropas först vid släppet, när allt nedan finns.
+  const nodeWidth = useMindmapNodeWidth({
+    zoom: () => viewport.getView().zoom,
+    onCommit: (id, width) => {
+      commit(asDoc(setTextWidth(docRef.current, id, width)));
+      select(id);
+      focusMap();
+    },
+  });
+  const resize = nodeWidth.resize;
+
+  // Medan en nod dras ritas kartan som om den redan släppts där, så att
+  // grenen och kanterna följer pekaren. Samma sak när bredden dras.
+  // Dokumentet ändras först vid släppet.
   const layout = useMemo(() => {
-    if (!dragMove) return layoutOf(shown);
-    const base = findNode(doc.root, dragMove.id)?.offset ?? { dx: 0, dy: 0 };
-    const moved = setOffset(doc, dragMove.id, { dx: base.dx + dragMove.dx, dy: base.dy + dragMove.dy });
-    return layoutOf(branchDoc(asDoc(moved), branchId));
-  }, [doc, shown, branchId, dragMove, layoutOf]);
+    if (!dragMove && !resize) return layoutOf(shown);
+    let moved: MindmapDoc = doc;
+    if (dragMove) {
+      const base = findNode(doc.root, dragMove.id)?.offset ?? { dx: 0, dy: 0 };
+      moved = asDoc(setOffset(moved, dragMove.id, { dx: base.dx + dragMove.dx, dy: base.dy + dragMove.dy }));
+    }
+    if (resize) moved = asDoc(setTextWidth(moved, resize.id, resize.width));
+    return layoutOf(branchDoc(moved, branchId));
+  }, [doc, shown, branchId, dragMove, resize, layoutOf]);
 
   /* ── Bilder och panel ── */
 
@@ -655,12 +677,30 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       return;
     }
     if (editingRef.current || isEditableElement(e.target)) return;
+    if (handleWidthKey(e)) return;
     const action = resolveMindmapKey(e.nativeEvent, 'nav', keyContext(currentId()));
     if (!action) return;
     e.stopPropagation();
     if (action.type !== 'paste') e.preventDefault();
     setMenu(null);
     run(action, 'nav');
+  };
+
+  /** Ctrl+Shift+← → gör den markerade noden smalare eller bredare. Sant om tangenten är tagen om hand. */
+  const handleWidthKey = (e: React.KeyboardEvent<HTMLDivElement>): boolean => {
+    const key = resolveWidthKey(e.nativeEvent);
+    if (!key) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    setMenu(null);
+    const id = currentId();
+    const laid = layout.byId.get(id);
+    const node = findNode(docRef.current.root, id);
+    if (!laid || !node) return true;
+    const width = steppedTextWidth(laid.labelWidth, key);
+    // Trycken i rad blir ett steg i ångra-historiken.
+    if (width !== node.textWidth) commit(asDoc(setTextWidth(docRef.current, id, width)), `width:${id}`);
+    return true;
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1054,6 +1094,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                   dropTarget={dropId === node.id}
                   imageState={imageKeys.get(node.id) ? images.get(imageKeys.get(node.id)!) : undefined}
                   inputRef={inputRef}
+                  resizable={selectedId === node.id && editingId !== node.id && dragId === null}
+                  resizing={resize?.id === node.id}
+                  onResizeStart={nodeWidth.begin}
+                  onResizeReset={(id) => {
+                    const current = findNode(docRef.current.root, id);
+                    if (current?.textWidth !== undefined) commit(asDoc(setTextWidth(docRef.current, id, null)));
+                  }}
                   onPointerDown={handleNodePointerDown}
                   onClick={handleNodeClick}
                   onEdit={startEdit}

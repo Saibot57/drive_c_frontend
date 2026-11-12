@@ -291,20 +291,50 @@ Kontroller före push: `pnpm exec tsc --noEmit`, `pnpm lint` (inga fel),
 
 ### B. Bredd per nod
 
-- [ ] `textWidth` i typen, tvätten och `setTextWidth`, med test.
-- [ ] Layouten läser `textWidth` (4.5), med test.
-- [ ] `useMindmapNodeWidth` och handtaget, med test av räkningen (zoom,
-  sida, gränser) i en ren funktion.
-- [ ] `resolveWidthKey` med test; inkopplad i nav-läget.
-- [ ] Hjälprutan.
+Byggd 2026-11-12 på grenen `claude/mindmap-radbrytning`.
+
+- [x] `textWidth` i typen, tvätten och `setTextWidth`, med test.
+- [x] Layouten läser `textWidth` (4.5), med test.
+- [x] `useMindmapNodeWidth` och handtaget, med test av räkningen (zoom,
+  sida, gränser) i en ren funktion och av hooken (jsdom).
+- [x] `resolveWidthKey` med test; inkopplad i nav-läget.
+- [x] Hjälprutan, och tangenten i huvudplanens avsnitt 6.
+
+**Avvikelser från utformningen:**
+
+- De rena funktionerna (`resolveWidthKey`, `steppedTextWidth`,
+  `draggedTextWidth`) ligger i en egen fil, `utils/mindmapNodeWidth.ts`,
+  inte i `mindmapLabelKeys.ts`, som gäller textfältet. Gränserna och
+  `clampTextWidth` ligger i den delade `mindmapTree.ts`, där tvätten läser
+  dem.
+- `textWidth` gäller bara med `wrap`. Utan den (workspace-kortet) läggs
+  noden ut som förut, också om fältet finns (test).
+- Roten har också ett handtag. Den står centrerad och växer åt båda håll,
+  så dragningen räknas dubbelt för att kanten ska följa pekaren.
+- Flera Ctrl+Shift+← → i rad blir ett steg i ångra-historiken (nyckeln
+  `width:<id>`, som etiketten). En dragning är alltid ett eget steg.
+- `MindmapCanvas.tsx` fick anropen (från 1 189 till 1 236 rader):
+  hooken, bredden i layouten under dragningen, `handleWidthKey` och
+  handtagets props. Logiken ligger i hooken och i de rena funktionerna.
 
 ### B. Kontroller
 
-- [ ] En nod utan `textWidth` tvättas och läggs ut som i A.
-- [ ] Dragning ångras med ett Ctrl+Z.
-- [ ] I webbläsaren: dra handtaget på en nod till höger och en till
-  vänster om roten, med zoom 50 % och 200 %; Ctrl+Shift+← → i steg;
-  dubbelklick nollställer; grenvy och presentation visar bredden.
+- [x] En nod utan `textWidth` tvättas och läggs ut som i A (test).
+- [x] Dragning ångras med ett Ctrl+Z.
+- [x] I webbläsaren (Chromium utan fönster, mot ett mock-API), på en nod
+  till höger om roten och på roten: handtaget syns på den markerade
+  noden; en dragning på 100 px ger en 100 px bredare nod med färre rader
+  och sparas först vid släppet; två Ctrl+Shift+← ger 80 px smalare och
+  ångras med ett Ctrl+Z; dubbelklick på handtaget ger standardbredden och
+  börjar inte redigera; Esc under dragningen ändrar ingenting; bredden
+  sparas som `textWidth`.
+- [ ] Inte prövat i webbläsaren: en nod till vänster om roten, zoom 50 %
+  och 200 % (räkningen är testad i `draggedTextWidth`), grenvyn,
+  presentationen, Safari, Firefox och Mac (Cmd+Shift+← kan vara
+  systemets).
+
+Kontroller före push: `pnpm exec tsc --noEmit`, `pnpm lint` (inga fel),
+`pnpm test` (105 testfiler, 1 657 tester), `pnpm build`.
 
 ## 6. Verifiering
 

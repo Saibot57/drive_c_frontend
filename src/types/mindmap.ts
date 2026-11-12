@@ -68,6 +68,12 @@ export interface MindmapNode {
   icon?: MindmapIcon;
   /** Manuell förskjutning från den automatiska platsen, i px vid zoom 1. */
   offset?: { dx: number; dy: number };
+  /**
+   * Textens bredd i px vid zoom 1: där etiketten bryts, och nodens bredd
+   * också när texten är kortare. Saknas betyder sidans standardbredd
+   * (docs/plans/mindmap-radbrytning.md, del B).
+   */
+  textWidth?: number;
 }
 
 export interface MindmapContent {

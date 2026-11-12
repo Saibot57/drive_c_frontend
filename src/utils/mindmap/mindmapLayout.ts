@@ -255,13 +255,16 @@ export function layoutMindmap(
     const cached = sizes.get(node.id);
     if (cached) return cached;
     const wrap = options.wrap;
+    // En egen bredd (`textWidth`) gäller bara med radbrytning: den är där
+    // texten bryts, och nodens bredd också när texten är kortare.
+    const ownWidth = wrap && node.textWidth !== undefined ? node.textWidth : null;
     const lines = wrap
-      ? wrapLabel(node.label, isRoot ? wrap.rootMaxWidth : wrap.maxWidth, (text) => measure(text, isRoot))
+      ? wrapLabel(node.label, ownWidth ?? (isRoot ? wrap.rootMaxWidth : wrap.maxWidth), (text) => measure(text, isRoot))
       : null;
     const textWidth = lines
       ? Math.max(...lines.map((line, index) => (line === '' && index > 0 ? 0 : measure(line, isRoot))))
       : measure(node.label, isRoot);
-    const labelWidth = Math.ceil(Math.max(metrics.minLabelWidth, textWidth + metrics.slack));
+    const labelWidth = Math.ceil(Math.max(metrics.minLabelWidth, textWidth + metrics.slack, ownWidth ?? 0));
     const pad = isRoot ? metrics.rootPadX : metrics.padX;
     const border = isRoot ? metrics.rootBorder : metrics.border;
     const hiddenCount = node.collapsed && !isRoot ? countDescendants(node) : 0;

@@ -12,6 +12,8 @@ const PAGE_SHORTCUTS: { group: string; items: { keys: string; what: string }[] }
       { keys: 'Klick på markerad nod', what: 'Redigera noden' },
       { keys: 'Ctrl+Enter', what: 'Ny rad i noden du skriver i (lång text bryts av sig själv)' },
       { keys: '↑ ↓ i en nod med flera rader', what: 'Gå mellan raderna, sedan till nästa nod' },
+      { keys: 'Ctrl+Shift+← →', what: 'Smalare eller bredare nod (eller dra i handtaget på kanten)' },
+      { keys: 'Dubbelklick på handtaget', what: 'Tillbaka till standardbredden' },
       { keys: 'Dra en nod till en annan', what: 'Grenen blir barn till den noden' },
       { keys: 'Dra en nod till tom yta', what: 'Grenen stannar där den släpps' },
       { keys: 'Alt+Shift+0', what: 'Nollställ placeringen på en flyttad nod' },

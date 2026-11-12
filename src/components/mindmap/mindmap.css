@@ -137,6 +137,31 @@
   pointer-events: none;
 }
 
+/* Handtaget för nodens bredd, på den markerade nodens kant bort från roten
+   (docs/plans/mindmap-radbrytning.md, del B). Syns som markeringen bara när
+   kartan har fokus, och medan det dras. */
+.mm__resize {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 18px;
+  margin-top: -9px;
+  border: 1px solid var(--mm-select);
+  border-radius: 3px;
+  background: var(--mm-node-bg);
+  cursor: ew-resize;
+  display: none;
+  touch-action: none;
+}
+
+.mm__resize--right { right: -7px; }
+.mm__resize--left { left: -7px; }
+
+.mm__viewport:focus-within .mm__resize,
+.mm__resize--active {
+  display: block;
+}
+
 .mm__node--drop {
   outline: 2px dashed var(--mm-select);
   outline-offset: 3px;
