@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { ArrowLeftRight, MoveHorizontal, MoveRight, Minus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MINDMAP_COLORS, MINDMAP_COLOR_LABELS, type MindmapAnchor, type MindmapColor, type MindmapEdgeShape } from '@/types/mindmap';
-import { AnchorSelect, ShapeButtons } from './MindmapEdgeBar';
+import { AddPointButton, AnchorSelect, ShapeButtons } from './MindmapEdgeBar';
 import { MAX_CROSS_LINK_LABEL_LENGTH, type MindmapCrossLink } from '@/types/mindmapDoc';
 
 interface MindmapLinkBarProps {
@@ -21,6 +21,10 @@ interface MindmapLinkBarProps {
   /** Form och fästen (del C i docs/plans/mindmap-placering.md). */
   onShape: (shape: MindmapEdgeShape | null) => void;
   onAnchor: (end: 'from' | 'to', side: MindmapAnchor | null) => void;
+  /** Brytpunkter (del D). */
+  pointCount?: number;
+  onAddPoint?: () => void;
+  onClearPoints?: () => void;
   onRemove: () => void;
   /** Esc eller Enter i etikettfältet: tillbaka till kartan. */
   onReturn: () => void;
@@ -47,6 +51,9 @@ export function MindmapLinkBar({
   onColor,
   onShape,
   onAnchor,
+  pointCount = 0,
+  onAddPoint,
+  onClearPoints,
   onRemove,
   onReturn,
 }: MindmapLinkBarProps) {
@@ -105,6 +112,12 @@ export function MindmapLinkBar({
       <ShapeButtons value={link.shape} noneLabel="Böjd" onChange={onShape} />
       <AnchorSelect label="Start" value={link.fromAnchor} autoLabel="Auto" onChange={(side) => onAnchor('from', side)} />
       <AnchorSelect label="Fäste" value={link.toAnchor} autoLabel="Auto" onChange={(side) => onAnchor('to', side)} />
+      {onAddPoint && <AddPointButton onClick={onAddPoint} />}
+      {onClearPoints && pointCount > 0 && (
+        <Button size="sm" variant="neutral" className="sp-btn h-7 px-2 text-xs" title="Ta bort länkens brytpunkter" onClick={onClearPoints}>
+          Rensa punkter
+        </Button>
+      )}
       <Button size="sm" variant="neutral" className={tool} title="Ta bort länken (Delete)" aria-label="Ta bort länken" onClick={onRemove}>
         <Trash2 size={14} />
       </Button>

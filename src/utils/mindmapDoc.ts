@@ -74,10 +74,11 @@ export function sanitizeMindmapDoc(raw: unknown): MindmapDoc {
     if (typeof link.arrow === 'string' && (ARROWS as readonly string[]).includes(link.arrow) && link.arrow !== 'to') {
       clean.arrow = link.arrow as MindmapCrossLink['arrow'];
     }
-    const style = sanitizeEdgeStyle({ shape: link.shape, from: link.fromAnchor, to: link.toAnchor });
+    const style = sanitizeEdgeStyle({ shape: link.shape, from: link.fromAnchor, to: link.toAnchor, points: link.points });
     if (style?.shape) clean.shape = style.shape;
     if (style?.from) clean.fromAnchor = style.from;
     if (style?.to) clean.toAnchor = style.to;
+    if (style?.points) clean.points = style.points;
     links.push(clean);
   });
   const doc: MindmapDoc = links.length ? { ...content, crossLinks: links } : content;
@@ -154,10 +155,11 @@ export function setCrossLinkArrow(doc: MindmapDoc, id: string, arrow: NonNullabl
 
 /** Vänder länken: den går från den nod den gick till. */
 export function reverseCrossLink(doc: MindmapDoc, id: string): MindmapDoc {
-  // Fästena följer med sina noder.
+  // Fästena följer med sina noder, och brytpunkterna går i omvänd ordning.
   return updateCrossLink(doc, id, (link) => {
     const { fromAnchor, toAnchor, ...rest } = link;
     const next: MindmapCrossLink = { ...rest, from: link.to, to: link.from };
+    if (rest.points) next.points = [...rest.points].reverse();
     if (toAnchor) next.fromAnchor = toAnchor;
     if (fromAnchor) next.toAnchor = fromAnchor;
     return next;
@@ -176,6 +178,14 @@ export function setCrossLinkShape(doc: MindmapDoc, id: string, shape: MindmapEdg
   return updateCrossLink(doc, id, (link) => {
     const { shape: _shape, ...rest } = link;
     return shape ? { ...rest, shape } : rest;
+  });
+}
+
+/** Länkens brytpunkter; en tom lista eller `null` tar bort dem. */
+export function setCrossLinkPoints(doc: MindmapDoc, id: string, points: { x: number; y: number }[] | null): MindmapDoc {
+  return updateCrossLink(doc, id, (link) => {
+    const { points: _points, ...rest } = link;
+    return points && points.length > 0 ? { ...rest, points: points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) })) } : rest;
   });
 }
 

@@ -33,7 +33,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Mindmap steg 8: visa bara grenen och presentationsläge](mindmap-presentation.md) | Genomförd 2026-11-11 (#273) |
 | [Mindmap: text på flera rader i en nod](mindmap-radbrytning.md) | Pågår. Del A (radbrytning) och del B (bredd per nod) byggda 2026-11-12. Kvar: proven i avsnitt 6 |
 | [Mindmap: egna färger och nyanser nedåt i grenen](mindmap-farger.md) | Pågår. Del A (modell och ritning) och B (färgmenyn) byggda 2026-11-12 (#278). Kvar: C `.mup`-importen |
-| [Mindmap: friare placering och linjer att forma](mindmap-placering.md) | Pågår. Del A (linjernas form och fäste per karta) och B (Alt+dra, flytta roten, städa upp, rutnät) byggda 2026-11-12 (#280). Del C (form och fästen per linje och för tvärlänkarna) byggd 2026-11-12. Kvar: D brytpunkter |
+| [Mindmap: friare placering och linjer att forma](mindmap-placering.md) | Pågår. Del A (linjernas form och fäste per karta) och B (Alt+dra, flytta roten, städa upp, rutnät) byggda 2026-11-12 (#280). Del C (form och fästen per linje och för tvärlänkarna) och D (brytpunkter) byggda 2026-11-12. Kvar: prov i riktig miljö och workspace-kortet i webbläsaren |
 
 Lägg till en rad här när en ny plan skrivs.
 

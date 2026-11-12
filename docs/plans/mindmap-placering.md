@@ -1,6 +1,6 @@
 # Mindmap: friare placering och linjer att forma
 
-Status: Pågår. Del A, B och C byggda 2026-11-12
+Status: Pågår. Del A–D byggda 2026-11-12
 
 Planen skrevs 2026-11-12 efter en intervju med Tobias, mot koden på `main`
 (f8541ce, där `MindmapCanvas.tsx` har 1 258 rader). Den bygger vidare på
@@ -545,7 +545,55 @@ PNG:n.
 
 ### Del D. Brytpunkter
 
-- [ ] Genomfört
+- [x] Genomfört: 2026-11-12, grenen `claude/mindmap-placering` efter #280
+
+**Så blev det.** Nya filer: `hooks/useMindmapWaypoints.ts` (att dra en
+punkt), `hooks/useMindmapLinePoints.ts` (punkterna på det som är markerat:
+lägg till, flytta, ta bort) och `utils/mindmapWaypoints.test.ts` (12 st).
+Efter delen: 112 testfiler, 1 756 tester. `MindmapCanvas.tsx` är 1 330
+rader (+40).
+
+- Dubbelklick på en markerad linje lägger en punkt där, i rätt ordning
+  (`waypointInsertIndex`). Knappen med brytpunktsikonen i linjens och
+  tvärlänkens rad lägger en punkt mitt på den längsta sträckan. Punkterna
+  är små fyrkanter som dras; dubbelklick tar bort en. Med rutnätet på
+  snäpper punkten till det, utom med Ctrl. Högst 20 punkter per linje.
+- Rak går som en bruten linje genom punkterna, vinklad rätvinkligt genom
+  var och en (ut längs startsidan, in längs ändsidan), och kurvan mjukt
+  genom dem (Catmull-Rom, med ändarnas riktning längs sidorna).
+- Med fästet Auto vetter starten mot den första punkten och änden mot den
+  sista (`nearestSidesVia`).
+- Grenens punkter räknas från förälderns mitt och följer med när föräldern
+  eller grenen flyttas. En ny förälder tar bort dem, liksom Återställ.
+- `finishMindmapLayout` (rotens förskjutning och sedan `includeWaypoints`)
+  gör kartan så stor att punkterna ryms. Sidans layout, PNG, PDF,
+  minikartan och presentationen går genom den.
+- Tvärlänkens rad har också "Rensa punkter" när länken har några.
+- Avvikelse: tvärlänkens punkter räknas från **punkten mitt emellan
+  nodernas mitt**, inte från `from`-nodens mitt. Då kan "Byt riktning"
+  behålla dem (i omvänd ordning) utan att veta var noderna står, och
+  punkterna flyttar halva vägen när en av noderna flyttas.
+- Avvikelse: en böjd tvärlänk (utan form) med punkter ritas som en kurva
+  genom dem; formknappen står kvar på "Böjd".
+- Handtagen ritas ovanpå tvärlänkarnas lager, så att en punkt på en länk
+  går att träffa.
+
+**Kontrollerat 2026-11-12.** `tsc`, `lint` (bara den gamla varningen),
+`test`, `build`. I Chromium mot mock-API:t: dubbelklick på en markerad
+linje (en punkt), dra punkten (sparad som `edge.points`), knappen (två
+punkter), flytta föräldern (punkterna följer med, de sparade talen är
+oförändrade), dubbelklick på en punkt tar bort den, ångra, punkten
+snäpper till rutnätet, en tvärlänk med en punkt dragen 160 px ned, Rensa
+punkter och ångra, Kronberg, PNG-exporten och presentationen med samma
+linjer. Inga fel i konsolen.
+
+**Inte kontrollerat.** Workspace-kortet i webbläsaren; dess filer är
+orörda, och tvätten av punkterna är prövad i test. Riktig backend.
+Pekskärm. En karta med många punkter under drag.
+
+**Känt.** När fokus ligger på en knapp i en rad som försvinner (till
+exempel "Rensa punkter") når Esc och Ctrl+Z inte kartan förrän man
+klickat i den igen. Så var det redan med tvärlänkens rad.
 
 1. `insertPoint`, punkterna i `routeEdge` och i måtten, med test.
 2. Dubbelklick för att lägga till och ta bort, dra punkten, rutnätet.

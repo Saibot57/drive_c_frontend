@@ -108,7 +108,15 @@ export interface MindmapEdgeStyle {
   from?: MindmapAnchor;
   /** Var linjen går in i noden. */
   to?: MindmapAnchor;
+  /**
+   * Brytpunkter som linjen går igenom, i px vid zoom 1, räknade från
+   * förälderns mitt. De följer med när föräldern flyttas (del D).
+   */
+  points?: { x: number; y: number }[];
 }
+
+/** Högst så många brytpunkter på en linje. */
+export const MINDMAP_MAX_EDGE_POINTS = 20;
 
 export const MINDMAP_EDGE_SHAPE_VALUES: readonly MindmapEdgeShape[] = ['curve', 'straight', 'elbow'];
 export const MINDMAP_ANCHORS: readonly MindmapAnchor[] = ['top', 'right', 'bottom', 'left'];

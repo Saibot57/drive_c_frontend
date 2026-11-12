@@ -3,6 +3,7 @@ import {
   MINDMAP_COLORS,
   MINDMAP_EDGE_SHAPE_VALUES,
   MINDMAP_ICONS,
+  MINDMAP_MAX_EDGE_POINTS,
   MINDMAP_NOTE_MAX_LENGTH,
   type MindmapAnchor,
   type MindmapColor,
@@ -131,7 +132,7 @@ function sanitizeNode(raw: Record<string, unknown>, seen: Set<string>, depth: nu
 /** En linjes egna val; okända värden tas bort, och inga val blir inget. */
 export function sanitizeEdgeStyle(raw: unknown): MindmapEdgeStyle | null {
   if (!raw || typeof raw !== 'object') return null;
-  const value = raw as { shape?: unknown; from?: unknown; to?: unknown };
+  const value = raw as { shape?: unknown; from?: unknown; to?: unknown; points?: unknown };
   const edge: MindmapEdgeStyle = {};
   if (typeof value.shape === 'string' && (MINDMAP_EDGE_SHAPE_VALUES as readonly string[]).includes(value.shape)) {
     edge.shape = value.shape as MindmapEdgeShape;
@@ -142,7 +143,14 @@ export function sanitizeEdgeStyle(raw: unknown): MindmapEdgeStyle | null {
   if (typeof value.to === 'string' && (MINDMAP_ANCHORS as readonly string[]).includes(value.to)) {
     edge.to = value.to as MindmapAnchor;
   }
-  return edge.shape || edge.from || edge.to ? edge : null;
+  if (Array.isArray(value.points)) {
+    const points = value.points
+      .filter((p): p is { x: number; y: number } => !!p && typeof p === 'object' && isFiniteNumber(p.x) && isFiniteNumber(p.y))
+      .slice(0, MINDMAP_MAX_EDGE_POINTS)
+      .map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+    if (points.length > 0) edge.points = points;
+  }
+  return edge.shape || edge.from || edge.to || edge.points ? edge : null;
 }
 
 /** Gränserna för en nods egen textbredd, i px vid zoom 1. */

@@ -126,6 +126,12 @@
   cursor: grab;
 }
 
+.mm__edge-point {
+  fill: var(--mm-select);
+  stroke: var(--mm-node-bg);
+  cursor: move;
+}
+
 .mm__edgebar-field {
   display: inline-flex;
   align-items: center;

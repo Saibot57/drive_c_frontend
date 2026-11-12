@@ -2,9 +2,9 @@ import type { MindmapNode } from '@/types/mindmap';
 import type { MindmapCrossLink, MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import { findNode, labelOneLine } from '@/utils/mindmap/mindmapTree';
+import { crossLinkPointsAbsolute, nearestSidesVia } from '@/utils/mindmapRouting';
 import {
   anchorPointOut,
-  nearestSides,
   routeEdge,
   routeEnds,
   routeMidpoint,
@@ -125,10 +125,13 @@ export function crossLinkGeometry(layout: MindmapLayoutResult, doc: MindmapDoc):
     if (!from || !to) return;
 
     const arrow = link.arrow ?? 'to';
-    if (link.shape) {
+    // Med brytpunkter går den böjda kurvan över i en kurva genom dem.
+    const linkShape = link.shape ?? (link.points ? 'curve' : undefined);
+    if (linkShape) {
       // En form: samma linjer som grenarna, från de fästen som valts eller
       // de sidor som vetter mot varandra.
-      const auto = nearestSides(from, to);
+      const points = link.points ? crossLinkPointsAbsolute(from, to, link.points) : undefined;
+      const auto = nearestSidesVia(from, to, points);
       const fromSide = link.fromAnchor ?? auto.from;
       const toSide = link.toAnchor ?? auto.to;
       const route = routeEdge({
@@ -136,7 +139,9 @@ export function crossLinkGeometry(layout: MindmapLayoutResult, doc: MindmapDoc):
         startSide: fromSide,
         end: anchorPointOut(to, toSide, GAP),
         endSide: toSide,
-        shape: link.shape,
+        shape: linkShape,
+        // Mitt emellan de noder som ritas; en gömd ände ersätts av sin förfader.
+        points,
       });
       const ends = routeEnds(route);
       const routeHeads: CrossLinkPoint[][] = [];

@@ -62,6 +62,8 @@ export interface RouteInput {
   end: EdgePoint;
   endSide: MindmapAnchor;
   shape: MindmapEdgeShape;
+  /** Brytpunkter som linjen går igenom, i ordning (del D). */
+  points?: EdgePoint[];
 }
 
 /**
@@ -72,8 +74,13 @@ export interface RouteInput {
  *   kurvan som `edgePath` ritar.
  * - Rak: en rak linje.
  * - Vinklad: rätvinkliga sträckor, ut från startsidan och in i ändsidan.
+ *
+ * Med brytpunkter går linjen genom dem: rak som en bruten linje, vinklad
+ * rätvinkligt genom var och en, och kurvan mjukt genom dem.
  */
-export function routeEdge({ start, startSide, end, endSide, shape }: RouteInput): EdgeRoute {
+export function routeEdge(input: RouteInput): EdgeRoute {
+  if (input.points && input.points.length > 0) return routeThrough(input, input.points);
+  const { start, startSide, end, endSide, shape } = input;
   const move: RouteCommand = { type: 'M', x: start.x, y: start.y };
   const midX = (start.x + end.x) / 2;
   const midY = (start.y + end.y) / 2;
@@ -94,6 +101,110 @@ export function routeEdge({ start, startSide, end, endSide, shape }: RouteInput)
   const c1 = startH ? { x: midX, y: start.y } : { x: start.x, y: midY };
   const c2 = endH ? { x: midX, y: end.y } : { x: end.x, y: midY };
   return [move, { type: 'C', c1x: c1.x, c1y: c1.y, c2x: c2.x, c2y: c2.y, x: end.x, y: end.y }];
+}
+
+const NORMALS: Record<MindmapAnchor, EdgePoint> = {
+  top: { x: 0, y: -1 },
+  right: { x: 1, y: 0 },
+  bottom: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+};
+
+function routeThrough({ start, startSide, end, endSide, shape }: RouteInput, points: EdgePoint[]): EdgeRoute {
+  const chain = [start, ...points, end];
+  const move: RouteCommand = { type: 'M', x: start.x, y: start.y };
+  const line = (p: EdgePoint): RouteCommand => ({ type: 'L', x: p.x, y: p.y });
+
+  if (shape === 'straight') return [move, ...chain.slice(1).map(line)];
+
+  if (shape === 'elbow') {
+    // Varje sträcka har ett hörn. Den första går ut längs startsidan, den
+    // sista in längs ändsidan, och de andra vågrätt först.
+    const out: RouteCommand[] = [move];
+    for (let i = 0; i < chain.length - 1; i += 1) {
+      const a = chain[i];
+      const b = chain[i + 1];
+      const last = i === chain.length - 2;
+      let horizontalFirst = true;
+      if (i === 0) horizontalFirst = horizontal(startSide);
+      if (last) horizontalFirst = !horizontal(endSide);
+      const corner = horizontalFirst ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
+      if ((corner.x !== a.x || corner.y !== a.y) && (corner.x !== b.x || corner.y !== b.y)) out.push(line(corner));
+      out.push(line(b));
+    }
+    return out;
+  }
+
+  // Kurvan: Catmull-Rom genom punkterna, med ändarnas riktning längs sidorna.
+  const tangents = chain.map((p, i) => {
+    if (i === 0) {
+      const reach = Math.hypot(chain[1].x - p.x, chain[1].y - p.y);
+      return { x: NORMALS[startSide].x * reach, y: NORMALS[startSide].y * reach };
+    }
+    if (i === chain.length - 1) {
+      const prev = chain[i - 1];
+      const reach = Math.hypot(p.x - prev.x, p.y - prev.y);
+      return { x: -NORMALS[endSide].x * reach, y: -NORMALS[endSide].y * reach };
+    }
+    return { x: (chain[i + 1].x - chain[i - 1].x) / 2, y: (chain[i + 1].y - chain[i - 1].y) / 2 };
+  });
+  const out: RouteCommand[] = [move];
+  for (let i = 0; i < chain.length - 1; i += 1) {
+    const a = chain[i];
+    const b = chain[i + 1];
+    out.push({
+      type: 'C',
+      c1x: a.x + tangents[i].x / 3,
+      c1y: a.y + tangents[i].y / 3,
+      c2x: b.x - tangents[i + 1].x / 3,
+      c2y: b.y - tangents[i + 1].y / 3,
+      x: b.x,
+      y: b.y,
+    });
+  }
+  return out;
+}
+
+/** Avståndet från en punkt till en sträcka. */
+function distanceToSegment(p: EdgePoint, a: EdgePoint, b: EdgePoint): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = dx * dx + dy * dy;
+  const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/**
+ * Var en ny brytpunkt vid `at` ska stå i listan: mellan de två punkter (eller
+ * ändar) vars sträcka ligger närmast.
+ */
+export function waypointInsertIndex(start: EdgePoint, points: EdgePoint[], end: EdgePoint, at: EdgePoint): number {
+  const chain = [start, ...points, end];
+  let best = 0;
+  let bestDistance = Infinity;
+  for (let i = 0; i < chain.length - 1; i += 1) {
+    const d = distanceToSegment(at, chain[i], chain[i + 1]);
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/** Mitten av den längsta sträckan: där en brytpunkt läggs från knappen i raden. */
+export function longestSegmentMiddle(start: EdgePoint, points: EdgePoint[], end: EdgePoint): { index: number; at: EdgePoint } {
+  const chain = [start, ...points, end];
+  let index = 0;
+  let longest = -1;
+  for (let i = 0; i < chain.length - 1; i += 1) {
+    const length = Math.hypot(chain[i + 1].x - chain[i].x, chain[i + 1].y - chain[i].y);
+    if (length > longest) {
+      longest = length;
+      index = i;
+    }
+  }
+  return { index, at: { x: (chain[index].x + chain[index + 1].x) / 2, y: (chain[index].y + chain[index + 1].y) / 2 } };
 }
 
 /** Linjen som SVG-väg, i samma form som `edgePath`. */

@@ -1,6 +1,6 @@
 'use client';
 
-import { RotateCcw, X } from 'lucide-react';
+import { RotateCcw, Waypoints, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MINDMAP_ANCHORS, MINDMAP_EDGE_SHAPE_VALUES, type MindmapAnchor, type MindmapEdgeShape } from '@/types/mindmap';
 
@@ -55,22 +55,40 @@ export function ShapeButtons({ value, noneLabel, onChange }: ShapeButtonsProps) 
 }
 
 interface MindmapEdgeBarProps {
-  style: { shape?: MindmapEdgeShape; from?: MindmapAnchor; to?: MindmapAnchor };
+  style: { shape?: MindmapEdgeShape; from?: MindmapAnchor; to?: MindmapAnchor; points?: unknown[] };
   /** Nodernas texter, för rubriken "A → B". */
   fromLabel: string;
   toLabel: string;
   onShape: (shape: MindmapEdgeShape | null) => void;
   onAnchor: (end: 'from' | 'to', side: MindmapAnchor | null) => void;
   onReset: () => void;
+  /** Del D: en brytpunkt mitt på linjens längsta sträcka. */
+  onAddPoint?: () => void;
   onClose: () => void;
+}
+
+/** Lägger en brytpunkt mitt på den längsta sträckan (del D). */
+export function AddPointButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      size="sm"
+      variant="neutral"
+      className="sp-btn h-7 w-7 p-0"
+      title="Ny brytpunkt (eller dubbelklicka på linjen). Dubbelklicka på en punkt för att ta bort den."
+      aria-label="Ny brytpunkt"
+      onClick={onClick}
+    >
+      <Waypoints size={14} />
+    </Button>
+  );
 }
 
 /**
  * Raden över kartan när en linje i trädet är markerad
- * (docs/plans/mindmap-placering.md, del C): form, start, fäste och
- * återställ. Det som inte väljs följer kartans val i menyn Linjer.
+ * (docs/plans/mindmap-placering.md, del C och D): form, start, fäste,
+ * brytpunkt och återställ. Det som inte väljs följer kartans val i menyn Linjer.
  */
-export function MindmapEdgeBar({ style, fromLabel, toLabel, onShape, onAnchor, onReset, onClose }: MindmapEdgeBarProps) {
+export function MindmapEdgeBar({ style, fromLabel, toLabel, onShape, onAnchor, onReset, onAddPoint, onClose }: MindmapEdgeBarProps) {
   const tool = 'sp-btn h-7 w-7 p-0';
   return (
     <div className="mm__linkbar" role="toolbar" aria-label="Linje" onPointerDown={(e) => e.stopPropagation()}>
@@ -80,13 +98,14 @@ export function MindmapEdgeBar({ style, fromLabel, toLabel, onShape, onAnchor, o
       <ShapeButtons value={style.shape} noneLabel="Kartans" onChange={onShape} />
       <AnchorSelect label="Start" value={style.from} autoLabel="Kartans" onChange={(side) => onAnchor('from', side)} />
       <AnchorSelect label="Fäste" value={style.to} autoLabel="Kartans" onChange={(side) => onAnchor('to', side)} />
+      {onAddPoint && <AddPointButton onClick={onAddPoint} />}
       <Button
         size="sm"
         variant="neutral"
         className={tool}
         title="Återställ linjen till kartans val"
         aria-label="Återställ linje"
-        disabled={!style.shape && !style.from && !style.to}
+        disabled={!style.shape && !style.from && !style.to && !style.points}
         onClick={onReset}
       >
         <RotateCcw size={14} />

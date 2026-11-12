@@ -29,6 +29,11 @@ export interface MindmapCrossLink {
   fromAnchor?: MindmapAnchor;
   /** Var länken fäster vid `to`. */
   toAnchor?: MindmapAnchor;
+  /**
+   * Del D. Brytpunkter, räknade från punkten mitt emellan nodernas mitt, så
+   * att en vänd länk behåller dem (i omvänd ordning).
+   */
+  points?: { x: number; y: number }[];
 }
 
 export const MAX_CROSS_LINK_LABEL_LENGTH = 80;

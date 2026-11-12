@@ -68,7 +68,9 @@ import { useMindmapPaint } from '@/hooks/useMindmapPaint';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
 import {
   drawRoutedEdges,
-  placeRootInLayout,
+  finishMindmapLayout,
+  previewEdgePoints,
+  previewLinkPoints,
   pruneEdgeAnchors,
   rootOrigin,
   routeEdges,
@@ -77,6 +79,8 @@ import {
   setLines,
 } from '@/utils/mindmapRouting';
 import { useMindmapEdgeSelection } from '@/hooks/useMindmapEdgeSelection';
+import { useMindmapLinePoints } from '@/hooks/useMindmapLinePoints';
+import { useMindmapWaypoints } from '@/hooks/useMindmapWaypoints';
 import { clearBranchOffsets, hasPlacement, MINDMAP_GRID, previewMove, setRootOffset } from '@/utils/mindmapPlacement';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
@@ -93,7 +97,7 @@ import { loadDrawSymbols, LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from
 import { canCopyImage, copyOutline, fontOf, readPalette } from './mindmapCanvasIo';
 import { MindmapBranchBar } from './MindmapBranchBar';
 import { MindmapEdgeBar } from './MindmapEdgeBar';
-import { MindmapEdgeHandles, MindmapEdgeLayer } from './MindmapEdgeLayer';
+import { MindmapEdgeHandles, MindmapEdgeLayer, MindmapPointHandles } from './MindmapEdgeLayer';
 import { MindmapLinkBar } from './MindmapLinkBar';
 import { MindmapLinkLayer } from './MindmapLinkLayer';
 import { MindmapMinimap } from './MindmapMinimap';
@@ -253,7 +257,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   /** Sidans layout: sidans textmätning, och plats för ikon, symboler och bild. */
   const layoutOf = useCallback(
     (content: MindmapContent) =>
-      placeRootInLayout(
+      finishMindmapLayout(
         layoutMindmap(content, (text, isRoot) => measure(text || MINDMAP_PLACEHOLDER, isRoot), MINDMAP_METRICS, { extras: true, wrap: MINDMAP_WRAP }),
         content,
       ),
@@ -406,14 +410,36 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   }, [scrollRef]);
 
   // Länkarna ritas ur det som visas; länkar ut ur en gren finns kvar i dokumentet.
-  const links = useMindmapLinks({ mapId, doc: shown, docRef, layout, commit, flash, focusMap, currentId, toLayoutPoint, nodeAt });
+  // Brytpunkten som dras (del D i mindmap-placering.md); snäpper till rutnätet utom med Ctrl.
+  const waypoints = useMindmapWaypoints({
+    toLayoutPoint,
+    snap: (p, free) => (docRef.current.grid && !free
+      ? { x: origin.x + Math.round((p.x - origin.x) / MINDMAP_GRID) * MINDMAP_GRID, y: origin.y + Math.round((p.y - origin.y) / MINDMAP_GRID) * MINDMAP_GRID }
+      : p),
+    focusMap,
+  });
+  const linkDoc = useMemo(() => previewLinkPoints(shown, layout, waypoints.preview), [shown, layout, waypoints.preview]);
+  const links = useMindmapLinks({ mapId, doc: linkDoc, docRef, layout, commit, flash, focusMap, currentId, toLayoutPoint, nodeAt });
   const edges = useMindmapEdgeSelection({ mapId, docRef, layout, commit, focusMap, toLayoutPoint });
   // Linjerna med nodernas egna val, och fästet som dras i ett handtag.
   const edgePreview = edges.preview;
   const routes = useMemo(() => {
-    const root = edgePreview ? setEdgeAnchor(shown, edgePreview.id, edgePreview.end, edgePreview.side).root : shown.root;
+    const withPoints = previewEdgePoints(shown, layout, waypoints.preview);
+    const root = edgePreview ? setEdgeAnchor(withPoints, edgePreview.id, edgePreview.end, edgePreview.side).root : withPoints.root;
     return routeEdges(layout, { lines, root });
-  }, [layout, lines, shown, edgePreview]);
+  }, [layout, lines, shown, edgePreview, waypoints.preview]);
+  const linePoints = useMindmapLinePoints({
+    docRef,
+    layout,
+    routes,
+    shapes: links.shapes,
+    edgeId: edges.selectedId,
+    link: links.selected,
+    commit,
+    begin: waypoints.begin,
+    preview: waypoints.preview,
+    flash,
+  });
   const branch = useMindmapBranchView({ mapId, branchId, wanted: branchWanted, setWanted: setBranchWanted, viewport });
   // Presentationsläget ritas inuti kartans ruta, som går i helskärm (del 8b).
   const presenting = useMindmapPresenting(rootRef, mapId);
@@ -974,7 +1000,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       wrap: MINDMAP_WRAP,
       images: images.forDraw(),
       paint: paintFor,
-      transform: (laid) => placeRootInLayout(laid, branchDoc(docRef.current, branchIdRef.current)),
+      transform: (laid) => finishMindmapLayout(laid, branchDoc(docRef.current, branchIdRef.current)),
       edges: (ctx, drawn) => drawRoutedEdges(ctx, drawn, docRef.current),
       overlay: (ctx, drawn) => {
         const palette = readMinimapPalette();
@@ -1107,6 +1133,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                   edges.select(id);
                   focusMap();
                 }}
+                onAddPoint={(id, e) => {
+                  if (edges.selectedId === id) linePoints.addAt(toLayoutPoint(e.clientX, e.clientY));
+                }}
               />
 
               {layout.nodes.map((node) => (
@@ -1152,14 +1181,6 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                 />
               ))}
 
-              <MindmapEdgeHandles
-                width={layout.width}
-                height={layout.height}
-                edge={routes.find((e) => e.toId === edges.selectedId) ?? null}
-                onBegin={edges.beginHandle}
-                onReset={(end) => edges.setAnchor(end, null)}
-              />
-
               <MindmapLinkLayer
                 width={layout.width}
                 height={layout.height}
@@ -1172,6 +1193,21 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                   focusMap();
                 }}
                 onEditLabel={links.editLabel}
+              />
+
+              <MindmapEdgeHandles
+                width={layout.width}
+                height={layout.height}
+                edge={routes.find((e) => e.toId === edges.selectedId) ?? null}
+                onBegin={edges.beginHandle}
+                onReset={(end) => edges.setAnchor(end, null)}
+              />
+              <MindmapPointHandles
+                width={layout.width}
+                height={layout.height}
+                points={linePoints.points}
+                onBegin={linePoints.onBegin}
+                onRemove={linePoints.remove}
               />
             </div>
           </div>
@@ -1203,6 +1239,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
             onShape={edges.setShape}
             onAnchor={edges.setAnchor}
             onReset={edges.reset}
+            onAddPoint={linePoints.addMiddle}
             onClose={() => {
               edges.select(null);
               focusMap();
@@ -1222,6 +1259,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
             onColor={links.setColor}
             onShape={links.setShape}
             onAnchor={links.setAnchor}
+            pointCount={linePoints.count}
+            onAddPoint={linePoints.addMiddle}
+            onClearPoints={linePoints.clear}
             onRemove={links.remove}
             onReturn={focusMap}
           />

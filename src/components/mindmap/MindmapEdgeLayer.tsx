@@ -11,6 +11,8 @@ interface MindmapEdgeLayerProps {
   /** Noden vars linje är markerad. Utan `onSelect` går linjerna inte att markera. */
   selectedId?: string | null;
   onSelect?: (id: string) => void;
+  /** Dubbelklick på en linje: en brytpunkt där (del D). */
+  onAddPoint?: (id: string, e: React.MouseEvent) => void;
 }
 
 /**
@@ -18,7 +20,7 @@ interface MindmapEdgeLayerProps {
  * träffa, eftersom den synliga är tunn (docs/plans/mindmap-placering.md,
  * del C). Presentationen ritar samma lager utan `onSelect`.
  */
-export function MindmapEdgeLayer({ width, height, routes, selectedId = null, onSelect }: MindmapEdgeLayerProps) {
+export function MindmapEdgeLayer({ width, height, routes, selectedId = null, onSelect, onAddPoint }: MindmapEdgeLayerProps) {
   return (
     <svg className="mm__edges" width={width} height={height} aria-hidden="true">
       {routes.map((edge) => {
@@ -36,7 +38,13 @@ export function MindmapEdgeLayer({ width, height, routes, selectedId = null, onS
                   e.stopPropagation();
                   onSelect(edge.toId);
                 }}
-              />
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onAddPoint?.(edge.toId, e);
+                }}
+              >
+                <title>Linje. Dubbelklicka för en brytpunkt.</title>
+              </path>
             )}
           </g>
         );
@@ -77,6 +85,43 @@ export function MindmapEdgeHandles({ width, height, edge, onBegin, onReset }: Mi
     <svg className="mm__edge-handles" width={width} height={height}>
       {handle(start, 'from')}
       {handle(end, 'to')}
+    </svg>
+  );
+}
+
+interface MindmapPointHandlesProps {
+  width: number;
+  height: number;
+  /** Brytpunkterna i layoutens koordinater. */
+  points: { x: number; y: number }[];
+  onBegin: (e: React.PointerEvent, index: number) => void;
+  /** Dubbelklick på en punkt tar bort den. */
+  onRemove: (index: number) => void;
+}
+
+/** Brytpunkterna på den markerade linjen eller tvärlänken (del D), ovanpå noderna. */
+export function MindmapPointHandles({ width, height, points, onBegin, onRemove }: MindmapPointHandlesProps) {
+  if (points.length === 0) return null;
+  return (
+    <svg className="mm__edge-handles" width={width} height={height}>
+      {points.map((p, index) => (
+        <rect
+          key={index}
+          x={p.x - 4.5}
+          y={p.y - 4.5}
+          width={9}
+          height={9}
+          rx={2}
+          className="mm__edge-handle mm__edge-point"
+          onPointerDown={(e) => onBegin(e, index)}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onRemove(index);
+          }}
+        >
+          <title>Brytpunkt. Dra den dit linjen ska gå; dubbelklicka för att ta bort den.</title>
+        </rect>
+      ))}
     </svg>
   );
 }
