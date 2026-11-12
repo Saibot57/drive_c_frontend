@@ -545,9 +545,43 @@ export function moveToGroup(groups: string[][], name: string, target: number | '
   return next;
 }
 
+/** Förnamnet och resten: "Amira Haddad" blir ["Amira", "Haddad"]. Ett namn utan blanktecken är bara förnamn. */
+export const splitName = (name: string) => {
+  const [first, ...rest] = name.trim().split(/\s+/);
+  return [first, rest.join(' ')] as const;
+};
+
+/**
+ * Förnamnen för namnen, nyckel för nyckel. Delar två förnamn får de
+ * efternamnets initial ("Ali H."), och räcker inte det får de också klassen
+ * som `combineSheets` satt efter namnet ("Ali H. (Rosa)"). Klassen är annars
+ * aldrig en del av förnamnet.
+ */
+export function firstNames(names: readonly string[]): Map<string, string> {
+  const parts = new Map(names.map(name => {
+    const m = name.match(/^(.*?)\s*(\([^()]*\))$/);
+    const [first, last] = splitName(m ? m[1] : name);
+    return [name, { first, initial: last ? ` ${last[0]}.` : '', klass: m ? ` ${m[2]}` : '' }] as const;
+  }));
+  const tally = (key: (p: { first: string; initial: string }) => string) => {
+    const counts = new Map<string, number>();
+    parts.forEach(p => counts.set(key(p), (counts.get(key(p)) ?? 0) + 1));
+    return (p: { first: string; initial: string }) => (counts.get(key(p)) ?? 0) > 1;
+  };
+  const sameFirst = tally(p => p.first);
+  const sameInitial = tally(p => p.first + p.initial);
+  return new Map(Array.from(parts, ([name, p]) => {
+    if (!sameFirst(p)) return [name, p.first];
+    return [name, p.first + p.initial + (sameInitial(p) ? p.klass : '')];
+  }));
+}
+
+/** Grupperna som text att kopiera, med bara förnamnen. */
 export function groupsText(label: string, view: { groups: string[][]; pool: string[] }): string {
-  const lines = view.groups.map((g, i) => `Grupp ${i + 1}: ${g.join(', ') || '(tom)'}`);
-  if (view.pool.length) lines.push('', `Inte indelade: ${view.pool.join(', ')}`);
+  const short = firstNames([...view.groups.flat(), ...view.pool]);
+  const join = (names: string[]) => names.map(n => short.get(n) ?? n).join(', ');
+  const lines = view.groups.map((g, i) => `Grupp ${i + 1}: ${join(g) || '(tom)'}`);
+  if (view.pool.length) lines.push('', `Inte indelade: ${join(view.pool)}`);
   return `${label}\n\n${lines.join('\n')}`;
 }
 
