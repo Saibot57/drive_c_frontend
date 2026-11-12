@@ -2,6 +2,7 @@ import type { MindmapColor, MindmapNode, MindmapSide } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import { IMAGE_WIDTHS } from '@/utils/mindmapImage';
 import { cleanMindmapName, sanitizeMindmapDoc } from '@/utils/mindmapDoc';
+import { labelOneLine } from '@/utils/mindmap/mindmapTree';
 
 /*
  * Läser en karta från MindMup (`.mup`, JSON) till sidans dokument.
@@ -164,16 +165,30 @@ export function htmlToText(html: string): string {
 
 const URL_PATTERN = /(https?:\/\/|www\.)[\w-]+(\.[\w-]+)+([\w()\u0080-ÿ.,!@?^=%&:/~+#-]*[\w()\u0080-ÿ!@?^=%&/~+#-])?/i;
 
+/**
+ * Radbrytningarna behålls (sidans noder kan ha flera rader); annan blanktext
+ * blir ett mellanslag, varje rad trimmas, och tomma rader först och sist tas
+ * bort. Flera tomma rader i rad blir en.
+ */
+function cleanTitle(text: string): string {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\n+|\n+$/g, '');
+}
+
 function titleAndLink(rawTitle: unknown): { label: string; link?: string } {
-  const title = (typeof rawTitle === 'string' ? rawTitle : typeof rawTitle === 'number' ? String(rawTitle) : '')
-    // Sidans noder är en rad.
-    .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F\u0080-\u009F]+/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const title = cleanTitle(
+    (typeof rawTitle === 'string' ? rawTitle : typeof rawTitle === 'number' ? String(rawTitle) : '')
+      .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F\u0080-\u009F]+/g, ''),
+  );
   const match = URL_PATTERN.exec(title);
   if (!match) return { label: title };
   const url = /^https?:\/\//i.test(match[0]) ? match[0] : `http://${match[0]}`;
-  const stripped = title.replace(URL_PATTERN, '').replace(/\s+/g, ' ').trim();
+  const stripped = cleanTitle(title.replace(URL_PATTERN, ''));
   return { label: stripped || title, link: url };
 }
 
@@ -327,6 +342,6 @@ export function parseMindmup(raw: unknown, fallbackName = 'Importerad karta'): {
 
   const rawLinks = Array.isArray(raw.links) ? raw.links : [];
   const doc = sanitizeMindmapDoc({ root, layout, crossLinks: rawLinks.map(toCrossLink) });
-  const name = cleanMindmapName(doc.root.label, cleanMindmapName(fallbackName));
+  const name = cleanMindmapName(labelOneLine(doc.root.label), cleanMindmapName(fallbackName));
   return { name, doc };
 }

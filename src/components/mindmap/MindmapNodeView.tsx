@@ -21,13 +21,13 @@ export interface MindmapNodeViewProps {
   /** Läget för nodens bild, om den har en. */
   imageState: MindmapImageState | undefined;
   /** Textfältet i noden som redigeras; kartan sätter fokus i det. */
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
   onPointerDown: (e: React.PointerEvent<HTMLDivElement>, id: string) => void;
   onClick: (id: string) => void;
   onEdit: (id: string) => void;
   onLabel: (id: string, label: string) => void;
-  onInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onInputPaste: (e: React.ClipboardEvent<HTMLInputElement>) => void;
+  onInputKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onInputPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onInputBlur: (id: string) => void;
   onOpenNote: (id: string) => void;
   onExpand: (id: string) => void;
@@ -63,6 +63,9 @@ export function MindmapNodeView({
   const m = MINDMAP_METRICS;
   const x = MINDMAP_EXTRA_METRICS;
   const NodeIcon = node.icon ? MINDMAP_ICON_COMPONENTS[node.icon] : null;
+  const lineCount = node.lines?.length ?? 1;
+  // Radhöjden sätts bara med radbrytning; utan den är noden som förut.
+  const lineStyle = node.lineHeight ? { lineHeight: `${node.lineHeight}px` } : undefined;
   const classes = [
     'mm__node',
     node.isRoot && 'mm__node--root',
@@ -93,9 +96,12 @@ export function MindmapNodeView({
       >
         {NodeIcon && <span className="mm__icon" aria-hidden="true"><NodeIcon size={x.iconSize} /></span>}
         {editing ? (
-          <input
+          <textarea
             ref={inputRef}
             value={node.label}
+            rows={lineCount}
+            wrap="soft"
+            spellCheck={false}
             placeholder={MINDMAP_PLACEHOLDER}
             onChange={(e) => onLabel(node.id, e.target.value)}
             onKeyDown={onInputKeyDown}
@@ -103,12 +109,15 @@ export function MindmapNodeView({
             onBlur={() => onInputBlur(node.id)}
             onPointerDown={stop}
             className="mm__input"
-            style={{ width: node.labelWidth }}
+            style={{ width: node.labelWidth, ...lineStyle }}
             aria-label="Nodens text"
           />
         ) : (
-          <span className={`mm__label${node.label ? '' : ' mm__label--empty'}`} style={{ width: node.labelWidth }}>
-            {node.label || MINDMAP_PLACEHOLDER}
+          <span className={`mm__label${node.label ? '' : ' mm__label--empty'}`} style={{ width: node.labelWidth, ...lineStyle }}>
+            {node.lines && node.lines.length > 1
+              // Raderna som layouten räknat ut, så att skärmen blir som bilden.
+              ? node.lines.map((line, index) => <span key={index} className="mm__line">{line}</span>)
+              : node.label || MINDMAP_PLACEHOLDER}
           </span>
         )}
         {node.hasNote && (

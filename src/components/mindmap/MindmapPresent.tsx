@@ -47,7 +47,7 @@ export function MindmapPresent({ doc, layoutOf, images, onClose }: MindmapPresen
   const [state, setState] = useState<PresentState>(() => presentStart(doc.root));
   const [size, setSize] = useState({ width: 0, height: 0 });
   const frameRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const shown = useMemo(() => presentDoc(doc, state), [doc, state]);
   const layout = useMemo(() => layoutOf(shown), [layoutOf, shown]);

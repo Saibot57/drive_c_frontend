@@ -4,6 +4,7 @@ import {
   MINDMAP_EXTRA_METRICS,
   MINDMAP_METRICS,
   type MindmapLayoutResult,
+  type MindmapWrap,
 } from './mindmapLayout';
 
 /*
@@ -72,6 +73,8 @@ export interface MindmapDrawOptions {
    * Workspace-kortet anger den inte och får bilden som förut.
    */
   extras?: boolean;
+  /** Mindmap-sidans radbrytning. Utan den är varje nod en rad, som i kortet. */
+  wrap?: MindmapWrap;
   /**
    * Nodernas bilder, per nod-id, laddade och avkodade av anroparen så att
    * ritandet förblir synkront. En bild som saknas ritas som en tom ram.
@@ -102,7 +105,10 @@ export function renderMindmapCanvas(
     ctx.font = isRoot ? palette.rootFont : palette.font;
     return ctx.measureText(text).width;
   };
-  const layout: MindmapLayoutResult = layoutMindmap(content, measure, MINDMAP_METRICS, { extras: options.extras });
+  const layout: MindmapLayoutResult = layoutMindmap(content, measure, MINDMAP_METRICS, {
+    extras: options.extras,
+    wrap: options.wrap,
+  });
   const m = MINDMAP_METRICS;
   const xm = MINDMAP_EXTRA_METRICS;
 
@@ -157,7 +163,13 @@ export function renderMindmapCanvas(
     if (node.icon) symbol(options.symbols?.icons?.[node.icon], xm.iconWidth, xm.iconSize, false);
     ctx.font = node.isRoot ? palette.rootFont : palette.font;
     ctx.fillStyle = palette.text;
-    ctx.fillText(node.label, left + node.labelWidth / 2, cy);
+    if (node.lines && node.lines.length > 1) {
+      const step = node.lineHeight ?? 0;
+      const top = cy - ((node.lines.length - 1) * step) / 2;
+      node.lines.forEach((line, index) => ctx.fillText(line, left + node.labelWidth / 2, top + index * step));
+    } else {
+      ctx.fillText(node.label, left + node.labelWidth / 2, cy);
+    }
     left += node.labelWidth;
     if (node.hasNote) symbol(options.symbols?.note, xm.markerWidth, xm.markerSize, true);
     if (node.link) symbol(options.symbols?.link, xm.markerWidth, xm.markerSize, true);

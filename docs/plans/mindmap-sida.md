@@ -1198,6 +1198,7 @@ Kortets lista (`MINDMAP_SHORTCUTS`) gäller rakt av. Sidan lägger till:
 | Alt+Shift+C | Kopiera kartan som bild | 7 |
 | Alt+Enter | Visa bara grenen (Esc visar hela) | 8 |
 | Alt+P | Presentationsläge | 8 |
+| Ctrl+Enter (medan man skriver) | Ny rad i noden | [radbrytning](mindmap-radbrytning.md) A |
 | Ctrl+Shift+7 | Gå till Mindmap | 2 |
 
 **Inga genvägar utan modifierare utöver kortets.** Två skäl, båda
@@ -1275,8 +1276,10 @@ och efter varje steg som rört en delad fil:
   och en nod under en färgad gren hade inte kunnat vara ofärgad; se
   steg 4 för lösningen i data).
 - **Google-konto i appen**, samarbete i realtid, MindMups mått
-  ("measurements") och storyboards, flerradiga noder (en nod är en rad;
-  anteckningen tar resten).
+  ("measurements") och storyboards.
+- **Flerradiga noder** lades först utanför ("en nod är en rad;
+  anteckningen tar resten"). Beslutet omprövades 2026-11-12: se
+  [`mindmap-radbrytning.md`](mindmap-radbrytning.md).
 
 ## 10. Öppna frågor
 

@@ -1,3 +1,4 @@
+import { labelOneLine } from '@/utils/mindmap/mindmapTree';
 import type { MindmapNode } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import { crossLinkLines } from '@/utils/mindmapCrossLinks';
@@ -27,7 +28,7 @@ const include = (node: MindmapNode): boolean =>
   node.label.trim() !== '' || !!node.link || !!node.note?.trim() || node.children.some(include);
 
 const textOf = (node: MindmapNode): string => {
-  const label = node.label.trim();
+  const label = labelOneLine(node.label);
   if (!node.link) return escapeMarkdown(label);
   return `[${escapeMarkdown(label || node.link)}](${markdownUrl(node.link)})`;
 };

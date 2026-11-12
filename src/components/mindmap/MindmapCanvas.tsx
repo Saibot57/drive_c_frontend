@@ -36,8 +36,11 @@ import {
   edgePath,
   layoutMindmap,
   MINDMAP_METRICS,
+  MINDMAP_WRAP,
+  wrapLabelLines,
   type MeasureText,
 } from '@/utils/mindmap/mindmapLayout';
+import { caretLine, insertNewline, resolveLabelKey } from '@/utils/mindmapLabelKeys';
 import { parseOutlineHtml, parseOutlineText } from '@/utils/mindmap/mindmapOutline';
 import type { MindmapDrawOptions, MindmapPalette } from '@/utils/mindmap/mindmapDraw';
 import {
@@ -168,7 +171,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const probeRef = useRef<HTMLSpanElement>(null);
   const probeRootRef = useRef<HTMLSpanElement>(null);
 
@@ -213,7 +216,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   /** Sidans layout: sidans textmätning, och plats för ikon, symboler och bild. */
   const layoutOf = useCallback(
     (content: MindmapContent) =>
-      layoutMindmap(content, (text, isRoot) => measure(text || MINDMAP_PLACEHOLDER, isRoot), MINDMAP_METRICS, { extras: true }),
+      layoutMindmap(content, (text, isRoot) => measure(text || MINDMAP_PLACEHOLDER, isRoot), MINDMAP_METRICS, { extras: true, wrap: MINDMAP_WRAP }),
     [measure],
   );
 
@@ -660,14 +663,43 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     run(action, 'nav');
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const id = editingRef.current;
     if (!id) return;
+    // Raderna i noden först: Ctrl+Enter och pilarna mellan raderna.
+    if (handleLabelKey(e, id)) return;
     const action = resolveMindmapKey(e.nativeEvent, 'edit', keyContext(id));
     if (!action) return;
     e.preventDefault();
     e.stopPropagation();
     run(action, 'edit');
+  };
+
+  /**
+   * Ctrl+Enter ger en ny rad i noden; ↑ ↓ flyttar mellan nodens rader och
+   * släpps då till fältet. Sant om tangenten är tagen om hand.
+   */
+  const handleLabelKey = (e: React.KeyboardEvent<HTMLTextAreaElement>, id: string): boolean => {
+    const field = e.currentTarget;
+    const label = findNode(docRef.current.root, id)?.label ?? '';
+    const isRoot = layout.byId.get(id)?.isRoot ?? false;
+    const lines = wrapLabelLines(
+      label,
+      isRoot ? MINDMAP_WRAP.rootMaxWidth : MINDMAP_WRAP.maxWidth,
+      (text) => measure(text || MINDMAP_PLACEHOLDER, isRoot),
+    );
+    const caret = e.key === 'ArrowDown' ? field.selectionEnd : field.selectionStart;
+    const key = resolveLabelKey(e.nativeEvent, { line: caretLine(lines, caret), lineCount: lines.length });
+    if (!key) return false;
+    e.stopPropagation();
+    if (key !== 'newline') return true;
+    e.preventDefault();
+    const next = insertNewline(field.value, field.selectionStart, field.selectionEnd);
+    // Fältet får värdet direkt, så att markören står kvar när kartan ritas om.
+    field.value = next.label;
+    field.setSelectionRange(next.caret, next.caret);
+    commit(asDoc(setLabel(docRef.current, id, next.label)), `label:${id}`);
+    return true;
   };
 
   /** Klistrar in en disposition som barn till noden. Sant om något lades till. */
@@ -693,7 +725,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   };
 
   /** Flera rader i en nod man skriver i blir barn till noden, inte en lång etikett. */
-  const handleInputPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+  const handleInputPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const id = editingRef.current;
     if (!id || !/[\r\n]/.test(e.clipboardData.getData('text/plain').trim())) return;
     e.stopPropagation();
@@ -906,6 +938,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const minimapDrawOptions = useCallback(
     (): MindmapDrawOptions => ({
       extras: true,
+      wrap: MINDMAP_WRAP,
       images: images.forDraw(),
       overlay: (ctx, drawn) => {
         const palette = readMinimapPalette();

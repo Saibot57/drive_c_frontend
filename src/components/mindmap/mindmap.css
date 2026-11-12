@@ -334,6 +334,13 @@
   color: var(--mm-faint);
 }
 
+/* En rad i en nod med flera rader. Raderna är layoutens (mindmapLayout,
+   wrapLabel), så webbläsaren bryter inte själv; radhöjden sätts i nodvyn. */
+.mm__line {
+  display: block;
+  white-space: pre;
+}
+
 .mm__input {
   min-width: 0;
   padding: 0;
@@ -344,6 +351,13 @@
   font: inherit;
   text-align: center;
   user-select: text;
+  /* Ett textfält på flera rader (Ctrl+Enter, och lång text som bryts). */
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .mm__badge {

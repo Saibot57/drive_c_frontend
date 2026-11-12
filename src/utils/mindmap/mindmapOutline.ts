@@ -1,5 +1,5 @@
 import type { MindmapNode } from '@/types/mindmap';
-import { createNode } from './mindmapTree';
+import { createNode, labelOneLine } from './mindmapTree';
 
 /*
  * Mindmap som disposition, åt båda hållen. Ut går den som HTML och ren text
@@ -43,11 +43,11 @@ const noteHtml = (node: MindmapNode, options: OutlineOptions): string =>
  * nivå. En anteckning står på raderna under sin nod, indragen under texten.
  */
 export function toOutlineText(node: MindmapNode, options: OutlineOptions = {}): string {
-  const lines = [node.label.trim(), ...noteLines(node, options).map((line) => `  ${line}`)];
+  const lines = [labelOneLine(node.label), ...noteLines(node, options).map((line) => `  ${line}`)];
   const walk = (children: MindmapNode[], depth: number) => {
     children.filter(meaningful).forEach((child) => {
       const indent = '  '.repeat(depth);
-      lines.push(`${indent}- ${child.label.trim()}`);
+      lines.push(`${indent}- ${labelOneLine(child.label)}`);
       noteLines(child, options).forEach((line) => lines.push(`${indent}  ${line}`));
       walk(child.children, depth + 1);
     });
@@ -62,7 +62,7 @@ function listHtml(children: MindmapNode[], options: OutlineOptions = {}): string
   return `<ul>${items
     .map((child) => {
       const note = noteHtml(child, options);
-      return `<li>${escapeHtml(child.label.trim())}${note ? `<br><i>${note}</i>` : ''}${listHtml(child.children, options)}</li>`;
+      return `<li>${escapeHtml(labelOneLine(child.label))}${note ? `<br><i>${note}</i>` : ''}${listHtml(child.children, options)}</li>`;
     })
     .join('')}</ul>`;
 }
@@ -73,7 +73,7 @@ function listHtml(children: MindmapNode[], options: OutlineOptions = {}): string
  * det som ligger djupare punkter — en planering att skriva vidare i.
  */
 export function toOutlineHtml(node: MindmapNode, style: OutlineStyle, options: OutlineOptions = {}): string {
-  const title = escapeHtml(node.label.trim());
+  const title = escapeHtml(labelOneLine(node.label));
   const paragraph = (of: MindmapNode) => {
     const note = noteHtml(of, options);
     return note ? `<p><i>${note}</i></p>` : '';
@@ -83,9 +83,9 @@ export function toOutlineHtml(node: MindmapNode, style: OutlineStyle, options: O
   }
   const parts = [`<h1>${title}</h1>`, paragraph(node)];
   node.children.filter(meaningful).forEach((child) => {
-    parts.push(`<h2>${escapeHtml(child.label.trim())}</h2>`, paragraph(child));
+    parts.push(`<h2>${escapeHtml(labelOneLine(child.label))}</h2>`, paragraph(child));
     child.children.filter(meaningful).forEach((grandchild) => {
-      parts.push(`<h3>${escapeHtml(grandchild.label.trim())}</h3>`, paragraph(grandchild));
+      parts.push(`<h3>${escapeHtml(labelOneLine(grandchild.label))}</h3>`, paragraph(grandchild));
       parts.push(listHtml(grandchild.children, options));
     });
   });

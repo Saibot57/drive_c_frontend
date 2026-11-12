@@ -35,6 +35,15 @@ export function newNodeId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * Etiketten på en rad: radbrytningarna (Mindmap-sidan, Ctrl+Enter) blir ett
+ * mellanslag. För det som bara har plats för en rad: dispositionen, namn och
+ * filnamn. En etikett utan radbrytning blir bara trimmad.
+ */
+export function labelOneLine(label: string): string {
+  return label.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+}
+
 export function createNode(label = ''): MindmapNode {
   return { id: newNodeId(), label, children: [] };
 }

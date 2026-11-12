@@ -1,6 +1,6 @@
 # Mindmap: text på flera rader i en nod
 
-Status: Planerad
+Status: Pågår
 
 Planen är skriven 2026-11-12 efter en intervju med Tobias, mot koden på
 `main` (6f24dc3). Den omprövar ett beslut i [`mindmap-sida.md`](mindmap-sida.md)
@@ -229,26 +229,65 @@ med `wrap`. Platshållaren "Ny nod" mäts som i dag.
 
 ### A. Radbrytning
 
-- [ ] `wrapLabel` och `wrap` i layouten, med test (4.1).
-- [ ] Radvis ritning i `mindmapDraw.ts`, med test mot en falsk `ctx`.
-- [ ] `MindmapNodeView`: rader och `textarea`; CSS (4.2, 4.3).
-- [ ] `utils/mindmapLabelKeys.ts` med test; inkopplad i `MindmapCanvas`.
-- [ ] Disposition, Markdown och `.mup` (4.4), med test.
-- [ ] `oneLine` på ställena som visar etiketten på en rad.
-- [ ] Hjälprutan, och tangenten i huvudplanens avsnitt 6.
-- [ ] Huvudplanens avsnitt 9: flerradiga noder flyttas från "Utanför" med
+Byggd 2026-11-12 på grenen `claude/mindmap-radbrytning`.
+
+- [x] `wrapLabel` och `wrap` i layouten, med test (4.1).
+- [x] Radvis ritning i `mindmapDraw.ts`.
+- [x] `MindmapNodeView`: rader och `textarea`; CSS (4.2, 4.3).
+- [x] `utils/mindmapLabelKeys.ts` med test; inkopplad i `MindmapCanvas`.
+- [x] Disposition, Markdown och `.mup` (4.4), med test.
+- [x] En funktion för etiketten på en rad, på ställena som behöver den.
+- [x] Hjälprutan, och tangenten i huvudplanens avsnitt 6.
+- [x] Huvudplanens avsnitt 9: flerradiga noder flyttas från "Utanför" med
   en hänvisning hit.
+
+**Avvikelser från utformningen:**
+
+- `wrapLabelLines` ger raderna med var de börjar i etiketten; `wrapLabel`
+  ger bara texten. `caretLine` räknar på lägena.
+- `MINDMAP_WRAP` (240/320 px, radhöjd 18/22 px) är en egen konstant i
+  `mindmapLayout.ts`, inte fält i `MINDMAP_EXTRA_METRICS`. Radhöjderna är
+  satta efter typsnittet och stämde i Chromium: textfältet blev exakt så
+  högt som layouten räknat (`scrollHeight` lika med `clientHeight`).
+- Ikonen, symbolerna och "+3" står **mitt för raderna**, inte mot den första.
+  Det blev så på skärmen av sig självt (`align-items: center`), och
+  ritningen gör likadant.
+- Funktionen heter `labelOneLine` och ligger i den delade
+  `mindmapTree.ts`, eftersom den delade dispositionen behöver den. Den
+  används i dispositionen, Markdown, tvärlänkarnas rader, filnamn, PDF:ens
+  titel, namnet i JSON-filen och kartans namn vid import (JSON och
+  `.mup`). Listen "Visar grenen X" och panelens rubrik är HTML-text, där
+  webbläsaren gör radbrytningen till ett mellanslag själv.
+- Ritningen har inget test mot en falsk `ctx`; `mindmapDraw.ts` testas
+  inte (kommentaren överst i filen). Bilden är i stället jämförd med skärmen
+  i Chromium.
+- `MindmapCanvas.tsx` fick `handleLabelKey` (cirka 25 rader, från 1 156
+  till 1 189). Den läser bara upp raderna och anropar de rena funktionerna
+  i `mindmapLabelKeys.ts`; att lägga den i en egen hook hade krävt att
+  `commit`, `measure` och layouten skickades dit.
+- Etiketten i textfältet skrivs vid Ctrl+Enter direkt i fältet innan
+  kartan ritas om, så att markören står kvar efter radbrytningen.
 
 ### A. Kontroller
 
-- [ ] `layoutMindmap` utan `wrap` är oförändrad för en lång etikett och en
-  med `\n` (värden från i dag i testet).
-- [ ] Kortets tester gröna utan ändrade påståenden.
-- [ ] `resolveMindmapKey` har inga ändrade tester.
-- [ ] I webbläsaren: en lång etikett bryts; Ctrl+Enter ger en ny rad;
-  Enter ger fortfarande ett syskon, också mitt i en flerradig nod;
-  ↑ ↓ går mellan raderna och sedan till nästa nod; inklistring av en
-  disposition ger barn; PNG och PDF ser ut som skärmen.
+- [x] `layoutMindmap` utan `wrap` är oförändrad för en lång etikett och en
+  med `\n` (`mindmapWrap.test.ts`). En etikett på en rad får samma mått
+  med `wrap` som utan.
+- [x] Kortets tester gröna utan ändrade påståenden. Inga filer under
+  `src/app/workspace/_feature/` är ändrade.
+- [x] `resolveMindmapKey` har inga ändrade tester.
+- [x] I webbläsaren (Chromium utan fönster, mot ett mock-API): en lång
+  etikett bryts i tre rader; Ctrl+Enter ger en ny rad och sparas som
+  `\n`; ↑ stannar i noden på andra raden och går till noden ovanför från
+  första; Enter i en flerradig nod ger ett syskon; PNG:en ser ut som
+  skärmen, också minikartan.
+- [ ] Inte prövat i webbläsaren: inklistring av en disposition i en nod
+  (koden är oförändrad utom typen på händelsen), PDF, presentationen,
+  workspace-kortet, Safari och Firefox.
+
+Kontroller före push: `pnpm exec tsc --noEmit`, `pnpm lint` (inga fel),
+`pnpm test` (103 testfiler, 1 638 tester; 100 och 1 608 före),
+`pnpm build`.
 
 ### B. Bredd per nod
 
