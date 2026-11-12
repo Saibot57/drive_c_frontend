@@ -31,6 +31,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Mobilläge i Närvarorutor](narvaro-mobillage.md) | Genomförd 2026-11-09 (#261) |
 | [Mindmap-sida: en MindMup-kopia med sparade kartor](mindmap-sida.md) | Pågår. Alla steg 0–8 byggda 2026-11-11 (#267–#273, backend #60). Kvar för målet är prov, inte kod: deploy bekräftad, regressionslistan och Tobias egna prov. Se "Läget" överst i planen |
 | [Mindmap steg 8: visa bara grenen och presentationsläge](mindmap-presentation.md) | Genomförd 2026-11-11 (#273) |
+| [Mindmap: text på flera rader i en nod](mindmap-radbrytning.md) | Pågår. Del A (radbrytning) och del B (bredd per nod) byggda 2026-11-12. Kvar: proven i avsnitt 6 |
 
 Lägg till en rad här när en ny plan skrivs.
 

@@ -35,6 +35,15 @@ export function newNodeId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * Etiketten på en rad: radbrytningarna (Mindmap-sidan, Ctrl+Enter) blir ett
+ * mellanslag. För det som bara har plats för en rad: dispositionen, namn och
+ * filnamn. En etikett utan radbrytning blir bara trimmad.
+ */
+export function labelOneLine(label: string): string {
+  return label.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+}
+
 export function createNode(label = ''): MindmapNode {
   return { id: newNodeId(), label, children: [] };
 }
@@ -101,7 +110,16 @@ function sanitizeNode(raw: Record<string, unknown>, seen: Set<string>, depth: nu
   if (offset && typeof offset === 'object' && isFiniteNumber(offset.dx) && isFiniteNumber(offset.dy)) {
     node.offset = { dx: offset.dx, dy: offset.dy };
   }
+  if (isFiniteNumber(raw.textWidth)) node.textWidth = clampTextWidth(raw.textWidth);
   return node;
+}
+
+/** Gränserna för en nods egen textbredd, i px vid zoom 1. */
+export const MINDMAP_TEXT_WIDTH = { min: 80, max: 600 } as const;
+
+/** En textbredd avrundad och inom gränserna. */
+export function clampTextWidth(width: number): number {
+  return Math.round(Math.min(MINDMAP_TEXT_WIDTH.max, Math.max(MINDMAP_TEXT_WIDTH.min, width)));
 }
 
 function sanitizeImage(raw: unknown): MindmapNode['image'] | null {
@@ -254,7 +272,7 @@ export function setColor(content: MindmapContent, id: string, color: MindmapColo
 }
 
 /** Sätter eller tar bort (`null`) ett valfritt fält på en nod. */
-function setField<K extends 'note' | 'link' | 'image' | 'icon'>(
+function setField<K extends 'note' | 'link' | 'image' | 'icon' | 'textWidth'>(
   content: MindmapContent,
   id: string,
   key: K,
@@ -285,6 +303,11 @@ export function setImage(
   image: NonNullable<MindmapNode['image']> | null,
 ): MindmapContent {
   return setField(content, id, 'image', image);
+}
+
+/** Nodens egen textbredd, inom gränserna. `null` ger standardbredden igen. */
+export function setTextWidth(content: MindmapContent, id: string, width: number | null): MindmapContent {
+  return setField(content, id, 'textWidth', width === null || !Number.isFinite(width) ? null : clampTextWidth(width));
 }
 
 export function setIcon(content: MindmapContent, id: string, icon: MindmapIcon | null): MindmapContent {

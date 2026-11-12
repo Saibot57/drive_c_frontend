@@ -1,7 +1,7 @@
 import type { MindmapNode } from '@/types/mindmap';
 import type { MindmapCrossLink, MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
-import { findNode } from '@/utils/mindmap/mindmapTree';
+import { findNode, labelOneLine } from '@/utils/mindmap/mindmapTree';
 
 /*
  * Tvärlänkarnas form: var kurvan börjar och slutar, hur den böjer och var
@@ -163,11 +163,14 @@ const escapeHtml = (text: string) =>
 export function crossLinkLines(doc: MindmapDoc): string[] {
   const lines: string[] = [];
   (doc.crossLinks ?? []).forEach((link) => {
-    const from = findNode(doc.root, link.from)?.label.trim();
-    const to = findNode(doc.root, link.to)?.label.trim();
-    if (!from || !to) return;
+    const from = findNode(doc.root, link.from)?.label;
+    const to = findNode(doc.root, link.to)?.label;
+    if (from === undefined || to === undefined) return;
+    const fromText = labelOneLine(from);
+    const toText = labelOneLine(to);
+    if (!fromText || !toText) return;
     const label = link.label?.trim();
-    lines.push(`${from} ${ARROW_TEXT[link.arrow ?? 'to']} ${to}${label ? `: ${label}` : ''}`);
+    lines.push(`${fromText} ${ARROW_TEXT[link.arrow ?? 'to']} ${toText}${label ? `: ${label}` : ''}`);
   });
   return lines;
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { labelOneLine } from '@/utils/mindmap/mindmapTree';
 import { useCallback, useRef, useState } from 'react';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import {
@@ -8,7 +9,7 @@ import {
   type MindmapDrawSymbols,
   type MindmapPalette,
 } from '@/utils/mindmap/mindmapDraw';
-import { layoutMindmap, MINDMAP_METRICS } from '@/utils/mindmap/mindmapLayout';
+import { layoutMindmap, MINDMAP_METRICS, MINDMAP_WRAP } from '@/utils/mindmap/mindmapLayout';
 import { drawCrossLinks } from '@/utils/mindmapCrossLinkDraw';
 import { downloadBlob } from '@/utils/download';
 import { mindmapExportName, toMindmapFile } from '@/utils/mindmapFile';
@@ -63,6 +64,7 @@ export function useMindmapExport(deps: MindmapExportDeps) {
     return renderMindmapCanvas(doc, drawPalette, {
       scale: options.scaleFor?.(palette),
       extras: true,
+      wrap: MINDMAP_WRAP,
       images: images(),
       symbols,
       overlay: (ctx, drawn) => drawCrossLinks(ctx, drawn, doc, palette),
@@ -72,7 +74,7 @@ export function useMindmapExport(deps: MindmapExportDeps) {
   const exportAs = useCallback((kind: MindmapFileExportKind) => {
     const { getDoc, getFileDoc, title, flash } = depsRef.current;
     const doc = getDoc();
-    const fileName = (extension: string) => mindmapExportName(title, doc.root.label, extension);
+    const fileName = (extension: string) => mindmapExportName(title, labelOneLine(doc.root.label), extension);
 
     if (kind === 'markdown') {
       downloadBlob(new Blob([toMindmapMarkdown(doc)], { type: 'text/markdown;charset=utf-8' }), fileName('md'));
@@ -81,8 +83,8 @@ export function useMindmapExport(deps: MindmapExportDeps) {
     if (kind === 'json') {
       // Filen är en säkerhetskopia: alltid hela kartan, också när bara en gren visas.
       const whole = getFileDoc?.() ?? doc;
-      const name = mindmapExportName(title, whole.root.label, 'json');
-      downloadBlob(new Blob([toMindmapFile(title || whole.root.label, whole)], { type: 'application/json' }), name);
+      const name = mindmapExportName(title, labelOneLine(whole.root.label), 'json');
+      downloadBlob(new Blob([toMindmapFile(title || labelOneLine(whole.root.label), whole)], { type: 'application/json' }), name);
       return;
     }
     if (kind === 'pdf') {
@@ -96,12 +98,12 @@ export function useMindmapExport(deps: MindmapExportDeps) {
           const measured = layoutMindmap(doc, (text, isRoot) => {
             ctx.font = isRoot ? palette.rootFont : palette.font;
             return ctx.measureText(text).width;
-          }, MINDMAP_METRICS, { extras: true });
+          }, MINDMAP_METRICS, { extras: true, wrap: MINDMAP_WRAP });
           plan = planMindmapPdf(measured.width, measured.height);
           return plan.canvasScale;
         },
       })
-        .then((canvas) => mindmapPdfBlob(canvas, plan!, title || doc.root.label))
+        .then((canvas) => mindmapPdfBlob(canvas, plan!, title || labelOneLine(doc.root.label)))
         .then((blob) => downloadBlob(blob, fileName('pdf')))
         .catch((error) => {
           console.error('Mindmap: PDF-exporten misslyckades', error);

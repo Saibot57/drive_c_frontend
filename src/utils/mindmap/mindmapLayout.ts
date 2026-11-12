@@ -79,12 +79,110 @@ export function mindmapImageSize(image: NonNullable<MindmapNode['image']>): { wi
   return { width, height: Math.round(width * aspect) };
 }
 
+/**
+ * Radbrytning i noderna (docs/plans/mindmap-radbrytning.md). Bredderna är
+ * textens största bredd, innanför luft och kant, i px vid zoom 1.
+ */
+export interface MindmapWrap {
+  maxWidth: number;
+  rootMaxWidth: number;
+  /** Höjden för varje rad utöver den första. */
+  lineHeight: number;
+  rootLineHeight: number;
+}
+
+/**
+ * Mindmap-sidans radbrytning. Radhöjderna speglar `line-height` på
+ * `.mm__line` i mindmap.css (14 och 16 px text).
+ */
+export const MINDMAP_WRAP: MindmapWrap = {
+  maxWidth: 240,
+  rootMaxWidth: 320,
+  lineHeight: 18,
+  rootLineHeight: 22,
+};
+
+/** En rad i en bruten etikett och var den börjar i etiketten. */
+export interface WrappedLine {
+  text: string;
+  start: number;
+}
+
+/**
+ * Bryter en etikett i rader: först vid varje `\n`, sedan vid mellanslag så
+ * att ingen rad blir bredare än `maxWidth`. Ett ord som ensamt är för brett
+ * delas mellan tecknen. Mellanslagen där en rad bryts av sig själv hamnar
+ * inte på någon rad. En tom etikett och en tom rad är en tom rad.
+ */
+export function wrapLabelLines(label: string, maxWidth: number, measure: (text: string) => number): WrappedLine[] {
+  const result: WrappedLine[] = [];
+  let offset = 0;
+  label.split('\n').forEach((part) => {
+    const base = offset;
+    offset += part.length + 1;
+    if (part === '' || measure(part) <= maxWidth) {
+      result.push({ text: part, start: base });
+      return;
+    }
+    // Orden med sina lägen; mellanslagen mellan dem bär ingen rad.
+    const words: { text: string; start: number }[] = [];
+    const re = /\S+/g;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(part))) words.push({ text: match[0], start: match.index });
+    if (words.length === 0) {
+      result.push({ text: part, start: base });
+      return;
+    }
+    let line: { start: number; end: number } | null = null;
+    const flush = () => {
+      if (line) result.push({ text: part.slice(line.start, line.end), start: base + line.start });
+      line = null;
+    };
+    words.forEach((word) => {
+      if (line && measure(part.slice(line.start, word.start + word.text.length)) <= maxWidth) {
+        line.end = word.start + word.text.length;
+        return;
+      }
+      flush();
+      if (measure(word.text) <= maxWidth) {
+        line = { start: word.start, end: word.start + word.text.length };
+        return;
+      }
+      // Ordet ryms inte ens ensamt: dela det mellan tecknen.
+      let from = 0;
+      const chars = Array.from(word.text);
+      let at = word.start;
+      while (from < chars.length) {
+        let to = from + 1;
+        while (to < chars.length && measure(chars.slice(from, to + 1).join('')) <= maxWidth) to += 1;
+        const piece = chars.slice(from, to).join('');
+        if (to < chars.length) result.push({ text: piece, start: base + at });
+        else line = { start: at, end: at + piece.length };
+        at += piece.length;
+        from = to;
+      }
+    });
+    flush();
+  });
+  return result;
+}
+
+/** Raderna i en bruten etikett, utan lägen. */
+export function wrapLabel(label: string, maxWidth: number, measure: (text: string) => number): string[] {
+  return wrapLabelLines(label, maxWidth, measure).map((line) => line.text);
+}
+
 export interface MindmapLayoutOptions {
   /**
    * Ge plats för ikon, symboler och bild. Mindmap-sidan sätter den;
    * workspace-kortet visar inte tilläggen och får layouten som förut.
    */
   extras?: boolean;
+  /**
+   * Bryt etiketterna i rader. Mindmap-sidan sätter den; utan den är en nod
+   * en rad, som i workspace-kortet.
+   */
+  wrap?: MindmapWrap;
 }
 
 export type MeasureText = (text: string, isRoot: boolean) => number;
@@ -114,6 +212,10 @@ export interface LaidOutNode {
   contentX?: number;
   /** Höjden på raden med etiketten; resten av noden är bilden. */
   rowHeight?: number;
+  /** Bara med `wrap`: etikettens rader, minst en. */
+  lines?: string[];
+  /** Bara med `wrap`: radhöjden för raderna i `lines`. */
+  lineHeight?: number;
   image?: { x: number; y: number; width: number; height: number };
 }
 
@@ -145,21 +247,37 @@ export function layoutMindmap(
   const edges: LaidOutEdge[] = [];
   const xm = MINDMAP_EXTRA_METRICS;
 
-  type Extras = Pick<LaidOutNode, 'icon' | 'hasNote' | 'link' | 'contentX' | 'rowHeight' | 'image'>;
+  type Extras = Pick<LaidOutNode, 'icon' | 'hasNote' | 'link' | 'contentX' | 'rowHeight' | 'image' | 'lines' | 'lineHeight'>;
   type Size = { width: number; labelWidth: number; hiddenCount: number; height: number; extras: Extras };
 
   const sizes = new Map<string, Size>();
   const sizeOf = (node: MindmapNode, isRoot: boolean): Size => {
     const cached = sizes.get(node.id);
     if (cached) return cached;
-    const labelWidth = Math.ceil(Math.max(metrics.minLabelWidth, measure(node.label, isRoot) + metrics.slack));
+    const wrap = options.wrap;
+    // En egen bredd (`textWidth`) gäller bara med radbrytning: den är där
+    // texten bryts, och nodens bredd också när texten är kortare.
+    const ownWidth = wrap && node.textWidth !== undefined ? node.textWidth : null;
+    const lines = wrap
+      ? wrapLabel(node.label, ownWidth ?? (isRoot ? wrap.rootMaxWidth : wrap.maxWidth), (text) => measure(text, isRoot))
+      : null;
+    const textWidth = lines
+      ? Math.max(...lines.map((line, index) => (line === '' && index > 0 ? 0 : measure(line, isRoot))))
+      : measure(node.label, isRoot);
+    const labelWidth = Math.ceil(Math.max(metrics.minLabelWidth, textWidth + metrics.slack, ownWidth ?? 0));
     const pad = isRoot ? metrics.rootPadX : metrics.padX;
     const border = isRoot ? metrics.rootBorder : metrics.border;
     const hiddenCount = node.collapsed && !isRoot ? countDescendants(node) : 0;
-    const baseHeight = isRoot ? metrics.rootHeight : metrics.nodeHeight;
+    const lineHeight = wrap ? (isRoot ? wrap.rootLineHeight : wrap.lineHeight) : 0;
+    // Varje rad efter den första gör noden en radhöjd högre.
+    const baseHeight = (isRoot ? metrics.rootHeight : metrics.nodeHeight) + (lines ? (lines.length - 1) * lineHeight : 0);
     let width = labelWidth + 2 * pad + 2 * border + (hiddenCount > 0 ? metrics.badgeWidth : 0);
     let height = baseHeight;
     const extras: Extras = {};
+    if (lines) {
+      extras.lines = lines;
+      extras.lineHeight = lineHeight;
+    }
 
     if (options.extras) {
       const markers = (node.note ? 1 : 0) + (node.link ? 1 : 0);
@@ -190,8 +308,10 @@ export function layoutMindmap(
     const cached = heights.get(node.id);
     if (cached !== undefined) return cached;
     const kids = visibleChildren(node);
-    // En nod med bild är högre än en rad och behöver sin egen höjd.
-    const own = options.extras ? Math.max(metrics.nodeHeight, sizeOf(node, false).height) : metrics.nodeHeight;
+    // En nod med bild eller flera rader är högre än en rad och behöver sin egen höjd.
+    const own = options.extras || options.wrap
+      ? Math.max(metrics.nodeHeight, sizeOf(node, false).height)
+      : metrics.nodeHeight;
     const total = kids.length === 0
       ? own
       : Math.max(own, kids.reduce((sum, kid) => sum + subtreeHeight(kid), 0) + metrics.vGap * (kids.length - 1));

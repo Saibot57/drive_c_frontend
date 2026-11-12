@@ -1,3 +1,4 @@
+import { labelOneLine } from '@/utils/mindmap/mindmapTree';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import { toFileSlug } from '@/utils/download';
 import { cleanMindmapName, sanitizeMindmapDoc } from '@/utils/mindmapDoc';
@@ -48,7 +49,7 @@ function parseOwnFile(value: Record<string, unknown>, fallbackName: string): { n
   if (!isObject(doc) || !isObject(doc.root)) throw new MindmapImportError('Filen är trasig: kartan saknas i den.');
   const clean = sanitizeMindmapDoc(doc);
   const name = typeof value.name === 'string' ? value.name : '';
-  return { name: cleanMindmapName(name, cleanMindmapName(clean.root.label, fallbackName)), doc: clean };
+  return { name: cleanMindmapName(name, cleanMindmapName(labelOneLine(clean.root.label), fallbackName)), doc: clean };
 }
 
 const looksLikeMindmup = (value: Record<string, unknown>): boolean =>
