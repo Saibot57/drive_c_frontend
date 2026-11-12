@@ -1,14 +1,21 @@
 'use client';
 
 import React from 'react';
-import { Red_Hat_Text, Bangers, Archivo_Black, Archivo, IBM_Plex_Mono } from 'next/font/google';
 import localFont from 'next/font/local';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { THEME_INIT_SCRIPT } from '@/config/uiTheme';
 
-const redHat = Red_Hat_Text({
-  subsets: ['latin'],
-  weight: ['400', '500', '700'],
+/*
+ * Alla typsnitt ligger i src/fonts, så att bygget inte hämtar något från
+ * Google Fonts: när hämtningen misslyckades föll bygget i CI. Filerna är
+ * latin-subseten från Fontsource (OFL 1.1, licenserna i src/fonts/licenser).
+ */
+const redHat = localFont({
+  src: [
+    { path: '../../fonts/red-hat-text-latin-400-normal.woff2', weight: '400', style: 'normal' },
+    { path: '../../fonts/red-hat-text-latin-500-normal.woff2', weight: '500', style: 'normal' },
+    { path: '../../fonts/red-hat-text-latin-700-normal.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-redhat',
 });
 
@@ -21,14 +28,14 @@ const redHat = Red_Hat_Text({
  * aldrig ärvda. Brödtexten är fortfarande Red Hat Text.
  * Båda har verifierad täckning för å ä ö (latin-subsetet, 222 resp. 220 glyfer).
  */
-const bangers = Bangers({
-  subsets: ['latin'],
+const bangers = localFont({
+  src: '../../fonts/bangers-latin-400-normal.woff2',
   weight: '400',
   variable: '--font-bangers',
 });
 
-const archivoBlack = Archivo_Black({
-  subsets: ['latin'],
+const archivoBlack = localFont({
+  src: '../../fonts/archivo-black-latin-400-normal.woff2',
   weight: '400',
   variable: '--font-archivo',
 });
@@ -55,15 +62,20 @@ const monument = localFont({
  * på <body>: tokens.css läser dem på :root, och där hade en variabel från
  * <body> inte funnits.
  */
-const plexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
+const plexMono = localFont({
+  src: [
+    { path: '../../fonts/ibm-plex-mono-latin-400-normal.woff2', weight: '400', style: 'normal' },
+    { path: '../../fonts/ibm-plex-mono-latin-500-normal.woff2', weight: '500', style: 'normal' },
+  ],
   variable: '--font-plex-mono',
 });
 
-const archivo = Archivo({
-  subsets: ['latin'],
-  axes: ['wdth'],
+// Variabelt i både vikt och bredd; globals.css sätter font-stretch: 88%.
+const archivo = localFont({
+  src: '../../fonts/archivo-latin-wdth-normal.woff2',
+  weight: '100 900',
+  style: 'normal',
+  declarations: [{ prop: 'font-stretch', value: '62% 125%' }],
   variable: '--font-archivo-var',
 });
 
