@@ -334,7 +334,7 @@ Delade, bara med valfria tillägg: `types/mindmap.ts` (`edge`),
 
 ### Del A. Linjernas geometri och kartans val
 
-- [x] Genomfört: 2026-11-12, grenen `claude/mindmap-placering`
+- [x] Genomfört: 2026-11-12, #280
 
 **Så blev det.** Nya filer: `utils/mindmapEdges.ts` (+test, 12 st),
 `utils/mindmapRouting.ts` (+test, 7 st), `utils/mindmap/mindmapDraw.test.ts`
@@ -398,7 +398,7 @@ bakåtvända S-kurvor efter bytet till närmaste kant, på skärmen och i PNG:n.
 
 ### Del B. Placering
 
-- [x] Genomfört: 2026-11-12, grenen `claude/mindmap-placering`
+- [x] Genomfört: 2026-11-12, #280
 
 **Så blev det.** Draget lyftes först ut till `hooks/useMindmapNodeDrag.ts`
 i en egen commit (c9169c1) utan ändrat beteende, prövat i Chromium med
