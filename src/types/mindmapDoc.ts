@@ -55,6 +55,8 @@ export interface MindmapDoc extends MindmapContent {
   shading?: MindmapShading;
   /** Grenarnas linjer. Saknas: kurvor efter grensidan, som förut. */
   lines?: MindmapLines;
+  /** Rutnät att snäppa noderna till (del B). Saknas: av. */
+  grid?: boolean;
 }
 
 export interface MindmapSummary {

@@ -1,6 +1,6 @@
-import type { MindmapAnchor, MindmapEdgeShape } from '@/types/mindmap';
+import type { MindmapAnchor, MindmapContent, MindmapEdgeShape } from '@/types/mindmap';
 import type { MindmapDoc, MindmapLines } from '@/types/mindmapDoc';
-import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
+import { MINDMAP_METRICS, type MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import { anchorPoint, nearestSides, routeEdge, traceRoute, type EdgeBox, type EdgeRoute } from '@/utils/mindmapEdges';
 
 /*
@@ -69,4 +69,56 @@ export function drawRoutedEdges(ctx: CanvasRenderingContext2D, layout: MindmapLa
 export function setLines(doc: MindmapDoc, patch: MindmapLines): MindmapDoc {
   const lines = resolveLines(doc.lines);
   return { ...doc, lines: { shape: patch.shape ?? lines.shape, anchor: patch.anchor ?? lines.anchor } };
+}
+
+/**
+ * Rotens förskjutning (del B). Den delade layouten läser den inte, så att
+ * kortet står som förut; sidan flyttar roten här, och bara roten. Linjerna
+ * från roten följer med, och kartans mått räknas om så att allt ryms.
+ * Utan förskjutning kommer samma layout tillbaka.
+ */
+export function placeRootInLayout(
+  layout: MindmapLayoutResult,
+  content: Pick<MindmapContent, 'root'>,
+  margin = MINDMAP_METRICS.margin,
+): MindmapLayoutResult {
+  const offset = content.root.offset;
+  if (!offset || (offset.dx === 0 && offset.dy === 0)) return layout;
+  const rootId = content.root.id;
+  const moved = layout.nodes.map((n) => (n.id === rootId ? { ...n, x: n.x + offset.dx, y: n.y + offset.dy } : n));
+  const edges = layout.edges.map((e) => (e.fromId === rootId ? { ...e, x1: e.x1 + offset.dx, y1: e.y1 + offset.dy } : e));
+  const minX = Math.min(...moved.map((n) => n.x));
+  const minY = Math.min(...moved.map((n) => n.y));
+  const maxX = Math.max(...moved.map((n) => n.x + n.width));
+  const maxY = Math.max(...moved.map((n) => n.y + n.height));
+  const dx = margin - minX;
+  const dy = margin - minY;
+  const nodes = moved.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }));
+  return {
+    nodes,
+    edges: edges.map((e) => ({ ...e, x1: e.x1 + dx, y1: e.y1 + dy, x2: e.x2 + dx, y2: e.y2 + dy })),
+    width: Math.ceil(maxX - minX + 2 * margin),
+    height: Math.ceil(maxY - minY + 2 * margin),
+    byId: new Map(nodes.map((n) => [n.id, n])),
+  };
+}
+
+/**
+ * Rotens automatiska mitt i layouten: där den hade stått utan förskjutning.
+ * Kartans lager och rutnätet utgår från den, så att resten av kartan står
+ * still på skärmen när roten flyttas.
+ */
+export function rootOrigin(layout: MindmapLayoutResult, content: Pick<MindmapContent, 'root'>): { x: number; y: number } {
+  const root = layout.byId.get(content.root.id) ?? layout.nodes.find((n) => n.isRoot);
+  if (!root) return { x: 0, y: 0 };
+  const offset = content.root.offset ?? { dx: 0, dy: 0 };
+  return { x: root.x + root.width / 2 - offset.dx, y: root.y + root.height / 2 - offset.dy };
+}
+
+/** Slår på eller av rutnätet. Av sparas som att fältet saknas. */
+export function setGrid(doc: MindmapDoc, grid: boolean): MindmapDoc {
+  if (grid) return doc.grid ? doc : { ...doc, grid: true };
+  if (!doc.grid) return doc;
+  const { grid: _grid, ...rest } = doc;
+  return rest;
 }

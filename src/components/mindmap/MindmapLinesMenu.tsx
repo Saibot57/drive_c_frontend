@@ -10,13 +10,17 @@ const ANCHOR_LABELS: Record<MindmapLineAnchor, string> = { nearest: 'Närmaste k
 interface MindmapLinesMenuProps {
   lines: MindmapLines | undefined;
   onLines: (patch: MindmapLines) => void;
+  /** Kartans rutnät (del B). Utan `onGrid` visas inget val. */
+  grid?: boolean;
+  onGrid?: (on: boolean) => void;
 }
 
 /**
  * Kartans linjer i verktygsraden (docs/plans/mindmap-placering.md, del A):
- * form och var linjerna fäster. Gäller alla grenars linjer i kartan.
+ * form och var linjerna fäster. Gäller alla grenars linjer i kartan. Här
+ * finns också rutnätet (del B), som rör placeringen.
  */
-export function MindmapLinesMenu({ lines, onLines }: MindmapLinesMenuProps) {
+export function MindmapLinesMenu({ lines, onLines, grid, onGrid }: MindmapLinesMenuProps) {
   const current = resolveLines(lines);
   return (
     <div className="mm__popover mm__color-menu">
@@ -43,6 +47,15 @@ export function MindmapLinesMenu({ lines, onLines }: MindmapLinesMenuProps) {
           Närmaste kant: linjen går ut från den sida som vetter mot noden, också när en nod flyttats förbi sin förälder.
         </p>
       </div>
+      {onGrid && (
+        <div className="mm__lines-group">
+          <label className="mm__swatch-option">
+            <input type="checkbox" checked={!!grid} onChange={(e) => onGrid(e.target.checked)} />
+            Rutnät
+          </label>
+          <p className="mm__menu-hint">Noderna snäpper till rutnätet när de släpps. Håll Ctrl för att släppa fritt.</p>
+        </div>
+      )}
     </div>
   );
 }

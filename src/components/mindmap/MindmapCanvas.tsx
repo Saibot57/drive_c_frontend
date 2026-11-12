@@ -67,7 +67,8 @@ import {
 import { useMindmapPaint } from '@/hooks/useMindmapPaint';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
 import { routeToSvg } from '@/utils/mindmapEdges';
-import { drawRoutedEdges, routeEdges, setLines } from '@/utils/mindmapRouting';
+import { drawRoutedEdges, placeRootInLayout, rootOrigin, routeEdges, setGrid, setLines } from '@/utils/mindmapRouting';
+import { clearBranchOffsets, hasPlacement, MINDMAP_GRID, previewMove, setRootOffset } from '@/utils/mindmapPlacement';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapLinks } from '@/hooks/useMindmapLinks';
@@ -113,6 +114,9 @@ type Notice = { text: string; tone: 'success' | 'error' };
 
 /** Trädoperationerna sprider dokumentet, så tvärlänkarna följer med; typen vet det inte. */
 const asDoc = (content: MindmapContent): MindmapDoc => content as MindmapDoc;
+
+/** Hur långt rutnätet minst når från roten åt varje håll, i px vid zoom 1. */
+const GRID_REACH = 4000;
 
 /*
  * Kartan på Mindmap-sidan, i MindMups anda: två lägen, en markerad nod (nav)
@@ -161,6 +165,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     scroll: scrollRef.current,
     zoom: () => viewport.getView().zoom,
     layoutOf,
+    grid: !!docRef.current.grid,
+    nodeRect: (id) => nodeRect(id),
     onDown: () => setMenu(null),
     onLinkDrag: links.beginDrag,
     onDrop: (next, id) => {
@@ -236,7 +242,10 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   /** Sidans layout: sidans textmätning, och plats för ikon, symboler och bild. */
   const layoutOf = useCallback(
     (content: MindmapContent) =>
-      layoutMindmap(content, (text, isRoot) => measure(text || MINDMAP_PLACEHOLDER, isRoot), MINDMAP_METRICS, { extras: true, wrap: MINDMAP_WRAP }),
+      placeRootInLayout(
+        layoutMindmap(content, (text, isRoot) => measure(text || MINDMAP_PLACEHOLDER, isRoot), MINDMAP_METRICS, { extras: true, wrap: MINDMAP_WRAP }),
+        content,
+      ),
     [measure],
   );
 
@@ -260,15 +269,15 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const layout = useMemo(() => {
     if (!dragMove && !resize) return layoutOf(shown);
     let moved: MindmapDoc = doc;
-    if (dragMove) {
-      const base = findNode(doc.root, dragMove.id)?.offset ?? { dx: 0, dy: 0 };
-      moved = asDoc(setOffset(moved, dragMove.id, { dx: base.dx + dragMove.dx, dy: base.dy + dragMove.dy }));
-    }
+    if (dragMove) moved = previewMove(moved, dragMove.id, dragMove, dragMove.alone);
     if (resize) moved = asDoc(setTextWidth(moved, resize.id, resize.width));
     return layoutOf(branchDoc(moved, branchId));
   }, [doc, shown, branchId, dragMove, resize, layoutOf]);
   // Grenarnas linjer efter kartans form och fäste (docs/plans/mindmap-placering.md).
   const lines = doc.lines;
+  // Rutnätet når förbi kartan åt alla håll, i hela rutor så att prickarna
+  // hamnar där noderna snäpper.
+  const gridReach = Math.ceil(Math.max(GRID_REACH, layout.width, layout.height) / MINDMAP_GRID) * MINDMAP_GRID;
   const routes = useMemo(() => routeEdges(layout, { lines }), [layout, lines]);
 
   /* ── Bilder och panel ── */
@@ -303,13 +312,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   /* ── Vyn ── */
 
   // Rotnodens mitt är lagrets origo, så att roten ligger still när kartan
-  // växer och en sparad vy gäller också efter att noder lagts till.
+  // växer och en sparad vy gäller också efter att noder lagts till. Med en
+  // flyttad rot är det dess automatiska mitt, så att resten står still.
+  const shownRoot = dragMove?.id === shown.root.id ? previewMove(shown, dragMove.id, dragMove, false).root : shown.root;
   const origin = useMemo(() => {
-    const root = layout.nodes.find((node) => node.isRoot);
-    return root
-      ? { x: Math.round(root.x + root.width / 2), y: Math.round(root.y + root.height / 2) }
-      : { x: 0, y: 0 };
-  }, [layout]);
+    const center = rootOrigin(layout, { root: shownRoot });
+    return { x: Math.round(center.x), y: Math.round(center.y) };
+  }, [layout, shownRoot]);
   const bounds = useMemo<MindmapRect>(
     () => ({ x: -origin.x, y: -origin.y, width: layout.width, height: layout.height }),
     [origin, layout.width, layout.height],
@@ -623,7 +632,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     if (action.type === 'icon') {
       commit(asDoc(setIcon(docRef.current, id, action.icon)));
     } else if (action.type === 'resetOffset') {
-      const next = setOffset(docRef.current, id, null);
+      // Roten har sin egen förskjutning på sidan (del B i mindmap-placering.md).
+      const next = id === docRef.current.root.id ? setRootOffset(docRef.current, null) : setOffset(docRef.current, id, null);
       if (next !== docRef.current) commit(asDoc(next));
     } else {
       select(id);
@@ -940,6 +950,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       wrap: MINDMAP_WRAP,
       images: images.forDraw(),
       paint: paintFor,
+      transform: (laid) => placeRootInLayout(laid, branchDoc(docRef.current, branchIdRef.current)),
       edges: (ctx, drawn) => drawRoutedEdges(ctx, drawn, docRef.current),
       overlay: (ctx, drawn) => {
         const palette = readMinimapPalette();
@@ -988,13 +999,21 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         onLines={(patch) => commit(setLines(docRef.current, patch))}
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((open) => !open)}
-        canResetLayout={hasOffsets(doc)}
+        canResetLayout={hasPlacement(doc)}
         onResetLayout={() => {
           setMenu(null);
           const next = clearOffsets(docRef.current);
           if (next !== docRef.current) commit(asDoc(next));
           focusMap();
         }}
+        onTidyBranch={() => {
+          setMenu(null);
+          const next = clearBranchOffsets(docRef.current, currentId());
+          if (next !== docRef.current) commit(next);
+          focusMap();
+        }}
+        grid={!!doc.grid}
+        onGrid={(on) => commit(setGrid(docRef.current, on))}
         onLayout={(next: MindmapLayout) => {
           setMenu(null);
           commit(asDoc(setLayout(docRef.current, next)));
@@ -1040,6 +1059,20 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
               className="mm__canvas"
               style={{ left: -origin.x, top: -origin.y, width: layout.width, height: layout.height }}
             >
+              {doc.grid && (
+                // Rutnätet utgår från rotens automatiska mitt, som snäppningen.
+                <div
+                  className="mm__grid"
+                  aria-hidden="true"
+                  style={{
+                    left: origin.x - gridReach,
+                    top: origin.y - gridReach,
+                    width: 2 * gridReach,
+                    height: 2 * gridReach,
+                    backgroundSize: `${MINDMAP_GRID}px ${MINDMAP_GRID}px`,
+                  }}
+                />
+              )}
               <svg className="mm__edges" width={layout.width} height={layout.height} aria-hidden="true">
                 {routes.map((edge) => (
                   <path key={`${edge.fromId}-${edge.toId}`} d={routeToSvg(edge.route)} className="mm__edge" />

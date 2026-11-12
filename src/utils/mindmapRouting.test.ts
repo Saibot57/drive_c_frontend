@@ -3,7 +3,7 @@ import type { MindmapNode } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import { edgePath, layoutMindmap } from '@/utils/mindmap/mindmapLayout';
 import type { RouteCommand } from './mindmapEdges';
-import { resolveLines, routeEdges, setLines } from './mindmapRouting';
+import { resolveLines, routeEdges, setGrid, setLines } from './mindmapRouting';
 import { routeToSvg } from './mindmapEdges';
 
 const n = (id: string, children: MindmapNode[] = [], extra: Partial<MindmapNode> = {}): MindmapNode => ({
@@ -100,5 +100,16 @@ describe('resolveLines och setLines', () => {
     const d = setLines(doc(), { shape: 'straight' });
     expect(d.lines).toEqual({ shape: 'straight', anchor: 'side' });
     expect(setLines(d, { anchor: 'nearest' }).lines).toEqual({ shape: 'straight', anchor: 'nearest' });
+  });
+});
+
+describe('setGrid', () => {
+  it('sparar på som true och av som att fältet saknas', () => {
+    const on = setGrid(doc(), true);
+    expect(on.grid).toBe(true);
+    expect(setGrid(on, true)).toBe(on);
+    expect('grid' in setGrid(on, false)).toBe(false);
+    const off = doc();
+    expect(setGrid(off, false)).toBe(off);
   });
 });

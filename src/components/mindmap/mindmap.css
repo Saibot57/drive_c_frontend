@@ -7,6 +7,8 @@
    Samma uppbyggnad som .ws-mindmap i workspace.css, men med sidans tokens. */
 .mm {
   --mm-line: var(--ui-control-line);
+  /* Rutnätets prickar (del B i docs/plans/mindmap-placering.md). */
+  --mm-grid: color-mix(in srgb, var(--ui-control-line) 28%, transparent);
   --mm-text: var(--ui-ink);
   --mm-node-bg: var(--ui-surface);
   --mm-node-border: var(--ui-control-line);
@@ -74,6 +76,12 @@
 
 .mm__canvas {
   position: absolute;
+}
+
+.mm__grid {
+  position: absolute;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 0 0, var(--mm-grid) 1.5px, transparent 1.6px);
 }
 
 .mm__edges {

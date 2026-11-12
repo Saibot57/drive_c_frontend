@@ -83,6 +83,7 @@ export function sanitizeMindmapDoc(raw: unknown): MindmapDoc {
   }
   const lines = sanitizeLines((raw as { lines?: unknown } | null)?.lines);
   if (lines) doc.lines = lines;
+  if ((raw as { grid?: unknown } | null)?.grid === true) doc.grid = true;
   return pruneCrossLinks(doc);
 }
 

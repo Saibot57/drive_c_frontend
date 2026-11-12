@@ -105,6 +105,11 @@ export interface MindmapDrawOptions {
    */
   overlay?: (ctx: CanvasRenderingContext2D, layout: MindmapLayoutResult) => void;
   /**
+   * Ändrar layouten innan något ritas: Mindmap-sidan flyttar roten. Kortet
+   * anger den inte.
+   */
+  transform?: (layout: MindmapLayoutResult) => MindmapLayoutResult;
+  /**
    * Ritar grenarnas linjer i stället för de inbyggda kurvorna, med samma
    * färg och bredd: Mindmap-sidans former och fästen. Kortet anger den inte.
    */
@@ -133,10 +138,11 @@ export function renderMindmapCanvas(
     ctx.font = isRoot ? palette.rootFont : palette.font;
     return ctx.measureText(text).width;
   };
-  const layout: MindmapLayoutResult = layoutMindmap(content, measure, MINDMAP_METRICS, {
+  const laid: MindmapLayoutResult = layoutMindmap(content, measure, MINDMAP_METRICS, {
     extras: options.extras,
     wrap: options.wrap,
   });
+  const layout = options.transform ? options.transform(laid) : laid;
   const m = MINDMAP_METRICS;
   const xm = MINDMAP_EXTRA_METRICS;
 

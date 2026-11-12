@@ -4,7 +4,7 @@ import type { MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import { canMoveNode, moveNode, setOffset } from '@/utils/mindmap/mindmapTree';
 import { offsetBy, viewRootOf } from '@/utils/mindmapBranch';
-import { placeNode } from '@/utils/mindmapPlacement';
+import { placeNode, placeNodeAlone, placeRoot, snapDelta } from '@/utils/mindmapPlacement';
 
 /** Så långt måste pekaren röra sig innan ett klick blir ett drag. */
 export const DRAG_THRESHOLD_PX = 5;
@@ -14,6 +14,8 @@ export interface MindmapDragMove {
   id: string;
   dx: number;
   dy: number;
+  /** Alt: bara noden flyttas, barnen står kvar. */
+  alone: boolean;
 }
 
 export interface MindmapNodeDragDeps {
@@ -26,6 +28,10 @@ export interface MindmapNodeDragDeps {
   scroll: HTMLElement | null;
   zoom: () => number;
   layoutOf: (content: MindmapContent) => MindmapLayoutResult;
+  /** Snäpper noden till rutnätet (kartans `grid`). */
+  grid: boolean;
+  /** Nodens ruta från rotens automatiska mitt, som rutnätet utgår från. */
+  nodeRect: (id: string) => { x: number; y: number } | null;
   /** Vid varje nedtryckning: stäng menyer. */
   onDown: () => void;
   /** Shift+dra drar en tvärlänk i stället. */
@@ -35,10 +41,13 @@ export interface MindmapNodeDragDeps {
 }
 
 /**
- * Att dra en nod på Mindmap-sidan (docs/plans/mindmap-sida.md, steg 5).
- * Släpp på en annan nod gör grenen till dess barn; släpp på tom yta ger
- * noden en förskjutning. Medan noden dras ritas kartan som om den släppts,
- * genom `dragMove`; dokumentet ändras först vid släppet.
+ * Att dra en nod på Mindmap-sidan (docs/plans/mindmap-sida.md, steg 5, och
+ * docs/plans/mindmap-placering.md, del B). Släpp på en annan nod gör grenen
+ * till dess barn; släpp på tom yta ger noden en förskjutning, och grenen
+ * följer med. Med Alt flyttas bara noden. Roten går att dra i hela kartan
+ * och flyttas då ensam. Med rutnätet på snäpper nodens hörn till det, utom
+ * med Ctrl. Medan noden dras ritas kartan som om den släppts, genom
+ * `dragMove`; dokumentet ändras först vid släppet.
  *
  * `deps` läses vid varje händelse, så att anroparen kan ge funktioner som
  * definieras längre ned i komponenten.
@@ -72,12 +81,16 @@ export function useMindmapNodeDrag(deps: () => MindmapNodeDragDeps) {
       d.onLinkDrag(e, id);
       return;
     }
-    // Roten i det som visas står still.
-    if (d.editingId === id || id === viewRootOf(d.doc, d.branchId).id) return;
+    if (d.editingId === id) return;
+    // Grenens rot står still i grenvyn; kartans rot går att dra i hela kartan.
+    const isRoot = id === d.doc.root.id;
+    if (d.branchId && id === viewRootOf(d.doc, d.branchId).id) return;
 
     const start = { x: e.clientX, y: e.clientY };
+    const from = d.nodeRect(id);
     let active = false;
     let moved = { dx: 0, dy: 0 };
+    let alone = false;
 
     const handleMove = (ev: PointerEvent) => {
       if (!active) {
@@ -89,13 +102,15 @@ export function useMindmapNodeDrag(deps: () => MindmapNodeDragDeps) {
       // Den dragna noden släpper igenom pekaren (CSS), så träffen är noden under.
       const hit = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-mm-id]');
       const target = hit && now.scroll?.contains(hit) ? hit.dataset.mmId ?? null : null;
-      const valid = target && canMoveNode(now.doc, id, target) ? target : null;
+      const valid = !isRoot && target && canMoveNode(now.doc, id, target) ? target : null;
       dropRef.current = valid;
       setDropId(valid);
       // Skärmens pixlar till kartans: zoomen kan ha ändrats under draget.
       const zoom = now.zoom();
       moved = { dx: (ev.clientX - start.x) / zoom, dy: (ev.clientY - start.y) / zoom };
-      setDragMove({ id, ...moved });
+      if (now.grid && from && !ev.ctrlKey && !ev.metaKey) moved = snapDelta(from, moved);
+      alone = ev.altKey && !isRoot;
+      setDragMove({ id, ...moved, alone });
     };
 
     const handleUp = (ev: PointerEvent) => {
@@ -116,11 +131,12 @@ export function useMindmapNodeDrag(deps: () => MindmapNodeDragDeps) {
       // plats där. På tom yta: noden stannar där den släpptes.
       // I en gren kan noden vara gömd i hela kartan (en förfader är hopfälld);
       // då kan placeNode inte räkna, och förskjutningen läggs på direkt.
-      const next = target
-        ? moveNode(setOffset(now.doc, id, null), id, target)
-        : placeNode(now.doc, id, moved, now.layoutOf)
-          ?? (now.branchId ? offsetBy(now.doc, id, moved) : null);
-      if (next) now.onDrop(next as MindmapDoc, id);
+      let next: MindmapContent | null;
+      if (isRoot) next = placeRoot(now.doc, moved);
+      else if (target) next = moveNode(setOffset(now.doc, id, null), id, target);
+      else if (alone) next = placeNodeAlone(now.doc, id, moved);
+      else next = placeNode(now.doc, id, moved, now.layoutOf) ?? (now.branchId ? offsetBy(now.doc, id, moved) : null);
+      if (next && next !== now.doc) now.onDrop(next as MindmapDoc, id);
     };
 
     window.addEventListener('pointermove', handleMove);

@@ -150,3 +150,12 @@ describe('kartans linjer (docs/plans/mindmap-placering.md)', () => {
     expect(sanitizeMindmapDoc({ root }).lines).toBeUndefined();
   });
 });
+
+describe('rutnätet', () => {
+  it('behålls bara som true', () => {
+    const root = { id: 'r', label: 'R', children: [] };
+    expect(sanitizeMindmapDoc({ root, grid: true }).grid).toBe(true);
+    expect(sanitizeMindmapDoc({ root, grid: 'ja' }).grid).toBeUndefined();
+    expect(sanitizeMindmapDoc({ root }).grid).toBeUndefined();
+  });
+});
