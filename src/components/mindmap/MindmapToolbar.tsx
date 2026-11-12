@@ -12,19 +12,21 @@ import {
   Plus,
   Presentation,
   Redo2,
+  Spline,
   Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { MindmapLayout } from '@/types/mindmap';
-import type { MindmapShading } from '@/types/mindmapDoc';
+import type { MindmapLines, MindmapShading } from '@/types/mindmapDoc';
 import type { MindmapPaintChoice } from '@/utils/mindmapPaint';
 import { MINDMAP_PALETTE, MINDMAP_RECENT_COLORS_KEY, MINDMAP_RECENT_COLORS_MAX } from '@/config/mindmapPalette';
 import { useRecentColors } from '@/hooks/useRecentColors';
 import { MindmapColorMenu } from './MindmapColorMenu';
 import { MindmapHelp } from './MindmapHelp';
 import { MindmapImportButton } from './MindmapImportButton';
+import { MindmapLinesMenu } from './MindmapLinesMenu';
 
-export type MindmapMenu = 'color' | 'export' | 'help' | null;
+export type MindmapMenu = 'color' | 'lines' | 'tidy' | 'export' | 'help' | null;
 
 export type MindmapExportKind = 'image' | 'list' | 'headings' | 'png' | 'pdf' | 'markdown' | 'json';
 
@@ -42,12 +44,21 @@ interface MindmapToolbarProps {
   /** Kartans nyanser nedåt. */
   shading: MindmapShading;
   onShading: (shading: MindmapShading) => void;
+  /** Kartans linjer: form och fäste. Utan `onLines` visas ingen knapp. */
+  lines?: MindmapLines;
+  onLines?: (patch: MindmapLines) => void;
   /** Panelen med anteckning, länk, bild och ikon. */
   panelOpen?: boolean;
   onTogglePanel?: () => void;
   /** Finns det noder som flyttats för hand? Då går placeringen att nollställa. */
   canResetLayout?: boolean;
+  /** Städa upp hela kartan. */
   onResetLayout?: () => void;
+  /** Städa upp den markerade grenen (noden och allt under). */
+  onTidyBranch?: () => void;
+  /** Kartans rutnät. */
+  grid?: boolean;
+  onGrid?: (on: boolean) => void;
   onLayout: (layout: MindmapLayout) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -80,10 +91,15 @@ export default function MindmapToolbar({
   currentColor,
   shading,
   onShading,
+  lines,
+  onLines,
   panelOpen,
   onTogglePanel,
   canResetLayout,
   onResetLayout,
+  onTidyBranch,
+  grid,
+  onGrid,
   onLayout,
   onUndo,
   onRedo,
@@ -133,6 +149,22 @@ export default function MindmapToolbar({
           />
         )}
       </div>
+      {onLines && (
+        <div className="relative">
+          <Button
+            size="sm"
+            variant="neutral"
+            className={tool}
+            onClick={() => toggle('lines')}
+            title="Linjer: form och fäste"
+            aria-label="Linjer"
+            aria-expanded={menu === 'lines'}
+          >
+            <Spline size={15} />
+          </Button>
+          {menu === 'lines' && <MindmapLinesMenu lines={lines} onLines={onLines} grid={grid} onGrid={onGrid} />}
+        </div>
+      )}
       <Button size="sm" variant="neutral" className={tool} onClick={onToggleCollapse} title="Fäll ihop eller ut (mellanslag)" aria-label="Fäll ihop eller ut">
         <ChevronsDownUp size={15} />
       </Button>
@@ -148,17 +180,29 @@ export default function MindmapToolbar({
         <ArrowLeftRight size={15} />
       </Button>
       {onResetLayout && (
-        <Button
-          size="sm"
-          variant="neutral"
-          className={tool}
-          onClick={onResetLayout}
-          disabled={!canResetLayout}
-          title="Nollställ placeringen i hela kartan (Alt+Shift+0 för en nod)"
-          aria-label="Nollställ placeringen i hela kartan"
-        >
-          <ListTree size={15} />
-        </Button>
+        <div className="relative">
+          <Button
+            size="sm"
+            variant="neutral"
+            className={tool}
+            onClick={() => toggle('tidy')}
+            disabled={!canResetLayout}
+            title="Städa upp placeringen (Alt+Shift+0 för en nod)"
+            aria-label="Städa upp placeringen"
+            aria-expanded={menu === 'tidy'}
+          >
+            <ListTree size={15} />
+          </Button>
+          {menu === 'tidy' && (
+            <div className="mm__popover mm__menu">
+              {onTidyBranch && (
+                <button type="button" className="mm__menu-item" onClick={onTidyBranch}>Städa upp grenen</button>
+              )}
+              <button type="button" className="mm__menu-item" onClick={onResetLayout}>Städa upp hela kartan</button>
+              <p className="mm__menu-hint">Flyttade noder går tillbaka till layoutens plats. Linjernas val står kvar.</p>
+            </div>
+          )}
+        </div>
       )}
       {onToggleBranch && (
         <Button

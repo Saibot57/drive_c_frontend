@@ -1,4 +1,4 @@
-import type { MindmapColor, MindmapContent } from '@/types/mindmap';
+import type { MindmapColor, MindmapContent, MindmapEdgeShape } from '@/types/mindmap';
 
 /**
  * Mindmap-sidans dokument och lista (`/api/mindmap`). Trädet är det delade
@@ -31,11 +31,32 @@ export type MindmapShading = 'off' | 'short' | 'medium' | 'soft';
 
 export const MINDMAP_SHADINGS: MindmapShading[] = ['off', 'short', 'medium', 'soft'];
 
+/**
+ * Grenarnas linjer i en karta (docs/plans/mindmap-placering.md). `side`:
+ * linjen går efter grensidan, som före planen. `nearest`: från de sidor av
+ * noderna som vetter mot varandra.
+ */
+export type MindmapLineAnchor = 'side' | 'nearest';
+
+export const MINDMAP_EDGE_SHAPES: MindmapEdgeShape[] = ['curve', 'straight', 'elbow'];
+export const MINDMAP_LINE_ANCHORS: MindmapLineAnchor[] = ['side', 'nearest'];
+
+export interface MindmapLines {
+  /** Saknas: `curve`. */
+  shape?: MindmapEdgeShape;
+  /** Saknas: `side`, så att kartor från före planen ritas som förut. */
+  anchor?: MindmapLineAnchor;
+}
+
 export interface MindmapDoc extends MindmapContent {
   /** Länkar på tvären, utanför trädet. */
   crossLinks?: MindmapCrossLink[];
   /** Saknas betyder `off`: kartor från före nyanserna beter sig som förut. */
   shading?: MindmapShading;
+  /** Grenarnas linjer. Saknas: kurvor efter grensidan, som förut. */
+  lines?: MindmapLines;
+  /** Rutnät att snäppa noderna till (del B). Saknas: av. */
+  grid?: boolean;
 }
 
 export interface MindmapSummary {

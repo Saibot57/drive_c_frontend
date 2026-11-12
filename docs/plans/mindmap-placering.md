@@ -1,6 +1,6 @@
 # Mindmap: friare placering och linjer att forma
 
-Status: Planerad
+Status: Pågår. Del A och B byggda 2026-11-12
 
 Planen skrevs 2026-11-12 efter en intervju med Tobias, mot koden på `main`
 (f8541ce, där `MindmapCanvas.tsx` har 1 258 rader). Den bygger vidare på
@@ -334,7 +334,50 @@ Delade, bara med valfria tillägg: `types/mindmap.ts` (`edge`),
 
 ### Del A. Linjernas geometri och kartans val
 
-- [ ] Genomfört
+- [x] Genomfört: 2026-11-12, #280
+
+**Så blev det.** Nya filer: `utils/mindmapEdges.ts` (+test, 12 st),
+`utils/mindmapRouting.ts` (+test, 7 st), `utils/mindmap/mindmapDraw.test.ts`
+(2 st, skyddsregel 1) och `components/mindmap/MindmapLinesMenu.tsx`. Två
+tester till i `mindmapDoc.test.ts`. Efter delen: 109 testfiler, 1 716
+tester (106 och 1 693 före). `MindmapCanvas.tsx` växte med 7 rader till
+1 265.
+
+- Knappen "Linjer" (kurvikonen) står efter färgen i verktygsraden, med
+  Form (Kurva, Rak, Vinklad) och Fäste (Närmaste kant, Efter grensidan).
+  Ett val är ett ångra-steg.
+- Avvikelse: `routeEdges(layout, doc)` ger en lista med linjer bredvid
+  layouten, inte en ny layout med `routes`. Måtten behöver inte räknas om i
+  del A: alla tre formerna håller sig inom rutan som ändarna spänner upp.
+  Rotens förskjutning, och därmed `transform` i `mindmapDraw.ts` och den
+  nya beräkningen av måtten, kommer i del B.
+- Avvikelse: bara `edges` lades till i `MindmapDrawOptions`; `transform`
+  väntar till del B, där den behövs.
+- Avvikelse: `routeEdge` räknar inte ut mittpunkt eller riktning. Det
+  behövs först för tvärlänkarnas etikett och pil (del C).
+- Avvikelse: `MindmapEdgeShape` och `MindmapAnchor` ligger redan i den
+  delade `types/mindmap.ts` (bara typer, inget beteende), så att del C
+  inte behöver flytta dem.
+- Avvikelse: en `.mup`-import får inget `lines`, och följer alltså
+  grensidan, som nyanserna (`shading`) gör. Den har inga förskjutningar,
+  så den ritas likadant med båda fästena.
+- Med närmaste kant går en nod som överlappar sin förälder i x-led (som
+  Republik i kartan "Förskjutna", som ligger delvis över roten) ut uppåt
+  eller nedåt. Det följer regeln, men det ser tvärt ut när noderna ligger
+  över varandra.
+
+**Kontrollerat 2026-11-12.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium mot mock-API:t med
+kartan "Förskjutna": kartans yta är **pixelidentisk** med `main` innan
+något valts (jämfört bild mot bild). Närmaste kant med kurva, rak och
+vinklad på skärmen, i minikartan, i presentationen och i den exporterade
+PNG:n, som alla visar samma linjer. Kronberg. Valet finns kvar efter
+omladdning och sparas som `lines` i dokumentet.
+
+**Inte kontrollerat.** Workspace-kortet i webbläsaren; dess filer är
+orörda, och den delade ritningen utan `edges` är prövad i
+`mindmapDraw.test.ts`. PDF och urklippsbild går genom samma `draw` som
+PNG:n men är inte öppnade. Riktig backend.
 
 1. `utils/mindmapEdges.ts` med test, skrivet först: `nearestSides` i de
    fyra riktningarna och för överlappande rutor, de tre formerna med och
@@ -355,7 +398,66 @@ bakåtvända S-kurvor efter bytet till närmaste kant, på skärmen och i PNG:n.
 
 ### Del B. Placering
 
-- [ ] Genomfört
+- [x] Genomfört: 2026-11-12, #280
+
+**Så blev det.** Draget lyftes först ut till `hooks/useMindmapNodeDrag.ts`
+i en egen commit (c9169c1) utan ändrat beteende, prövat i Chromium med
+stegets 5 prov: grenen följer, roten och syskonen står still, ångra, klick
+efter drag, släpp på en annan nod. Ny testfil:
+`utils/mindmapPlacementFree.test.ts` (13 st), och ett test var för
+rutnätet i `mindmapDoc.test.ts` och `mindmapRouting.test.ts`. Efter delen:
+110 testfiler, 1 731 tester. `MindmapCanvas.tsx` är 1 234 rader (1 265
+efter del A).
+
+- Alt under draget flyttar bara noden (`placeNodeAlone`). Alt läses vid
+  varje rörelse, så det går att trycka ned eller släppa Alt mitt i draget.
+  Ett släpp på en annan nod byter förälder som förut, också med Alt.
+- Roten dras i hela kartan och flyttas ensam (`placeRoot`). I grenvyn står
+  grenens rot still som förut. Alt+Shift+0 på roten tar bort rotens
+  förskjutning.
+- Kartans lager har kvar rotens **automatiska** mitt som origo
+  (`rootOrigin`), så att resten av kartan står still på skärmen medan roten
+  dras, och en sparad vy gäller som förut.
+- `placeRootInLayout` i `utils/mindmapRouting.ts` flyttar roten och
+  linjerna från den, och räknar om kartans mått. Sidans `layoutOf`, PNG,
+  PDF, minikartan och presentationen går genom den (`transform` i
+  `mindmapDraw.ts` för bilderna).
+- Sidbytet i `both` sker bara när draget korsar rotens mitt (test, också
+  med en flyttad rot).
+- Rutnätet slås på i menyn Linjer ("Rutnät"). Prickarna (`.mm__grid`) når
+  minst 4 000 px från roten åt alla håll. Nodens övre vänstra hörn snäpper
+  under draget, och med Ctrl (Cmd) snäpper det inte. Rutnätet ritas inte
+  i exporten.
+- Knappen för att nollställa blev menyn **Städa upp**, med *grenen* (den
+  markerade noden och allt under, `clearBranchOffsets`) och *hela kartan*.
+  Med roten markerad städar *grenen* hela kartan.
+- Avvikelse: den delade `hasOffsets` räknar inte roten (kortet flyttar den
+  aldrig). Sidan använder `hasPlacement` i `mindmapPlacement.ts`, så att
+  "Städa upp" går att välja när bara roten är flyttad.
+- Avvikelse: `--mm-grid` blandas ur `--ui-control-line` och följer med
+  temat utan ett eget värde för Kronberg.
+- Avvikelse: raderna om Alt+dra, att dra roten och Ctrl står i
+  `MindmapHelp.tsx`, där sidans kortkommandon finns. `config/shortcuts.ts`
+  hänvisar dit och är orörd.
+- I grenvyn utgår rutnätet från grenens rot, inte från kartans. En nod
+  som snäpps där hamnar alltså på grenens rutnät.
+- En gammal karta med fästet "efter grensidan" och en flyttad rot får
+  linjer som går från rotens sida rakt ned till en gren under den. Med
+  "Närmaste kant" blir de raka. Det är ett skäl att byta i gamla kartor.
+
+**Kontrollerat 2026-11-12.** `tsc`, `lint` (bara den gamla varningen),
+`test`, `build`. I Chromium mot mock-API:t: Alt+dra en förälder (den
+flyttas 80,40, barnen står still på pixeln), dra roten (grenarna står
+still), ångra rotens flytt, Alt+Shift+0 på roten, rutnätet syns och
+sparas som `grid`, en nod dragen med rutnätet hamnar på det, med Ctrl
+fritt (33,17 px), städa en gren (bara den grenen tillbaka), grenens rot
+står still i grenvyn, PNG-exporten med flyttad rot (samma som skärmen,
+utan rutnät), Kronberg. Inga fel i konsolen.
+
+**Inte kontrollerat.** Alt+dra i Firefox (Alt kan visa menyraden när den
+släpps), på Mac (Option) och i Linux med en fönsterhanterare som tar
+Alt+dra. Workspace-kortet i webbläsaren; dess filer är orörda. Riktig
+backend.
 
 1. Draget bryts ut till `useMindmapNodeDrag`, utan ändrat beteende (en egen
    commit, kontrollerad med samma Playwright-prov som steg 5).

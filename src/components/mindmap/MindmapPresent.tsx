@@ -6,7 +6,9 @@ import type { MindmapContent } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapImages } from '@/hooks/useMindmapImages';
 import type { MindmapNodePaint } from '@/utils/mindmap/mindmapDraw';
-import { edgePath, type MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
+import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
+import { routeToSvg } from '@/utils/mindmapEdges';
+import { routeEdges } from '@/utils/mindmapRouting';
 import { crossLinkGeometry } from '@/utils/mindmapCrossLinks';
 import {
   presentDoc,
@@ -55,6 +57,7 @@ export function MindmapPresent({ doc, paints, layoutOf, images, onClose }: Mindm
   const shown = useMemo(() => presentDoc(doc, state), [doc, state]);
   const layout = useMemo(() => layoutOf(shown), [layoutOf, shown]);
   const shapes = useMemo(() => crossLinkGeometry(layout, shown), [layout, shown]);
+  const routes = useMemo(() => routeEdges(layout, shown), [layout, shown]);
   const view = useMemo(
     () => presentView(layout, presentFocus(layout, shown.root, state), size),
     [layout, shown, state, size],
@@ -113,8 +116,8 @@ export function MindmapPresent({ doc, paints, layoutOf, images, onClose }: Mindm
         }}
       >
         <svg className="mm__edges" width={layout.width} height={layout.height} aria-hidden="true">
-          {layout.edges.map((edge) => (
-            <path key={`${edge.fromId}-${edge.toId}`} d={edgePath(edge)} className="mm__edge" />
+          {routes.map((edge) => (
+            <path key={`${edge.fromId}-${edge.toId}`} d={routeToSvg(edge.route)} className="mm__edge" />
           ))}
         </svg>
 

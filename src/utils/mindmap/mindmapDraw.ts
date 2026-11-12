@@ -105,6 +105,16 @@ export interface MindmapDrawOptions {
    */
   overlay?: (ctx: CanvasRenderingContext2D, layout: MindmapLayoutResult) => void;
   /**
+   * Ändrar layouten innan något ritas: Mindmap-sidan flyttar roten. Kortet
+   * anger den inte.
+   */
+  transform?: (layout: MindmapLayoutResult) => MindmapLayoutResult;
+  /**
+   * Ritar grenarnas linjer i stället för de inbyggda kurvorna, med samma
+   * färg och bredd: Mindmap-sidans former och fästen. Kortet anger den inte.
+   */
+  edges?: (ctx: CanvasRenderingContext2D, layout: MindmapLayoutResult) => void;
+  /**
    * Mindmap-sidans färger per nod-id, räknade med samma palett som ritningen.
    * En nod som saknas ritas som utan den. Kortet anger den inte.
    */
@@ -128,10 +138,11 @@ export function renderMindmapCanvas(
     ctx.font = isRoot ? palette.rootFont : palette.font;
     return ctx.measureText(text).width;
   };
-  const layout: MindmapLayoutResult = layoutMindmap(content, measure, MINDMAP_METRICS, {
+  const laid: MindmapLayoutResult = layoutMindmap(content, measure, MINDMAP_METRICS, {
     extras: options.extras,
     wrap: options.wrap,
   });
+  const layout = options.transform ? options.transform(laid) : laid;
   const m = MINDMAP_METRICS;
   const xm = MINDMAP_EXTRA_METRICS;
 
@@ -144,13 +155,17 @@ export function renderMindmapCanvas(
 
   ctx.strokeStyle = palette.line;
   ctx.lineWidth = 1.5;
-  layout.edges.forEach((edge) => {
-    const mid = (edge.x1 + edge.x2) / 2;
-    ctx.beginPath();
-    ctx.moveTo(edge.x1, edge.y1);
-    ctx.bezierCurveTo(mid, edge.y1, mid, edge.y2, edge.x2, edge.y2);
-    ctx.stroke();
-  });
+  if (options.edges) {
+    options.edges(ctx, layout);
+  } else {
+    layout.edges.forEach((edge) => {
+      const mid = (edge.x1 + edge.x2) / 2;
+      ctx.beginPath();
+      ctx.moveTo(edge.x1, edge.y1);
+      ctx.bezierCurveTo(mid, edge.y1, mid, edge.y2, edge.x2, edge.y2);
+      ctx.stroke();
+    });
+  }
 
   const paints = options.paint?.(palette);
 

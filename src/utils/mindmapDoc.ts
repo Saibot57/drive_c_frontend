@@ -1,5 +1,12 @@
-import type { MindmapCrossLink, MindmapDoc, MindmapMap, MindmapShading, MindmapSummary } from '@/types/mindmapDoc';
-import { MAX_CROSS_LINK_LABEL_LENGTH, MAX_MINDMAP_NAME_LENGTH, MINDMAP_SHADINGS } from '@/types/mindmapDoc';
+import type { MindmapCrossLink, MindmapDoc, MindmapLineAnchor, MindmapLines, MindmapMap, MindmapShading, MindmapSummary } from '@/types/mindmapDoc';
+import {
+  MAX_CROSS_LINK_LABEL_LENGTH,
+  MAX_MINDMAP_NAME_LENGTH,
+  MINDMAP_EDGE_SHAPES,
+  MINDMAP_LINE_ANCHORS,
+  MINDMAP_SHADINGS,
+} from '@/types/mindmapDoc';
+import type { MindmapEdgeShape } from '@/types/mindmap';
 import { MINDMAP_COLORS, type MindmapColor } from '@/types/mindmap';
 import { defaultMindmap, findNode, findParent, newNodeId, removeNode, sanitizeMindmap } from '@/utils/mindmap/mindmapTree';
 
@@ -14,9 +21,12 @@ import { defaultMindmap, findNode, findParent, newNodeId, removeNode, sanitizeMi
 
 export const DEFAULT_MINDMAP_NAME = 'Ny karta';
 
-/** En ny karta får nyanser nedåt; se `MindmapShading`. */
+/**
+ * En ny karta får nyanser nedåt (`MindmapShading`) och linjer som fäster i
+ * närmaste kant (`MindmapLines`).
+ */
 export function defaultMindmapDoc(): MindmapDoc {
-  return { ...defaultMindmap(), shading: 'short' };
+  return { ...defaultMindmap(), shading: 'short', lines: { shape: 'curve', anchor: 'nearest' } };
 }
 
 const ARROWS = ['none', 'to', 'both'] as const;
@@ -71,7 +81,24 @@ export function sanitizeMindmapDoc(raw: unknown): MindmapDoc {
   if (typeof shading === 'string' && (MINDMAP_SHADINGS as string[]).includes(shading)) {
     doc.shading = shading as MindmapShading;
   }
+  const lines = sanitizeLines((raw as { lines?: unknown } | null)?.lines);
+  if (lines) doc.lines = lines;
+  if ((raw as { grid?: unknown } | null)?.grid === true) doc.grid = true;
   return pruneCrossLinks(doc);
+}
+
+/** Kartans linjeval; okända värden tas bort, och ett tomt val blir inget. */
+function sanitizeLines(raw: unknown): MindmapLines | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as { shape?: unknown; anchor?: unknown };
+  const lines: MindmapLines = {};
+  if (typeof value.shape === 'string' && (MINDMAP_EDGE_SHAPES as string[]).includes(value.shape)) {
+    lines.shape = value.shape as MindmapEdgeShape;
+  }
+  if (typeof value.anchor === 'string' && (MINDMAP_LINE_ANCHORS as string[]).includes(value.anchor)) {
+    lines.anchor = value.anchor as MindmapLineAnchor;
+  }
+  return lines.shape || lines.anchor ? lines : null;
 }
 
 /* ── Tvärlänkar ── */

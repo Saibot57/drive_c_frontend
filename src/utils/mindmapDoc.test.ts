@@ -135,3 +135,27 @@ describe('listan', () => {
     expect(sanitizeLastOpen(42)).toBeNull();
   });
 });
+
+describe('kartans linjer (docs/plans/mindmap-placering.md)', () => {
+  it('en ny karta fäster i närmaste kant med kurvor', () => {
+    expect(defaultMindmapDoc().lines).toEqual({ shape: 'curve', anchor: 'nearest' });
+  });
+
+  it('tvätten behåller kända val och tar bort okända', () => {
+    const root = { id: 'r', label: 'R', children: [] };
+    expect(sanitizeMindmapDoc({ root, lines: { shape: 'elbow', anchor: 'nearest' } }).lines).toEqual({ shape: 'elbow', anchor: 'nearest' });
+    expect(sanitizeMindmapDoc({ root, lines: { shape: 'zigzag', anchor: 'side' } }).lines).toEqual({ anchor: 'side' });
+    expect(sanitizeMindmapDoc({ root, lines: { shape: 1 } }).lines).toBeUndefined();
+    expect(sanitizeMindmapDoc({ root, lines: 'curve' }).lines).toBeUndefined();
+    expect(sanitizeMindmapDoc({ root }).lines).toBeUndefined();
+  });
+});
+
+describe('rutnätet', () => {
+  it('behålls bara som true', () => {
+    const root = { id: 'r', label: 'R', children: [] };
+    expect(sanitizeMindmapDoc({ root, grid: true }).grid).toBe(true);
+    expect(sanitizeMindmapDoc({ root, grid: 'ja' }).grid).toBeUndefined();
+    expect(sanitizeMindmapDoc({ root }).grid).toBeUndefined();
+  });
+});
