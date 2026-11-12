@@ -8,12 +8,10 @@ import {
   addChild,
   addChildren,
   addSibling,
-  canMoveNode,
   findNode,
   findParent,
   indent,
   moveAmongSiblings,
-  moveNode,
   navigate,
   outdent,
   clearOffsets,
@@ -50,7 +48,6 @@ import {
   branchRootId,
   clampToBranch,
   isViewRootChild,
-  offsetBy,
   resolveBranchKey,
   viewRootOf,
 } from '@/utils/mindmapBranch';
@@ -69,12 +66,12 @@ import {
 } from '@/utils/mindmapPaint';
 import { useMindmapPaint } from '@/hooks/useMindmapPaint';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
-import { placeNode } from '@/utils/mindmapPlacement';
 import { routeToSvg } from '@/utils/mindmapEdges';
 import { drawRoutedEdges, routeEdges, setLines } from '@/utils/mindmapRouting';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapLinks } from '@/hooks/useMindmapLinks';
+import { useMindmapNodeDrag } from '@/hooks/useMindmapNodeDrag';
 import { useMindmapExport } from '@/hooks/useMindmapExport';
 import { isCopyImageKey } from '@/utils/mindmapFile';
 import { useMindmapViewport } from '@/hooks/useMindmapViewport';
@@ -107,8 +104,6 @@ interface MindmapCanvasProps {
   onImport?: (file: File) => void;
 }
 
-/** Så långt måste pekaren röra sig innan ett klick blir ett drag. */
-const DRAG_THRESHOLD_PX = 5;
 
 const NOTICE_MS = 3200;
 
@@ -156,16 +151,29 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const editingRef = useRef<string | null>(null);
   const historyRef = useRef(emptyHistory());
 
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dropId, setDropId] = useState<string | null>(null);
-  const dropRef = useRef<string | null>(null);
-  /** Hur långt noden som dras har flyttats, i kartans px (vid zoom 1). */
-  const [dragMove, setDragMove] = useState<{ id: string; dx: number; dy: number } | null>(null);
-  const suppressClick = useRef(false);
+  // Draget av en nod (hooks/useMindmapNodeDrag.ts). Det som behövs läses vid
+  // varje händelse, så funktionerna nedan kan ges här.
+  const drag = useMindmapNodeDrag(() => ({
+    doc: docRef.current,
+    branchId: branchIdRef.current,
+    editingId: editingRef.current,
+    selectedId: selectedRef.current,
+    scroll: scrollRef.current,
+    zoom: () => viewport.getView().zoom,
+    layoutOf,
+    onDown: () => setMenu(null),
+    onLinkDrag: links.beginDrag,
+    onDrop: (next, id) => {
+      commit(next);
+      select(id);
+      focusMap();
+    },
+  }));
+  const { dragId, dropId, dragMove, suppressClick } = drag;
   const [panning, setPanning] = useState(false);
   /** Sätts när markeringen kommer av att kartan fick fokus; då ska vyn inte flytta sig. */
   const skipReveal = useRef(false);
-  const selectedOnDown = useRef(false);
+  const selectedOnDown = drag.selectedOnDown;
 
   /*
    * "Visa bara grenen": noden som visas som rot, eller `null` för hela
@@ -790,79 +798,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
   /* ── Pekaren ── */
 
-  const handleNodePointerDown = (e: React.PointerEvent<HTMLDivElement>, id: string) => {
-    if (e.button !== 0) return;
-    e.stopPropagation();
-    // Efter ett drag som släpptes på en annan nod kommer inget klick på den
-    // dragna; utan det här hade nästa klick på en nod svalts.
-    suppressClick.current = false;
-    // Läses före klicket: när knappen trycks ned får kartan fokus och
-    // markerar roten, och då hade första klicket på roten börjat redigera.
-    selectedOnDown.current = selectedRef.current === id && document.activeElement === scrollRef.current;
-    setMenu(null);
-    // Shift+dra drar en tvärlänk i stället för att flytta noden.
-    if (e.shiftKey && editingRef.current !== id) {
-      suppressClick.current = true;
-      links.beginDrag(e, id);
-      return;
-    }
-    // Roten i det som visas står still.
-    if (editingRef.current === id || id === viewRootOf(docRef.current, branchIdRef.current).id) return;
-
-    const start = { x: e.clientX, y: e.clientY };
-    let active = false;
-    let moved = { dx: 0, dy: 0 };
-
-    const handleMove = (ev: PointerEvent) => {
-      if (!active) {
-        if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < DRAG_THRESHOLD_PX) return;
-        active = true;
-        setDragId(id);
-      }
-      // Den dragna noden släpper igenom pekaren (CSS), så träffen är noden under.
-      const hit = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-mm-id]');
-      const target = hit && scrollRef.current?.contains(hit) ? hit.dataset.mmId ?? null : null;
-      const valid = target && canMoveNode(docRef.current, id, target) ? target : null;
-      dropRef.current = valid;
-      setDropId(valid);
-      // Skärmens pixlar till kartans: zoomen kan ha ändrats under draget.
-      const zoom = viewport.getView().zoom;
-      moved = { dx: (ev.clientX - start.x) / zoom, dy: (ev.clientY - start.y) / zoom };
-      setDragMove({ id, ...moved });
-    };
-
-    const handleUp = (ev: PointerEvent) => {
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleUp);
-      if (!active) return;
-      suppressClick.current = true;
-      const target = dropRef.current;
-      dropRef.current = null;
-      setDragId(null);
-      setDropId(null);
-      setDragMove(null);
-      // Ett avbrutet drag (pekaren togs över av webbläsaren) ändrar ingenting.
-      if (ev.type === 'pointercancel') return;
-      // På en annan nod: grenen blir dess barn och står på sin automatiska
-      // plats där. På tom yta: noden stannar där den släpptes.
-      // I en gren kan noden vara gömd i hela kartan (en förfader är hopfälld);
-      // då kan placeNode inte räkna, och förskjutningen läggs på direkt.
-      const next = target
-        ? moveNode(setOffset(docRef.current, id, null), id, target)
-        : placeNode(docRef.current, id, moved, layoutOf)
-          ?? (branchIdRef.current ? offsetBy(docRef.current, id, moved) : null);
-      if (next) {
-        commit(asDoc(next));
-        select(id);
-        focusMap();
-      }
-    };
-
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleUp);
-  };
+  const handleNodePointerDown = drag.onPointerDown;
 
   /**
    * Panorerar: vänsterknappen på tom yta (noderna stoppar sin egen
