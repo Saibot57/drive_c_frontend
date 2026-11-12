@@ -479,7 +479,7 @@ grenarna kvar, en gren går att städa och rutnätet snäpper, och alla
 
 ### Del C. Inställningar per linje
 
-- [x] Genomfört: 2026-11-12, grenen `claude/mindmap-placering` efter #280
+- [x] Genomfört: 2026-11-12, #281
 
 **Så blev det.** Nya filer: `hooks/useMindmapEdgeSelection.ts`,
 `components/mindmap/MindmapEdgeLayer.tsx` (linjerna med träffytor, och
@@ -545,7 +545,7 @@ PNG:n.
 
 ### Del D. Brytpunkter
 
-- [x] Genomfört: 2026-11-12, grenen `claude/mindmap-placering` efter #280
+- [x] Genomfört: 2026-11-12, #281
 
 **Så blev det.** Nya filer: `hooks/useMindmapWaypoints.ts` (att dra en
 punkt), `hooks/useMindmapLinePoints.ts` (punkterna på det som är markerat:
