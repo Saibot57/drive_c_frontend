@@ -1,4 +1,10 @@
-import type { MindmapColor, MindmapContent, MindmapEdgeShape } from '@/types/mindmap';
+import {
+  MINDMAP_EDGE_SHAPE_VALUES,
+  type MindmapAnchor,
+  type MindmapColor,
+  type MindmapContent,
+  type MindmapEdgeShape,
+} from '@/types/mindmap';
 
 /**
  * Mindmap-sidans dokument och lista (`/api/mindmap`). Trädet är det delade
@@ -17,6 +23,12 @@ export interface MindmapCrossLink {
   arrow?: 'none' | 'to' | 'both';
   /** En av nodfärgerna, t.ex. grön för stöd och rosa för invändning. */
   color?: MindmapColor;
+  /** Del C i docs/plans/mindmap-placering.md. Saknas: den böjda kurvan. */
+  shape?: MindmapEdgeShape;
+  /** Var länken fäster vid `from`. Saknas: där linjen mot den andra noden lämnar rutan. */
+  fromAnchor?: MindmapAnchor;
+  /** Var länken fäster vid `to`. */
+  toAnchor?: MindmapAnchor;
 }
 
 export const MAX_CROSS_LINK_LABEL_LENGTH = 80;
@@ -38,7 +50,7 @@ export const MINDMAP_SHADINGS: MindmapShading[] = ['off', 'short', 'medium', 'so
  */
 export type MindmapLineAnchor = 'side' | 'nearest';
 
-export const MINDMAP_EDGE_SHAPES: MindmapEdgeShape[] = ['curve', 'straight', 'elbow'];
+export const MINDMAP_EDGE_SHAPES: MindmapEdgeShape[] = [...MINDMAP_EDGE_SHAPE_VALUES];
 export const MINDMAP_LINE_ANCHORS: MindmapLineAnchor[] = ['side', 'nearest'];
 
 export interface MindmapLines {

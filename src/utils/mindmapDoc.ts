@@ -6,9 +6,9 @@ import {
   MINDMAP_LINE_ANCHORS,
   MINDMAP_SHADINGS,
 } from '@/types/mindmapDoc';
-import type { MindmapEdgeShape } from '@/types/mindmap';
+import type { MindmapAnchor, MindmapEdgeShape } from '@/types/mindmap';
 import { MINDMAP_COLORS, type MindmapColor } from '@/types/mindmap';
-import { defaultMindmap, findNode, findParent, newNodeId, removeNode, sanitizeMindmap } from '@/utils/mindmap/mindmapTree';
+import { defaultMindmap, findNode, findParent, newNodeId, removeNode, sanitizeEdgeStyle, sanitizeMindmap } from '@/utils/mindmap/mindmapTree';
 
 /*
  * Mindmap-sidans dokument: tvätt av det som läses från servern, och det som
@@ -74,6 +74,10 @@ export function sanitizeMindmapDoc(raw: unknown): MindmapDoc {
     if (typeof link.arrow === 'string' && (ARROWS as readonly string[]).includes(link.arrow) && link.arrow !== 'to') {
       clean.arrow = link.arrow as MindmapCrossLink['arrow'];
     }
+    const style = sanitizeEdgeStyle({ shape: link.shape, from: link.fromAnchor, to: link.toAnchor });
+    if (style?.shape) clean.shape = style.shape;
+    if (style?.from) clean.fromAnchor = style.from;
+    if (style?.to) clean.toAnchor = style.to;
     links.push(clean);
   });
   const doc: MindmapDoc = links.length ? { ...content, crossLinks: links } : content;
@@ -150,13 +154,37 @@ export function setCrossLinkArrow(doc: MindmapDoc, id: string, arrow: NonNullabl
 
 /** Vänder länken: den går från den nod den gick till. */
 export function reverseCrossLink(doc: MindmapDoc, id: string): MindmapDoc {
-  return updateCrossLink(doc, id, (link) => ({ ...link, from: link.to, to: link.from }));
+  // Fästena följer med sina noder.
+  return updateCrossLink(doc, id, (link) => {
+    const { fromAnchor, toAnchor, ...rest } = link;
+    const next: MindmapCrossLink = { ...rest, from: link.to, to: link.from };
+    if (toAnchor) next.fromAnchor = toAnchor;
+    if (fromAnchor) next.toAnchor = fromAnchor;
+    return next;
+  });
 }
 
 export function setCrossLinkColor(doc: MindmapDoc, id: string, color: MindmapColor | null): MindmapDoc {
   return updateCrossLink(doc, id, (link) => {
     const { color: _color, ...rest } = link;
     return color ? { ...rest, color } : rest;
+  });
+}
+
+/** Länkens form; `null` ger den böjda kurvan. */
+export function setCrossLinkShape(doc: MindmapDoc, id: string, shape: MindmapEdgeShape | null): MindmapDoc {
+  return updateCrossLink(doc, id, (link) => {
+    const { shape: _shape, ...rest } = link;
+    return shape ? { ...rest, shape } : rest;
+  });
+}
+
+/** Var länken fäster vid en ände; `null` låter den räknas fram. */
+export function setCrossLinkAnchor(doc: MindmapDoc, id: string, end: 'from' | 'to', side: MindmapAnchor | null): MindmapDoc {
+  const key = end === 'from' ? 'fromAnchor' : 'toAnchor';
+  return updateCrossLink(doc, id, (link) => {
+    const { [key]: _old, ...rest } = link;
+    return side ? { ...rest, [key]: side } : rest;
   });
 }
 

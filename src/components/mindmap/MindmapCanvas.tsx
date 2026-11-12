@@ -66,8 +66,17 @@ import {
 } from '@/utils/mindmapPaint';
 import { useMindmapPaint } from '@/hooks/useMindmapPaint';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
-import { routeToSvg } from '@/utils/mindmapEdges';
-import { drawRoutedEdges, placeRootInLayout, rootOrigin, routeEdges, setGrid, setLines } from '@/utils/mindmapRouting';
+import {
+  drawRoutedEdges,
+  placeRootInLayout,
+  pruneEdgeAnchors,
+  rootOrigin,
+  routeEdges,
+  setEdgeAnchor,
+  setGrid,
+  setLines,
+} from '@/utils/mindmapRouting';
+import { useMindmapEdgeSelection } from '@/hooks/useMindmapEdgeSelection';
 import { clearBranchOffsets, hasPlacement, MINDMAP_GRID, previewMove, setRootOffset } from '@/utils/mindmapPlacement';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
@@ -83,6 +92,8 @@ import { isEditableElement } from '@/utils/dom';
 import { loadDrawSymbols, LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from './mindmapIcons';
 import { canCopyImage, copyOutline, fontOf, readPalette } from './mindmapCanvasIo';
 import { MindmapBranchBar } from './MindmapBranchBar';
+import { MindmapEdgeBar } from './MindmapEdgeBar';
+import { MindmapEdgeHandles, MindmapEdgeLayer } from './MindmapEdgeLayer';
 import { MindmapLinkBar } from './MindmapLinkBar';
 import { MindmapLinkLayer } from './MindmapLinkLayer';
 import { MindmapMinimap } from './MindmapMinimap';
@@ -273,12 +284,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     if (resize) moved = asDoc(setTextWidth(moved, resize.id, resize.width));
     return layoutOf(branchDoc(moved, branchId));
   }, [doc, shown, branchId, dragMove, resize, layoutOf]);
-  // Grenarnas linjer efter kartans form och fäste (docs/plans/mindmap-placering.md).
+  // Kartans val för linjerna (docs/plans/mindmap-placering.md).
   const lines = doc.lines;
   // Rutnätet når förbi kartan åt alla håll, i hela rutor så att prickarna
   // hamnar där noderna snäpper.
   const gridReach = Math.ceil(Math.max(GRID_REACH, layout.width, layout.height) / MINDMAP_GRID) * MINDMAP_GRID;
-  const routes = useMemo(() => routeEdges(layout, { lines }), [layout, lines]);
 
   /* ── Bilder och panel ── */
 
@@ -358,7 +368,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     );
     // En flytt kan göra två länkade noder till förälder och barn; den
     // länken är då inte längre tillåten.
-    const pruned = pruneCrossLinks(next);
+    // Ett byte av förälder tar bort linjens fästen (del C i mindmap-placering.md).
+    const pruned = pruneEdgeAnchors(docRef.current, pruneCrossLinks(next));
     docRef.current = pruned;
     onChangeRef.current(pruned);
   }, [currentId]);
@@ -396,6 +407,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
   // Länkarna ritas ur det som visas; länkar ut ur en gren finns kvar i dokumentet.
   const links = useMindmapLinks({ mapId, doc: shown, docRef, layout, commit, flash, focusMap, currentId, toLayoutPoint, nodeAt });
+  const edges = useMindmapEdgeSelection({ mapId, docRef, layout, commit, focusMap, toLayoutPoint });
+  // Linjerna med nodernas egna val, och fästet som dras i ett handtag.
+  const edgePreview = edges.preview;
+  const routes = useMemo(() => {
+    const root = edgePreview ? setEdgeAnchor(shown, edgePreview.id, edgePreview.end, edgePreview.side).root : shown.root;
+    return routeEdges(layout, { lines, root });
+  }, [layout, lines, shown, edgePreview]);
   const branch = useMindmapBranchView({ mapId, branchId, wanted: branchWanted, setWanted: setBranchWanted, viewport });
   // Presentationsläget ritas inuti kartans ruta, som går i helskärm (del 8b).
   const presenting = useMindmapPresenting(rootRef, mapId);
@@ -680,6 +698,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       return;
     }
     if (handleViewKey(e) || handleExtraKey(e)) return;
+    // En markerad linje: Esc avmarkerar, Delete gör ingenting.
+    if (edges.handleKey(e)) return;
     // Ctrl+L från ett textfält: skrivandet avslutas, länken börjar från noden.
     if (links.handleKey(e)) {
       if (editingRef.current) {
@@ -817,8 +837,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     setMenu(null);
     if (e.button !== 0 && e.button !== 1) return;
-    // Ett klick på tom yta avmarkerar en tvärlänk.
-    if (e.button === 0) links.select(null);
+    // Ett klick på tom yta avmarkerar en tvärlänk och en linje.
+    if (e.button === 0) {
+      links.select(null);
+      edges.select(null);
+    }
     let last = { x: e.clientX, y: e.clientY };
     const pointerId = e.pointerId;
 
@@ -855,6 +878,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       return;
     }
     links.select(null);
+    edges.select(null);
     // Ett klick på den markerade noden börjar skriva i den, som i MindMup.
     const alreadySelected = selectedOnDown.current;
     selectedOnDown.current = false;
@@ -1073,11 +1097,17 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                   }}
                 />
               )}
-              <svg className="mm__edges" width={layout.width} height={layout.height} aria-hidden="true">
-                {routes.map((edge) => (
-                  <path key={`${edge.fromId}-${edge.toId}`} d={routeToSvg(edge.route)} className="mm__edge" />
-                ))}
-              </svg>
+              <MindmapEdgeLayer
+                width={layout.width}
+                height={layout.height}
+                routes={routes}
+                selectedId={edges.selectedId}
+                onSelect={(id) => {
+                  links.select(null);
+                  edges.select(id);
+                  focusMap();
+                }}
+              />
 
               {layout.nodes.map((node) => (
                 <MindmapNodeView
@@ -1122,6 +1152,14 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                 />
               ))}
 
+              <MindmapEdgeHandles
+                width={layout.width}
+                height={layout.height}
+                edge={routes.find((e) => e.toId === edges.selectedId) ?? null}
+                onBegin={edges.beginHandle}
+                onReset={(end) => edges.setAnchor(end, null)}
+              />
+
               <MindmapLinkLayer
                 width={layout.width}
                 height={layout.height}
@@ -1129,6 +1167,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                 selectedId={links.selected?.id ?? null}
                 draft={links.draft}
                 onSelect={(id) => {
+                  edges.select(null);
                   links.select(id);
                   focusMap();
                 }}
@@ -1156,6 +1195,21 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
           />
         )}
 
+        {edges.edge && edges.style && (
+          <MindmapEdgeBar
+            style={edges.style}
+            fromLabel={findNode(doc.root, edges.edge.fromId)?.label ?? ''}
+            toLabel={findNode(doc.root, edges.edge.toId)?.label ?? ''}
+            onShape={edges.setShape}
+            onAnchor={edges.setAnchor}
+            onReset={edges.reset}
+            onClose={() => {
+              edges.select(null);
+              focusMap();
+            }}
+          />
+        )}
+
         {links.selected && (
           <MindmapLinkBar
             link={links.selected}
@@ -1166,6 +1220,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
             onArrow={links.setArrow}
             onReverse={links.reverse}
             onColor={links.setColor}
+            onShape={links.setShape}
+            onAnchor={links.setAnchor}
             onRemove={links.remove}
             onReturn={focusMap}
           />

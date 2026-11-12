@@ -97,6 +97,43 @@
   stroke-width: 1.5;
 }
 
+.mm__edge--selected {
+  stroke: var(--mm-select);
+  stroke-width: 2.5;
+}
+
+/* Del C i docs/plans/mindmap-placering.md: en linje går att markera. */
+.mm__edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 10;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.mm__edge-handles {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.mm__edge-handle {
+  fill: var(--mm-node-bg);
+  stroke: var(--mm-select);
+  stroke-width: 2;
+  pointer-events: all;
+  cursor: grab;
+}
+
+.mm__edgebar-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--ui-muted);
+  font-size: 0.75rem;
+}
+
 .mm__node {
   position: absolute;
   box-sizing: border-box;

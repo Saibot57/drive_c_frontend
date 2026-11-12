@@ -114,3 +114,83 @@ export function traceRoute(ctx: Pick<CanvasRenderingContext2D, 'moveTo' | 'lineT
     else ctx.bezierCurveTo(cmd.c1x, cmd.c1y, cmd.c2x, cmd.c2y, cmd.x, cmd.y);
   });
 }
+
+/* ── Del C: fästen som väljs, och tvärlänkarnas pilar och etikett ── */
+
+/** Mitten av rutans sida, `gap` px utanför den. */
+export function anchorPointOut(box: EdgeBox, side: MindmapAnchor, gap: number): EdgePoint {
+  const p = anchorPoint(box, side);
+  if (side === 'top') return { x: p.x, y: p.y - gap };
+  if (side === 'bottom') return { x: p.x, y: p.y + gap };
+  if (side === 'left') return { x: p.x - gap, y: p.y };
+  return { x: p.x + gap, y: p.y };
+}
+
+/**
+ * Den sida av rutan som en punkt ligger närmast, räknat mot rutans mått: en
+ * punkt rakt ovanför en bred nod ger `top`, också när den ligger långt åt
+ * sidan i px. Handtagen på en linjes ändar dras med den.
+ */
+export function nearestSideTo(box: EdgeBox, point: EdgePoint): MindmapAnchor {
+  const dx = (point.x - (box.x + box.width / 2)) / Math.max(1, box.width / 2);
+  const dy = (point.y - (box.y + box.height / 2)) / Math.max(1, box.height / 2);
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+  return dy >= 0 ? 'bottom' : 'top';
+}
+
+const bezierAt = (p0: EdgePoint, c1: EdgePoint, c2: EdgePoint, p3: EdgePoint, t: number): EdgePoint => {
+  const u = 1 - t;
+  return {
+    x: u * u * u * p0.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p3.x,
+    y: u * u * u * p0.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p3.y,
+  };
+};
+
+/** Linjen som en bruten linje, med kurvorna delade i 16 bitar. */
+function routePoints(route: EdgeRoute): EdgePoint[] {
+  const points: EdgePoint[] = [];
+  let at: EdgePoint = { x: 0, y: 0 };
+  route.forEach((cmd) => {
+    if (cmd.type === 'M' || cmd.type === 'L') {
+      at = { x: cmd.x, y: cmd.y };
+      points.push(at);
+      return;
+    }
+    const from = at;
+    const c1 = { x: cmd.c1x, y: cmd.c1y };
+    const c2 = { x: cmd.c2x, y: cmd.c2y };
+    const to = { x: cmd.x, y: cmd.y };
+    for (let i = 1; i <= 16; i += 1) points.push(bezierAt(from, c1, c2, to, i / 16));
+    at = to;
+  });
+  return points;
+}
+
+/** Punkten halvvägs längs linjen, där en etikett står. */
+export function routeMidpoint(route: EdgeRoute): EdgePoint {
+  const points = routePoints(route);
+  if (points.length < 2) return points[0] ?? { x: 0, y: 0 };
+  const lengths = points.slice(1).map((p, i) => Math.hypot(p.x - points[i].x, p.y - points[i].y));
+  let left = lengths.reduce((sum, l) => sum + l, 0) / 2;
+  for (let i = 0; i < lengths.length; i += 1) {
+    if (left <= lengths[i] && lengths[i] > 0) {
+      const t = left / lengths[i];
+      return { x: points[i].x + (points[i + 1].x - points[i].x) * t, y: points[i].y + (points[i + 1].y - points[i].y) * t };
+    }
+    left -= lengths[i];
+  }
+  return points[points.length - 1];
+}
+
+/**
+ * Var linjen kommer ifrån vid varje ände, för att rikta en pil: en punkt en
+ * bit in på linjen från änden.
+ */
+export function routeEnds(route: EdgeRoute): { start: EdgePoint; startFrom: EdgePoint; end: EdgePoint; endFrom: EdgePoint } {
+  const points = routePoints(route);
+  const start = points[0] ?? { x: 0, y: 0 };
+  const end = points[points.length - 1] ?? start;
+  const startFrom = points.find((p) => p.x !== start.x || p.y !== start.y) ?? end;
+  const endFrom = [...points].reverse().find((p) => p.x !== end.x || p.y !== end.y) ?? start;
+  return { start, startFrom, end, endFrom };
+}

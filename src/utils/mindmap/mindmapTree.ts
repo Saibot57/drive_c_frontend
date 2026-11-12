@@ -1,9 +1,14 @@
 import {
+  MINDMAP_ANCHORS,
   MINDMAP_COLORS,
+  MINDMAP_EDGE_SHAPE_VALUES,
   MINDMAP_ICONS,
   MINDMAP_NOTE_MAX_LENGTH,
+  type MindmapAnchor,
   type MindmapColor,
   type MindmapContent,
+  type MindmapEdgeShape,
+  type MindmapEdgeStyle,
   type MindmapIcon,
   type MindmapImageSource,
   type MindmapLayout,
@@ -118,7 +123,26 @@ function sanitizeNode(raw: Record<string, unknown>, seen: Set<string>, depth: nu
   } else if (raw.colorNone === true && !node.color) {
     node.colorNone = true;
   }
+  const edge = sanitizeEdgeStyle(raw.edge);
+  if (edge) node.edge = edge;
   return node;
+}
+
+/** En linjes egna val; okända värden tas bort, och inga val blir inget. */
+export function sanitizeEdgeStyle(raw: unknown): MindmapEdgeStyle | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as { shape?: unknown; from?: unknown; to?: unknown };
+  const edge: MindmapEdgeStyle = {};
+  if (typeof value.shape === 'string' && (MINDMAP_EDGE_SHAPE_VALUES as readonly string[]).includes(value.shape)) {
+    edge.shape = value.shape as MindmapEdgeShape;
+  }
+  if (typeof value.from === 'string' && (MINDMAP_ANCHORS as readonly string[]).includes(value.from)) {
+    edge.from = value.from as MindmapAnchor;
+  }
+  if (typeof value.to === 'string' && (MINDMAP_ANCHORS as readonly string[]).includes(value.to)) {
+    edge.to = value.to as MindmapAnchor;
+  }
+  return edge.shape || edge.from || edge.to ? edge : null;
 }
 
 /** Gränserna för en nods egen textbredd, i px vid zoom 1. */

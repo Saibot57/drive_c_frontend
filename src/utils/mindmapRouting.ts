@@ -1,6 +1,7 @@
-import type { MindmapAnchor, MindmapContent, MindmapEdgeShape } from '@/types/mindmap';
+import type { MindmapAnchor, MindmapContent, MindmapEdgeShape, MindmapEdgeStyle, MindmapNode } from '@/types/mindmap';
 import type { MindmapDoc, MindmapLines } from '@/types/mindmapDoc';
 import { MINDMAP_METRICS, type MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
+import { findNode, updateNode } from '@/utils/mindmap/mindmapTree';
 import { anchorPoint, nearestSides, routeEdge, traceRoute, type EdgeBox, type EdgeRoute } from '@/utils/mindmapEdges';
 
 /*
@@ -28,28 +29,52 @@ export function resolveLines(lines: MindmapLines | undefined): Required<MindmapL
  * förälderns utåtvända kant till barnets inåtvända, som i layouten; med
  * `nearest` från de sidor av nodernas rutor som vetter mot varandra.
  */
-export function routeEdges(layout: MindmapLayoutResult, doc: Pick<MindmapDoc, 'lines'>): RoutedEdge[] {
+export function routeEdges(
+  layout: MindmapLayoutResult,
+  doc: Pick<MindmapDoc, 'lines'> & { root?: MindmapNode },
+): RoutedEdge[] {
   const { shape, anchor } = resolveLines(doc.lines);
+  const styles = doc.root ? edgeStyles(doc.root) : null;
   return layout.edges.map((edge) => {
     const from = layout.byId.get(edge.fromId);
     const to = layout.byId.get(edge.toId);
-    if (anchor === 'nearest' && from && to) {
-      const sides = nearestSides(from, to);
-      return { fromId: edge.fromId, toId: edge.toId, route: routeBetween(from, sides.from, to, sides.to, shape) };
+    const own = styles?.get(edge.toId);
+    const edgeShape = own?.shape ?? shape;
+    if (from && to && (anchor === 'nearest' || own?.from || own?.to)) {
+      // Fästen som inte är valda följer kartan: närmaste kant, eller grensidan.
+      const auto = anchor === 'nearest' ? nearestSides(from, to) : sideAnchors(to.side);
+      const fromSide = own?.from ?? auto.from;
+      const toSide = own?.to ?? auto.to;
+      return { fromId: edge.fromId, toId: edge.toId, route: routeBetween(from, fromSide, to, toSide, edgeShape) };
     }
-    const left = to?.side === 'left';
+    const sides = sideAnchors(to?.side ?? null);
     return {
       fromId: edge.fromId,
       toId: edge.toId,
       route: routeEdge({
         start: { x: edge.x1, y: edge.y1 },
-        startSide: left ? 'left' : 'right',
+        startSide: sides.from,
         end: { x: edge.x2, y: edge.y2 },
-        endSide: left ? 'right' : 'left',
-        shape,
+        endSide: sides.to,
+        shape: edgeShape,
       }),
     };
   });
+}
+
+/** Grensidans fästen: ut från förälderns utåtvända sida, in i barnets inåtvända. */
+const sideAnchors = (side: 'left' | 'right' | null): { from: MindmapAnchor; to: MindmapAnchor } =>
+  side === 'left' ? { from: 'left', to: 'right' } : { from: 'right', to: 'left' };
+
+/** Nodernas egna linjeval, per nod-id. */
+function edgeStyles(root: MindmapNode): Map<string, MindmapEdgeStyle> {
+  const map = new Map<string, MindmapEdgeStyle>();
+  const walk = (node: MindmapNode) => {
+    if (node.edge) map.set(node.id, node.edge);
+    node.children.forEach(walk);
+  };
+  walk(root);
+  return map;
 }
 
 function routeBetween(from: EdgeBox, fromSide: MindmapAnchor, to: EdgeBox, toSide: MindmapAnchor, shape: MindmapEdgeShape): EdgeRoute {
@@ -57,7 +82,11 @@ function routeBetween(from: EdgeBox, fromSide: MindmapAnchor, to: EdgeBox, toSid
 }
 
 /** Ritar grenarnas linjer på Canvas med den färg och bredd som är satt. */
-export function drawRoutedEdges(ctx: CanvasRenderingContext2D, layout: MindmapLayoutResult, doc: Pick<MindmapDoc, 'lines'>): void {
+export function drawRoutedEdges(
+  ctx: CanvasRenderingContext2D,
+  layout: MindmapLayoutResult,
+  doc: Pick<MindmapDoc, 'lines'> & { root?: MindmapNode },
+): void {
   routeEdges(layout, doc).forEach(({ route }) => {
     ctx.beginPath();
     traceRoute(ctx, route);
@@ -121,4 +150,70 @@ export function setGrid(doc: MindmapDoc, grid: boolean): MindmapDoc {
   if (!doc.grid) return doc;
   const { grid: _grid, ...rest } = doc;
   return rest;
+}
+
+/* ── Del C: en linjes egna val ── */
+
+function updateEdge<T extends MindmapContent>(content: T, id: string, update: (edge: MindmapEdgeStyle) => MindmapEdgeStyle): T {
+  if (id === content.root.id || !findNode(content.root, id)) return content;
+  let changed = false;
+  const root = updateNode(content.root, id, (node) => {
+    const next = update(node.edge ?? {});
+    const clean = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined)) as MindmapEdgeStyle;
+    const was = node.edge ?? {};
+    const same = clean.shape === was.shape && clean.from === was.from && clean.to === was.to;
+    if (same) return node;
+    changed = true;
+    if (Object.keys(clean).length > 0) return { ...node, edge: clean };
+    const { edge: _edge, ...rest } = node;
+    return rest as MindmapNode;
+  });
+  return changed ? { ...content, root } : content;
+}
+
+/** Linjens egen form; `null` följer kartan. */
+export function setEdgeShape<T extends MindmapContent>(content: T, id: string, shape: MindmapEdgeShape | null): T {
+  return updateEdge(content, id, (edge) => ({ ...edge, shape: shape ?? undefined }));
+}
+
+/** Var linjen fäster vid en ände; `null` följer kartan. */
+export function setEdgeAnchor<T extends MindmapContent>(content: T, id: string, end: 'from' | 'to', side: MindmapAnchor | null): T {
+  return updateEdge(content, id, (edge) => ({ ...edge, [end]: side ?? undefined }));
+}
+
+/** Återställ linje: tar bort alla linjens egna val. */
+export function resetEdgeStyle<T extends MindmapContent>(content: T, id: string): T {
+  return updateEdge(content, id, () => ({}));
+}
+
+/**
+ * Tar bort fästena på en nod som fått en annan förälder: de gällde linjen
+ * till den gamla. Linjens egen form står kvar. Samma dokument när inget
+ * behöver ändras.
+ */
+export function pruneEdgeAnchors<T extends MindmapContent>(prev: MindmapContent, next: T): T {
+  const anchored: string[] = [];
+  const walkNext = (node: MindmapNode) => {
+    if (node.edge?.from || node.edge?.to) anchored.push(node.id);
+    node.children.forEach(walkNext);
+  };
+  walkNext(next.root);
+  if (anchored.length === 0) return next;
+  const parentsOf = (root: MindmapNode) => {
+    const map = new Map<string, string>();
+    const walk = (node: MindmapNode) => node.children.forEach((child) => {
+      map.set(child.id, node.id);
+      walk(child);
+    });
+    walk(root);
+    return map;
+  };
+  const before = parentsOf(prev.root);
+  const after = parentsOf(next.root);
+  let result = next;
+  anchored.forEach((id) => {
+    if (!before.has(id) || before.get(id) === after.get(id)) return;
+    result = updateEdge(result, id, (edge) => ({ shape: edge.shape }));
+  });
+  return result;
 }

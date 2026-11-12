@@ -1,6 +1,6 @@
 # Mindmap: friare placering och linjer att forma
 
-Status: Pågår. Del A och B byggda 2026-11-12
+Status: Pågår. Del A, B och C byggda 2026-11-12
 
 Planen skrevs 2026-11-12 efter en intervju med Tobias, mot koden på `main`
 (f8541ce, där `MindmapCanvas.tsx` har 1 258 rader). Den bygger vidare på
@@ -479,7 +479,56 @@ grenarna kvar, en gren går att städa och rutnätet snäpper, och alla
 
 ### Del C. Inställningar per linje
 
-- [ ] Genomfört
+- [x] Genomfört: 2026-11-12, grenen `claude/mindmap-placering` efter #280
+
+**Så blev det.** Nya filer: `hooks/useMindmapEdgeSelection.ts`,
+`components/mindmap/MindmapEdgeLayer.tsx` (linjerna med träffytor, och
+handtagen), `components/mindmap/MindmapEdgeBar.tsx` (raden, med formknappar
+och fästval som tvärlänkarnas rad också använder) och
+`utils/mindmapLineStyle.test.ts` (13 st). Efter delen: 111 testfiler,
+1 744 tester. `MindmapCanvas.tsx` är 1 290 rader (+56).
+
+- Ett klick på en linje markerar den. Raden över kartan har form
+  (Kartans, Kurva, Rak, Vinklad), Start och Fäste (Kartans, Upp, Höger,
+  Ned, Vänster), Återställ och Stäng. Ett val som inte görs följer menyn
+  Linjer.
+- Den markerade linjen får en ring på varje ände. När en ring dras väljs
+  den sida av noden som pekaren är närmast, räknat mot nodens mått
+  (`nearestSideTo`). Ett dubbelklick på en ring tar bort fästet.
+- Esc avmarkerar. Delete och Backspace gör ingenting när en linje är
+  markerad, så att noden inte tas bort. Andra tangenter avmarkerar linjen
+  och går till kartan. Att markera en linje avmarkerar en tvärlänk, och
+  tvärtom.
+- `commit` kör `pruneEdgeAnchors`: en nod som fått en annan förälder
+  tappar sina fästen men behåller formen, i samma ångra-steg.
+- Tvärlänkarna: raden har Böjd (dagens kurva), Kurva, Rak och Vinklad, och
+  Start och Fäste (Auto eller en sida). Med en form går länken samma
+  linjer som grenarna, från de sidor som vetter mot varandra när fästet är
+  Auto. Pilen riktas efter linjens sista bit. Ett fäste på den böjda kurvan
+  flyttar bara änden. "Byt riktning" tar med fästena.
+- Avvikelse: `edge` på noden har bara `shape`, `from` och `to`; `points`
+  läggs till i del D, där det används.
+- Avvikelse: `sanitizeEdgeStyle` ligger i den delade `mindmapTree.ts` och
+  används också för tvärlänkarnas fält. Konstanterna
+  `MINDMAP_EDGE_SHAPE_VALUES` och `MINDMAP_ANCHORS` ligger i den delade
+  `types/mindmap.ts`.
+- En gren som klistras in behåller sina linjeval. Rotens fästen i den
+  inklistrade grenen gällde den gamla föräldern; de tas inte bort, för
+  `pruneEdgeAnchors` känner bara igen noder som fanns före ändringen.
+- Ett fäste kan leda linjen genom en annan nod (som en vinklad tvärlänk
+  uppåt genom ett syskon). Inget hindrar det.
+
+**Kontrollerat 2026-11-12.** `tsc`, `lint` (bara den gamla varningen),
+`test`, `build`. I Chromium mot mock-API:t: klick på en linje ger raden
+"Politik → Kejsardöme", Rak, Fäste Ned (sparat som `edge`), dra
+starthandtaget till förälderns överkant (`from: top`), dubbelklick på
+handtaget, Delete med markerad linje (noden kvar), ångra, Esc, flytt till
+en annan förälder (fästena borta, formen kvar), tvärlänk Vinklad med Start
+Upp (sparat och ritat), Kronberg, PNG-exporten med samma linjer. Inga fel i
+konsolen.
+
+**Inte kontrollerat.** Workspace-kortet i webbläsaren; dess filer är
+orörda, och tvätten av `edge` är prövad i test. Riktig backend. Pekskärm.
 
 1. `edge` i den delade typen och tvätten, med test (också att ett tomt
    `edge` tas bort och att kortets tester är gröna).
