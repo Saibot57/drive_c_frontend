@@ -12,19 +12,21 @@ import {
   Plus,
   Presentation,
   Redo2,
+  Spline,
   Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { MindmapLayout } from '@/types/mindmap';
-import type { MindmapShading } from '@/types/mindmapDoc';
+import type { MindmapLines, MindmapShading } from '@/types/mindmapDoc';
 import type { MindmapPaintChoice } from '@/utils/mindmapPaint';
 import { MINDMAP_PALETTE, MINDMAP_RECENT_COLORS_KEY, MINDMAP_RECENT_COLORS_MAX } from '@/config/mindmapPalette';
 import { useRecentColors } from '@/hooks/useRecentColors';
 import { MindmapColorMenu } from './MindmapColorMenu';
 import { MindmapHelp } from './MindmapHelp';
 import { MindmapImportButton } from './MindmapImportButton';
+import { MindmapLinesMenu } from './MindmapLinesMenu';
 
-export type MindmapMenu = 'color' | 'export' | 'help' | null;
+export type MindmapMenu = 'color' | 'lines' | 'export' | 'help' | null;
 
 export type MindmapExportKind = 'image' | 'list' | 'headings' | 'png' | 'pdf' | 'markdown' | 'json';
 
@@ -42,6 +44,9 @@ interface MindmapToolbarProps {
   /** Kartans nyanser nedåt. */
   shading: MindmapShading;
   onShading: (shading: MindmapShading) => void;
+  /** Kartans linjer: form och fäste. Utan `onLines` visas ingen knapp. */
+  lines?: MindmapLines;
+  onLines?: (patch: MindmapLines) => void;
   /** Panelen med anteckning, länk, bild och ikon. */
   panelOpen?: boolean;
   onTogglePanel?: () => void;
@@ -80,6 +85,8 @@ export default function MindmapToolbar({
   currentColor,
   shading,
   onShading,
+  lines,
+  onLines,
   panelOpen,
   onTogglePanel,
   canResetLayout,
@@ -133,6 +140,22 @@ export default function MindmapToolbar({
           />
         )}
       </div>
+      {onLines && (
+        <div className="relative">
+          <Button
+            size="sm"
+            variant="neutral"
+            className={tool}
+            onClick={() => toggle('lines')}
+            title="Linjer: form och fäste"
+            aria-label="Linjer"
+            aria-expanded={menu === 'lines'}
+          >
+            <Spline size={15} />
+          </Button>
+          {menu === 'lines' && <MindmapLinesMenu lines={lines} onLines={onLines} />}
+        </div>
+      )}
       <Button size="sm" variant="neutral" className={tool} onClick={onToggleCollapse} title="Fäll ihop eller ut (mellanslag)" aria-label="Fäll ihop eller ut">
         <ChevronsDownUp size={15} />
       </Button>

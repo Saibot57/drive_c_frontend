@@ -11,6 +11,7 @@ import {
   type MindmapPalette,
 } from '@/utils/mindmap/mindmapDraw';
 import { layoutMindmap, MINDMAP_METRICS, MINDMAP_WRAP } from '@/utils/mindmap/mindmapLayout';
+import { drawRoutedEdges } from '@/utils/mindmapRouting';
 import { drawCrossLinks } from '@/utils/mindmapCrossLinkDraw';
 import { downloadBlob } from '@/utils/download';
 import { mindmapExportName, toMindmapFile } from '@/utils/mindmapFile';
@@ -71,6 +72,7 @@ export function useMindmapExport(deps: MindmapExportDeps) {
       images: images(),
       symbols,
       paint,
+      edges: (ctx, drawn) => drawRoutedEdges(ctx, drawn, doc),
       overlay: (ctx, drawn) => drawCrossLinks(ctx, drawn, doc, palette),
     });
   }, []);

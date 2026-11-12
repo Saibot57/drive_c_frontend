@@ -32,7 +32,6 @@ import {
 import { breakCoalescing, emptyHistory, recordChange, redo, undo } from '@/utils/mindmap/mindmapHistory';
 import { resolveMindmapKey, type MindmapAction, type MindmapMode } from '@/utils/mindmap/mindmapKeys';
 import {
-  edgePath,
   layoutMindmap,
   MINDMAP_METRICS,
   MINDMAP_WRAP,
@@ -71,6 +70,8 @@ import {
 import { useMindmapPaint } from '@/hooks/useMindmapPaint';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
 import { placeNode } from '@/utils/mindmapPlacement';
+import { routeToSvg } from '@/utils/mindmapEdges';
+import { drawRoutedEdges, routeEdges, setLines } from '@/utils/mindmapRouting';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapLinks } from '@/hooks/useMindmapLinks';
@@ -258,6 +259,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     if (resize) moved = asDoc(setTextWidth(moved, resize.id, resize.width));
     return layoutOf(branchDoc(moved, branchId));
   }, [doc, shown, branchId, dragMove, resize, layoutOf]);
+  // Grenarnas linjer efter kartans form och fäste (docs/plans/mindmap-placering.md).
+  const lines = doc.lines;
+  const routes = useMemo(() => routeEdges(layout, { lines }), [layout, lines]);
 
   /* ── Bilder och panel ── */
 
@@ -1000,6 +1004,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       wrap: MINDMAP_WRAP,
       images: images.forDraw(),
       paint: paintFor,
+      edges: (ctx, drawn) => drawRoutedEdges(ctx, drawn, docRef.current),
       overlay: (ctx, drawn) => {
         const palette = readMinimapPalette();
         if (palette) drawCrossLinks(ctx, drawn, branchDoc(docRef.current, branchIdRef.current), palette);
@@ -1043,6 +1048,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         currentColor={paintChoiceOf(panelNode)}
         shading={doc.shading ?? 'off'}
         onShading={(next) => commit(setShading(docRef.current, next))}
+        lines={doc.lines}
+        onLines={(patch) => commit(setLines(docRef.current, patch))}
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((open) => !open)}
         canResetLayout={hasOffsets(doc)}
@@ -1098,8 +1105,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
               style={{ left: -origin.x, top: -origin.y, width: layout.width, height: layout.height }}
             >
               <svg className="mm__edges" width={layout.width} height={layout.height} aria-hidden="true">
-                {layout.edges.map((edge) => (
-                  <path key={`${edge.fromId}-${edge.toId}`} d={edgePath(edge)} className="mm__edge" />
+                {routes.map((edge) => (
+                  <path key={`${edge.fromId}-${edge.toId}`} d={routeToSvg(edge.route)} className="mm__edge" />
                 ))}
               </svg>
 

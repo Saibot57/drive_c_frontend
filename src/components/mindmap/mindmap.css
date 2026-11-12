@@ -540,6 +540,17 @@
 }
 .mm__color-pick:focus-within { outline: 2px solid var(--mm-select); outline-offset: 2px; }
 
+.mm__lines-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+
+.mm__lines-group + .mm__lines-group {
+  border-top: 1px solid var(--ui-line);
+}
+
 .mm__color-shading {
   display: flex;
   flex-direction: column;

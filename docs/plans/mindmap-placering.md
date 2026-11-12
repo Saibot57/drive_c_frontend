@@ -1,6 +1,6 @@
 # Mindmap: friare placering och linjer att forma
 
-Status: Planerad
+Status: Pågår. Del A byggd 2026-11-12
 
 Planen skrevs 2026-11-12 efter en intervju med Tobias, mot koden på `main`
 (f8541ce, där `MindmapCanvas.tsx` har 1 258 rader). Den bygger vidare på
@@ -334,7 +334,50 @@ Delade, bara med valfria tillägg: `types/mindmap.ts` (`edge`),
 
 ### Del A. Linjernas geometri och kartans val
 
-- [ ] Genomfört
+- [x] Genomfört: 2026-11-12, grenen `claude/mindmap-placering`
+
+**Så blev det.** Nya filer: `utils/mindmapEdges.ts` (+test, 12 st),
+`utils/mindmapRouting.ts` (+test, 7 st), `utils/mindmap/mindmapDraw.test.ts`
+(2 st, skyddsregel 1) och `components/mindmap/MindmapLinesMenu.tsx`. Två
+tester till i `mindmapDoc.test.ts`. Efter delen: 109 testfiler, 1 716
+tester (106 och 1 693 före). `MindmapCanvas.tsx` växte med 7 rader till
+1 265.
+
+- Knappen "Linjer" (kurvikonen) står efter färgen i verktygsraden, med
+  Form (Kurva, Rak, Vinklad) och Fäste (Närmaste kant, Efter grensidan).
+  Ett val är ett ångra-steg.
+- Avvikelse: `routeEdges(layout, doc)` ger en lista med linjer bredvid
+  layouten, inte en ny layout med `routes`. Måtten behöver inte räknas om i
+  del A: alla tre formerna håller sig inom rutan som ändarna spänner upp.
+  Rotens förskjutning, och därmed `transform` i `mindmapDraw.ts` och den
+  nya beräkningen av måtten, kommer i del B.
+- Avvikelse: bara `edges` lades till i `MindmapDrawOptions`; `transform`
+  väntar till del B, där den behövs.
+- Avvikelse: `routeEdge` räknar inte ut mittpunkt eller riktning. Det
+  behövs först för tvärlänkarnas etikett och pil (del C).
+- Avvikelse: `MindmapEdgeShape` och `MindmapAnchor` ligger redan i den
+  delade `types/mindmap.ts` (bara typer, inget beteende), så att del C
+  inte behöver flytta dem.
+- Avvikelse: en `.mup`-import får inget `lines`, och följer alltså
+  grensidan, som nyanserna (`shading`) gör. Den har inga förskjutningar,
+  så den ritas likadant med båda fästena.
+- Med närmaste kant går en nod som överlappar sin förälder i x-led (som
+  Republik i kartan "Förskjutna", som ligger delvis över roten) ut uppåt
+  eller nedåt. Det följer regeln, men det ser tvärt ut när noderna ligger
+  över varandra.
+
+**Kontrollerat 2026-11-12.** `tsc`, `lint` (bara den gamla varningen i
+`WorkspaceShell.tsx`), `test`, `build`. I Chromium mot mock-API:t med
+kartan "Förskjutna": kartans yta är **pixelidentisk** med `main` innan
+något valts (jämfört bild mot bild). Närmaste kant med kurva, rak och
+vinklad på skärmen, i minikartan, i presentationen och i den exporterade
+PNG:n, som alla visar samma linjer. Kronberg. Valet finns kvar efter
+omladdning och sparas som `lines` i dokumentet.
+
+**Inte kontrollerat.** Workspace-kortet i webbläsaren; dess filer är
+orörda, och den delade ritningen utan `edges` är prövad i
+`mindmapDraw.test.ts`. PDF och urklippsbild går genom samma `draw` som
+PNG:n men är inte öppnade. Riktig backend.
 
 1. `utils/mindmapEdges.ts` med test, skrivet först: `nearestSides` i de
    fyra riktningarna och för överlappande rutor, de tre formerna med och

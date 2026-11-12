@@ -27,6 +27,15 @@ export type MindmapSide = 'left' | 'right';
 export type MindmapLayout = 'right' | 'both';
 
 /**
+ * Linjernas form på Mindmap-sidan (docs/plans/mindmap-placering.md). Bara
+ * sidan ritar efter den; kortet ritar alltid kurvan.
+ */
+export type MindmapEdgeShape = 'curve' | 'straight' | 'elbow';
+
+/** En sida av en nod, där en linje kan fästa. */
+export type MindmapAnchor = 'top' | 'right' | 'bottom' | 'left';
+
+/**
  * Var en bild hämtas. Samma form som bildproxyn (`/api/workspace/image-proxy`)
  * tar emot, så att en uppladdning till Drive senare bara blir ett `fileId`.
  */
