@@ -13,11 +13,14 @@ import {
   Presentation,
   Redo2,
   Undo2,
-  X,
 } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MINDMAP_COLORS, MINDMAP_COLOR_LABELS, type MindmapColor, type MindmapLayout } from '@/types/mindmap';
+import type { MindmapLayout } from '@/types/mindmap';
+import type { MindmapShading } from '@/types/mindmapDoc';
+import type { MindmapPaintChoice } from '@/utils/mindmapPaint';
+import { MINDMAP_PALETTE, MINDMAP_RECENT_COLORS_KEY, MINDMAP_RECENT_COLORS_MAX } from '@/config/mindmapPalette';
+import { useRecentColors } from '@/hooks/useRecentColors';
+import { MindmapColorMenu } from './MindmapColorMenu';
 import { MindmapHelp } from './MindmapHelp';
 import { MindmapImportButton } from './MindmapImportButton';
 
@@ -32,8 +35,13 @@ interface MindmapToolbarProps {
   onMenu: (menu: MindmapMenu) => void;
   onAddChild: () => void;
   onToggleCollapse: () => void;
-  /** `wholeBranch`: färgen sätts på noden och alla under den. */
-  onColor: (color: MindmapColor | null, wholeBranch: boolean) => void;
+  /** `wholeBranch`: färgen sätts på noden och grenen under den. */
+  onColor: (choice: MindmapPaintChoice | null, wholeBranch: boolean) => void;
+  /** Den markerade nodens sparade färg, som menyn visar som vald. */
+  currentColor: MindmapPaintChoice | null;
+  /** Kartans nyanser nedåt. */
+  shading: MindmapShading;
+  onShading: (shading: MindmapShading) => void;
   /** Panelen med anteckning, länk, bild och ikon. */
   panelOpen?: boolean;
   onTogglePanel?: () => void;
@@ -69,6 +77,9 @@ export default function MindmapToolbar({
   onAddChild,
   onToggleCollapse,
   onColor,
+  currentColor,
+  shading,
+  onShading,
   panelOpen,
   onTogglePanel,
   canResetLayout,
@@ -92,7 +103,7 @@ export default function MindmapToolbar({
     onExport(kind);
   };
   const tool = 'sp-btn h-8 w-8 p-0';
-  const [wholeBranch, setWholeBranch] = useState(false);
+  const { recentColors, rememberColor } = useRecentColors(MINDMAP_RECENT_COLORS_KEY, MINDMAP_RECENT_COLORS_MAX, MINDMAP_PALETTE);
 
   return (
     <div className="relative flex flex-wrap items-center gap-2 border-b border-ui-line px-3 py-2">
@@ -112,27 +123,14 @@ export default function MindmapToolbar({
           <Palette size={15} />
         </Button>
         {menu === 'color' && (
-          <div className="mm__popover">
-            <div className="mm__swatches">
-              {MINDMAP_COLORS.map((color, index) => (
-                <button
-                  key={color}
-                  type="button"
-                  className={`mm__swatch mm__swatch--${color}`}
-                  onClick={() => onColor(color, wholeBranch)}
-                  title={`${MINDMAP_COLOR_LABELS[color]} (Alt+${index + 1})`}
-                  aria-label={MINDMAP_COLOR_LABELS[color]}
-                />
-              ))}
-              <button type="button" className="mm__swatch mm__swatch--none" onClick={() => onColor(null, wholeBranch)} title="Ingen färg (Alt+0)" aria-label="Ingen färg">
-                <X size={11} />
-              </button>
-            </div>
-            <label className="mm__swatch-option">
-              <input type="checkbox" checked={wholeBranch} onChange={(e) => setWholeBranch(e.target.checked)} />
-              Hela grenen
-            </label>
-          </div>
+          <MindmapColorMenu
+            current={currentColor}
+            shading={shading}
+            onColor={onColor}
+            onShading={onShading}
+            recentColors={recentColors}
+            rememberColor={rememberColor}
+          />
         )}
       </div>
       <Button size="sm" variant="neutral" className={tool} onClick={onToggleCollapse} title="Fäll ihop eller ut (mellanslag)" aria-label="Fäll ihop eller ut">

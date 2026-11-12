@@ -34,6 +34,24 @@ export interface MindmapPalette {
   colors: Record<MindmapColor, string>;
   font: string;
   rootFont: string;
+  /*
+   * Mindmap-sidans egna färger (docs/plans/mindmap-farger.md): hur mycket
+   * av en egen färg som visas, mot vilken bas. Kronberg dämpar som
+   * schemats kurser. Kortet läser dem inte.
+   */
+  customMix?: number;
+  customBase?: string;
+}
+
+/**
+ * En nods färdiga färger, räknade av anroparen (Mindmap-sidans
+ * `resolveMindmapPaint`). `outline`: bara en kant i färgen, 2 px.
+ */
+export interface MindmapNodePaint {
+  fill: string;
+  text: string;
+  border?: string;
+  outline?: boolean;
 }
 
 function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, radius = Infinity) {
@@ -86,6 +104,11 @@ export interface MindmapDrawOptions {
    * tvärlänkar. Anropas sist, med samma layout som noderna ritats efter.
    */
   overlay?: (ctx: CanvasRenderingContext2D, layout: MindmapLayoutResult) => void;
+  /**
+   * Mindmap-sidans färger per nod-id, räknade med samma palett som ritningen.
+   * En nod som saknas ritas som utan den. Kortet anger den inte.
+   */
+  paint?: (palette: MindmapPalette) => Map<string, MindmapNodePaint>;
 }
 
 /**
@@ -129,9 +152,12 @@ export function renderMindmapCanvas(
     ctx.stroke();
   });
 
+  const paints = options.paint?.(palette);
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   layout.nodes.forEach((node) => {
+    const paint = paints?.get(node.id);
     const border = node.isRoot ? m.rootBorder : m.border;
     const pad = node.isRoot ? m.rootPadX : m.padX;
     // Kanten ritas på insidan, som border-box i kortet.
@@ -143,13 +169,22 @@ export function renderMindmapCanvas(
       node.height - border,
       node.image ? xm.imageNodeRadius : Infinity,
     );
-    ctx.fillStyle = node.color
-      ? palette.colors[node.color]
-      : node.isRoot ? palette.rootBg : palette.nodeBg;
+    ctx.fillStyle = paint
+      ? paint.fill
+      : node.color
+        ? palette.colors[node.color]
+        : node.isRoot ? palette.rootBg : palette.nodeBg;
     ctx.fill();
     ctx.lineWidth = border;
-    ctx.strokeStyle = node.isRoot ? palette.rootBorder : palette.nodeBorder;
+    ctx.strokeStyle = (paint?.border) ?? (node.isRoot ? palette.rootBorder : palette.nodeBorder);
     ctx.stroke();
+    if (paint?.outline && paint.border) {
+      // Kanten längst ned i en färgad gren: 2 px, innanför nodens mått som på skärmen.
+      pill(ctx, node.x + border * 1.5, node.y + border * 1.5, node.width - 3 * border, node.height - 3 * border,
+        node.image ? xm.imageNodeRadius : Infinity);
+      ctx.lineWidth = border;
+      ctx.stroke();
+    }
 
     const cy = node.y + (node.rowHeight ?? node.height) / 2;
     let left = node.x + (node.contentX ?? border + pad);
@@ -162,7 +197,7 @@ export function renderMindmapCanvas(
 
     if (node.icon) symbol(options.symbols?.icons?.[node.icon], xm.iconWidth, xm.iconSize, false);
     ctx.font = node.isRoot ? palette.rootFont : palette.font;
-    ctx.fillStyle = palette.text;
+    ctx.fillStyle = paint?.text ?? palette.text;
     if (node.lines && node.lines.length > 1) {
       const step = node.lineHeight ?? 0;
       const top = cy - ((node.lines.length - 1) * step) / 2;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { MindmapColor, MindmapContent, MindmapIcon, MindmapLayout, MindmapNode } from '@/types/mindmap';
+import type { MindmapContent, MindmapIcon, MindmapLayout, MindmapNode } from '@/types/mindmap';
 import { MINDMAP_ICONS } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import {
@@ -16,10 +16,8 @@ import {
   moveNode,
   navigate,
   outdent,
-  setColor,
   clearOffsets,
   hasOffsets,
-  setColorDeep,
   setIcon,
   setImage,
   setLabel,
@@ -61,6 +59,16 @@ import { readBranchData } from '@/utils/mindmapClipboard';
 import { crossLinkOutline } from '@/utils/mindmapCrossLinks';
 import { drawCrossLinks } from '@/utils/mindmapCrossLinkDraw';
 import { pruneCrossLinks, removeNodeFromDoc } from '@/utils/mindmapDoc';
+import {
+  colorForNewNode,
+  paintChoiceOf,
+  paintThemeOf,
+  resolveMindmapPaint,
+  setBranchPaint,
+  setNodePaint,
+  setShading,
+} from '@/utils/mindmapPaint';
+import { useMindmapPaint } from '@/hooks/useMindmapPaint';
 import { imageSourceKey, resolveNodeExtraKey } from '@/utils/mindmapImage';
 import { placeNode } from '@/utils/mindmapPlacement';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
@@ -423,13 +431,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     }
 
     switch (action.type) {
-      // En ny nod får förälderns färg, så att en färgad gren fortsätter i
-      // sin färg. Färgen sparas på noden; inget arv räknas ut vid ritning.
+      // En ny nod ärver grenens nyans. I en karta utan nyanser får den
+      // förälderns färg sparad, som förut (utils/mindmapPaint.ts).
       case 'addChild': {
         const result = addChild(d, id);
         if (!result) return;
-        const color = findNode(d.root, id)?.color;
-        commit(asDoc(color ? setColor(result.content, result.id, color) : result.content));
+        const color = colorForNewNode(d, id);
+        commit(color ? setNodePaint(asDoc(result.content), result.id, color) : asDoc(result.content));
         startEdit(result.id);
         return;
       }
@@ -437,7 +445,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         const result = addSibling(d, id, action.where);
         if (!result) return;
         const parent = id === d.root.id ? d.root : findParent(d.root, id)?.parent;
-        commit(asDoc(parent?.color ? setColor(result.content, result.id, parent.color) : result.content));
+        const color = parent ? colorForNewNode(d, parent.id) : null;
+        commit(color ? setNodePaint(asDoc(result.content), result.id, color) : asDoc(result.content));
         startEdit(result.id);
         return;
       }
@@ -509,7 +518,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         return;
       }
       case 'color':
-        commit(asDoc(setColor(d, id, action.color)));
+        commit(setNodePaint(d, id, action.color ? { color: action.color } : null));
         return;
       case 'undo':
       case 'redo': {
@@ -934,6 +943,12 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
 
   /* ── Export ── */
 
+  /** Nodernas färger för en Canvas, räknade på hela kartan med ritningens palett. */
+  const paintFor = useCallback(
+    (palette: MindmapPalette) => resolveMindmapPaint(docRef.current.root, docRef.current.shading, paintThemeOf(palette)),
+    [],
+  );
+
   // Det som visas exporteras: i en gren gäller bild, PDF och Markdown grenen.
   // JSON är en säkerhetskopia och är alltid hela kartan.
   const exporter = useMindmapExport({
@@ -948,6 +963,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     },
     loadSymbols: (color) => (symbolsRef.current ? loadDrawSymbols(symbolsRef.current, color) : Promise.resolve(undefined)),
     images: () => images.forDraw(),
+    paint: paintFor,
     flash,
   });
 
@@ -974,18 +990,22 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     return container && node && root ? readPalette(container, { node, root }, true) : null;
   }, []);
 
+  /** Nodernas färger på skärmen, i aktuellt tema. */
+  const paints = useMindmapPaint(doc, readMinimapPalette);
+
   /** Minikartan ritar samma former som skärmen, med bilderna men utan symboler. */
   const minimapDrawOptions = useCallback(
     (): MindmapDrawOptions => ({
       extras: true,
       wrap: MINDMAP_WRAP,
       images: images.forDraw(),
+      paint: paintFor,
       overlay: (ctx, drawn) => {
         const palette = readMinimapPalette();
         if (palette) drawCrossLinks(ctx, drawn, branchDoc(docRef.current, branchIdRef.current), palette);
       },
     }),
-    [images, readMinimapPalette],
+    [images, readMinimapPalette, paintFor],
   );
 
   /** En ändring från panelen på den markerade noden. `historyKey` slår ihop tangenttryck till ett ångra-steg. */
@@ -1014,15 +1034,15 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         onMenu={setMenu}
         onAddChild={() => toolbarAction({ type: 'addChild' })}
         onToggleCollapse={() => toolbarAction({ type: 'toggleCollapse' })}
-        onColor={(color: MindmapColor | null, wholeBranch: boolean) => {
-          if (!wholeBranch) {
-            toolbarAction({ type: 'color', color });
-            return;
-          }
+        onColor={(choice, wholeBranch) => {
           setMenu(null);
-          commit(asDoc(setColorDeep(docRef.current, currentId(), color)));
+          const d = docRef.current;
+          commit(wholeBranch ? setBranchPaint(d, currentId(), choice) : setNodePaint(d, currentId(), choice));
           focusMap();
         }}
+        currentColor={paintChoiceOf(panelNode)}
+        shading={doc.shading ?? 'off'}
+        onShading={(next) => commit(setShading(docRef.current, next))}
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((open) => !open)}
         canResetLayout={hasOffsets(doc)}
@@ -1087,6 +1107,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                 <MindmapNodeView
                   key={node.id}
                   node={node}
+                  paint={paints.get(node.id)}
                   linking={links.linkFrom === node.id}
                   selected={selectedId === node.id}
                   editing={editingId === node.id}
@@ -1209,6 +1230,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       {presenting.active && (
         <MindmapPresent
           doc={shown}
+          paints={paints}
           layoutOf={layoutOf}
           images={images}
           onClose={() => {

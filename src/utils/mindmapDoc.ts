@@ -1,5 +1,5 @@
-import type { MindmapCrossLink, MindmapDoc, MindmapMap, MindmapSummary } from '@/types/mindmapDoc';
-import { MAX_CROSS_LINK_LABEL_LENGTH, MAX_MINDMAP_NAME_LENGTH } from '@/types/mindmapDoc';
+import type { MindmapCrossLink, MindmapDoc, MindmapMap, MindmapShading, MindmapSummary } from '@/types/mindmapDoc';
+import { MAX_CROSS_LINK_LABEL_LENGTH, MAX_MINDMAP_NAME_LENGTH, MINDMAP_SHADINGS } from '@/types/mindmapDoc';
 import { MINDMAP_COLORS, type MindmapColor } from '@/types/mindmap';
 import { defaultMindmap, findNode, findParent, newNodeId, removeNode, sanitizeMindmap } from '@/utils/mindmap/mindmapTree';
 
@@ -14,8 +14,9 @@ import { defaultMindmap, findNode, findParent, newNodeId, removeNode, sanitizeMi
 
 export const DEFAULT_MINDMAP_NAME = 'Ny karta';
 
+/** En ny karta får nyanser nedåt; se `MindmapShading`. */
 export function defaultMindmapDoc(): MindmapDoc {
-  return { ...defaultMindmap() };
+  return { ...defaultMindmap(), shading: 'short' };
 }
 
 const ARROWS = ['none', 'to', 'both'] as const;
@@ -66,6 +67,10 @@ export function sanitizeMindmapDoc(raw: unknown): MindmapDoc {
     links.push(clean);
   });
   const doc: MindmapDoc = links.length ? { ...content, crossLinks: links } : content;
+  const shading = (raw as { shading?: unknown } | null)?.shading;
+  if (typeof shading === 'string' && (MINDMAP_SHADINGS as string[]).includes(shading)) {
+    doc.shading = shading as MindmapShading;
+  }
   return pruneCrossLinks(doc);
 }
 

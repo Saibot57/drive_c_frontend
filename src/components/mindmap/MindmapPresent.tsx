@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import type { MindmapContent } from '@/types/mindmap';
 import type { MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapImages } from '@/hooks/useMindmapImages';
+import type { MindmapNodePaint } from '@/utils/mindmap/mindmapDraw';
 import { edgePath, type MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import { crossLinkGeometry } from '@/utils/mindmapCrossLinks';
 import {
@@ -26,6 +27,8 @@ import { MindmapNodeView } from './MindmapNodeView';
 interface MindmapPresentProps {
   /** Det som presenteras: hela kartan, eller grenen om bara den visas. */
   doc: MindmapDoc;
+  /** Nodernas färger, räknade på hela kartan som i kartan. */
+  paints?: Map<string, MindmapNodePaint>;
   /** Sidans layout, med dess textmätning. */
   layoutOf: (content: MindmapContent) => MindmapLayoutResult;
   images: MindmapImages;
@@ -43,7 +46,7 @@ const noop = () => undefined;
  * Ritas inuti kartans ruta och täcker den. Rutan är i helskärm när
  * webbläsaren tillåter det (useMindmapPresenting).
  */
-export function MindmapPresent({ doc, layoutOf, images, onClose }: MindmapPresentProps) {
+export function MindmapPresent({ doc, paints, layoutOf, images, onClose }: MindmapPresentProps) {
   const [state, setState] = useState<PresentState>(() => presentStart(doc.root));
   const [size, setSize] = useState({ width: 0, height: 0 });
   const frameRef = useRef<HTMLDivElement>(null);
@@ -119,6 +122,7 @@ export function MindmapPresent({ doc, layoutOf, images, onClose }: MindmapPresen
           <MindmapNodeView
             key={node.id}
             node={node}
+            paint={paints?.get(node.id)}
             selected={node.id === state.current}
             editing={false}
             dragged={false}
