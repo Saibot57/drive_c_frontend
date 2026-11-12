@@ -32,7 +32,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Mindmap-sida: en MindMup-kopia med sparade kartor](mindmap-sida.md) | Pågår. Alla steg 0–8 byggda 2026-11-11 (#267–#273, backend #60). Kvar för målet är prov, inte kod: deploy bekräftad, regressionslistan och Tobias egna prov. Se "Läget" överst i planen |
 | [Mindmap steg 8: visa bara grenen och presentationsläge](mindmap-presentation.md) | Genomförd 2026-11-11 (#273) |
 | [Mindmap: text på flera rader i en nod](mindmap-radbrytning.md) | Pågår. Del A (radbrytning) och del B (bredd per nod) byggda 2026-11-12. Kvar: proven i avsnitt 6 |
-| [Mindmap: egna färger och nyanser nedåt i grenen](mindmap-farger.md) | Planerad 2026-11-12. Tre delar: A modell och ritning, B färgmenyn, C `.mup`-importen. Väntar på Tobias godkännande |
+| [Mindmap: egna färger och nyanser nedåt i grenen](mindmap-farger.md) | Pågår. Del A (modell och ritning) byggd 2026-11-12. Kvar: B färgmenyn, C `.mup`-importen |
 
 Lägg till en rad här när en ny plan skrivs.
 

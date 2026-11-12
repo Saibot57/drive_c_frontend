@@ -4,6 +4,7 @@ import type { MindmapDoc } from '@/types/mindmapDoc';
 import type { MindmapPalette } from '@/utils/mindmap/mindmapDraw';
 import { toOutlineHtml, toOutlineText, type OutlineStyle } from '@/utils/mindmap/mindmapOutline';
 import { withBranchData } from '@/utils/mindmapClipboard';
+import { parsePercent } from '@/utils/mindmapPaint';
 
 /*
  * Det i MindmapCanvas som bara rör webbläsaren runt kartan: paletten som
@@ -45,6 +46,9 @@ export function readPalette(
       colors: Object.fromEntries(MINDMAP_COLORS.map((color) => [color, read(`--mm-c-${color}`)])) as Record<MindmapColor, string>,
       font: fontOf(getComputedStyle(probes.node)),
       rootFont: fontOf(getComputedStyle(probes.root)),
+      // Egna färger dämpas som schemats kurser (docs/plans/mindmap-farger.md).
+      customMix: parsePercent(read('--ui-course-mix')),
+      customBase: read('--ui-course-base') || undefined,
     };
   } finally {
     if (theme !== null) html.setAttribute('data-theme', theme);

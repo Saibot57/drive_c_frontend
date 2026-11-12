@@ -7,6 +7,7 @@ import {
   canvasToPng,
   renderMindmapCanvas,
   type MindmapDrawSymbols,
+  type MindmapNodePaint,
   type MindmapPalette,
 } from '@/utils/mindmap/mindmapDraw';
 import { layoutMindmap, MINDMAP_METRICS, MINDMAP_WRAP } from '@/utils/mindmap/mindmapLayout';
@@ -39,6 +40,8 @@ interface MindmapExportDeps {
   readPalette: () => MindmapPalette | null;
   loadSymbols: (color: string) => Promise<MindmapDrawSymbols | undefined>;
   images: () => Map<string, CanvasImageSource>;
+  /** Nodernas färger, räknade med exportens palett (utils/mindmapPaint.ts). */
+  paint?: (palette: MindmapPalette) => Map<string, MindmapNodePaint>;
   flash: (text: string, tone?: 'success' | 'error') => void;
 }
 
@@ -54,7 +57,7 @@ export function useMindmapExport(deps: MindmapExportDeps) {
     doc: MindmapDoc,
     options: { transparent: boolean; scaleFor?: (palette: MindmapPalette) => number },
   ): Promise<HTMLCanvasElement> => {
-    const { readPalette, loadSymbols, images } = depsRef.current;
+    const { readPalette, loadSymbols, images, paint } = depsRef.current;
     await (document.fonts?.ready ?? Promise.resolve());
     const palette = readPalette();
     if (!palette) throw new Error('Kartan finns inte på sidan');
@@ -67,6 +70,7 @@ export function useMindmapExport(deps: MindmapExportDeps) {
       wrap: MINDMAP_WRAP,
       images: images(),
       symbols,
+      paint,
       overlay: (ctx, drawn) => drawCrossLinks(ctx, drawn, doc, palette),
     });
   }, []);

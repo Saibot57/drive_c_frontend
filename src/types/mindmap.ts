@@ -74,6 +74,16 @@ export interface MindmapNode {
    * (docs/plans/mindmap-radbrytning.md, del B).
    */
   textWidth?: number;
+  /**
+   * Egen färg, `#rrggbb` med gemener. Vinner över `color`. Bara sidan ritar
+   * den; kortet visar den inte (docs/plans/mindmap-farger.md).
+   */
+  customColor?: string;
+  /**
+   * "Ingen färg" under en färgad gren: noden och grenen under den ärver
+   * inte någon nyans. Bara sidan läser den.
+   */
+  colorNone?: true;
 }
 
 export interface MindmapContent {

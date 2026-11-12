@@ -122,6 +122,20 @@
 .mm__node--lilac { background: var(--mm-c-lilac); }
 .mm__node--grey { background: var(--mm-c-grey); }
 
+/* Färgerna räknade ur kartan: egen färg och nyanser nedåt i grenen
+   (utils/mindmapPaint.ts, docs/plans/mindmap-farger.md). Värdena kommer ur
+   temats tokens och användarens färg. Kanten längst ned görs 2 px med en
+   skugga innanför, så att måtten i MINDMAP_METRICS står kvar. */
+.mm__node--paint {
+  background: var(--mm-paint-fill);
+  color: var(--mm-paint-text);
+}
+
+.mm__node--paint-outline {
+  border-color: var(--mm-paint-border);
+  box-shadow: inset 0 0 0 1px var(--mm-paint-border);
+}
+
 /* Markeringen syns bara när kartan har fokus; annars vore den ett löfte om
    att tangenterna går till kartan, vilket de inte gör. */
 .mm__viewport:focus-within .mm__node--selected,

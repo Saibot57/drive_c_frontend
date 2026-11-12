@@ -111,6 +111,13 @@ function sanitizeNode(raw: Record<string, unknown>, seen: Set<string>, depth: nu
     node.offset = { dx: offset.dx, dy: offset.dy };
   }
   if (isFiniteNumber(raw.textWidth)) node.textWidth = clampTextWidth(raw.textWidth);
+  // Högst ett av customColor, color och colorNone, i den ordningen.
+  if (typeof raw.customColor === 'string' && /^#[0-9a-f]{6}$/i.test(raw.customColor)) {
+    node.customColor = raw.customColor.toLowerCase();
+    delete node.color;
+  } else if (raw.colorNone === true && !node.color) {
+    node.colorNone = true;
+  }
   return node;
 }
 

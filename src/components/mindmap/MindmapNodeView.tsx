@@ -1,6 +1,7 @@
 'use client';
 
 import type { MindmapImageState } from '@/hooks/useMindmapImages';
+import type { MindmapNodePaint } from '@/utils/mindmap/mindmapDraw';
 import { MINDMAP_EXTRA_METRICS, MINDMAP_METRICS, type LaidOutNode } from '@/utils/mindmap/mindmapLayout';
 import { LinkSymbol, MINDMAP_ICON_COMPONENTS, NoteSymbol } from './mindmapIcons';
 import { MindmapNodeImage } from './MindmapNodeImage';
@@ -10,6 +11,8 @@ export const MINDMAP_PLACEHOLDER = 'Ny nod';
 
 export interface MindmapNodeViewProps {
   node: LaidOutNode;
+  /** Nodens färger, räknade ur kartan (useMindmapPaint). Saknas: nodens egen färgklass. */
+  paint?: MindmapNodePaint;
   selected: boolean;
   editing: boolean;
   /** Noden dras just nu. Den släpper då igenom pekaren, så att noden under går att träffa. */
@@ -42,6 +45,14 @@ export interface MindmapNodeViewProps {
 
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
+/** Färgerna som variabler; mindmap.css sätter dem på noden. */
+function paintStyle(paint: MindmapNodePaint | undefined): React.CSSProperties | undefined {
+  if (!paint) return undefined;
+  const vars: Record<string, string> = { '--mm-paint-fill': paint.fill, '--mm-paint-text': paint.text };
+  if (paint.border) vars['--mm-paint-border'] = paint.border;
+  return vars as React.CSSProperties;
+}
+
 /**
  * En nod i kartan: ikon, etikett eller textfält, symboler för anteckning och
  * länk, "+3" på en hopfälld gren och bilden under. Platsen och måtten kommer
@@ -50,6 +61,7 @@ const stop = (e: React.SyntheticEvent) => e.stopPropagation();
  */
 export function MindmapNodeView({
   node,
+  paint,
   selected,
   editing,
   dragged,
@@ -81,7 +93,8 @@ export function MindmapNodeView({
     'mm__node',
     node.isRoot && 'mm__node--root',
     node.image && 'mm__node--image',
-    node.color && `mm__node--${node.color}`,
+    paint ? 'mm__node--paint' : node.color && `mm__node--${node.color}`,
+    paint?.outline && 'mm__node--paint-outline',
     selected && 'mm__node--selected',
     editing && 'mm__node--editing',
     dragged && 'mm__node--dragged',
@@ -93,7 +106,7 @@ export function MindmapNodeView({
     <div
       data-mm-id={node.id}
       className={classes}
-      style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
+      style={{ left: node.x, top: node.y, width: node.width, height: node.height, ...paintStyle(paint) }}
       onPointerDown={(e) => onPointerDown(e, node.id)}
       onClick={() => onClick(node.id)}
       onDoubleClick={() => onEdit(node.id)}

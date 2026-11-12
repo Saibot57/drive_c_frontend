@@ -22,9 +22,20 @@ export interface MindmapCrossLink {
 export const MAX_CROSS_LINK_LABEL_LENGTH = 80;
 
 /** Det som sparas i backendens `doc`. */
+/**
+ * Nyanser nedåt i en färgad gren (docs/plans/mindmap-farger.md). `short`:
+ * två nyanser och sedan bara kant, `medium` och `soft`: tre, `off`: inget
+ * arv, bara noder med sparad färg är färgade.
+ */
+export type MindmapShading = 'off' | 'short' | 'medium' | 'soft';
+
+export const MINDMAP_SHADINGS: MindmapShading[] = ['off', 'short', 'medium', 'soft'];
+
 export interface MindmapDoc extends MindmapContent {
   /** Länkar på tvären, utanför trädet. */
   crossLinks?: MindmapCrossLink[];
+  /** Saknas betyder `off`: kartor från före nyanserna beter sig som förut. */
+  shading?: MindmapShading;
 }
 
 export interface MindmapSummary {

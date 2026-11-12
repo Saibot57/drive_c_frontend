@@ -1,13 +1,14 @@
 # Mindmap: egna färger och nyanser nedåt i grenen
 
-Status: Planerad
+Status: Pågår
 
 Planen är skriven 2026-11-12 efter en intervju med Tobias, mot koden på
 `main` (0e7fa26: 1 236 rader i `MindmapCanvas.tsx`). Den omprövar ett
 beslut i [`mindmap-sida.md`](mindmap-sida.md) (avsnitt 9 och 12, steg 4):
 att färgen alltid sparas på noden och att inget arv räknas ut vid ritning.
 Skyddsreglerna i den planen gäller oförändrade; avsnitt 3 nedan säger hur
-de tillämpas här. Bygg inte förrän Tobias sagt till.
+de tillämpas här. Tobias godkände planen 2026-11-12, med förslagen i
+öppna frågor.
 
 Underlaget för besluten om nyanserna är en ritning med appens verkliga
 värden i båda temana: <https://claude.ai/artifact/6n15NW3cmCq51eX21ybRtG>.
@@ -72,8 +73,8 @@ Två följder av beslut 6, 10 och 12 som står här så att de inte blir en
 - **Valet av nyanser sparas i kartan**, `shading` i `MindmapDoc`. En karta
   som saknar fältet (alla kartor före del A) läses som "Av", så att den
   beter sig exakt som i dag också när nya noder skapas. En ny karta får
-  "B"; en kopia får originalets val. En `.mup`-import får "Av" (del C,
-  öppen fråga 1). En gammal karta får
+  "B"; en kopia får originalets val. En `.mup`-import får "Av" (del C).
+  En gammal karta får
   nyanser genom att välja dem i färgmenyn; dess sparade färger står kvar
   tills "Hela grenen" används på en gren.
 - **Nyansen räknas från närmaste nod med sparad färg**, inte från roten. En
@@ -261,14 +262,45 @@ Huvudplanens regler gäller. Här betyder de:
 
 ### A. Modell och ritning
 
-1. Typerna och tvätten (2.1), med test i `mindmapTree.test.ts` och
-   `mindmapDoc.test.ts`.
-2. `mindmapPaint.ts` med test (avsnitt 5).
-3. Skärmen: `MindmapNodeView`, CSS, `MindmapCanvas` (färgerna, ny nod,
+Byggd 2026-11-12 på grenen `claude/mindmap-farger`.
+
+- [x] 1. Typerna och tvätten (2.1).
+- [x] 2. `mindmapPaint.ts` med test (avsnitt 5).
+- [x] 3. Skärmen: `MindmapNodeView`, CSS, `MindmapCanvas` (färgerna, ny nod,
    Alt+1–6 och Alt+0 via `setNodePaint`).
-4. Presentationen och grenvyn.
-5. `drawMindmap` med `paints`; export, urklippsbild och minikarta.
-6. Kontroller och visuell kontroll (avsnitt 6).
+- [x] 4. Presentationen och grenvyn.
+- [x] 5. `renderMindmapCanvas` med färgerna; export, urklippsbild och minikarta.
+- [x] 6. Kontroller och visuell kontroll (avsnitt 6).
+
+**Avvikelser i A:**
+
+- Ritningens tillägg heter `paint?: (palette) => Map` och inte `paints`:
+  färgerna räknas med samma palett som ritningen, så att exporten (Neo)
+  och minikartan (aktuellt tema) får sina egna utan att anroparen läser
+  paletten två gånger. `MindmapPalette` fick de valfria fälten
+  `customMix` och `customBase`; kortet anger dem inte.
+- Skärmens färger räknas i en ny hook, `hooks/useMindmapPaint.ts`, som
+  läser om paletten när temat byts. `parsePercent` (för
+  `--ui-course-mix`) ligger i `mindmapPaint.ts` med test.
+- Testen för tvätten och `shading` ligger i `mindmapPaint.test.ts` i
+  stället för i `mindmapTree.test.ts` och `mindmapDoc.test.ts`, så att
+  de befintliga testfilerna står orörda.
+- `MindmapCanvas.tsx` växte med 14 rader (1 236 till 1 250).
+
+**Kontrollerat i A** (Chromium mot mock-API, båda temana): en ny karta
+med Alt+3 och Alt+2 på två grenar ger nyanser och kant enligt B; Alt+0 mitt
+i en gul gren gör noden och grenen under ofärgad; temabyte med sidan öppen
+räknar om färgerna; en gammal karta (utan `shading`, alla noder blå) ser
+ut som förut; en karta med egna färger (`medium`) ger vit text på
+mörkblått och orange i Neo och dämpade färger med mörk text i Kronberg;
+PNG-exporten från Kronberg ritas i Neo med samma nyanser och kant.
+`pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test` (106 filer, 1 690
+tester) och `pnpm build` gröna.
+
+**Inte kontrollerat i A:** workspace-kortet i en webbläsare (dess filer är
+orörda och dess tester gröna; det ritar utan `paint` och får samma bild
+som förut), PDF och urklippsbild (samma ritning som PNG:n), och
+presentationsläget i webbläsaren (samma `MindmapNodeView` med färgerna).
 
 Efter A kan man inte välja egen färg ännu, men en ny karta får nyanser
 när en nod färgas med Alt+1–6.
@@ -292,11 +324,10 @@ när en nod färgas med Alt+1–6.
 2. Testen i `mindmapMup.test.ts` uppdateras för noderna; tvärlänkarnas
    står kvar.
 
-### Öppna frågor
+### Frågor efter planen
 
-1. **Nyanser i en importerad `.mup`-karta.** Förslaget är "Av", eftersom
-   MindMup sparar färgen per nod och kartan ska se ut som där. Tobias
-   avgör före del C.
+1. **Nyanser i en importerad `.mup`-karta.** Besvarad 2026-11-12: "Av",
+   eftersom MindMup sparar färgen per nod och kartan ska se ut som där.
 2. **Paletten.** Utkastet visas i B1.
 
 ## 5. Tester
