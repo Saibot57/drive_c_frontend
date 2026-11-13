@@ -153,6 +153,60 @@ export function applyDirections(
     moved.add(kid.id);
   };
 
+  /**
+   * Grenens verkliga höjd: noden och allt synligt under den, med
+   * solfjädrarna. Noder man dragit (de har en förskjutning) räknas inte; de
+   * står där de släpptes, och layouten gör inte plats för dem i dag heller.
+   */
+  const extent = (node: MindmapNode): { top: number; bottom: number } => {
+    const box = boxes.get(node.id)!;
+    let top = box.y;
+    let bottom = box.y + box.height;
+    visibleKids(node).forEach((kid) => {
+      if (kid.offset) return;
+      const e = extent(kid);
+      top = Math.min(top, e.top);
+      bottom = Math.max(bottom, e.bottom);
+    });
+    return { top, bottom };
+  };
+
+  /**
+   * Gör plats i kolumnerna (docs/plans/mindmap-arrangera.md, del E): den
+   * delade layouten staplar syskonen efter grenarnas höjd utan solfjädrarna,
+   * så en solfjäder kan gå in i grannens gren. Här flyttas syskonen isär så
+   * att grenarna inte möts, i samma ordning, och kolumnen hålls centrerad.
+   * Nedifrån och upp, så att grenarna under är färdiga först. En kolumn där
+   * inget möts står kvar som den är.
+   */
+  const makeRoom = (node: MindmapNode) => {
+    const kids = visibleKids(node);
+    kids.forEach(makeRoom);
+    const parent = boxes.get(node.id)!;
+    const middle = parent.x + parent.width / 2;
+    (['left', 'right'] as const).forEach((s) => {
+      const column = kids
+        .filter((kid) => !kid.offset && !(kid.dir && 'angle' in kid.dir))
+        .filter((kid) => {
+          const box = boxes.get(kid.id)!;
+          return (box.x + box.width / 2 < middle ? 'left' : 'right') === s;
+        })
+        .sort((a, b) => boxes.get(a.id)!.y - boxes.get(b.id)!.y);
+      if (column.length < 2) return;
+      let pushed = 0;
+      let above = -Infinity;
+      const moves = column.map((kid) => {
+        const e = extent(kid);
+        const need = above + metrics.vGap - (e.top + pushed);
+        if (need > 0.5) pushed += need;
+        above = e.bottom + pushed;
+        return pushed;
+      });
+      if (pushed === 0) return;
+      column.forEach((kid, i) => shift(kid, 0, moves[i] - pushed / 2));
+    });
+  };
+
   /** `side`: åt vilket håll grenen växer, ärvt från närmaste `dir` ovanför; `null` följer layouten. */
   const visit = (node: MindmapNode, side: MindmapSide | null) => {
     const parent = boxes.get(node.id)!;
@@ -169,6 +223,7 @@ export function applyDirections(
     kids.forEach((kid) => visit(kid, kid.dir ? sideOfDir(kid.dir) : side));
   };
   visit(content.root, null);
+  makeRoom(content.root);
 
   // Linjen till en nod som fått en ny plats går mellan de sidor som vetter mot varandra.
   edges.forEach((e) => {

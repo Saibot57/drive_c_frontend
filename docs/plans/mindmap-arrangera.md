@@ -1,6 +1,6 @@
 # Mindmap: markera flera, riktning för nya barn och arrangera
 
-Status: Pågår. Alla delar A–D byggda 2026-11-13 (A i #283). Kvar: Tobias egna prov och de öppna frågorna i avsnitt 8.
+Status: Pågår. Alla delar A–E byggda 2026-11-13 (A i #283). Kvar: Tobias egna prov och frågan om rutnätet i avsnitt 8.
 
 Planen skrevs 2026-11-13 efter en intervju med Tobias, mot koden på `main`
 (fba3f05, där `MindmapCanvas.tsx` har 1 330 rader). Den bygger vidare på
@@ -481,6 +481,45 @@ Cmd+A på Rut, förhandsvisning av cirkel, två sidor, till höger, ovanför och
 hörn utan att något sparas, *I hörnen* sparat (symmetriskt, och s följer
 med Rut), *Inom ett område* som en rad under kartan, ångra, och PNG:n.
 
+### Del E. Plats för solfjädrar i kolumnen — byggd 2026-11-13
+
+Tillkom efter del D. Tobias valde 2026-11-13 (intervjuverktyget) mellan
+tre lösningar på att en solfjäder lade sig över andra grenar:
+
+| # | Fråga | Beslut |
+|---|---|---|
+| 32 | Hur layouten löser överlappet | **Gör plats i kolumnen.** Syskonen i en kolumn flyttas isär efter grenarnas verkliga höjd, med solfjädrarna inräknade, i samma ordning och med kolumnen centrerad. Inte "skjut undan vid krock" (mer oförutsägbart), inte "låt det vara". |
+| 33 | Vilka kartor | **Bara där det finns riktningar.** En karta utan `dir` går inte igenom steget och ritas exakt som förut. |
+
+**Utformning.** `makeRoom` i `applyDirections` (`utils/mindmapDirections.ts`)
+körs efter att riktningarna lagts ut, nedifrån och upp. För varje förälder
+och sida tas de barn som står i en kolumn: utan förskjutning och utan
+vinkel, alltså layoutens kolumn och kolumnerna "bort från roten". De
+sorteras uppifrån. Varje barns gren mäts med alla synliga noder under,
+utom de man dragit. Möts två grannar flyttas den nedre (och de under den)
+ned så mycket som behövs plus `vGap`. Till sist flyttas hela kolumnen upp
+med halva flytten, så att den står centrerad som förut.
+
+- En kolumn där inget möts flyttas inte. Den delade layoutens stapling har
+  redan plats för grenar utan solfjädrar, så steget ändrar bara där en
+  solfjäder sticker ut.
+- Dragna noder räknas inte och flyttas inte. Den delade layouten gör inte
+  plats för dem heller.
+- Solfjäderns syskon flyttas inte isär; de har redan plats (del B).
+- Bara höjden räknas, inte bredden. En solfjäder som går åt sidan in i en
+  annan kolumn längre ut löses inte.
+
+**Tester** (`mindmapDirections.test.ts`, "plats i kolumnen"): solfjädern
+möts inte med grannens gren och ordningen står kvar (testet går sönder
+utan `makeRoom`); kolumnen hålls centrerad; en kolumn utan solfjäder i en
+karta med riktningar står exakt kvar; ett draget syskon står där layouten
+och förskjutningen satte det.
+
+**Kontrollerat i Chromium** mot mocken, i Neo och Kronberg: fallet från del
+C (*Städa upp hela kartan* med Pims solfjäder åt 300°). Pims barn A, B och C
+står nu mellan Siv och Pim utan att möta Rut, s eller Siv. Exporten visar
+samma sak.
+
 ## 5. Tester
 
 - `mindmapSelection.test.ts`, `mindmapDirections.test.ts`,
@@ -530,6 +569,6 @@ Mot mocken på `http://localhost:5001`, i Neo och Kronberg:
 ## 8. Öppet
 
 - Om ett arrangemang ska snäppa mot rutnätet (inte frågat).
-- Om solfjäderns överlapp behöver lösas. Efter del B och C: syskonen i en
-  solfjäder möts inte, men en solfjäder kan lägga sig över andra grenar
-  (sett efter *Städa upp hela kartan*, del C). Tobias avgör efter egna prov.
+- ~~Om solfjäderns överlapp behöver lösas.~~ Löst i del E, för kolumnerna.
+  En solfjäder som går åt sidan in i en kolumn längre ut kan fortfarande
+  möta den.

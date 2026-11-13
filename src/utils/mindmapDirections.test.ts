@@ -28,6 +28,12 @@ const center = (l: MindmapLayoutResult, id: string) => {
   const b = l.byId.get(id)!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
+/** Nodens mitt räknad från rotens mitt. */
+const rel = (l: MindmapLayoutResult, id: string) => {
+  const a = center(l, id);
+  const root = l.nodes.find((x) => x.isRoot)!;
+  return { x: Math.round(a.x - root.x - root.width / 2), y: Math.round(a.y - root.y - root.height / 2) };
+};
 
 /** Tobias bild: läget `right`, Rut dragen till vänster om roten, s ännu längre ut. */
 const picture = (sKids: MindmapNode[] = []): MindmapContent => ({
@@ -126,6 +132,61 @@ describe('applyDirections', () => {
     const content = picture([n('x', [n('x1', [], { dir: { angle: 90 } })], { collapsed: true })]);
     expect(() => layoutOf(content)).not.toThrow();
     expect(layoutOf(content).byId.has('x1')).toBe(false);
+  });
+});
+
+describe('plats i kolumnen (del E)', () => {
+  /** Rotens barn i en kolumn till höger; Pim har en solfjäder snett uppåt. */
+  const fanned = (): MindmapContent => {
+    let content: MindmapContent = { root: n('T', [n('Rut', [n('s')]), n('Siv'), n('Pim'), n('Kaj')]), layout: 'right' };
+    content = setChildDir(content, 'Pim', 300);
+    ['A', 'B', 'C'].forEach((id) => {
+      const added = addChild(content, 'Pim', n(id))!;
+      content = placeNewNode(content, added.content, id, { angle: 300 }, layoutOf);
+    });
+    return content;
+  };
+  const overlaps = (l: MindmapLayoutResult, a: string, b: string) => {
+    const p = l.byId.get(a)!;
+    const q = l.byId.get(b)!;
+    return p.x < q.x + q.width && q.x < p.x + p.width && p.y < q.y + q.height && q.y < p.y + p.height;
+  };
+
+  it('en solfjäder går inte in i grannens gren: syskonen flyttas isär', () => {
+    const l = layoutOf(fanned());
+    ['A', 'B', 'C'].forEach((kid) => ['Rut', 's', 'Siv'].forEach((other) => {
+      expect(overlaps(l, kid, other), `${kid} och ${other}`).toBe(false);
+    }));
+    // Ordningen står kvar.
+    const ys = ['Rut', 'Siv', 'Pim', 'Kaj'].map((id) => center(l, id).y);
+    expect([...ys].sort((a, b) => a - b)).toEqual(ys);
+  });
+
+  it('kolumnen hålls centrerad mot föräldern', () => {
+    const plainContent: MindmapContent = { root: n('T', [n('Rut', [n('s')]), n('Siv'), n('Pim'), n('Kaj')]), layout: 'right' };
+    const mid = (l: MindmapLayoutResult) => (rel(l, 'Rut').y + rel(l, 'Kaj').y) / 2;
+    const l = layoutOf(fanned());
+    expect(mid(l)).toBeCloseTo(mid(layoutOf(plainContent)), 0);
+    // Flytten delas: Rut går upp, Kaj går ned.
+    expect(rel(l, 'Rut').y).toBeLessThan(rel(layoutOf(plainContent), 'Rut').y);
+    expect(rel(l, 'Kaj').y).toBeGreaterThan(rel(layoutOf(plainContent), 'Kaj').y);
+  });
+
+  it('en kolumn där inget möts står kvar, också i en karta med riktningar', () => {
+    const plain: MindmapContent = { root: n('T', [n('Rut', [n('s')]), n('Siv'), n('Pim'), n('Kaj')]), layout: 'right' };
+    const withDir = setDir(plain, 's', { side: 'right' });
+    const a = layoutOf(plain);
+    const b = layoutOf(withDir);
+    ['Rut', 'Siv', 'Pim', 'Kaj', 's'].forEach((id) => {
+      expect(rel(b, id)).toEqual(rel(a, id));
+    });
+  });
+
+  it('ett draget syskon räknas inte och flyttas inte', () => {
+    const content = fanned();
+    const dragged = { ...content, root: { ...content.root, children: content.root.children.map((c) => (c.id === 'Siv' ? { ...c, offset: { dx: 0, dy: 5 } } : c)) } };
+    // Siv står där den delade layouten satte den, plus förskjutningen.
+    expect(rel(layoutOf(dragged), 'Siv')).toEqual(rel(layoutMindmap(dragged, measure), 'Siv'));
   });
 });
 
