@@ -351,7 +351,7 @@ och `mindmap.css`, och samma radie i `renderMindmapCanvas`. Noder på en rad
 och noder med bild är som förut. Workspace-kortet har aldrig flera rader
 och ritas som förut (test i `mindmapDraw.test.ts`).
 
-Kontrollerat 2026-11-13 i Chromium mot mock-API:t med en karta som
+Rättat i #282. Kontrollerat 2026-11-13 i Chromium mot mock-API:t med en karta som
 Tobias, i Neo och Kronberg och i PNG-exporten. 112 testfiler, 1 758
 tester.
 
