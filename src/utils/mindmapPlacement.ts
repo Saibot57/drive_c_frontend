@@ -2,6 +2,7 @@ import type { MindmapContent, MindmapSide } from '@/types/mindmap';
 import type { MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import type { MindmapNode } from '@/types/mindmap';
 import { findNode, findParent, hasOffsets, rootChildSides, setOffset, sideOf, updateNode } from '@/utils/mindmap/mindmapTree';
+import { topLevelIds } from '@/utils/mindmapSelection';
 
 /*
  * Fri placering på Mindmap-sidan: vad som händer när en nod släpps på tom
@@ -175,4 +176,29 @@ export function clearBranchOffsets<T extends MindmapContent>(content: T, id: str
  */
 export function hasPlacement(content: MindmapContent): boolean {
   return content.root.offset !== undefined || hasOffsets(content);
+}
+
+/* ── Del A i docs/plans/mindmap-arrangera.md ── */
+
+/**
+ * Flyttar flera noder lika långt, var och en med sin gren. En nod under en
+ * annan markerad flyttas inte två gånger. Roten flyttas ensam, som när den
+ * dras. Ingen byter sida eller förälder.
+ */
+export function placeNodes<T extends MindmapContent>(content: T, ids: readonly string[], delta: Delta): T {
+  const d = rounded(delta);
+  if (isZero(d)) return content;
+  return topLevelIds(content, ids).reduce<T>((current, id) => {
+    if (id === current.root.id) return placeRoot(current, d);
+    const node = findNode(current.root, id);
+    return node ? (setOffset(current, id, add(node.offset, d)) as T) : current;
+  }, content);
+}
+
+/** Det som ritas medan en eller flera noder dras. */
+export function previewDrag<T extends MindmapContent>(
+  content: T,
+  move: { id: string; dx: number; dy: number; alone: boolean; group?: readonly string[] },
+): T {
+  return move.group ? placeNodes(content, move.group, move) : previewMove(content, move.id, move, move.alone);
 }

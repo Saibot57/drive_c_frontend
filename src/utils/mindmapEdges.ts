@@ -258,7 +258,7 @@ const bezierAt = (p0: EdgePoint, c1: EdgePoint, c2: EdgePoint, p3: EdgePoint, t:
 };
 
 /** Linjen som en bruten linje, med kurvorna delade i 16 bitar. */
-function routePoints(route: EdgeRoute): EdgePoint[] {
+export function routePoints(route: EdgeRoute): EdgePoint[] {
   const points: EdgePoint[] = [];
   let at: EdgePoint = { x: 0, y: 0 };
   route.forEach((cmd) => {

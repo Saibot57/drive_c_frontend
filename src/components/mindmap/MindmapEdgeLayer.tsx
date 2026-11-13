@@ -10,7 +10,10 @@ interface MindmapEdgeLayerProps {
   routes: RoutedEdge[];
   /** Noden vars linje är markerad. Utan `onSelect` går linjerna inte att markera. */
   selectedId?: string | null;
-  onSelect?: (id: string) => void;
+  /** Linjerna som är markerade bland flera (docs/plans/mindmap-arrangera.md, del A). */
+  groupIds?: ReadonlySet<string>;
+  /** Händelsen följer med, så att Cmd+klick kan läsas. */
+  onSelect?: (id: string, e: React.PointerEvent) => void;
   /** Dubbelklick på en linje: en brytpunkt där (del D). */
   onAddPoint?: (id: string, e: React.MouseEvent) => void;
 }
@@ -20,14 +23,14 @@ interface MindmapEdgeLayerProps {
  * träffa, eftersom den synliga är tunn (docs/plans/mindmap-placering.md,
  * del C). Presentationen ritar samma lager utan `onSelect`.
  */
-export function MindmapEdgeLayer({ width, height, routes, selectedId = null, onSelect, onAddPoint }: MindmapEdgeLayerProps) {
+export function MindmapEdgeLayer({ width, height, routes, selectedId = null, groupIds, onSelect, onAddPoint }: MindmapEdgeLayerProps) {
   return (
     <svg className="mm__edges" width={width} height={height} aria-hidden="true">
       {routes.map((edge) => {
         const d = routeToSvg(edge.route);
         return (
           <g key={`${edge.fromId}-${edge.toId}`}>
-            <path d={d} className={`mm__edge${selectedId === edge.toId ? ' mm__edge--selected' : ''}`} />
+            <path d={d} className={`mm__edge${selectedId === edge.toId || groupIds?.has(edge.toId) ? ' mm__edge--selected' : ''}`} />
             {onSelect && (
               <path
                 d={d}
@@ -36,7 +39,7 @@ export function MindmapEdgeLayer({ width, height, routes, selectedId = null, onS
                   if (e.button !== 0) return;
                   // Annars börjar ytan panorera.
                   e.stopPropagation();
-                  onSelect(edge.toId);
+                  onSelect(edge.toId, e);
                 }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
