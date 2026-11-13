@@ -380,6 +380,18 @@
   opacity: 1;
 }
 
+/* En nod med flera rader: en rundad rektangel med samma rundning som en
+   nod på en rad har i ändarna. Ett piller hade skurit in i textens hörn.
+   Radierna speglar nodeHeight / 2 och rootHeight / 2 i MINDMAP_METRICS,
+   som bildexporten använder (mindmapDraw.ts). */
+.mm__node--multiline {
+  border-radius: min(var(--mm-radius), 13px);
+}
+
+.mm__node--root.mm__node--multiline {
+  border-radius: min(var(--mm-radius), 17px);
+}
+
 /* En nod med bild: etiketten överst, bilden under. Hörnradien speglas av
    imageNodeRadius; en pill hade skurit av bildens hörn. */
 .mm__node--image {
