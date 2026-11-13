@@ -208,6 +208,39 @@
   width: max-content;
 }
 
+/* Riktningen för nya barn (docs/plans/mindmap-arrangera.md, del B): en
+   tydlig pil medan man väljer, annars en diskret vid den markerade noden. */
+.mm__dirs {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.mm__dir path {
+  fill: none;
+  stroke: var(--mm-select);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mm__dir--set path,
+.mm__dir--once path {
+  stroke-width: 1.5;
+  opacity: 0.55;
+}
+
+.mm__dir--once path {
+  stroke-dasharray: 3 3;
+}
+
+/* Medan riktningen väljs pekar pekaren ut den. */
+.mm--picking .mm__viewport {
+  cursor: crosshair;
+}
+
 /* Ramen medan Cmd+dra pågår, i kartans koordinater. */
 .mm__frame {
   position: absolute;
@@ -674,6 +707,12 @@
 
 .mm__menu-item:hover {
   background: var(--sp-menu-hover);
+}
+
+.mm__menu-item:disabled {
+  color: var(--mm-faint);
+  cursor: default;
+  background: none;
 }
 
 .mm__menu-option {

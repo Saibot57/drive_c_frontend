@@ -60,6 +60,14 @@ describe('branchDoc', () => {
     expect(branch.root.children.map((c) => c.id)).toEqual(['A1', 'A2']);
   });
 
+  it('grenens rot tappar sin plats (dir) men behåller riktningen för nya barn', () => {
+    const d = doc();
+    const placed = { ...d, root: { ...d.root, children: d.root.children.map((c) => (c.id === 'A' ? { ...c, dir: { side: 'left' as const }, childDir: { angle: 90 } } : c)) } };
+    const branch = branchDoc(placed, 'A');
+    expect(branch.root.dir).toBeUndefined();
+    expect(branch.root.childDir).toEqual({ angle: 90 });
+  });
+
   it('låter grenen ligga kvar på sin sida', () => {
     const right = branchDoc(doc(), 'A');
     expect(right.layout).toBe('both');

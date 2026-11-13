@@ -99,7 +99,26 @@ export interface MindmapNode {
    * (docs/plans/mindmap-placering.md, del C).
    */
   edge?: MindmapEdgeStyle;
+  /**
+   * Riktningen för barn som noden får härefter, i grader: 0 är höger och 90
+   * nedåt. Flyttar inga barn som redan finns. Bara sidan läser den
+   * (docs/plans/mindmap-arrangera.md, del B).
+   */
+  childDir?: { angle: number };
+  /**
+   * Var noden står i förhållande till sin förälder, satt när den skapades:
+   * i en solfjäder åt en vinkel, eller i en kolumn på en sida. Saknas står
+   * noden där den delade layouten sätter den. Bara sidan läser den.
+   */
+  dir?: MindmapDir;
 }
+
+/**
+ * Se `dir` på noden. `angle` är nodens egen vinkel från föräldern; `base`
+ * är riktningen den skapades åt, som syskonen i samma solfjäder delar, och
+ * `gap` luften mellan föräldern och noden i px (saknas: layoutens).
+ */
+export type MindmapDir = { angle: number; base?: number; gap?: number } | { side: MindmapSide };
 
 /** En linjes egna val. Ett fält som saknas följer kartan. */
 export interface MindmapEdgeStyle {

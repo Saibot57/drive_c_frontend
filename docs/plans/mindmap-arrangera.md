@@ -1,6 +1,6 @@
 # Mindmap: markera flera, riktning för nya barn och arrangera
 
-Status: Pågår. Del A (markera flera) byggd 2026-11-13. Del B–D kvar.
+Status: Pågår. Del A (markera flera, #283) och del B (riktning för nya barn) byggda 2026-11-13. Del C och D kvar.
 
 Planen skrevs 2026-11-13 efter en intervju med Tobias, mot koden på `main`
 (fba3f05, där `MindmapCanvas.tsx` har 1 330 rader). Den bygger vidare på
@@ -135,6 +135,8 @@ childDir?: { angle: number };
 dir?: MindmapDir;
 ```
 
+- *Byggt annorlunda, se avvikelserna under del B:* en vinkel sparas som
+  `{ angle, base, gap }`, nodens egen vinkel i solfjädern.
 - `childDir` är inställningen Tobias sätter i läget. Den flyttar ingenting.
 - `dir` sätts på barnet när det skapas, och av Städa upp. Layouten läser
   bara `dir`. Arvet (beslut 15) räknas alltså ut **en gång, när barnet
@@ -313,7 +315,7 @@ Varje del: `pnpm install --frozen-lockfile`, `pnpm exec tsc --noEmit`,
 `pnpm lint`, `pnpm test`, `pnpm build`, och en visuell kontroll i
 Chromium mot ett mock-API, i Neo och Kronberg, med en exporterad PNG.
 
-### Del A. Markera flera och massredigera — byggd 2026-11-13
+### Del A. Markera flera och massredigera — byggd 2026-11-13 (#283)
 
 1. [x] `mindmapSelection.ts` med test: träffar för ram, växla, syskon, vilka
    noder som är "översta" i en markering.
@@ -356,19 +358,54 @@ nod och en linje, form på linjen från raden, Ctrl+klick, Delete på två och
 en grupp, ensam markering och ensam linje som förut, och PNG-exporten utan
 markeringar.
 
-### Del B. Riktning för nya barn
+### Del B. Riktning för nya barn — byggd 2026-11-13
 
-1. Typerna och tvätten, med test.
-2. `mindmapDirections.ts` med test: solfjäder, kolumn på andra sidan,
+1. [x] Typerna och tvätten, med test.
+2. [x] `mindmapDirections.ts` med test: solfjäder, kolumn på andra sidan,
    grenen följer med, oförändrad layout utan fält.
-3. `dirForNewChild` och `addChildWithDir`, med test: ordningen i 2.1,
-   omräknad förskjutning på dragna syskon.
-4. `useMindmapDirectionPick`, knappen, Alt+R och Alt+Shift+R, pilen.
-5. Grenvyn, bytet av förälder och inklistring.
+3. [x] `dirForNewChild` och `placeNewNode` (planen sa `addChildWithDir`),
+   med test: ordningen i 2.1, dragna syskon står kvar.
+4. [x] `useMindmapDirectionPick`, knappen, Alt+R och Alt+Shift+R, pilen.
+5. [x] Grenvyn, bytet av förälder och inklistring.
 
 **Klart när** fallet på Tobias bild ger ett barn till vänster om s, en
 nod med riktning får sina barn i solfjäder åt det hållet, och minikartan,
 presentationen, grenvyn och PNG:n visar samma sak som skärmen.
+
+**Avvikelser och val som gjordes under bygget:**
+
+- **Solfjädern räknas när ett barn skapas, inte i layouten.** Planen
+  (2.2) lät layouten fördela alla syskon med samma vinkel varje gång. Då
+  flyttade ett draget syskon sig ändå när ett annat syskon fick text och
+  blev bredare, eftersom solfjädern räknades ur syskonens storlek. Nu får
+  varje barn sin egen vinkel: `dir: { angle, base, gap }`, där `base` är
+  riktningen som valdes och som syskonen i solfjädern delar, och `gap`
+  luften mot föräldern. `refan` lägger om solfjädern när ett barn skapas,
+  för syskonen utan förskjutning. Ett draget syskon behåller sin vinkel
+  och står alltså helt still (beslut 14). Layouten lägger bara varje barn
+  åt sin vinkel (`applyDirections`).
+- **Solfjäderns form:** högst 22° mellan två syskon och högst 160° för hela.
+  Behöver rutorna mer plats går solfjädern längre ut från föräldern i
+  stället för att bli bredare. Avståndet räknas så att två grannar är isär
+  i sidled eller i höjdled.
+- **Arvet** ger barnbarnen förälderns `base`, alltså samma riktning som
+  valdes, inte förälderns egen vinkel i solfjädern.
+- **En kolumn på en sida** (`{ side }`, "bort från roten") har kvar planens
+  lösning: dragna syskon får sin förskjutning omräknad när ett nytt kommer.
+- **Verktygsraden** fick en knapp med en meny: *Välj riktning*, *Bara nästa
+  barn* och *Ta bort riktningen*.
+- **Inklistrade grenar:** grenens översta nod får riktningen men solfjädern
+  läggs inte om.
+- `MindmapCanvas.tsx` fick 41 rader och tappade 10.
+
+**Kontrollerat i Chromium** mot mocken, i Neo och Kronberg: Tobias bild
+(barnet till s hamnar till vänster), Alt+R snett uppåt höger och tre barn i
+solfjäder, ett draget syskon som står still när ett fjärde läggs till,
+barnbarn som ärver riktningen, Alt+Shift+R nedåt för ett barn (nästa barn
+står som förut), Esc i läget, *Ta bort riktningen* (barnen står kvar), en
+gammal karta med kurvor efter grensidan (barnen hamnar utåt med en rak
+linje, inget annat flyttar sig), grenvyn, presentationen, minikartan och
+PNG:n.
 
 ### Del C. Städa upp efter riktningen
 

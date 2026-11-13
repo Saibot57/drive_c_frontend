@@ -85,6 +85,8 @@ import { clearBranchOffsets, hasPlacement, MINDMAP_GRID, previewDrag, setRootOff
 import { isGroupModifier, useMindmapMultiSelect } from '@/hooks/useMindmapMultiSelect';
 import { groupActionFor } from '@/utils/mindmapGroup';
 import { siblingIds } from '@/utils/mindmapSelection';
+import { dirForNewChild, placeNewNode, pruneDirs, setDir } from '@/utils/mindmapDirections';
+import { useMindmapDirectionPick } from '@/hooks/useMindmapDirectionPick';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapLinks } from '@/hooks/useMindmapLinks';
@@ -108,6 +110,7 @@ import { MINDMAP_PLACEHOLDER, MindmapNodeView } from './MindmapNodeView';
 import { MindmapNodePanel, type MindmapPanelField } from './MindmapNodePanel';
 import { MindmapPresent } from './MindmapPresent';
 import { MindmapSelectionBar, MindmapSelectionFrame } from './MindmapSelectionBar';
+import { MindmapDirectionLayer } from './MindmapDirectionLayer';
 import MindmapToolbar, { type MindmapExportKind, type MindmapMenu } from './MindmapToolbar';
 import { MindmapZoom } from './MindmapZoom';
 
@@ -378,7 +381,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     // En flytt kan göra två länkade noder till förälder och barn; den
     // länken är då inte längre tillåten.
     // Ett byte av förälder tar bort linjens fästen (del C i mindmap-placering.md).
-    const pruned = pruneEdgeAnchors(docRef.current, pruneCrossLinks(next));
+    // Och platsen (`dir`, del B i mindmap-arrangera.md), som gällde den gamla föräldern.
+    const pruned = pruneDirs(docRef.current, pruneEdgeAnchors(docRef.current, pruneCrossLinks(next)));
     docRef.current = pruned;
     onChangeRef.current(pruned);
   }, [currentId]);
@@ -440,6 +444,18 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     keep: () => branchIdRef.current,
   });
   const { runNodes: runGroup, clear: clearGroup } = multi;
+  // Riktningen för nya barn (del B i mindmap-arrangera.md).
+  const directions = useMindmapDirectionPick({
+    mapId, layout, docRef, commit, selectedId, toLayoutPoint, focusMap,
+    targets: () => multi.groupNodes() ?? [currentId()],
+  });
+  const { takeOnce } = directions;
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+  /** Ett nytt barn till `parentId` får sin plats: vald riktning, arvet, eller bort från roten. */
+  const withDirection = useCallback((d: MindmapDoc, added: { content: MindmapContent; id: string }, parentId: string) =>
+    placeNewNode(d, asDoc(added.content), added.id, dirForNewChild(branchDoc(d, branchIdRef.current), parentId, layoutRef.current, takeOnce(parentId)), layoutOf),
+  [layoutOf, takeOnce]);
   const linePoints = useMindmapLinePoints({
     docRef,
     layout,
@@ -520,7 +536,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         const result = addChild(d, id);
         if (!result) return;
         const color = colorForNewNode(d, id);
-        commit(color ? setNodePaint(asDoc(result.content), result.id, color) : asDoc(result.content));
+        const placed = withDirection(d, result, id);
+        commit(color ? setNodePaint(placed, result.id, color) : placed);
         startEdit(result.id);
         return;
       }
@@ -529,7 +546,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         if (!result) return;
         const parent = id === d.root.id ? d.root : findParent(d.root, id)?.parent;
         const color = parent ? colorForNewNode(d, parent.id) : null;
-        commit(color ? setNodePaint(asDoc(result.content), result.id, color) : asDoc(result.content));
+        const placed = parent ? withDirection(d, result, parent.id) : asDoc(result.content);
+        commit(color ? setNodePaint(placed, result.id, color) : placed);
         startEdit(result.id);
         return;
       }
@@ -640,7 +658,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         // Webbläsaren skickar en paste-händelse, som handlePaste tar hand om.
         return;
     }
-  }, [clearGroup, commit, currentId, finishEdit, flash, focusMap, runGroup, scrollRef, select, startEdit]);
+  }, [clearGroup, commit, currentId, finishEdit, flash, focusMap, runGroup, scrollRef, select, startEdit, withDirection]);
 
   const keyContext = useCallback((id: string) => {
     const d = docRef.current;
@@ -742,7 +760,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       else flash('Webbläsaren kan inte kopiera bilder. Ladda ner kartan som PNG i stället.', 'error');
       return;
     }
-    if (handleViewKey(e) || handleExtraKey(e)) return;
+    if (handleViewKey(e) || handleExtraKey(e) || directions.handleKey(e, !!editingRef.current)) return;
     if (multi.handleKey(e, { editing: !!editingRef.current, id: currentId(), siblings: () => siblingIds(shown, currentId()) })) return;
     // En markerad linje: Esc avmarkerar, Delete gör ingenting.
     if (edges.handleKey(e)) return;
@@ -847,10 +865,12 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     // En gren kopierad från en karta kommer med allt; annars gäller dispositionen.
     const branch = parsed ? readBranchData(parsed) : null;
     const nodes = branch ? [branch] : (parsed ? parseOutlineHtml(parsed) : null) ?? parseOutlineText(text);
-    const next = addChildren(docRef.current, parentId, nodes);
-    if (!next) return false;
+    const added = addChildren(docRef.current, parentId, nodes);
+    if (!added) return false;
     e.preventDefault();
-    commit(asDoc(next));
+    // De inklistrade grenarna får sin plats som nya barn; riktningarna inne i dem följer med.
+    const dir = dirForNewChild(branchDoc(docRef.current, branchIdRef.current), parentId, layout);
+    commit(asDoc(dir ? nodes.reduce((c, node) => setDir(c, node.id, dir), added) : added));
     select(nodes[0].id);
     return true;
   };
@@ -1064,7 +1084,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const imageKeys = new Map(images.refs.map((ref) => [ref.nodeId, ref.key]));
 
   return (
-    <div ref={rootRef} className={`mm flex h-full flex-col${dragId ? ' mm--dragging' : ''}${panning ? ' mm--panning' : ''}`}>
+    <div ref={rootRef} className={`mm flex h-full flex-col${dragId ? ' mm--dragging' : ''}${panning ? ' mm--panning' : ''}${directions.picking ? ' mm--picking' : ''}`}>
       <MindmapToolbar
         layout={doc.layout ?? 'right'}
         menu={menu}
@@ -1094,6 +1114,12 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
           if (next !== docRef.current) commit(asDoc(next));
           focusMap();
         }}
+        onDirection={(kind) => {
+          setMenu(null);
+          if (kind === 'clear') directions.clear();
+          else directions.start(kind === 'once');
+        }}
+        hasDirection={!!panelNode?.childDir}
         onTidyBranch={() => {
           setMenu(null);
           const next = runGroup({ type: 'tidy' }) ? docRef.current : clearBranchOffsets(docRef.current, currentId());
@@ -1224,6 +1250,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
               ))}
 
               <MindmapSelectionFrame rect={multi.frame} />
+              <MindmapDirectionLayer layout={layout} arrows={directions.arrows} />
 
               <MindmapLinkLayer
                 width={layout.width}
@@ -1324,7 +1351,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
           />
         )}
 
-        {notice ? (
+        {directions.picking && !notice ? (
+          <div className="mm__notice" role="status">
+            Peka åt hållet {directions.pickingOnce ? 'nästa barn' : 'nya barn'} ska hamna och klicka. Esc avbryter.
+          </div>
+        ) : notice ? (
           <div className={`mm__notice mm__notice--${notice.tone}`} role="status">
             {notice.text}
           </div>
