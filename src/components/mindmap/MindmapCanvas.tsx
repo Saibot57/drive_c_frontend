@@ -81,7 +81,10 @@ import {
 import { useMindmapEdgeSelection } from '@/hooks/useMindmapEdgeSelection';
 import { useMindmapLinePoints } from '@/hooks/useMindmapLinePoints';
 import { useMindmapWaypoints } from '@/hooks/useMindmapWaypoints';
-import { clearBranchOffsets, hasPlacement, MINDMAP_GRID, previewMove, setRootOffset } from '@/utils/mindmapPlacement';
+import { clearBranchOffsets, hasPlacement, MINDMAP_GRID, previewDrag, setRootOffset } from '@/utils/mindmapPlacement';
+import { isGroupModifier, useMindmapMultiSelect } from '@/hooks/useMindmapMultiSelect';
+import { groupActionFor } from '@/utils/mindmapGroup';
+import { siblingIds } from '@/utils/mindmapSelection';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapLinks } from '@/hooks/useMindmapLinks';
@@ -104,6 +107,7 @@ import { MindmapMinimap } from './MindmapMinimap';
 import { MINDMAP_PLACEHOLDER, MindmapNodeView } from './MindmapNodeView';
 import { MindmapNodePanel, type MindmapPanelField } from './MindmapNodePanel';
 import { MindmapPresent } from './MindmapPresent';
+import { MindmapSelectionBar, MindmapSelectionFrame } from './MindmapSelectionBar';
 import MindmapToolbar, { type MindmapExportKind, type MindmapMenu } from './MindmapToolbar';
 import { MindmapZoom } from './MindmapZoom';
 
@@ -182,6 +186,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     layoutOf,
     grid: !!docRef.current.grid,
     nodeRect: (id) => nodeRect(id),
+    group: () => multi.groupNodes(),
     onDown: () => setMenu(null),
     onLinkDrag: links.beginDrag,
     onDrop: (next, id) => {
@@ -284,7 +289,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const layout = useMemo(() => {
     if (!dragMove && !resize) return layoutOf(shown);
     let moved: MindmapDoc = doc;
-    if (dragMove) moved = previewMove(moved, dragMove.id, dragMove, dragMove.alone);
+    if (dragMove) moved = previewDrag(moved, dragMove);
     if (resize) moved = asDoc(setTextWidth(moved, resize.id, resize.width));
     return layoutOf(branchDoc(moved, branchId));
   }, [doc, shown, branchId, dragMove, resize, layoutOf]);
@@ -328,7 +333,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   // Rotnodens mitt är lagrets origo, så att roten ligger still när kartan
   // växer och en sparad vy gäller också efter att noder lagts till. Med en
   // flyttad rot är det dess automatiska mitt, så att resten står still.
-  const shownRoot = dragMove?.id === shown.root.id ? previewMove(shown, dragMove.id, dragMove, false).root : shown.root;
+  const shownRoot = dragMove ? previewDrag(shown, dragMove).root : shown.root;
   const origin = useMemo(() => {
     const center = rootOrigin(layout, { root: shownRoot });
     return { x: Math.round(center.x), y: Math.round(center.y) };
@@ -428,6 +433,13 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     const root = edgePreview ? setEdgeAnchor(withPoints, edgePreview.id, edgePreview.end, edgePreview.side).root : withPoints.root;
     return routeEdges(layout, { lines, root });
   }, [layout, lines, shown, edgePreview, waypoints.preview]);
+  // Flera markerade (docs/plans/mindmap-arrangera.md, del A).
+  const multi = useMindmapMultiSelect({
+    mapId, layout, routes, docRef, commit, toLayoutPoint, focusMap, selectNode: select, selectEdge: edges.select,
+    current: () => ({ node: selectedRef.current, edge: edges.selectedId }),
+    keep: () => branchIdRef.current,
+  });
+  const { runNodes: runGroup, clear: clearGroup } = multi;
   const linePoints = useMindmapLinePoints({
     docRef,
     layout,
@@ -470,11 +482,12 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   }, [select]);
 
   const startEdit = useCallback((id: string) => {
+    clearGroup();
     if (editingRef.current && editingRef.current !== id) finishEdit();
     select(id);
     editingRef.current = id;
     setEditingId(id);
-  }, [finishEdit, select]);
+  }, [clearGroup, finishEdit, select]);
 
   /* ── Handlingar ── */
 
@@ -482,6 +495,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     const d = docRef.current;
     const id = currentId();
     const branchRoot = branchIdRef.current;
+
+    // Färg, ta bort och fäll ihop gäller alla markerade; allt annat släpper dem.
+    const forGroup = groupActionFor(requested);
+    if (forGroup && runGroup(forGroup)) return;
+    clearGroup();
 
     // Grenens rot beter sig som kartans rot (mindmapBranch.branchRootAction).
     let action = requested;
@@ -622,7 +640,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         // Webbläsaren skickar en paste-händelse, som handlePaste tar hand om.
         return;
     }
-  }, [commit, currentId, finishEdit, flash, focusMap, scrollRef, select, startEdit]);
+  }, [clearGroup, commit, currentId, finishEdit, flash, focusMap, runGroup, scrollRef, select, startEdit]);
 
   const keyContext = useCallback((id: string) => {
     const d = docRef.current;
@@ -673,6 +691,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     e.stopPropagation();
     setMenu(null);
     const id = editingRef.current ?? currentId();
+    if ((action.type === 'icon' || action.type === 'resetOffset') && runGroup(action)) return true;
     if (action.type === 'icon') {
       commit(asDoc(setIcon(docRef.current, id, action.icon)));
     } else if (action.type === 'resetOffset') {
@@ -724,6 +743,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
       return;
     }
     if (handleViewKey(e) || handleExtraKey(e)) return;
+    if (multi.handleKey(e, { editing: !!editingRef.current, id: currentId(), siblings: () => siblingIds(shown, currentId()) })) return;
     // En markerad linje: Esc avmarkerar, Delete gör ingenting.
     if (edges.handleKey(e)) return;
     // Ctrl+L från ett textfält: skrivandet avslutas, länken börjar från noden.
@@ -863,10 +883,17 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     setMenu(null);
     if (e.button !== 0 && e.button !== 1) return;
-    // Ett klick på tom yta avmarkerar en tvärlänk och en linje.
+    // Cmd+dra (Ctrl på Windows) ritar en ram som markerar det den nuddar.
+    if (e.button === 0 && isGroupModifier(e)) {
+      links.select(null);
+      multi.beginFrame(e);
+      return;
+    }
+    // Ett klick på tom yta avmarkerar en tvärlänk, en linje och flera markerade.
     if (e.button === 0) {
       links.select(null);
       edges.select(null);
+      clearGroup();
     }
     let last = { x: e.clientX, y: e.clientY };
     const pointerId = e.pointerId;
@@ -891,12 +918,21 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     setPanning(true);
   };
 
-  const handleNodeClick = (id: string) => {
+  const handleNodeClick = (id: string, e: React.MouseEvent) => {
     if (suppressClick.current) {
       suppressClick.current = false;
       return;
     }
     if (editingRef.current === id) return;
+    // Cmd+klick lägger till noden bland de markerade eller tar bort den.
+    if (isGroupModifier(e) && !links.linkFrom) {
+      selectedOnDown.current = false;
+      if (editingRef.current) finishEdit();
+      links.select(null);
+      multi.toggle('node', id);
+      return;
+    }
+    clearGroup();
     // En påbörjad tvärlänk (Ctrl+L) avslutas på noden man klickar på.
     if (links.linkFrom) {
       selectedOnDown.current = false;
@@ -1039,7 +1075,9 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         onColor={(choice, wholeBranch) => {
           setMenu(null);
           const d = docRef.current;
-          commit(wholeBranch ? setBranchPaint(d, currentId(), choice) : setNodePaint(d, currentId(), choice));
+          if (!runGroup({ type: 'paint', choice, wholeBranch })) {
+            commit(wholeBranch ? setBranchPaint(d, currentId(), choice) : setNodePaint(d, currentId(), choice));
+          }
           focusMap();
         }}
         currentColor={paintChoiceOf(panelNode)}
@@ -1058,7 +1096,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         }}
         onTidyBranch={() => {
           setMenu(null);
-          const next = clearBranchOffsets(docRef.current, currentId());
+          const next = runGroup({ type: 'tidy' }) ? docRef.current : clearBranchOffsets(docRef.current, currentId());
           if (next !== docRef.current) commit(next);
           focusMap();
         }}
@@ -1128,8 +1166,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                 height={layout.height}
                 routes={routes}
                 selectedId={edges.selectedId}
-                onSelect={(id) => {
+                groupIds={multi.edgeSet}
+                onSelect={(id, e) => {
                   links.select(null);
+                  if (isGroupModifier(e)) return multi.toggle('edge', id);
+                  clearGroup();
                   edges.select(id);
                   focusMap();
                 }}
@@ -1145,6 +1186,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                   paint={paints.get(node.id)}
                   linking={links.linkFrom === node.id}
                   selected={selectedId === node.id}
+                  grouped={multi.nodeSet.has(node.id)}
                   editing={editingId === node.id}
                   dragged={dragId === node.id}
                   dropTarget={dropId === node.id}
@@ -1180,6 +1222,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                   }}
                 />
               ))}
+
+              <MindmapSelectionFrame rect={multi.frame} />
 
               <MindmapLinkLayer
                 width={layout.width}
@@ -1226,6 +1270,19 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
             label={findNode(doc.root, branchId)?.label ?? ''}
             onExit={() => {
               branch.exit();
+              focusMap();
+            }}
+          />
+        )}
+
+        {multi.active && (
+          <MindmapSelectionBar
+            root={doc.root}
+            group={multi.group}
+            onNodes={runGroup}
+            onEdges={multi.runEdges}
+            onClose={() => {
+              clearGroup();
               focusMap();
             }}
           />

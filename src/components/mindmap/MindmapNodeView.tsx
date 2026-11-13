@@ -14,6 +14,8 @@ export interface MindmapNodeViewProps {
   /** Nodens färger, räknade ur kartan (useMindmapPaint). Saknas: nodens egen färgklass. */
   paint?: MindmapNodePaint;
   selected: boolean;
+  /** En av flera markerade (docs/plans/mindmap-arrangera.md, del A). */
+  grouped?: boolean;
   editing: boolean;
   /** Noden dras just nu. Den släpper då igenom pekaren, så att noden under går att träffa. */
   dragged: boolean;
@@ -33,7 +35,8 @@ export interface MindmapNodeViewProps {
   /** Dubbelklick på handtaget: tillbaka till standardbredden. */
   onResizeReset?: (id: string) => void;
   onPointerDown: (e: React.PointerEvent<HTMLDivElement>, id: string) => void;
-  onClick: (id: string) => void;
+  /** Händelsen följer med, så att Cmd+klick kan läsas. */
+  onClick: (id: string, e: React.MouseEvent) => void;
   onEdit: (id: string) => void;
   onLabel: (id: string, label: string) => void;
   onInputKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -63,6 +66,7 @@ export function MindmapNodeView({
   node,
   paint,
   selected,
+  grouped,
   editing,
   dragged,
   dropTarget,
@@ -96,6 +100,7 @@ export function MindmapNodeView({
     paint ? 'mm__node--paint' : node.color && `mm__node--${node.color}`,
     paint?.outline && 'mm__node--paint-outline',
     selected && 'mm__node--selected',
+    grouped && 'mm__node--grouped',
     editing && 'mm__node--editing',
     dragged && 'mm__node--dragged',
     dropTarget && 'mm__node--drop',
@@ -108,7 +113,7 @@ export function MindmapNodeView({
       className={classes}
       style={{ left: node.x, top: node.y, width: node.width, height: node.height, ...paintStyle(paint) }}
       onPointerDown={(e) => onPointerDown(e, node.id)}
-      onClick={() => onClick(node.id)}
+      onClick={(e) => onClick(node.id, e)}
       onDoubleClick={() => onEdit(node.id)}
     >
       <div

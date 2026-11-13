@@ -1,6 +1,6 @@
 # Mindmap: markera flera, riktning för nya barn och arrangera
 
-Status: Planerad. Inget byggt.
+Status: Pågår. Del A (markera flera) byggd 2026-11-13. Del B–D kvar.
 
 Planen skrevs 2026-11-13 efter en intervju med Tobias, mot koden på `main`
 (fba3f05, där `MindmapCanvas.tsx` har 1 330 rader). Den bygger vidare på
@@ -313,18 +313,48 @@ Varje del: `pnpm install --frozen-lockfile`, `pnpm exec tsc --noEmit`,
 `pnpm lint`, `pnpm test`, `pnpm build`, och en visuell kontroll i
 Chromium mot ett mock-API, i Neo och Kronberg, med en exporterad PNG.
 
-### Del A. Markera flera och massredigera
+### Del A. Markera flera och massredigera — byggd 2026-11-13
 
-1. `mindmapSelection.ts` med test: träffar för ram, växla, syskon, vilka
+1. [x] `mindmapSelection.ts` med test: träffar för ram, växla, syskon, vilka
    noder som är "översta" i en markering.
-2. `useMindmapMultiSelect` och ramlagret. Cmd+dra, Cmd+klick, Cmd+A, Esc.
-3. Gemensamt drag (`placeNodes`, med test).
-4. Färg, ikon, fälla ihop, ta bort och städa upp på flera.
-5. Flera linjer i `MindmapEdgeBar`.
-6. Hjälpen och `config/shortcuts.ts`.
+2. [x] `useMindmapMultiSelect` och ramlagret. Cmd+dra, Cmd+klick, Cmd+A, Esc.
+3. [x] Gemensamt drag (`placeNodes`, med test).
+4. [x] Färg, ikon, fälla ihop, ta bort och städa upp på flera.
+5. [x] Flera linjer: i en egen rad, `MindmapSelectionBar` (se avvikelserna).
+6. [x] Hjälpen och `config/shortcuts.ts`.
 
 **Klart när** fyra noder går att rama in, flytta, färga och ta bort som
 ett ångra-steg var, och en ensam markering beter sig som i dag.
+
+**Avvikelser och val som gjordes under bygget:**
+
+- **En egen rad för flera markerade**, `MindmapSelectionBar.tsx`, i stället
+  för att bygga ut `MindmapEdgeBar`. Raden har nodernas val (ikon, fäll
+  ihop eller ut, städa upp, ta bort) och linjernas (form, start, fäste,
+  återställ). Ett val som skiljer sig mellan de markerade visas som
+  "Blandat". Färgen väljs i verktygsraden, som för en nod.
+- **Handlingarna på flera** ligger i `utils/mindmapGroup.ts` (med test),
+  och `groupActionFor` säger vilka av kartans tangenter som gäller alla:
+  Alt+siffra (färg), Delete och mellanslag. Alt+Shift+siffra (ikon) och
+  Alt+Shift+0 (nollställ) gäller också alla. Allt annat släpper de
+  markerade och gäller den markerade noden.
+- **Ramen lägger till** i en grupp som redan finns. Inte frågat; det gör att
+  man kan rama in två områden efter varandra. Ett vanligt klick släpper.
+- **Delete med bara linjer markerade** gör ingenting, som för en ensam linje.
+- **Roten i en grupp** flyttas ensam när gruppen dras, som när roten dras.
+- **Markeringen syns också utan fokus**, till skillnad från den markerade
+  noden, eftersom raden över kartan står kvar.
+- `MindmapCanvas.tsx` fick 67 rader och tappade 10 (netto 57).
+- `routePoints` i `mindmapEdges.ts` exporteras nu, för ramens träff på
+  linjerna.
+
+**Kontrollerat i Chromium** mot mocken, i Neo och Kronberg: Cmd+klick på
+fyra noder, av och på igen, gemensamt drag (tre grenar flyttade 40 px,
+den fjärde orörd), Alt+1 på tre, Esc, Cmd+A, klick på tom yta, ram över en
+nod och en linje, form på linjen från raden, Ctrl+klick, Delete på två och
+ångra i ett steg, två linjer med Cmd+klick och Delete utan verkan, roten i
+en grupp, ensam markering och ensam linje som förut, och PNG-exporten utan
+markeringar.
 
 ### Del B. Riktning för nya barn
 

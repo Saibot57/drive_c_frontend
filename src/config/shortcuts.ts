@@ -96,6 +96,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Alt', '1–6'], description: 'Färg (Alt+0 tar bort)' },
       { keys: ['Alt', '←↑↓→'], description: 'Flytta noden' },
       { keys: ['Delete'], description: 'Ta bort noden med gren' },
+      { keys: ['Cmd', 'klick'], description: 'Markera flera (Ctrl på Windows; Cmd+dra ritar en ram)' },
     ],
   },
 ];

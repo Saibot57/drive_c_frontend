@@ -195,6 +195,28 @@
   outline-offset: 2px;
 }
 
+/* En av flera markerade (docs/plans/mindmap-arrangera.md, del A). Syns
+   också utan fokus, som raden över kartan som hör till markeringen. */
+.mm__node--grouped {
+  outline: 2px solid var(--mm-select);
+  outline-offset: 2px;
+}
+
+/* Raden för flera markerade är bredare än linjens: den har både nodernas
+   och linjernas val, och ska helst rymmas på en rad. */
+.mm__selectionbar {
+  width: max-content;
+}
+
+/* Ramen medan Cmd+dra pågår, i kartans koordinater. */
+.mm__frame {
+  position: absolute;
+  border: 1px solid var(--mm-select);
+  background: color-mix(in srgb, var(--mm-select) 10%, transparent);
+  pointer-events: none;
+  z-index: 3;
+}
+
 /* Noden som dras följer pekaren. Den släpper igenom pekaren, så att
    elementFromPoint hittar noden under den (släppmålet). */
 .mm__node--dragged {
