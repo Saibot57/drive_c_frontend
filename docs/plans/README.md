@@ -34,6 +34,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Mindmap: text på flera rader i en nod](mindmap-radbrytning.md) | Pågår. Del A (radbrytning) och del B (bredd per nod) byggda 2026-11-12. Kvar: proven i avsnitt 6 |
 | [Mindmap: egna färger och nyanser nedåt i grenen](mindmap-farger.md) | Pågår. Del A (modell och ritning) och B (färgmenyn) byggda 2026-11-12 (#278). Kvar: C `.mup`-importen |
 | [Mindmap: friare placering och linjer att forma](mindmap-placering.md) | Pågår. Del A (linjernas form och fäste per karta) och B (Alt+dra, flytta roten, städa upp, rutnät) byggda 2026-11-12 (#280). Del C (form och fästen per linje och för tvärlänkarna) och D (brytpunkter) byggda 2026-11-12 (#281). Kvar: prov i riktig miljö och workspace-kortet i webbläsaren |
+| [Mindmap: flera rötter på samma canvas](mindmap-flera-rotter.md) | Utredning 2026-11-13. Rekommenderar en dold rot (väg A), eventuellt utbyggd till träd som ritas som rötter (D). Inget byggt; beslut 3 och 15 i placeringsplanen gäller tills Tobias bestämt annat |
 
 Lägg till en rad här när en ny plan skrivs.
 
