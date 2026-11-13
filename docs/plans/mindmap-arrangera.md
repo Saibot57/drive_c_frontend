@@ -1,6 +1,6 @@
 # Mindmap: markera flera, riktning för nya barn och arrangera
 
-Status: Pågår. Del A (markera flera, #283) och del B (riktning för nya barn) byggda 2026-11-13. Del C och D kvar.
+Status: Pågår. Del A (markera flera, #283), del B (riktning för nya barn) och del C (städa upp efter riktningen) byggda 2026-11-13. Del D kvar.
 
 Planen skrevs 2026-11-13 efter en intervju med Tobias, mot koden på `main`
 (fba3f05, där `MindmapCanvas.tsx` har 1 330 rader). Den bygger vidare på
@@ -407,13 +407,41 @@ gammal karta med kurvor efter grensidan (barnen hamnar utåt med en rak
 linje, inget annat flyttar sig), grenvyn, presentationen, minikartan och
 PNG:n.
 
-### Del C. Städa upp efter riktningen
+### Del C. Städa upp efter riktningen — byggd 2026-11-13
 
-1. `tidyBranch` och `tidyAll`, med test.
-2. Menyn Städa upp anropar dem.
+1. [x] `tidyBranch` och `tidyAll`, med test (`utils/mindmapTidy.ts`).
+2. [x] Menyn Städa upp anropar dem, och raden för flera markerade också.
 
 **Klart när** Städa upp på s:s gren ställer barnen till vänster om s, och
 en karta utan flyttade noder städas som i dag.
+
+**Avvikelser och val som gjordes under bygget:**
+
+- **Grenens egen nod får också sin plats.** Städa upp s:s gren tar bort
+  s:s förskjutning; s hade då hamnat mellan Rut och roten. Därför får s
+  (inte bara barnen) en plats efter samma regel: Rut står till vänster om
+  roten, så s ställs till vänster om Rut.
+- **En sida (`{ side }`) räknas om** vid varje städning, eftersom den kom av
+  regeln "bort från roten" och gällde där föräldern stod då. En vinkel
+  står kvar och solfjädern läggs om. Utan det stod s kvar till vänster om
+  Rut när hela kartan städades och Rut gick tillbaka till höger om roten.
+  Ett barn som fick en sida när det skapades behåller den alltså tills man
+  städar, också om föräldern flyttas tillbaka.
+- **Städa upp går att välja** också när inget är flyttat men kartan har
+  riktningar (`hasDirections`), så att en solfjäder går att lägga om.
+- Grenar under en hopfälld nod får sina förskjutningar borttagna men inga
+  nya riktningar, eftersom de inte syns i layouten.
+- `MindmapCanvas.tsx` fick 6 rader och tappade 5.
+
+**Kontrollerat i Chromium** mot mocken, i Neo och Kronberg: s:s gren (s,
+Ett och Två hamnar till vänster om Rut, och Ett tappar sin förskjutning),
+Pim med vald riktning och Kaj markerade och städade från raden (Pims barn i
+en solfjäder åt 300°, också det dragna), ångra, och hela kartan (Rut
+tillbaka till höger om roten, och s:s sida borttagen). Exporten.
+
+**Sett i provet:** efter *Städa upp hela kartan* lade sig Pims solfjäder
+(åt 300°, snett uppåt) över Rut och s, som då stod i samma kolumn till
+höger om roten. Solfjädern tar inte hänsyn till andra grenar (avsnitt 7).
 
 ### Del D. Arrangera
 

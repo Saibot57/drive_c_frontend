@@ -14,7 +14,6 @@ import {
   moveAmongSiblings,
   navigate,
   outdent,
-  clearOffsets,
   hasOffsets,
   setIcon,
   setImage,
@@ -81,12 +80,13 @@ import {
 import { useMindmapEdgeSelection } from '@/hooks/useMindmapEdgeSelection';
 import { useMindmapLinePoints } from '@/hooks/useMindmapLinePoints';
 import { useMindmapWaypoints } from '@/hooks/useMindmapWaypoints';
-import { clearBranchOffsets, hasPlacement, MINDMAP_GRID, previewDrag, setRootOffset } from '@/utils/mindmapPlacement';
+import { hasPlacement, MINDMAP_GRID, previewDrag, setRootOffset } from '@/utils/mindmapPlacement';
 import { isGroupModifier, useMindmapMultiSelect } from '@/hooks/useMindmapMultiSelect';
 import { groupActionFor } from '@/utils/mindmapGroup';
 import { siblingIds } from '@/utils/mindmapSelection';
 import { dirForNewChild, placeNewNode, pruneDirs, setDir } from '@/utils/mindmapDirections';
 import { useMindmapDirectionPick } from '@/hooks/useMindmapDirectionPick';
+import { hasDirections, tidyAll, tidyBranch } from '@/utils/mindmapTidy';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapLinks } from '@/hooks/useMindmapLinks';
@@ -442,6 +442,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     mapId, layout, routes, docRef, commit, toLayoutPoint, focusMap, selectNode: select, selectEdge: edges.select,
     current: () => ({ node: selectedRef.current, edge: edges.selectedId }),
     keep: () => branchIdRef.current,
+    tidy: (d, id) => tidyBranch(d, id, layoutOf),
   });
   const { runNodes: runGroup, clear: clearGroup } = multi;
   // Riktningen för nya barn (del B i mindmap-arrangera.md).
@@ -1107,10 +1108,10 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         onLines={(patch) => commit(setLines(docRef.current, patch))}
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((open) => !open)}
-        canResetLayout={hasPlacement(doc)}
+        canResetLayout={hasPlacement(doc) || hasDirections(doc.root)}
         onResetLayout={() => {
           setMenu(null);
-          const next = clearOffsets(docRef.current);
+          const next = tidyAll(docRef.current, layoutOf);
           if (next !== docRef.current) commit(asDoc(next));
           focusMap();
         }}
@@ -1122,7 +1123,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
         hasDirection={!!panelNode?.childDir}
         onTidyBranch={() => {
           setMenu(null);
-          const next = runGroup({ type: 'tidy' }) ? docRef.current : clearBranchOffsets(docRef.current, currentId());
+          const next = runGroup({ type: 'tidy' }) ? docRef.current : tidyBranch(docRef.current, currentId(), layoutOf);
           if (next !== docRef.current) commit(next);
           focusMap();
         }}

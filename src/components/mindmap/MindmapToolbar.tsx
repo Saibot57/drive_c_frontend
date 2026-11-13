@@ -209,7 +209,7 @@ export default function MindmapToolbar({
                 <button type="button" className="mm__menu-item" onClick={onTidyBranch}>Städa upp grenen</button>
               )}
               <button type="button" className="mm__menu-item" onClick={onResetLayout}>Städa upp hela kartan</button>
-              <p className="mm__menu-hint">Flyttade noder går tillbaka till layoutens plats. Linjernas val står kvar.</p>
+              <p className="mm__menu-hint">Flyttade noder går tillbaka. Barnen ställs åt nodens riktning, och aldrig inåt mot roten. Linjernas val står kvar.</p>
             </div>
           )}
         </div>
