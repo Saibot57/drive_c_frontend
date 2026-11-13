@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MindmapContent, MindmapNode } from '@/types/mindmap';
-import { layoutMindmap } from './mindmapLayout';
+import { layoutMindmap, MINDMAP_WRAP } from './mindmapLayout';
 import { renderMindmapCanvas, type MindmapPalette } from './mindmapDraw';
 
 /*
@@ -68,5 +68,31 @@ describe('renderMindmapCanvas', () => {
     renderMindmapCanvas(content, palette, { edges });
     expect(edges).toHaveBeenCalledTimes(1);
     expect(calls.some((c) => c.startsWith('bezierCurveTo'))).toBe(false);
+  });
+});
+
+describe('nodernas form', () => {
+  const long = 'En lång etikett som bryts i flera rader på Mindmap-sidan när den är för bred';
+  const wide: MindmapContent = { root: n('R', [n('L', [], { label: long }), n('S')]) };
+  // pill() ritar ett piller med arc och en rundad rektangel med arcTo.
+  const shapes = (calls: string[]) => ({
+    arcs: calls.filter((c) => c.startsWith('arc(')).length,
+    arcTos: calls.filter((c) => c.startsWith('arcTo(')),
+  });
+
+  it('utan radbrytning (kortet) är alla noder piller, också en lång', () => {
+    const calls = recordingCanvas();
+    renderMindmapCanvas(wide, palette);
+    expect(shapes(calls).arcTos).toEqual([]);
+    expect(shapes(calls).arcs).toBe(2 * 3);
+  });
+
+  it('en nod med flera rader har hörn med halva radhöjden, de andra är piller', () => {
+    const calls = recordingCanvas();
+    renderMindmapCanvas(wide, palette, { wrap: MINDMAP_WRAP });
+    const { arcs, arcTos } = shapes(calls);
+    expect(arcTos).toHaveLength(4);
+    arcTos.forEach((c) => expect(c.endsWith(',13)')).toBe(true));
+    expect(arcs).toBe(2 * 2);
   });
 });

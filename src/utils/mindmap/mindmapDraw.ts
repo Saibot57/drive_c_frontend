@@ -57,7 +57,7 @@ export interface MindmapNodePaint {
 function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, radius = Infinity) {
   const r = Math.min(h / 2, w / 2, radius);
   if (r < h / 2) {
-    // Rundad rektangel: en nod med bild.
+    // Rundad rektangel: en nod med bild eller med flera rader.
     ctx.beginPath();
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -174,6 +174,14 @@ export function renderMindmapCanvas(
   layout.nodes.forEach((node) => {
     const paint = paints?.get(node.id);
     const border = node.isRoot ? m.rootBorder : m.border;
+    // En nod med bild har rundade hörn. En nod med flera rader (bara på
+    // Mindmap-sidan) har samma rundning som en nod på en rad har i ändarna;
+    // ett piller hade skurit in i textens hörn. Annars ett piller.
+    const radius = node.image
+      ? xm.imageNodeRadius
+      : (node.lines?.length ?? 1) > 1
+        ? (node.isRoot ? m.rootHeight : m.nodeHeight) / 2
+        : Infinity;
     const pad = node.isRoot ? m.rootPadX : m.padX;
     // Kanten ritas på insidan, som border-box i kortet.
     pill(
@@ -182,7 +190,7 @@ export function renderMindmapCanvas(
       node.y + border / 2,
       node.width - border,
       node.height - border,
-      node.image ? xm.imageNodeRadius : Infinity,
+      radius,
     );
     ctx.fillStyle = paint
       ? paint.fill
@@ -195,8 +203,7 @@ export function renderMindmapCanvas(
     ctx.stroke();
     if (paint?.outline && paint.border) {
       // Kanten längst ned i en färgad gren: 2 px, innanför nodens mått som på skärmen.
-      pill(ctx, node.x + border * 1.5, node.y + border * 1.5, node.width - 3 * border, node.height - 3 * border,
-        node.image ? xm.imageNodeRadius : Infinity);
+      pill(ctx, node.x + border * 1.5, node.y + border * 1.5, node.width - 3 * border, node.height - 3 * border, radius);
       ctx.lineWidth = border;
       ctx.stroke();
     }

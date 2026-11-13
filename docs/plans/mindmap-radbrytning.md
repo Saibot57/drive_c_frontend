@@ -336,6 +336,25 @@ Byggd 2026-11-12 på grenen `claude/mindmap-radbrytning`.
 Kontroller före push: `pnpm exec tsc --noEmit`, `pnpm lint` (inga fel),
 `pnpm test` (105 testfiler, 1 657 tester), `pnpm build`.
 
+### Rättelse 2026-11-13: noder med flera rader var piller
+
+Tobias såg på skärmen att text i höga noder gick ut över kanten. Noderna
+ritades som piller också med flera rader (`--mm-radius: 9999px` i Neo,
+radien `Infinity` i `mindmapDraw.ts`), och de runda ändarna blev då stora
+halvcirklar som skar in i första och sista radens hörn. Kronberg, med sin
+lilla radie, påverkades inte.
+
+Nu är en nod med flera rader en rundad rektangel med samma rundning som en
+nod på en rad har i ändarna: 13 px (`nodeHeight / 2`), roten 17 px
+(`rootHeight / 2`). Klassen `mm__node--multiline` i `MindmapNodeView.tsx`
+och `mindmap.css`, och samma radie i `renderMindmapCanvas`. Noder på en rad
+och noder med bild är som förut. Workspace-kortet har aldrig flera rader
+och ritas som förut (test i `mindmapDraw.test.ts`).
+
+Kontrollerat 2026-11-13 i Chromium mot mock-API:t med en karta som
+Tobias, i Neo och Kronberg och i PNG-exporten. 112 testfiler, 1 758
+tester.
+
 ## 6. Verifiering
 
 Efter varje del, i webbläsaren:

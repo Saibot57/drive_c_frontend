@@ -93,6 +93,7 @@ export function MindmapNodeView({
     'mm__node',
     node.isRoot && 'mm__node--root',
     node.image && 'mm__node--image',
+    !node.image && lineCount > 1 && 'mm__node--multiline',
     paint ? 'mm__node--paint' : node.color && `mm__node--${node.color}`,
     paint?.outline && 'mm__node--paint-outline',
     selected && 'mm__node--selected',
