@@ -132,11 +132,17 @@ export function applyDirections(
     });
   };
 
-  /** Barnet åt sin vinkel, med luften `hGap` mellan rutorna. */
-  const placeRay = (parent: LaidOutNode, kid: MindmapNode, angle: number, gap = metrics.hGap) => {
+  /**
+   * Barnet åt sin vinkel, med minst luften `hGap` mot föräldern. I en
+   * solfjäder står barnet `radius` px från förälderns mitt, lika långt som
+   * syskonen, utom när det blivit bredare sedan solfjädern räknades: då går
+   * det längre ut, så att det inte möter föräldern.
+   */
+  const placeRay = (parent: LaidOutNode, kid: MindmapNode, angle: number, radius?: number) => {
     const box = boxes.get(kid.id)!;
     const t = rad(angle);
-    const r = reach(parent, t) + gap + reach(box, t);
+    const free = reach(parent, t) + metrics.hGap + reach(box, t);
+    const r = radius === undefined ? free : Math.max(radius, free);
     const x = parent.x + parent.width / 2 + r * Math.cos(t) - box.width / 2;
     const y = parent.y + parent.height / 2 + r * Math.sin(t) - box.height / 2;
     moveTo(kid, x, y, Math.cos(t) < -1e-9 ? 'left' : 'right');
@@ -213,7 +219,7 @@ export function applyDirections(
     const kids = visibleKids(node);
     const columns: Record<MindmapSide, MindmapNode[]> = { left: [], right: [] };
     kids.forEach((kid) => {
-      if (kid.dir && 'angle' in kid.dir) placeRay(parent, kid, kid.dir.angle, kid.dir.gap);
+      if (kid.dir && 'angle' in kid.dir) placeRay(parent, kid, kid.dir.angle, kid.dir.r);
       else if (kid.dir) columns[kid.dir.side].push(kid);
       else if (side && boxes.get(kid.id)!.side !== side) mirror(parent, kid, side);
     });
@@ -319,24 +325,27 @@ export function setChildDir<T extends MindmapContent>(content: T, id: string, an
 
 /**
  * En solfjäder med `boxes` åt `base` (grader): vinklarna, symmetriskt kring
- * riktningen och medurs i ordningen, och luften `gap` mellan föräldern och
- * barnen. Steget är högst 22° och hela solfjädern högst 160°; behöver
- * rutorna mer plats går solfjädern längre ut, så att de inte möts.
+ * riktningen och medurs i ordningen, och avståndet `radius` från förälderns
+ * mitt till barnens mitt, gemensamt för alla. Steget är högst 22° och hela
+ * solfjädern högst 160°; behöver rutorna mer plats går solfjädern längre ut,
+ * så att de inte möts med varandra eller med föräldern.
  */
-export function fanAngles(parent: Box, boxes: Box[], base: number, metrics: MindmapMetrics = MINDMAP_METRICS): { angles: number[]; gap: number } {
-  if (boxes.length <= 1) return { angles: boxes.map(() => normalizeAngle(base)), gap: metrics.hGap };
+export function fanAngles(parent: Box, boxes: Box[], base: number, metrics: MindmapMetrics = MINDMAP_METRICS): { angles: number[]; radius: number } {
   const theta = rad(base);
+  if (boxes.length <= 1) {
+    return { angles: boxes.map(() => normalizeAngle(base)), radius: boxes.length ? reach(parent, theta) + metrics.hGap + reach(boxes[0], theta) : 0 };
+  }
   const size = { width: Math.max(...boxes.map((box) => box.width)), height: Math.max(...boxes.map((box) => box.height)) };
-  const inner = reach(parent, theta) + Math.max(...boxes.map((box) => reach(box, theta)));
   const step = Math.min(MAX_STEP, MAX_FAN / (boxes.length - 1));
   const at = (i: number) => theta + (i - (boxes.length - 1) / 2) * step;
+  // Varje barn ska stå fritt från föräldern åt sin egen vinkel.
+  const clear = Math.max(...boxes.map((box, i) => reach(parent, at(i)) + metrics.hGap + reach(box, at(i))));
   // Två grannar på bågen står 2r·sin(steg/2) isär, tvärs över vinkeln mitt
   // emellan dem; det ska räcka för att rutorna inte möts.
   const needed = Math.max(...boxes.slice(1).map((_, i) => apart(size, (at(i) + at(i + 1)) / 2, metrics.vGap)));
-  const radius = Math.max(inner + metrics.hGap, needed / (2 * Math.sin(step / 2)));
   return {
     angles: boxes.map((_, i) => normalizeAngle((at(i) * 180) / Math.PI)),
-    gap: Math.round(radius - inner),
+    radius: Math.ceil(Math.max(clear, needed / (2 * Math.sin(step / 2)))),
   };
 }
 
@@ -362,7 +371,7 @@ export function refan<T extends MindmapContent>(
     layout.byId.has(child.id) && baseOf(child.dir) === base && (!child.offset || include.includes(child.id)));
   const fan = fanAngles(parentBox, group.map((child) => layout.byId.get(child.id)!), base);
   return group.reduce<T>((c, child, i) =>
-    setDir(c, child.id, group.length > 1 ? { angle: fan.angles[i], base, gap: fan.gap } : { angle: fan.angles[i], base }), content);
+    setDir(c, child.id, group.length > 1 ? { angle: fan.angles[i], base, r: fan.radius } : { angle: fan.angles[i], base }), content);
 }
 
 /**

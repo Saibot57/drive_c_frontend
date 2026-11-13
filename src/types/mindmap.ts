@@ -116,9 +116,10 @@ export interface MindmapNode {
 /**
  * Se `dir` på noden. `angle` är nodens egen vinkel från föräldern; `base`
  * är riktningen den skapades åt, som syskonen i samma solfjäder delar, och
- * `gap` luften mellan föräldern och noden i px (saknas: layoutens).
+ * `r` avståndet i px från förälderns mitt till nodens, lika för syskonen i
+ * solfjädern (saknas: luften `hGap` mellan rutorna).
  */
-export type MindmapDir = { angle: number; base?: number; gap?: number } | { side: MindmapSide };
+export type MindmapDir = { angle: number; base?: number; r?: number } | { side: MindmapSide };
 
 /** En linjes egna val. Ett fält som saknas följer kartan. */
 export interface MindmapEdgeStyle {

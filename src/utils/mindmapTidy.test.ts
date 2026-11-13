@@ -66,7 +66,7 @@ describe('tidyBranch', () => {
 
   it('en solfjäder utan vald riktning läggs om, med de dragna tillbaka i den', () => {
     const content: MindmapContent = { root: n('R', [n('A', [
-      n('a', [], { dir: { angle: 340, base: 0, gap: 50 } }),
+      n('a', [], { dir: { angle: 340, base: 0, r: 90 } }),
       n('b', [], { dir: { angle: 20, base: 0 }, offset: { dx: 60, dy: 60 } }),
     ])]) };
     const tidy = tidyBranch(content, 'A', layoutOf);

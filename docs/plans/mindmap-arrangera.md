@@ -136,7 +136,7 @@ dir?: MindmapDir;
 ```
 
 - *Byggt annorlunda, se avvikelserna under del B:* en vinkel sparas som
-  `{ angle, base, gap }`, nodens egen vinkel i solfjädern.
+  `{ angle, base, r }`, nodens egen vinkel i solfjädern.
 - `childDir` är inställningen Tobias sätter i läget. Den flyttar ingenting.
 - `dir` sätts på barnet när det skapas, och av Städa upp. Layouten läser
   bara `dir`. Arvet (beslut 15) räknas alltså ut **en gång, när barnet
@@ -378,9 +378,11 @@ presentationen, grenvyn och PNG:n visar samma sak som skärmen.
   (2.2) lät layouten fördela alla syskon med samma vinkel varje gång. Då
   flyttade ett draget syskon sig ändå när ett annat syskon fick text och
   blev bredare, eftersom solfjädern räknades ur syskonens storlek. Nu får
-  varje barn sin egen vinkel: `dir: { angle, base, gap }`, där `base` är
-  riktningen som valdes och som syskonen i solfjädern delar, och `gap`
-  luften mot föräldern. `refan` lägger om solfjädern när ett barn skapas,
+  varje barn sin egen vinkel: `dir: { angle, base, r }`, där `base` är
+  riktningen som valdes och som syskonen i solfjädern delar, och `r`
+  avståndet från förälderns mitt, lika för syskonen. (Först sparades
+  luften mot föräldern, `gap`; då stod breda syskon olika långt ut och
+  kunde mötas. Rättat 2026-11-13, se "Rättat efter del E".) `refan` lägger om solfjädern när ett barn skapas,
   för syskonen utan förskjutning. Ett draget syskon behåller sin vinkel
   och står alltså helt still (beslut 14). Layouten lägger bara varje barn
   åt sin vinkel (`applyDirections`).
@@ -506,8 +508,22 @@ med halva flytten, så att den står centrerad som förut.
 - Dragna noder räknas inte och flyttas inte. Den delade layouten gör inte
   plats för dem heller.
 - Solfjäderns syskon flyttas inte isär; de har redan plats (del B).
-- Bara höjden räknas, inte bredden. En solfjäder som går åt sidan in i en
-  annan kolumn längre ut löses inte.
+- Kolumnerna på var sida om en förälder räknas för sig. En solfjäder som
+  pekar inåt, mot roten eller förbi den in på andra sidan, kan lägga sig
+  över roten eller den andra sidans kolumn. Tobias valde 2026-11-13 att
+  låta det vara: riktningen är hans egen, och han drar isär eller väljer en
+  annan. (Här stod först att en solfjäder åt sidan in i en kolumn längre ut
+  inte löses. Det stämde inte: grenarnas hela höjd räknas, och ett prov
+  visade att de inte möts.)
+
+**Rättat efter del E** (Tobias frågade om det som stod kvar, 2026-11-13).
+Ett prov med fem barn rakt åt höger visade att syskonen i solfjädern
+överlappade varandra. Varje barn stod `gap` px ut från föräldern räknat
+med sin egen storlek, så de breda ytterst hamnade närmare än bågen räknade
+med. Nu står alla på samma avstånd `r` från förälderns mitt. Ett barn som
+blivit bredare sedan solfjädern räknades går längre ut, så att det inte
+möter föräldern. Två nya tester, som går sönder med den gamla
+uträkningen; kontrollerat i Chromium i Neo och Kronberg.
 
 **Tester** (`mindmapDirections.test.ts`, "plats i kolumnen"): solfjädern
 möts inte med grannens gren och ordningen står kvar (testet går sönder
@@ -570,5 +586,5 @@ Mot mocken på `http://localhost:5001`, i Neo och Kronberg:
 
 - Om ett arrangemang ska snäppa mot rutnätet (inte frågat).
 - ~~Om solfjäderns överlapp behöver lösas.~~ Löst i del E, för kolumnerna.
-  En solfjäder som går åt sidan in i en kolumn längre ut kan fortfarande
-  möta den.
+  En solfjäder som pekar inåt mot roten kan lägga sig över den; Tobias
+  valde att låta det vara (del E).

@@ -130,12 +130,12 @@ function sanitizeNode(raw: Record<string, unknown>, seen: Set<string>, depth: nu
   if (childDir && typeof childDir === 'object' && isFiniteNumber(childDir.angle)) {
     node.childDir = { angle: normalizeAngle(childDir.angle) };
   }
-  const dir = raw.dir as { angle?: unknown; base?: unknown; gap?: unknown; side?: unknown } | null;
+  const dir = raw.dir as { angle?: unknown; base?: unknown; r?: unknown; side?: unknown } | null;
   if (dir && typeof dir === 'object') {
     if (isFiniteNumber(dir.angle)) {
       node.dir = { angle: normalizeAngle(dir.angle) };
       if (isFiniteNumber(dir.base)) node.dir.base = normalizeAngle(dir.base);
-      if (isFiniteNumber(dir.gap)) node.dir.gap = Math.round(Math.min(2000, Math.max(0, dir.gap)));
+      if (isFiniteNumber(dir.r)) node.dir.r = Math.round(Math.min(4000, Math.max(0, dir.r)));
     }
     else if (dir.side === 'left' || dir.side === 'right') node.dir = { side: dir.side };
   }

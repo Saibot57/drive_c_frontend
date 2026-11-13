@@ -233,7 +233,7 @@ describe('placeNewNode', () => {
     expect(rel(now, 'b').x).toBeCloseTo(rel(was, 'b').x);
     expect(rel(now, 'b').y).toBeCloseTo(rel(was, 'b').y);
     expect(findNode(after.root, 'b')!.dir).toEqual({ angle: 10, base: 0 });
-    expect((findNode(after.root, 'a')!.dir as { gap?: number }).gap).toBeGreaterThanOrEqual(M.hGap);
+    expect((findNode(after.root, 'a')!.dir as { r?: number }).r).toBeGreaterThan(M.hGap);
     // a och c delar solfjädern, symmetriskt kring 0°.
     const a = findNode(after.root, 'a')!.dir as { angle: number };
     const c = findNode(after.root, 'c')!.dir as { angle: number };
@@ -253,17 +253,52 @@ describe('placeNewNode', () => {
     expect(rel(layoutOf(after), 'a').y).not.toBeCloseTo(rel(layoutOf(before), 'a').y, 0);
   });
 
+  it('ett barn som blivit bredare efter solfjädern går längre ut och möter inte föräldern', () => {
+    const content: MindmapContent = { root: n('R', [n('A', [
+      n('a', [], { dir: { angle: 315, base: 0, r: 120 } }),
+      n('en mycket mycket lång etikett', [], { dir: { angle: 45, base: 0, r: 120 } }),
+    ])]) };
+    const l = layoutOf(content);
+    const A = l.byId.get('A')!;
+    const kid = l.byId.get('en mycket mycket lång etikett')!;
+    const hit = A.x < kid.x + kid.width && kid.x < A.x + A.width && A.y < kid.y + kid.height && kid.y < A.y + A.height;
+    expect(hit).toBe(false);
+    // Det smala barnet står kvar på solfjäderns avstånd.
+    const a = l.byId.get('a')!;
+    expect(Math.hypot(a.x + a.width / 2 - A.x - A.width / 2, a.y + a.height / 2 - A.y - A.height / 2)).toBeCloseTo(120, 0);
+  });
+
   it('fanAngles: ett barn rakt åt hållet, flera symmetriskt och högst 160° breda', () => {
     const box = { x: 0, y: 0, width: 60, height: 26 };
-    expect(fanAngles(box, [box], 90)).toEqual({ angles: [90], gap: M.hGap });
+    // Ensam: luften hGap mellan rutorna rakt nedåt (halva höjderna plus luften).
+    expect(fanAngles(box, [box], 90)).toEqual({ angles: [90], radius: 13 + M.hGap + 13 });
     const three = fanAngles(box, [box, box, box], 0);
     expect(three.angles).toEqual([338, 0, 22]);
-    expect(three.gap).toBeGreaterThanOrEqual(M.hGap);
+    expect(three.radius).toBeGreaterThanOrEqual(30 + M.hGap + 30);
     const many = fanAngles(box, Array.from({ length: 30 }, () => box), 0);
     const signed = many.angles.map((a) => ((a + 180) % 360) - 180);
     expect(Math.max(...signed) - Math.min(...signed)).toBeLessThanOrEqual(160.1);
     expect(signed[0]).toBeCloseTo(-signed[29], 0);
-    expect(many.gap).toBeGreaterThan(three.gap);
+    expect(many.radius).toBeGreaterThan(three.radius);
+  });
+
+  it('syskonen i en rak solfjäder med fem barn överlappar inte, också med olika bredd', () => {
+    let content: MindmapContent = { root: n('R', [n('A', [n('a1'), n('a2')]), n('B'), n('C', [n('c1'), n('c2')])]), layout: 'right' };
+    const kids = ['b1', 'bredare2', 'b3', 'mycket-bredare4', 'b5'];
+    kids.forEach((id) => {
+      const added = addChild(content, 'B', n(id))!;
+      content = placeNewNode(content, added.content, id, { angle: 0 }, layoutOf);
+    });
+    const l = layoutOf(content);
+    const radii = kids.map((id) => Math.hypot(rel(l, id).x - rel(l, 'B').x, rel(l, id).y - rel(l, 'B').y));
+    radii.forEach((r) => expect(r).toBeCloseTo(radii[0], -0.5));
+    const all = l.nodes.map((x) => x.id);
+    all.forEach((a, i) => all.slice(i + 1).forEach((b) => {
+      const p = l.byId.get(a)!;
+      const q = l.byId.get(b)!;
+      const hit = p.x < q.x + q.width && q.x < p.x + p.width && p.y < q.y + q.height && q.y < p.y + p.height;
+      expect(hit, `${a} och ${b}`).toBe(false);
+    }));
   });
 
   it('syskonen i en sned solfjäder överlappar inte', () => {
@@ -294,14 +329,14 @@ describe('fälten', () => {
   it('tvätten tar vinkel och sida, normaliserar och kastar fel form', () => {
     const content = sanitizeMindmap({ root: { id: 'r', label: 'r', children: [
       { id: 'a', label: 'a', children: [], dir: { angle: -90, base: 'x' }, childDir: { angle: 725 } },
-      { id: 'd', label: 'd', children: [], dir: { angle: 10, base: -5, gap: 40.4 } },
+      { id: 'd', label: 'd', children: [], dir: { angle: 10, base: -5, r: 40.4 } },
       { id: 'b', label: 'b', children: [], dir: { side: 'left' } },
       { id: 'c', label: 'c', children: [], dir: { side: 'up' }, childDir: { angle: 'x' } },
     ] } });
     expect(findNode(content.root, 'a')!.dir).toEqual({ angle: 270 });
     expect(findNode(content.root, 'a')!.childDir).toEqual({ angle: 5 });
     expect(findNode(content.root, 'b')!.dir).toEqual({ side: 'left' });
-    expect(findNode(content.root, 'd')!.dir).toEqual({ angle: 10, base: 355, gap: 40 });
+    expect(findNode(content.root, 'd')!.dir).toEqual({ angle: 10, base: 355, r: 40 });
     expect(findNode(content.root, 'c')!.dir).toBeUndefined();
     expect(findNode(content.root, 'c')!.childDir).toBeUndefined();
   });
