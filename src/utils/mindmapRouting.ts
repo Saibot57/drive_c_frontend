@@ -3,6 +3,7 @@ import type { MindmapDoc, MindmapLines } from '@/types/mindmapDoc';
 import { MINDMAP_METRICS, type MindmapLayoutResult } from '@/utils/mindmap/mindmapLayout';
 import { findNode, updateNode } from '@/utils/mindmap/mindmapTree';
 import { anchorPoint, nearestSides, routeEdge, traceRoute, type EdgeBox, type EdgePoint, type EdgeRoute } from '@/utils/mindmapEdges';
+import { applyDirections } from '@/utils/mindmapDirections';
 
 /*
  * Grenarnas linjer på Mindmap-sidan, räknade ur den färdiga layouten och
@@ -315,12 +316,15 @@ export function includeWaypoints(
   };
 }
 
-/** Sidans layout färdig: rotens förskjutning och brytpunkterna. */
+/**
+ * Sidans layout färdig: riktningarna (docs/plans/mindmap-arrangera.md,
+ * del B), rotens förskjutning och brytpunkterna.
+ */
 export function finishMindmapLayout(
   layout: MindmapLayoutResult,
   doc: Pick<MindmapDoc, 'root' | 'crossLinks'>,
 ): MindmapLayoutResult {
-  return includeWaypoints(placeRootInLayout(layout, doc), doc);
+  return includeWaypoints(placeRootInLayout(applyDirections(layout, doc), doc), doc);
 }
 
 /** Punkter i layoutens koordinater till det som sparas på en gren: från förälderns mitt. */

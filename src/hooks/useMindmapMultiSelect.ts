@@ -54,10 +54,12 @@ interface Options {
   commit: (next: MindmapDoc) => void;
   /** Grenens rot i grenvyn, som inte tas bort; annars `null`. */
   keep: () => string | null;
+  /** Städa upp en gren (del C i mindmap-arrangera.md). */
+  tidy: (doc: MindmapDoc, id: string) => MindmapDoc;
 }
 
 export function useMindmapMultiSelect(options: Options) {
-  const { mapId, layout, routes, current, selectNode, selectEdge, toLayoutPoint, focusMap, docRef, commit, keep } = options;
+  const { mapId, layout, routes, current, selectNode, selectEdge, toLayoutPoint, focusMap, docRef, commit, keep, tidy } = options;
   const [group, setGroupState] = useState<MindmapGroup>(EMPTY_GROUP);
   const [frame, setFrame] = useState<SelectionRect | null>(null);
   const shown = useMemo(() => visibleGroup(group, layout, routes), [group, layout, routes]);
@@ -145,7 +147,7 @@ export function useMindmapMultiSelect(options: Options) {
   const runNodes = useCallback((action: MindmapGroupNodeAction): boolean => {
     const ids = groupNodes();
     if (!ids) return false;
-    const result = groupNodeAction(docRef.current, ids, action, keep());
+    const result = groupNodeAction(docRef.current, ids, action, keep(), tidy);
     if (result) commit(result.doc);
     if (result?.focusId) {
       clear();
@@ -153,7 +155,7 @@ export function useMindmapMultiSelect(options: Options) {
     }
     focusMap();
     return true;
-  }, [clear, commit, docRef, focusMap, groupNodes, keep, selectNode]);
+  }, [clear, commit, docRef, focusMap, groupNodes, keep, selectNode, tidy]);
 
   /** En handling på alla markerade linjer. */
   const runEdges = useCallback((action: MindmapGroupEdgeAction) => {

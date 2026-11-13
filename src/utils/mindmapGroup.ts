@@ -28,13 +28,16 @@ export type MindmapGroupEdgeAction =
 
 /**
  * En handling på de markerade noderna. `keep` är grenens rot i grenvyn, som
- * inte tas bort. `focusId` sätts när markerade noder försvunnit.
+ * inte tas bort. `tidy` städar en gren; sidan städar efter riktningen
+ * (docs/plans/mindmap-arrangera.md, del C). `focusId` sätts när markerade
+ * noder försvunnit.
  */
 export function groupNodeAction(
   doc: MindmapDoc,
   ids: readonly string[],
   action: MindmapGroupNodeAction,
   keep: string | null = null,
+  tidy: (doc: MindmapDoc, id: string) => MindmapDoc = clearBranchOffsets,
 ): { doc: MindmapDoc; focusId?: string } | null {
   let next: MindmapDoc;
   switch (action.type) {
@@ -49,7 +52,7 @@ export function groupNodeAction(
       next = toggleCollapseNodes(doc, ids);
       break;
     case 'tidy':
-      next = topLevelIds(doc, ids).reduce<MindmapDoc>((d, id) => clearBranchOffsets(d, id), doc);
+      next = topLevelIds(doc, ids).reduce<MindmapDoc>((d, id) => tidy(d, id), doc);
       break;
     case 'resetOffset':
       next = applyToNodes(doc, ids, (d, id) => (id === d.root.id ? setRootOffset(d, null) : setOffset(d, id, null)));

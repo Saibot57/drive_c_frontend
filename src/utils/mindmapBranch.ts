@@ -49,8 +49,8 @@ export function isViewRootChild(doc: MindmapDoc, branchId: string | null, id: st
  * Dokumentet som ritas när bara grenen visas. Grenen ligger kvar på sin
  * sida om kartans rot, så att förskjutningar och pilar betyder samma sak som
  * i hela kartan: barnen får grenens sida och layouten blir `both`, där sidan
- * gäller. Rotens egen förskjutning, hopfällning och sida tas bort; som rot
- * har den ingen av dem. Bara tvärlänkar med båda ändar i grenen följer med.
+ * gäller. Rotens egen förskjutning, hopfällning, sida och plats (`dir`) tas
+ * bort; som rot har den ingen av dem. Bara tvärlänkar med båda ändar i grenen följer med.
  *
  * Finns noden inte, eller är den kartans rot, kommer samma dokument tillbaka.
  */
@@ -61,7 +61,8 @@ export function branchDoc(doc: MindmapDoc, branchId: string | null): MindmapDoc 
   if (!node) return doc;
 
   const side = sideOf(doc, id) ?? 'right';
-  const { offset: _offset, collapsed: _collapsed, side: _side, ...rest } = node;
+  // Grenens rot har ingen förälder i vyn: platsen (`dir`) gäller inte där.
+  const { offset: _offset, collapsed: _collapsed, side: _side, dir: _dir, ...rest } = node;
   const root: MindmapNode = { ...rest, children: node.children.map((child) => ({ ...child, side })) };
 
   const result: MindmapDoc = { ...doc, root, layout: 'both' };

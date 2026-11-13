@@ -208,6 +208,72 @@
   width: max-content;
 }
 
+/* Riktningen för nya barn (docs/plans/mindmap-arrangera.md, del B): en
+   tydlig pil medan man väljer, annars en diskret vid den markerade noden. */
+.mm__dirs {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.mm__dir path {
+  fill: none;
+  stroke: var(--mm-select);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mm__dir--set path,
+.mm__dir--once path {
+  stroke-width: 1.5;
+  opacity: 0.55;
+}
+
+.mm__dir--once path {
+  stroke-dasharray: 3 3;
+}
+
+/* Medan riktningen väljs pekar pekaren ut den. */
+.mm--picking .mm__viewport {
+  cursor: crosshair;
+}
+
+/* Arrangera (del D): mönstren på en egen rad i raden för de markerade, så
+   att förhandsvisningen på kartan inte skyms av en meny. */
+.mm__arrange {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding-top: 0.375rem;
+  border-top: 1px solid var(--ui-line);
+  font-size: 0.8125rem;
+}
+
+.mm__arrange-title {
+  color: var(--mm-faint);
+  margin-right: 0.25rem;
+}
+
+.mm__arrange-item {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--ui-control-line);
+  border-radius: var(--sp-radius-sm);
+  background: var(--mm-node-bg);
+  color: var(--mm-text);
+  cursor: pointer;
+}
+
+.mm__arrange-item:hover,
+.mm__arrange-item:focus-visible {
+  background: var(--sp-menu-hover);
+  outline: none;
+}
+
 /* Ramen medan Cmd+dra pågår, i kartans koordinater. */
 .mm__frame {
   position: absolute;
@@ -674,6 +740,12 @@
 
 .mm__menu-item:hover {
   background: var(--sp-menu-hover);
+}
+
+.mm__menu-item:disabled {
+  color: var(--mm-faint);
+  cursor: default;
+  background: none;
 }
 
 .mm__menu-option {

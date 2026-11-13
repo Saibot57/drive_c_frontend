@@ -126,7 +126,26 @@ function sanitizeNode(raw: Record<string, unknown>, seen: Set<string>, depth: nu
   }
   const edge = sanitizeEdgeStyle(raw.edge);
   if (edge) node.edge = edge;
+  const childDir = raw.childDir as { angle?: unknown } | null;
+  if (childDir && typeof childDir === 'object' && isFiniteNumber(childDir.angle)) {
+    node.childDir = { angle: normalizeAngle(childDir.angle) };
+  }
+  const dir = raw.dir as { angle?: unknown; base?: unknown; r?: unknown; side?: unknown } | null;
+  if (dir && typeof dir === 'object') {
+    if (isFiniteNumber(dir.angle)) {
+      node.dir = { angle: normalizeAngle(dir.angle) };
+      if (isFiniteNumber(dir.base)) node.dir.base = normalizeAngle(dir.base);
+      if (isFiniteNumber(dir.r)) node.dir.r = Math.round(Math.min(4000, Math.max(0, dir.r)));
+    }
+    else if (dir.side === 'left' || dir.side === 'right') node.dir = { side: dir.side };
+  }
   return node;
+}
+
+/** En vinkel i grader till [0, 360), avrundad till en tiondel. */
+export function normalizeAngle(angle: number): number {
+  const a = Math.round((((angle % 360) + 360) % 360) * 10) / 10;
+  return a === 360 ? 0 : a;
 }
 
 /** En linjes egna val; okända värden tas bort, och inga val blir inget. */

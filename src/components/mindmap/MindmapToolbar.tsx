@@ -3,6 +3,7 @@
 import {
   ArrowLeftRight,
   ChevronsDownUp,
+  Compass,
   Download,
   Focus,
   Keyboard,
@@ -26,7 +27,7 @@ import { MindmapHelp } from './MindmapHelp';
 import { MindmapImportButton } from './MindmapImportButton';
 import { MindmapLinesMenu } from './MindmapLinesMenu';
 
-export type MindmapMenu = 'color' | 'lines' | 'tidy' | 'export' | 'help' | null;
+export type MindmapMenu = 'color' | 'lines' | 'tidy' | 'direction' | 'export' | 'help' | null;
 
 export type MindmapExportKind = 'image' | 'list' | 'headings' | 'png' | 'pdf' | 'markdown' | 'json';
 
@@ -56,6 +57,13 @@ interface MindmapToolbarProps {
   onResetLayout?: () => void;
   /** Städa upp den markerade grenen (noden och allt under). */
   onTidyBranch?: () => void;
+  /**
+   * Riktningen för nya barn (docs/plans/mindmap-arrangera.md, del B): välj
+   * med pekaren, bara för nästa barn, eller ta bort. Utan den visas ingen knapp.
+   */
+  onDirection?: (kind: 'set' | 'once' | 'clear') => void;
+  /** Har den markerade noden en riktning? Då går den att ta bort. */
+  hasDirection?: boolean;
   /** Kartans rutnät. */
   grid?: boolean;
   onGrid?: (on: boolean) => void;
@@ -98,6 +106,8 @@ export default function MindmapToolbar({
   canResetLayout,
   onResetLayout,
   onTidyBranch,
+  onDirection,
+  hasDirection,
   grid,
   onGrid,
   onLayout,
@@ -199,7 +209,30 @@ export default function MindmapToolbar({
                 <button type="button" className="mm__menu-item" onClick={onTidyBranch}>Städa upp grenen</button>
               )}
               <button type="button" className="mm__menu-item" onClick={onResetLayout}>Städa upp hela kartan</button>
-              <p className="mm__menu-hint">Flyttade noder går tillbaka till layoutens plats. Linjernas val står kvar.</p>
+              <p className="mm__menu-hint">Flyttade noder går tillbaka. Barnen ställs åt nodens riktning, och aldrig inåt mot roten. Linjernas val står kvar.</p>
+            </div>
+          )}
+        </div>
+      )}
+      {onDirection && (
+        <div className="relative">
+          <Button
+            size="sm"
+            variant="neutral"
+            className={tool}
+            onClick={() => toggle('direction')}
+            title="Riktning för nya barn (Alt+R)"
+            aria-label="Riktning för nya barn"
+            aria-expanded={menu === 'direction'}
+          >
+            <Compass size={15} />
+          </Button>
+          {menu === 'direction' && (
+            <div className="mm__popover mm__menu">
+              <button type="button" className="mm__menu-item" onClick={() => onDirection('set')}>Välj riktning… (Alt+R)</button>
+              <button type="button" className="mm__menu-item" onClick={() => onDirection('once')}>Bara nästa barn… (Alt+Shift+R)</button>
+              <button type="button" className="mm__menu-item" disabled={!hasDirection} onClick={() => onDirection('clear')}>Ta bort riktningen</button>
+              <p className="mm__menu-hint">Peka åt hållet nya barn ska hamna och klicka. Barn som redan finns står kvar.</p>
             </div>
           )}
         </div>
