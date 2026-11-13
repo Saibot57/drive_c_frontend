@@ -1,6 +1,6 @@
 # Mindmap: markera flera, riktning för nya barn och arrangera
 
-Status: Pågår. Alla delar A–E byggda 2026-11-13 (A i #283). Kvar: Tobias egna prov och frågan om rutnätet i avsnitt 8.
+Status: Pågår. Alla delar A–E byggda 2026-11-13 (A i #283, B–E i #284). Kvar: Tobias egna prov och frågan om rutnätet i avsnitt 8.
 
 Planen skrevs 2026-11-13 efter en intervju med Tobias, mot koden på `main`
 (fba3f05, där `MindmapCanvas.tsx` har 1 330 rader). Den bygger vidare på
@@ -358,7 +358,7 @@ nod och en linje, form på linjen från raden, Ctrl+klick, Delete på två och
 en grupp, ensam markering och ensam linje som förut, och PNG-exporten utan
 markeringar.
 
-### Del B. Riktning för nya barn — byggd 2026-11-13
+### Del B. Riktning för nya barn — byggd 2026-11-13 (#284)
 
 1. [x] Typerna och tvätten, med test.
 2. [x] `mindmapDirections.ts` med test: solfjäder, kolumn på andra sidan,
@@ -407,7 +407,7 @@ gammal karta med kurvor efter grensidan (barnen hamnar utåt med en rak
 linje, inget annat flyttar sig), grenvyn, presentationen, minikartan och
 PNG:n.
 
-### Del C. Städa upp efter riktningen — byggd 2026-11-13
+### Del C. Städa upp efter riktningen — byggd 2026-11-13 (#284)
 
 1. [x] `tidyBranch` och `tidyAll`, med test (`utils/mindmapTidy.ts`).
 2. [x] Menyn Städa upp anropar dem, och raden för flera markerade också.
@@ -443,7 +443,7 @@ tillbaka till höger om roten, och s:s sida borttagen). Exporten.
 (åt 300°, snett uppåt) över Rut och s, som då stod i samma kolumn till
 höger om roten. Solfjädern tar inte hänsyn till andra grenar (avsnitt 7).
 
-### Del D. Arrangera — byggd 2026-11-13
+### Del D. Arrangera — byggd 2026-11-13 (#284)
 
 1. [x] `mindmapArrange.ts` med test för a–e, flera föräldrar och "närmast".
 2. [x] Menyn med förhandsvisning (`useMindmapArrange`).
@@ -481,7 +481,7 @@ Cmd+A på Rut, förhandsvisning av cirkel, två sidor, till höger, ovanför och
 hörn utan att något sparas, *I hörnen* sparat (symmetriskt, och s följer
 med Rut), *Inom ett område* som en rad under kartan, ångra, och PNG:n.
 
-### Del E. Plats för solfjädrar i kolumnen — byggd 2026-11-13
+### Del E. Plats för solfjädrar i kolumnen — byggd 2026-11-13 (#284)
 
 Tillkom efter del D. Tobias valde 2026-11-13 (intervjuverktyget) mellan
 tre lösningar på att en solfjäder lade sig över andra grenar:
