@@ -35,7 +35,7 @@ export function sideOfDir(dir: MindmapDir): MindmapSide {
 }
 
 /** Avståndet från rutans mitt till dess kant åt vinkeln `theta` (radianer). */
-function reach(box: Box, theta: number): number {
+export function reach(box: Box, theta: number): number {
   const cx = Math.abs(Math.cos(theta));
   const cy = Math.abs(Math.sin(theta));
   const byX = cx > 1e-9 ? box.width / 2 / cx : Infinity;
@@ -48,7 +48,7 @@ function reach(box: Box, theta: number): number {
  * vinkeln `theta` för att inte mötas, med luften `gap`: det räcker att de är
  * isär i sidled eller i höjdled.
  */
-function apart(size: { width: number; height: number }, theta: number, gap: number): number {
+export function apart(size: { width: number; height: number }, theta: number, gap: number): number {
   const ux = Math.abs(Math.sin(theta));
   const uy = Math.abs(Math.cos(theta));
   return Math.min(ux > 1e-9 ? (size.width + gap) / ux : Infinity, uy > 1e-9 ? (size.height + gap) / uy : Infinity);

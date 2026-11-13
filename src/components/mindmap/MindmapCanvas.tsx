@@ -87,6 +87,7 @@ import { siblingIds } from '@/utils/mindmapSelection';
 import { dirForNewChild, placeNewNode, pruneDirs, setDir } from '@/utils/mindmapDirections';
 import { useMindmapDirectionPick } from '@/hooks/useMindmapDirectionPick';
 import { hasDirections, tidyAll, tidyBranch } from '@/utils/mindmapTidy';
+import { useMindmapArrange } from '@/hooks/useMindmapArrange';
 import { useMindmapImages } from '@/hooks/useMindmapImages';
 import { panBy, resolveViewportKey, toWorld, type MindmapRect } from '@/utils/mindmapViewport';
 import { useMindmapLinks } from '@/hooks/useMindmapLinks';
@@ -289,13 +290,16 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   // Medan en nod dras ritas kartan som om den redan släppts där, så att
   // grenen och kanterna följer pekaren. Samma sak när bredden dras.
   // Dokumentet ändras först vid släppet.
+  // Arrangera (del D i mindmap-arrangera.md) visar sitt resultat innan det sparas.
+  const [arrangePreview, setArrangePreview] = useState<MindmapDoc | null>(null);
+  const baseLayout = useMemo(() => layoutOf(shown), [layoutOf, shown]);
   const layout = useMemo(() => {
-    if (!dragMove && !resize) return layoutOf(shown);
-    let moved: MindmapDoc = doc;
+    if (!dragMove && !resize && !arrangePreview) return baseLayout;
+    let moved: MindmapDoc = arrangePreview ?? doc;
     if (dragMove) moved = previewDrag(moved, dragMove);
     if (resize) moved = asDoc(setTextWidth(moved, resize.id, resize.width));
     return layoutOf(branchDoc(moved, branchId));
-  }, [doc, shown, branchId, dragMove, resize, layoutOf]);
+  }, [doc, baseLayout, branchId, dragMove, resize, layoutOf, arrangePreview]);
   // Kartans val för linjerna (docs/plans/mindmap-placering.md).
   const lines = doc.lines;
   // Rutnätet når förbi kartan åt alla håll, i hela rutor så att prickarna
@@ -451,6 +455,12 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
     targets: () => multi.groupNodes() ?? [currentId()],
   });
   const { takeOnce } = directions;
+  const arranger = useMindmapArrange({
+    mapId, docRef, commit, layout: baseLayout, origin: rootOrigin(baseLayout, shown), focusMap, ids: () => multi.groupNodes(),
+    toWorld: (x, y) => ({ x: toLayoutPoint(x, y).x - origin.x, y: toLayoutPoint(x, y).y - origin.y }),
+  });
+  const arrangeArea = arranger.area && { ...arranger.area, x: arranger.area.x + origin.x, y: arranger.area.y + origin.y };
+  useEffect(() => setArrangePreview(arranger.preview), [arranger.preview]);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
   /** Ett nytt barn till `parentId` får sin plats: vald riktning, arvet, eller bort från roten. */
@@ -1085,7 +1095,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
   const imageKeys = new Map(images.refs.map((ref) => [ref.nodeId, ref.key]));
 
   return (
-    <div ref={rootRef} className={`mm flex h-full flex-col${dragId ? ' mm--dragging' : ''}${panning ? ' mm--panning' : ''}${directions.picking ? ' mm--picking' : ''}`}>
+    <div ref={rootRef} className={`mm flex h-full flex-col${dragId ? ' mm--dragging' : ''}${panning ? ' mm--panning' : ''}${directions.picking || arranger.picking ? ' mm--picking' : ''}`}>
       <MindmapToolbar
         layout={doc.layout ?? 'right'}
         menu={menu}
@@ -1250,7 +1260,7 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
                 />
               ))}
 
-              <MindmapSelectionFrame rect={multi.frame} />
+              <MindmapSelectionFrame rect={multi.frame ?? arrangeArea} />
               <MindmapDirectionLayer layout={layout} arrows={directions.arrows} />
 
               <MindmapLinkLayer
@@ -1309,6 +1319,8 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
             group={multi.group}
             onNodes={runGroup}
             onEdges={multi.runEdges}
+            onArrangeHover={arranger.hover}
+            onArrange={arranger.choose}
             onClose={() => {
               clearGroup();
               focusMap();
@@ -1352,9 +1364,11 @@ export default function MindmapCanvas({ mapId, doc, title, onChange, status, onI
           />
         )}
 
-        {directions.picking && !notice ? (
+        {(directions.picking || arranger.picking) && !notice ? (
           <div className="mm__notice" role="status">
-            Peka åt hållet {directions.pickingOnce ? 'nästa barn' : 'nya barn'} ska hamna och klicka. Esc avbryter.
+            {arranger.picking
+              ? 'Dra upp området där de markerade ska fördelas. Esc avbryter.'
+              : `Peka åt hållet ${directions.pickingOnce ? 'nästa barn' : 'nya barn'} ska hamna och klicka. Esc avbryter.`}
           </div>
         ) : notice ? (
           <div className={`mm__notice mm__notice--${notice.tone}`} role="status">

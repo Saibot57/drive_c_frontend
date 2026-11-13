@@ -23,6 +23,7 @@ const PAGE_SHORTCUTS: { group: string; items: { keys: string; what: string }[] }
       { keys: 'Cmd+dra på tom yta', what: 'Markera med en ram: noder och linjer som den nuddar' },
       { keys: 'Cmd+A', what: 'Markera noden och dess syskon' },
       { keys: 'Flera markerade', what: 'Dra en av dem så följer alla med. Färg, Alt+siffra, ikon, mellanslag, Delete och Städa upp gäller alla. Esc släpper dem' },
+      { keys: 'Arrangera (flera markerade)', what: 'I hörnen, i en cirkel, på två sidor, på en sida eller inom ett område du drar upp. Peka i menyn för att se det, klicka för att göra det' },
       { keys: 'Alt+R', what: 'Riktning för nodens nya barn: peka åt hållet och klicka (Esc avbryter). Barn som finns står kvar' },
       { keys: 'Alt+Shift+R', what: 'Riktning bara för nästa barn' },
       { keys: 'Nytt barn utan riktning', what: 'Hamnar bort från roten, också när föräldern dragits till andra sidan' },

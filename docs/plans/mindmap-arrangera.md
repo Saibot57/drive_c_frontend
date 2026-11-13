@@ -1,6 +1,6 @@
 # Mindmap: markera flera, riktning för nya barn och arrangera
 
-Status: Pågår. Del A (markera flera, #283), del B (riktning för nya barn) och del C (städa upp efter riktningen) byggda 2026-11-13. Del D kvar.
+Status: Pågår. Alla delar A–D byggda 2026-11-13 (A i #283). Kvar: Tobias egna prov och de öppna frågorna i avsnitt 8.
 
 Planen skrevs 2026-11-13 efter en intervju med Tobias, mot koden på `main`
 (fba3f05, där `MindmapCanvas.tsx` har 1 330 rader). Den bygger vidare på
@@ -443,14 +443,43 @@ tillbaka till höger om roten, och s:s sida borttagen). Exporten.
 (åt 300°, snett uppåt) över Rut och s, som då stod i samma kolumn till
 höger om roten. Solfjädern tar inte hänsyn till andra grenar (avsnitt 7).
 
-### Del D. Arrangera
+### Del D. Arrangera — byggd 2026-11-13
 
-1. `mindmapArrange.ts` med test för a–e, flera föräldrar och "närmast".
-2. Menyn med förhandsvisning.
-3. Området för e).
+1. [x] `mindmapArrange.ts` med test för a–e, flera föräldrar och "närmast".
+2. [x] Menyn med förhandsvisning (`useMindmapArrange`).
+3. [x] Området för e).
 
 **Klart när** bilden går att göra om: fyra noder på nivå 1, Cmd+A,
 Arrangera → Hörn.
+
+**Avvikelser och val som gjordes under bygget:**
+
+- **Knappen Arrangera sitter i raden för de markerade**, inte i
+  verktygsraden. Raden finns just när flera är markerade, och där finns
+  resten av gruppens handlingar.
+- **Mönstren står på en egen rad under**, inte i en meny som fälls ned. En
+  meny lade sig över kartan där förhandsvisningen skulle synas.
+- **d) blev fyra val:** *Till höger*, *Till vänster*, *Ovanför* och *Under*.
+- **Avstånden:** noderna står två luftsteg (`2 × hGap`, 64 px) från
+  föräldern. I en kolumn eller rad staplas de med sina grenars storlek, så
+  att grenarna inte går in i varandra. I hörnen står stapeln ovanför eller
+  under föräldern och utanför den i sidled. I cirkeln är radien så stor att
+  grannarna inte möts.
+- **Cirkeln** börjar rakt uppåt och går medurs. Ordningen runt cirkeln
+  följer var noderna står, vriden så att de sammanlagt flyttas minst.
+- **Två sidor** delar efter var noderna står. Blir det fler än en i
+  skillnad lämnar den större sidan över dem som står närmast mitten.
+- **Området** räknas från rotens automatiska mitt, så att det inte glider
+  när förhandsvisningen gör kartan större. Roten följer med om den är
+  markerad, men flyttas ensam som när den dras.
+- **Ingen snäppning** mot rutnätet (avsnitt 8).
+- `MindmapCanvas.tsx` fick 21 rader och tappade 7. Sidans layout räknas nu
+  en gång utan förhandsvisning (`baseLayout`) och används när inget dras.
+
+**Kontrollerat i Chromium** mot mocken, i Neo och Kronberg: Tobias bild,
+Cmd+A på Rut, förhandsvisning av cirkel, två sidor, till höger, ovanför och
+hörn utan att något sparas, *I hörnen* sparat (symmetriskt, och s följer
+med Rut), *Inom ett område* som en rad under kartan, ångra, och PNG:n.
 
 ## 5. Tester
 
@@ -501,4 +530,6 @@ Mot mocken på `http://localhost:5001`, i Neo och Kronberg:
 ## 8. Öppet
 
 - Om ett arrangemang ska snäppa mot rutnätet (inte frågat).
-- Om solfjäderns överlapp behöver lösas (avgörs efter del B).
+- Om solfjäderns överlapp behöver lösas. Efter del B och C: syskonen i en
+  solfjäder möts inte, men en solfjäder kan lägga sig över andra grenar
+  (sett efter *Städa upp hela kartan*, del C). Tobias avgör efter egna prov.

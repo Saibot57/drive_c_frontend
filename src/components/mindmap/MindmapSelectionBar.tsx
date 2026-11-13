@@ -1,11 +1,13 @@
 'use client';
 
-import { FoldVertical, ListTree, RotateCcw, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
+import { FoldVertical, LayoutGrid, ListTree, RotateCcw, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MINDMAP_ICONS, type MindmapAnchor, type MindmapEdgeShape, type MindmapIcon, type MindmapNode } from '@/types/mindmap';
 import { findNode } from '@/utils/mindmap/mindmapTree';
 import { commonValue, type MindmapGroup, type SelectionRect } from '@/utils/mindmapSelection';
 import type { MindmapGroupEdgeAction, MindmapGroupNodeAction } from '@/utils/mindmapGroup';
+import { MINDMAP_ARRANGE_PATTERNS, type MindmapArrangePattern } from '@/utils/mindmapArrange';
 import { AnchorSelect, ShapeButtons } from './MindmapEdgeBar';
 import { MINDMAP_ICON_LABELS } from './mindmapIcons';
 
@@ -27,8 +29,22 @@ interface MindmapSelectionBarProps {
   group: MindmapGroup;
   onNodes: (action: MindmapGroupNodeAction) => void;
   onEdges: (action: MindmapGroupEdgeAction) => void;
+  /** Arrangera (del D): pekaren över ett mönster visar det, ett klick gör det. */
+  onArrangeHover?: (pattern: MindmapArrangePattern | null) => void;
+  onArrange?: (pattern: MindmapArrangePattern) => void;
   onClose: () => void;
 }
+
+export const ARRANGE_LABELS: Record<MindmapArrangePattern, string> = {
+  corners: 'I hörnen',
+  circle: 'I en cirkel',
+  sides: 'På två sidor',
+  right: 'Till höger',
+  left: 'Till vänster',
+  above: 'Ovanför',
+  below: 'Under',
+  area: 'Inom ett område…',
+};
 
 const ICON_NONE = '';
 const ICON_MIXED = 'mixed';
@@ -37,7 +53,8 @@ const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : 
 
 const nodesOf = (root: MindmapNode, ids: string[]) => ids.map((id) => findNode(root, id)).filter((n): n is MindmapNode => !!n);
 
-export function MindmapSelectionBar({ root, group, onNodes, onEdges, onClose }: MindmapSelectionBarProps) {
+export function MindmapSelectionBar({ root, group, onNodes, onEdges, onArrangeHover, onArrange, onClose }: MindmapSelectionBarProps) {
+  const [arrangeOpen, setArrangeOpen] = useState(false);
   const tool = 'sp-btn h-7 w-7 p-0';
   const nodes = nodesOf(root, group.nodes);
   const edges = nodesOf(root, group.edges);
@@ -75,6 +92,22 @@ export function MindmapSelectionBar({ root, group, onNodes, onEdges, onClose }: 
           <Button size="sm" variant="neutral" className={tool} title="Fäll ihop eller ut (mellanslag)" aria-label="Fäll ihop eller ut" onClick={() => onNodes({ type: 'toggleCollapse' })}>
             <FoldVertical size={14} />
           </Button>
+          {onArrange && (
+            <Button
+              size="sm"
+              variant="neutral"
+              className={tool}
+              title="Arrangera runt föräldern"
+              aria-label="Arrangera"
+              aria-expanded={arrangeOpen}
+              onClick={() => {
+                if (arrangeOpen) onArrangeHover?.(null);
+                setArrangeOpen((open) => !open);
+              }}
+            >
+              <LayoutGrid size={14} />
+            </Button>
+          )}
           <Button size="sm" variant="neutral" className={tool} title="Städa upp grenarna" aria-label="Städa upp grenarna" onClick={() => onNodes({ type: 'tidy' })}>
             <ListTree size={14} />
           </Button>
@@ -109,6 +142,28 @@ export function MindmapSelectionBar({ root, group, onNodes, onEdges, onClose }: 
       <Button size="sm" variant="neutral" className={tool} title="Släpp markeringen (Esc)" aria-label="Släpp markeringen" onClick={onClose}>
         <X size={14} />
       </Button>
+      {onArrange && arrangeOpen && nodes.length > 0 && (
+        // En egen rad under, inte en meny över kartan: förhandsvisningen ska synas.
+        <div className="mm__arrange" role="group" aria-label="Arrangera" onMouseLeave={() => onArrangeHover?.(null)}>
+          <span className="mm__arrange-title">Arrangera runt föräldern:</span>
+          {MINDMAP_ARRANGE_PATTERNS.map((pattern) => (
+            <button
+              key={pattern}
+              type="button"
+              className="mm__arrange-item"
+              onMouseEnter={() => onArrangeHover?.(pattern)}
+              onFocus={() => onArrangeHover?.(pattern)}
+              onBlur={() => onArrangeHover?.(null)}
+              onClick={() => {
+                setArrangeOpen(false);
+                onArrange(pattern);
+              }}
+            >
+              {ARRANGE_LABELS[pattern]}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
