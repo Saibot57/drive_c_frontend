@@ -215,7 +215,7 @@ Tailwind-grått och inline-stilade knappar, och den vill ha en enda färg som
   `usePersistentState`).
 - Paletten (`MINDMAP_PALETTE` i `config/mindmapPalette.ts`) är 36 färger
   i tre rader: stark, ljus och mörk. Den mörka raden lades till
-  2026-11-15 (se "Frågor efter planen").
+  2026-11-15 (#285).
 - En palettfärg och en egen färg sparas båda som `customColor`.
 - "Nyanser nedåt" ändrar `shading` för kartan; det är en vanlig ändring
   med ångra.
@@ -360,7 +360,7 @@ färgväljaren i Chrome, Safari och Firefox (provet satte värdet med skript).
    orange, bärnsten, lime, grön, turkos, cyan, blå, indigo, lila, hallon,
    brun) i en stark och en ljus rad. Ingen grå; den finns bland de sex.
    2026-11-15 bad Tobias om en tredje rad med mörkare nyanser av samma
-   tolv kulörer. Den ligger sist, så att de två första raderna står kvar
+   tolv kulörer (#285). Den ligger sist, så att de två första raderna står kvar
    där de var.
 
 ## 5. Tester
