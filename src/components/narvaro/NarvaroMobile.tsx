@@ -38,11 +38,13 @@ type HeaderProps = {
   pickerOpen: boolean;
   onTogglePicker: () => void;
   onExit: () => void;
+  /** Raden "Enligt schemat", när veckan har ett schema. */
+  schedule?: React.ReactNode;
 };
 
 /** Den kompakta raden överst: passet, vyn och vägen ut. */
 export function NarvaroMobileHeader({
-  label, count, status, view, onView, hasGroups, pickerOpen, onTogglePicker, onExit,
+  label, count, status, view, onView, hasGroups, pickerOpen, onTogglePicker, onExit, schedule,
 }: HeaderProps) {
   const shown = hasGroups ? view : 'class';
   return (
@@ -68,6 +70,7 @@ export function NarvaroMobileHeader({
           <X size={18} />
         </button>
       </div>
+      {schedule}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
         <div role="group" aria-label="Visa" className="flex overflow-hidden rounded-ui-sm border-frame border-ui-line">
           {(['class', 'groups'] as const).map(v => (

@@ -32,7 +32,16 @@ type Resolvers = {
   resolveRoom: (title: string, currentRoom?: string) => string;
 };
 
-type Props = Resolvers & {
+/** Hur ett kort ritas när rutnätet används utanför den publika sidan (Närvarorutor). */
+export type EntryState = { dimmed?: boolean; marked?: boolean; clickable?: boolean };
+
+type Interaction = {
+  /** Klick på ett kort med `clickable`. Saknas den är inget kort klickbart. */
+  onEntryClick?: (entry: ScheduledEntry) => void;
+  entryState?: (entry: ScheduledEntry) => EntryState;
+};
+
+type Props = Resolvers & Interaction & {
   entries: ScheduledEntry[];
 };
 
@@ -161,7 +170,7 @@ type DayData = {
 
 const MIN_DAY_WEIGHT = 1.5;
 
-export default function PublicTimeGrid({ entries, resolveColor, resolveRoom }: Props) {
+export default function PublicTimeGrid({ entries, resolveColor, resolveRoom, onEntryClick, entryState }: Props) {
   const dayCount = useDayCount();
   // Dagen man valt. Tre dagar åt gången lägger den i mitten, en åt gången visar
   // bara den — så ett byte mellan lägena behåller var man var.
@@ -313,6 +322,8 @@ export default function PublicTimeGrid({ entries, resolveColor, resolveRoom }: P
                   pxPerMinute={pxPerMinute}
                   resolveColor={resolveColor}
                   resolveRoom={resolveRoom}
+                  onEntryClick={onEntryClick}
+                  state={entryState?.(entry)}
                 />
               ))}
             </div>
@@ -388,7 +399,8 @@ const useFitCardContent = (cardHeightPx: number) => {
   return cardRef;
 };
 
-type TimeCardProps = Resolvers & {
+type TimeCardProps = Resolvers & Pick<Interaction, 'onEntryClick'> & {
+  state?: EntryState;
   entry: ScheduledEntry;
   placement: DayLayoutEntry | undefined;
   topPx: number;
@@ -401,7 +413,9 @@ type TimeCardProps = Resolvers & {
  * (`cardLayout.ts`): tiden överst, titeln, lärarna, salen och sist
  * anteckningen, där det som inte ryms på höjden faller bort nedifrån.
  */
-function TimeCard({ entry, placement, topPx, isLastOfDay, pxPerMinute, resolveColor, resolveRoom }: TimeCardProps) {
+function TimeCard({
+  entry, placement, topPx, isLastOfDay, pxPerMinute, resolveColor, resolveRoom, onEntryClick, state,
+}: TimeCardProps) {
   const column = placement?.column ?? 0;
   const columnCount = Math.max(placement?.columns ?? 1, 1);
   // Trösklarna nedan räknas på höjden, så ett lägre rutnät visar automatiskt
@@ -444,6 +458,7 @@ function TimeCard({ entry, placement, topPx, isLastOfDay, pxPerMinute, resolveCo
     hyphens: 'auto',
     WebkitHyphens: 'auto',
     overflowWrap: 'break-word',
+    ...(state?.dimmed && { opacity: 0.35 }),
   };
 
   const content = (
@@ -476,6 +491,34 @@ function TimeCard({ entry, placement, topPx, isLastOfDay, pxPerMinute, resolveCo
   );
 
   const className = 'absolute block overflow-hidden';
+  const mark = state?.marked && (
+    <span
+      className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border border-ui-paper bg-ui-ink"
+      title="Har noteringar"
+      aria-label="Har noteringar"
+    />
+  );
+  if (onEntryClick && state?.clickable) {
+    return (
+      <div
+        ref={cardRef as React.RefObject<HTMLDivElement>}
+        role="button"
+        tabIndex={0}
+        aria-label={`${entry.title} ${entry.day} ${entry.startTime}–${entry.endTime}`}
+        onClick={() => onEntryClick(entry)}
+        onKeyDown={e => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          onEntryClick(entry);
+        }}
+        className={`${className} cursor-pointer hover:ring-2 hover:ring-[var(--ui-focus)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)]`}
+        style={style}
+      >
+        {content}
+        {mark}
+      </div>
+    );
+  }
   if (url) {
     return (
       <a
@@ -488,12 +531,14 @@ function TimeCard({ entry, placement, topPx, isLastOfDay, pxPerMinute, resolveCo
         style={style}
       >
         {content}
+        {mark}
       </a>
     );
   }
   return (
     <div ref={cardRef as React.RefObject<HTMLDivElement>} className={className} style={style}>
       {content}
+      {mark}
     </div>
   );
 }
