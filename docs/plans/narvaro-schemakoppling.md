@@ -2,6 +2,10 @@
 
 Status: Pågår
 
+Läget 2026-11-16: alla steg 1–6 är byggda på grenen
+`claude/upbeat-bardeen-sn7y2i`. Kvar är proven i avsnitt 10 mot den riktiga
+backenden, i Neo och Kronberg. Avvikelserna står i avsnitt 11.
+
 Skriven 2026-11-16 efter en genomgång av veckoschemana v. 45–47 och
 närvaroarket för en klass. Planen är skriven för att kunna lämnas till en ny
 session: allt som behövs står här eller i filerna den pekar på.
@@ -407,7 +411,8 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
 - [x] **4. Förvald klass.** Byggd 2026-11-16.
 - [x] **5. Veckovyn:** props i `PublicTimeGrid`, `NarvaroWeekDialog`, klick i
   aktuell och äldre vecka, pricken. Byggd 2026-11-16.
-- [ ] **6. Tidigare pass** med schemats text, hämtad när veckan fälls ut.
+- [x] **6. Tidigare pass** med schemats text, hämtad när veckan fälls ut.
+  Byggd 2026-11-16.
 
 ## 10. Prov i webbläsaren
 
@@ -509,3 +514,13 @@ Skrivna av sessionen som byggde stegen.
   Rosa), klick på Engelska väljer alla klasser, Lunch går inte att klicka på,
   en äldre veckas noteringar visas i dialogen, mobilhuvudet, och bara
   GET-anrop mot `/api/planner`.
+
+### Steg 6 (2026-11-16)
+
+- Schemats text står inne i passets rubrik (`summary`), under namnet, så att
+  den syns också när passet är hopfällt. Ger schemat inga pass för passet
+  visas ingenting, inte "Inget pass …".
+- Den översta veckan i Tidigare pass är utfälld från början, så dess schema
+  hämtas direkt. Övriga hämtas när de fälls ut (`onToggle`).
+- Provat i webbläsaren mot samma påhittade API som steg 5: v. 46 visar Tema
+  Oliv för Olivs notering och v. 47 Tema Rosa för Rosas.

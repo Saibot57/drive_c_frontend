@@ -83,7 +83,15 @@ import {
 } from '@/utils/narvaroMobile';
 import { exampleTable } from '@/utils/narvaroExample';
 import { PurgeTier, dismissWeek, purgeBadge, purgeInfo, purgeWhen, sanitizeDismissed, weeksNearPurge } from '@/utils/narvaroRetention';
-import { ScheduleTarget, entriesForChoice, entriesForClasses, myClassesNow, sortForDisplay } from '@/utils/narvaroSchedule';
+import {
+  ScheduleTarget,
+  entriesForChoice,
+  entriesForClasses,
+  entriesForSession,
+  myClassesNow,
+  sheetsForWeek,
+  sortForDisplay,
+} from '@/utils/narvaroSchedule';
 import { collectTeacherNames } from '@/utils/scheduleStats';
 import type { ScheduledEntry } from '@/types/schedule';
 import '@/styles/schedule-theme.css';
@@ -483,6 +491,21 @@ export default function Narvaro() {
   const history = mode === 'notes' ? pastWeeks : [];
   const nearPurge = isExample || mobile ? [] : weeksNearPurge(pastWeeks.map(g => g.week), now, dismissedWeeks);
   const weekText = (keys: readonly string[]) => keys.map(k => sessionText(notes[k], table, stamps)).join('\n\n');
+  // Tidigare pass: schemats text under rubriken. Veckans schema hämtas när gruppen fälls ut.
+  const { ensureWeek } = schedule;
+  const firstHistoryWeek = history[0]?.week ?? null;
+  useEffect(() => { if (firstHistoryWeek) ensureWeek(firstHistoryWeek); }, [firstHistoryWeek, ensureWeek]);
+  const historySchedule = (week: string | null, k: string) => {
+    const w = week ? schedule.weeks[week] : null;
+    if (!week || !w) return null;
+    const shownEntries = sortForDisplay(entriesForSession(k, notes[k], sheetsForWeek(sync.data.tables, week), w.entries), scheduleName.name);
+    if (!shownEntries.length) return null;
+    return (
+      <div className="pl-4 font-normal">
+        <NarvaroScheduleLine variant="muted" entries={shownEntries} myName={scheduleName.name} resolveRoom={schedule.resolveRoom} emptyText="" />
+      </div>
+    );
+  };
   const cols = dayColumns(table, day);
   const weekday = now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -1101,7 +1124,13 @@ export default function Narvaro() {
             {history.map((group, i) => {
               const purge = purgeInfo(group.week, now);
               return (
-              <details key={group.week ?? ''} id={group.week ? weekAnchor(group.week) : undefined} open={i === 0} className="scroll-mt-4 border-t border-ui-line py-2">
+              <details
+                key={group.week ?? ''}
+                id={group.week ? weekAnchor(group.week) : undefined}
+                open={i === 0}
+                onToggle={e => { if (e.currentTarget.open && group.week) ensureWeek(group.week); }}
+                className="scroll-mt-4 border-t border-ui-line py-2"
+              >
                 <summary className="cursor-pointer font-mono text-xs font-semibold tracking-wider text-ui-muted">
                   {weekHeading(group.week, weekKey)} · {group.keys.length} pass
                   {purge && (
@@ -1146,6 +1175,7 @@ export default function Narvaro() {
                       onContextMenu={e => { e.preventDefault(); setRenaming({ key: k, draft: passNameFor(passNames, k, nameClasses) }); }}
                     >
                       {notes[k].label}
+                      {historySchedule(group.week, k)}
                     </summary>
                     <pre className="my-2 overflow-x-auto whitespace-pre-wrap rounded-ui-sm border border-ui-line bg-ui-surface-2 p-2.5 font-mono text-xs">
                       {sessionText(notes[k], table, stamps)}
