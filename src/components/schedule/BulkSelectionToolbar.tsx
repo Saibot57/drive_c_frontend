@@ -102,13 +102,11 @@ export function BulkSelectionToolbar({ canvasRef, selectedIds, enabled, onEdit, 
       };
 
       const selected: Box[] = [];
-      const others: Box[] = [];
       canvas.querySelectorAll<HTMLElement>('.scheduled-event-card[data-instance-id]').forEach(card => {
-        const target = selectedIds.has(card.dataset.instanceId ?? '') ? selected : others;
-        target.push(toBox(card.getBoundingClientRect()));
+        if (selectedIds.has(card.dataset.instanceId ?? '')) selected.push(toBox(card.getBoundingClientRect()));
       });
 
-      const { left, top } = placeBulkToolbar(selected, others, viewport, {
+      const { left, top } = placeBulkToolbar(selected, viewport, {
         width: bar.offsetWidth,
         height: bar.offsetHeight,
       });

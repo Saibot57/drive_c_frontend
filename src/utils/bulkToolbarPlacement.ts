@@ -1,13 +1,14 @@
 /**
  * Var massmarkeringens verktygsrad (penna och kryss) hamnar.
  *
- * Är markeringen samlad läggs raden mitt över den. Samlad betyder att rutan
- * runt de markerade korten inte täcker något omarkerat kort: tre samtidiga
- * poster, en förmiddag på samma dag eller två grannar över en dagsgräns. Då
- * hör raden tydligt till just de korten. Ligger markeringen spridd hade mitten
- * av rutan hamnat över poster som inte ingår, och raden läggs i stället mitt
- * i schemats nederkant. Dit läggs den också när de markerade korten är
- * utrullade ur bild, så att den alltid syns.
+ * Raden läggs mitt i rutan runt de markerade korten, alltså mitt emellan de
+ * yttersta: med poster på måndag och fredag hamnar den på onsdag. Den kan då
+ * stå över ett kort som inte ingår. Det är avsiktligt: raden är liten, och den
+ * ska stå där markeringen är i stället för i schemats kant.
+ *
+ * Är en del av rutan utrullad räknas mitten på den del som syns. Syns ingen
+ * del av den läggs raden mitt i schemats nederkant, så att den alltid går att
+ * nå.
  *
  * Allt räknas i fönstrets koordinater, som `getBoundingClientRect` ger dem.
  */
@@ -31,17 +32,6 @@ export function unionBox(boxes: Box[]): Box | null {
   }));
 }
 
-/** Kanter som bara nuddar räknas inte som överlapp. */
-const overlaps = (a: Box, b: Box) => (
-  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
-);
-
-/** Täcker rutan runt de markerade korten inget av de andra? */
-export function isGatheredSelection(selected: Box[], others: Box[]): boolean {
-  const union = unionBox(selected);
-  return union !== null && !others.some(other => overlaps(union, other));
-}
-
 const clamp = (value: number, min: number, max: number) => (
   // Är schemat smalare än raden vinner vänsterkanten.
   Math.max(min, Math.min(value, max))
@@ -49,12 +39,10 @@ const clamp = (value: number, min: number, max: number) => (
 
 /**
  * @param selected de markerade korten som står i schemat
- * @param others alla andra kort som står i schemat
  * @param viewport den synliga delen av schemat, under dagrubrikerna
  */
 export function placeBulkToolbar(
   selected: Box[],
-  others: Box[],
   viewport: Box,
   bar: BarSize,
   margin = BULK_TOOLBAR_MARGIN,
@@ -65,17 +53,19 @@ export function placeBulkToolbar(
   const maxTop = viewport.bottom - margin - bar.height;
 
   const union = unionBox(selected);
-  const inView = union !== null && union.bottom > viewport.top && union.top < viewport.bottom;
-
-  if (union && inView && isGatheredSelection(selected, others)) {
-    // Mitt över den del av markeringen som syns.
+  if (union) {
+    // Den del av rutan som syns.
+    const left = Math.max(union.left, viewport.left);
+    const right = Math.min(union.right, viewport.right);
     const top = Math.max(union.top, viewport.top);
     const bottom = Math.min(union.bottom, viewport.bottom);
-    return {
-      left: clamp((union.left + union.right - bar.width) / 2, minLeft, maxLeft),
-      top: clamp((top + bottom - bar.height) / 2, minTop, maxTop),
-      anchored: true,
-    };
+    if (left < right && top < bottom) {
+      return {
+        left: clamp((left + right - bar.width) / 2, minLeft, maxLeft),
+        top: clamp((top + bottom - bar.height) / 2, minTop, maxTop),
+        anchored: true,
+      };
+    }
   }
 
   return {
