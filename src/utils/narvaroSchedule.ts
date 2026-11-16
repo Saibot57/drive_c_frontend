@@ -256,3 +256,22 @@ export function myClassesNow(
   const mine = shown.filter(e => namedIn(e, name));
   return classNames.filter(k => mine.some(e => entryClasses(e.title, classNames).includes(k)));
 }
+
+/* ---------- namnet i schemat ---------- */
+
+export const MAX_SCHEDULE_NAME_LENGTH = 60;
+
+/** Namnet i schemats lärarfält, som det sparas per enhet. */
+export const sanitizeScheduleName = (raw: unknown): string =>
+  typeof raw === 'string' ? raw.trim().slice(0, MAX_SCHEDULE_NAME_LENGTH).trim() : '';
+
+/**
+ * Det namn som gäller: det sparade, annars användarnamnet när det står bland
+ * veckans lärarnamn (utan hänsyn till versaler), annars inget.
+ */
+export function effectiveScheduleName(saved: string, username: string | null | undefined, teacherNames: string[]): string {
+  if (saved) return saved;
+  const user = (username ?? '').trim().toLocaleLowerCase('sv');
+  if (!user) return '';
+  return teacherNames.find(n => n.trim().toLocaleLowerCase('sv') === user) ?? '';
+}

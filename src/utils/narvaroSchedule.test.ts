@@ -3,6 +3,7 @@ import type { PlannerArchiveSummary, ScheduledEntry } from '@/types/schedule';
 import { AttendanceColumn, combineSheets, dayColumns, emptySession } from '@/utils/narvaro';
 import {
   archiveForWeek,
+  effectiveScheduleName,
   entriesForChoice,
   entriesForClasses,
   entriesForColumn,
@@ -12,6 +13,7 @@ import {
   isMine,
   isPlaceholderNote,
   myClassesNow,
+  sanitizeScheduleName,
   scheduleLineParts,
   sessionClasses,
   sortForDisplay,
@@ -271,5 +273,20 @@ describe('myClassesNow', () => {
   });
   it('ett pass där användaren inte står: inget', () => {
     expect(myClassesNow(all, week(), CLASSES, 'Alex', new Date(2026, 10, 16, 10, 20))).toEqual([]);
+  });
+});
+
+describe('namnet i schemat', () => {
+  it('sanitizeScheduleName', () => {
+    expect(sanitizeScheduleName('  Kim ')).toBe('Kim');
+    expect(sanitizeScheduleName(42)).toBe('');
+    expect(sanitizeScheduleName(null)).toBe('');
+    expect(sanitizeScheduleName('x'.repeat(80))).toHaveLength(60);
+  });
+  it('effectiveScheduleName: det sparade, annars användarnamnet bland lärarna', () => {
+    expect(effectiveScheduleName('Robin', 'kim', ['Kim', 'Robin'])).toBe('Robin');
+    expect(effectiveScheduleName('', 'kim', ['Kim', 'Robin'])).toBe('Kim');
+    expect(effectiveScheduleName('', 'Admin', ['Kim', 'Robin'])).toBe('');
+    expect(effectiveScheduleName('', null, ['Kim'])).toBe('');
   });
 });

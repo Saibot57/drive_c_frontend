@@ -400,8 +400,8 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
   `sessionClasses` och `myClassesNow`. Bygg testdatan för hand efter avsnitt
   3 med påhittade lärarnamn. Lägg inga riktiga elevnamn i repot.
   Testdatan ligger i `utils/__fixtures__/narvaroSchedule.ts`.
-- [ ] **2. Hämtningen.** `hooks/useNarvaroSchedule.ts` med test, reglerna för
-  färg och sal, och nyckeln för namnet.
+- [x] **2. Hämtningen.** `hooks/useNarvaroSchedule.ts` med test, reglerna för
+  färg och sal, och nyckeln för namnet. Byggd 2026-11-16.
 - [ ] **3. Raden "Enligt schemat"** på sidan och i mobilhuvudet, med
   väljaren för namnet.
 - [ ] **4. Förvald klass.**
@@ -460,3 +460,15 @@ Skrivna av sessionen som byggde stegen.
 - Tre hjälpare utöver förslagen: `columnSpan` (kolumnens tid, också för en
   kolumn utan tid), `entriesForChoice` (passen för sidans val, kolumn eller
   hela dagen) och `sortForDisplay` (egna först, sedan `compareLaneEntries`).
+
+### Steg 2 (2026-11-16)
+
+- `useNarvaroSchedule(enabled, currentWeek)` tar veckans nyckel som andra
+  argument i stället för att räkna fram den själv, så att den följer sidans
+  `now`. Den ger också `resolveColor` och `resolveRoom`.
+- Namnet har en egen hook i samma fil, `useNarvaroScheduleName(username,
+  teacherNames)`, som ger `{ name, setName }`. Reglerna för namnet
+  (`sanitizeScheduleName`, `effectiveScheduleName`) ligger i
+  `utils/narvaroSchedule.ts` med test.
+- Går listan över scheman inte att hämta blir veckan `null`, och nästa vecka
+  som efterfrågas försöker hämta listan igen.
