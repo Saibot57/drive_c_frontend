@@ -528,3 +528,9 @@ Skrivna av sessionen som byggde stegen.
   hämtas direkt. Övriga hämtas när de fälls ut (`onToggle`).
 - Provat i webbläsaren mot samma påhittade API som steg 5: v. 46 visar Tema
   Oliv för Olivs notering och v. 47 Tema Rosa för Rosas.
+
+### Efter planen (2026-11-16)
+
+Veckodialogen (`NarvaroWeekDialog`), props i `PublicTimeGrid`,
+`targetForEntry` och `sessionForEntry` togs bort när veckokartan byggdes
+(steg 2 i [narvaro-veckokarta.md](narvaro-veckokarta.md)).

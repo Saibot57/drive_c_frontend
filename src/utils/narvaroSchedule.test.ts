@@ -17,11 +17,9 @@ import {
   sanitizeScheduleName,
   scheduleLineParts,
   sessionClasses,
-  sessionForEntry,
   sheetsForWeek,
   shiftWeek,
   sortForDisplay,
-  targetForEntry,
 } from '@/utils/narvaroSchedule';
 import { CLASSES, ME, sheet, sheets, week } from '@/utils/__fixtures__/narvaroSchedule';
 
@@ -183,48 +181,6 @@ describe('isMine', () => {
   });
 });
 
-describe('targetForEntry', () => {
-  const s = sheets();
-  const entries = week();
-  const find = (day: string, title: string, start: string, list = entries) => {
-    const hit = list.find(e => e.day === day && e.title === title && e.startTime === start);
-    if (!hit) throw new Error(`Inget pass ${title}`);
-    return hit;
-  };
-  it('temapass: klassen, dagen och kolumnen', () => {
-    expect(targetForEntry(find('Måndag', 'Tema Rosa', '10:15'), s, CLASSES, entries))
-      .toEqual({ day: 'Måndag', pass: colByLetter('C').id, classes: ['Rosa'] });
-  });
-  it('Engelska: alla klasser som har dagen', () => {
-    expect(targetForEntry(find('Tisdag', 'Engelska Grund', '12:30'), s, CLASSES, entries))
-      .toEqual({ day: 'Tisdag', pass: colByLetter('F').id, classes: CLASSES });
-  });
-  it('Ma 1 hamnar i den första Studieverkstad-kolumnen', () => {
-    expect(targetForEntry(find('Tisdag', 'Ma 1', '10:15'), s, CLASSES, entries)?.pass).toBe(colByLetter('E').id);
-    expect(targetForEntry(find('Tisdag', 'Ma 1', '14:45'), s, CLASSES, entries)?.pass).toBe(colByLetter('G').id);
-  });
-  it('Lunch, Paus och APT går inte att klicka på', () => {
-    expect(targetForEntry(find('Måndag', 'Lunch', '11:30'), s, CLASSES, entries)).toBeNull();
-    expect(targetForEntry(find('Måndag', 'Paus', '10:00'), s, CLASSES, entries)).toBeNull();
-    expect(targetForEntry(find('Måndag', 'APT', '14:15'), s, CLASSES, entries)).toBeNull();
-  });
-  it('studiebesöket över hela dagen blir hela dagen för alla klasser', () => {
-    const v47 = week({ studiebesok: true });
-    expect(targetForEntry(find('Torsdag', 'Studiebesök i Malmö', '08:30', v47), s, CLASSES, v47))
-      .toEqual({ day: 'Torsdag', pass: 'day', classes: CLASSES });
-  });
-  it('åt andra hållen: kolumnens pass innehåller passet som klicket valde', () => {
-    const entry = find('Fredag', 'Tema Oliv', '12:30');
-    const target = targetForEntry(entry, s, CLASSES, entries)!;
-    const shown = entriesForClasses(entriesForChoice(combineSheets(s, target.classes), target.day, target.pass, entries), CLASSES, target.classes);
-    expect(shown.map(e => e.instanceId)).toEqual([entry.instanceId]);
-  });
-  it('bara klasser med dagen', () => {
-    const partial = { ...s, Grund: { ...s.Grund, cols: s.Grund.cols.filter(c => c.day !== 'Tisdag') } };
-    expect(targetForEntry(find('Tisdag', 'Engelska 1', '12:30'), partial, CLASSES, entries)?.classes).toEqual(['Oliv', 'Rosa']);
-  });
-});
-
 describe('texten', () => {
   it('isPlaceholderNote', () => {
     expect(isPlaceholderNote(undefined)).toBe(true);
@@ -314,27 +270,8 @@ describe('veckor', () => {
 describe('noteringar per schemapass', () => {
   const s = sheets();
   const entries = week();
-  const find = (title: string, day: string, start: string) =>
-    entries.find(e => e.title === title && e.day === day && e.startTime === start)!;
   const note = (name: string) => ({ ...emptySession('Måndag 16/11 · 10.00-11.30'), people: { [name]: { tags: [], note: 'x' } } });
 
-  it('pricken: Olivs notering ger ingen prick på Tema Rosa samma tid', () => {
-    const notes = { '2026-11-16|Måndag|C': note('Oliv Ett') };
-    const rosa = sessionForEntry(find('Tema Rosa', 'Måndag', '10:15'), s, entries, 'w2026-47', notes);
-    const oliv = sessionForEntry(find('Tema Oliv', 'Måndag', '10:15'), s, entries, 'w2026-47', notes);
-    expect(rosa?.key).toBe('2026-11-16|Måndag|C');
-    expect(rosa?.sess).toBeNull();
-    expect(oliv?.sess).toBe(notes['2026-11-16|Måndag|C']);
-  });
-  it('ett pass för alla klasser får pricken av vilken klass som helst', () => {
-    const notes = { '2026-11-10|Tisdag|F': note('Grund Ett') };
-    expect(sessionForEntry(find('Engelska 1', 'Tisdag', '12:30'), s, entries, 'w2026-46', notes)?.sess).not.toBeNull();
-  });
-  it('ett pass utan kolumn och en tom notering ger inget', () => {
-    expect(sessionForEntry(find('Lunch', 'Måndag', '11:30'), s, entries, 'w2026-47', {})).toBeNull();
-    const notes = { '2026-11-16|Måndag|C': emptySession('') };
-    expect(sessionForEntry(find('Tema Oliv', 'Måndag', '10:15'), s, entries, 'w2026-47', notes)?.sess).toBeNull();
-  });
   it('entriesForSession: kolumnen ur nyckeln och klasserna ur noteringarna', () => {
     expect(titles(entriesForSession('2026-11-16|Måndag|C', note('Rosa Ett'), s, entries))).toEqual(['Tema Rosa']);
     expect(titles(entriesForSession('2026-11-10|Tisdag|E', note('Rosa Ett'), s, entries)).sort()).toEqual(['Ma 1', 'Ma Grund', 'Studieverkstad']);

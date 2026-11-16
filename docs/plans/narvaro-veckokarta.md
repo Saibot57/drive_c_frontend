@@ -199,11 +199,11 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
   prick när bara Rosa visas), utan schema, `adjacentPass` över dagsgränser,
   `mapWeeks`, `sanitizeWeekMapMode`. Testdata ur
   `utils/__fixtures__/narvaroSchedule.ts`.
-- [ ] **2. Kartan och passkortet** på datorn. Klass-chippen till kartan,
+- [x] **2. Kartan och passkortet** (2026-11-16) på datorn. Klass-chippen till kartan,
   Skola och antalet till passkortet, ‹ › för föregående och nästa pass.
   Mobilen får `NarvaroPassChips`. Veckan-dialogen och props i
   `PublicTimeGrid` tas bort.
-- [ ] **3. Hopfälld** med `narvaro.weekMap.v1`.
+- [x] **3. Hopfälld** (2026-11-16) med `narvaro.weekMap.v1`.
 - [ ] **4. Veckans ark** som dialog, `ClassPicker` i egen fil.
 - [ ] **5. Tidigare veckor.** Hela sidan byter vecka och går att redigera.
   Tidigare pass tas bort, Noteringar får Ta bort, och gallringens "Visa"
@@ -257,3 +257,22 @@ Skrivna av sessionen som bygger stegen.
   som i mock-upen.
 - Antalet i en ruta räknar också de som lagts till för hand i passet, som
   antalet närvarande på sidan gör.
+
+### Steg 2 och 3 (2026-11-16)
+
+- Byggda i samma commit, eftersom det hopfällda läget är en gren i
+  `NarvaroWeekMap.tsx`.
+- Kartan visas också för exemplet, med exemplets ark och utan schema.
+- Väljaren "Du i schemat" står bara under kartan. Raden "Enligt schemat" i
+  passkortet har ingen egen väljare längre.
+- Klass-chippen och Skola-chippen ritas av `Narvaro.tsx` och skickas in;
+  i mobilens passval står de i `ChipRow` som förut. `ChipRow` flyttade till
+  `NarvaroPassChips.tsx` och `chip` till `chip.ts`.
+- Hopfälld visar inte rutan Hela dagen när dagen redan har en ihopslagen
+  heldagsruta, så att inte två rutor är valda samtidigt.
+- `targetForEntry` och `sessionForEntry` togs bort med sina test; bara
+  veckodialogen använde dem. `shiftWeek` och `entriesForSession` ligger kvar
+  till steg 5.
+- Provat i webbläsaren mot ett påhittat API: kartan, ‹ › över dagar,
+  studiebesöket som Hela dagen, hopfällt läge kvar efter omladdning, 1024
+  px bredd och mobilens passval.

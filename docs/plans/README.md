@@ -36,7 +36,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Mindmap: friare placering och linjer att forma](mindmap-placering.md) | Pågår. Del A (linjernas form och fäste per karta) och B (Alt+dra, flytta roten, städa upp, rutnät) byggda 2026-11-12 (#280). Del C (form och fästen per linje och för tvärlänkarna) och D (brytpunkter) byggda 2026-11-12 (#281). Kvar: prov i riktig miljö och workspace-kortet i webbläsaren |
 | [Mindmap: markera flera, riktning för nya barn och arrangera](mindmap-arrangera.md) | Pågår. Alla delar A–E byggda 2026-11-13 (A i #283, B–E i #284). Kvar: Tobias prov och frågan om rutnätet i avsnitt 8 |
 | [Närvarorutor kopplade till schemat](narvaro-schemakoppling.md) | Pågår. Alla steg 1–6 byggda 2026-11-16. Kvar: proven i avsnitt 10 mot riktig backend |
-| [Närvarorutor: veckokartan överst](narvaro-veckokarta.md) | Pågår. Steg 1 (logiken) byggt 2026-11-16 |
+| [Närvarorutor: veckokartan överst](narvaro-veckokarta.md) | Pågår. Steg 1–3 (logiken, kartan och hopfällt läge) byggda 2026-11-16 |
 
 Lägg till en rad här när en ny plan skrivs.
 
