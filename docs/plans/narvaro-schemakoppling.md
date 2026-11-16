@@ -1,6 +1,6 @@
 # Närvarorutor kopplade till schemat
 
-Status: Planerad
+Status: Pågår
 
 Skriven 2026-11-16 efter en genomgång av veckoschemana v. 45–47 och
 närvaroarket för en klass. Planen är skriven för att kunna lämnas till en ny
@@ -393,12 +393,13 @@ Varje steg avslutas med `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test`
 och `pnpm build`. Bocka av steget här och uppdatera raden i
 `docs/plans/README.md` i samma PR. Steg 1–3 kan gå i en PR, 4–5 i en till.
 
-- [ ] **1. Matchningen.** `utils/narvaroSchedule.ts` med tester för hela
+- [x] **1. Matchningen.** Byggd 2026-11-16. Se avvikelserna i avsnitt 11. `utils/narvaroSchedule.ts` med tester för hela
   tabellen i avsnitt 5, klassreglerna (Tema ×3 uppdelat, Engelska ×3 inte,
   ett ensamt pass utan klass), `isMine` (`"Tobias  "`, `"Victor, Tobias"`,
   `"Alla"`, tomt), `targetForEntry` åt båda hållen, `isPlaceholderNote`,
   `sessionClasses` och `myClassesNow`. Bygg testdatan för hand efter avsnitt
   3 med påhittade lärarnamn. Lägg inga riktiga elevnamn i repot.
+  Testdatan ligger i `utils/__fixtures__/narvaroSchedule.ts`.
 - [ ] **2. Hämtningen.** `hooks/useNarvaroSchedule.ts` med test, reglerna för
   färg och sal, och nyckeln för namnet.
 - [ ] **3. Raden "Enligt schemat"** på sidan och i mobilhuvudet, med
@@ -437,3 +438,25 @@ ett klistrat närvaroark per klass. Prova i Neo och Kronberg.
 13. Mobilläget: raden syns under huvudet, och stämplingen fungerar som förut.
 14. Nätverksfliken: inga anrop mot `/api/planner` med annan metod än GET från
     Närvarorutor.
+
+## 11. Avvikelser från planen
+
+Skrivna av sessionen som byggde stegen.
+
+### Steg 1 (2026-11-16)
+
+- `targetForEntry` tar veckans ark per klass (`sheets`) och alla klassnamn i
+  stället för de hopslagna arken. `classesOnDay` behöver veta vilka klasser
+  som har dagen, och det går inte att läsa ur `combineSheets`. Funktionen
+  slår ihop arken själv.
+- Ett pass som hör till flera kolumner och också täcker hela dagen
+  (studiebesöket 08:30–15:30) ger `'day'`, inte kolumnen med störst
+  överlapp. Annars valde ett klick på studiebesöket torsdagens sista pass.
+- `myClassesNow` räknar bara ett pass som verkligen pågår (från tio minuter
+  före start till slut). `defaultPass` faller annars tillbaka på dagens
+  sista kryssade pass, och då valdes en klass även efter skoldagen. Den
+  kräver också att kolumnens pass är uppdelade på klass (`isClassDivided`),
+  så att "Engelska Grund" inte väljer klassen Grund.
+- Tre hjälpare utöver förslagen: `columnSpan` (kolumnens tid, också för en
+  kolumn utan tid), `entriesForChoice` (passen för sidans val, kolumn eller
+  hela dagen) och `sortForDisplay` (egna först, sedan `compareLaneEntries`).
