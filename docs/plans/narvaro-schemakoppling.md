@@ -405,8 +405,8 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
 - [x] **3. Raden "Enligt schemat"** på sidan och i mobilhuvudet, med
   väljaren för namnet. Byggd 2026-11-16.
 - [x] **4. Förvald klass.** Byggd 2026-11-16.
-- [ ] **5. Veckovyn:** props i `PublicTimeGrid`, `NarvaroWeekDialog`, klick i
-  aktuell och äldre vecka, pricken.
+- [x] **5. Veckovyn:** props i `PublicTimeGrid`, `NarvaroWeekDialog`, klick i
+  aktuell och äldre vecka, pricken. Byggd 2026-11-16.
 - [ ] **6. Tidigare pass** med schemats text, hämtad när veckan fälls ut.
 
 ## 10. Prov i webbläsaren
@@ -488,3 +488,24 @@ Skrivna av sessionen som byggde stegen.
 - Refen som stoppar förvalet sätts också när en tabell klistras in och sparas
   som en klass, när en tabell utan klass får en klass och när en grupp väljs
   i mobilläget, eftersom alla tre väljer klass.
+
+### Steg 5 (2026-11-16)
+
+- `PublicTimeGrid` gick att återanvända. De två nya propsen ändrar inget när
+  de saknas; pricken ritas med `bg-ui-ink` och `border-ui-paper`.
+- Logiken för pricken och för passen i en annan vecka ligger i
+  `utils/narvaroSchedule.ts`: `sessionForEntry` (kolumn, nyckel och
+  noteringar för ett schemapass), `sheetsForWeek` (varje klass senaste ark
+  fram till veckan, som `latestSheets`) och `shiftWeek` (bläddra en vecka).
+- Väljaren för namnet står i dialogens huvud ("Du i schemat:") och visar
+  alltid det valda namnet. Den är samma komponent som på sidan
+  (`ScheduleNamePicker` i `NarvaroScheduleLine.tsx`).
+- En vecka före det första inklistrade arket har inga kolumner, och då går
+  inga pass att klicka på. Noteringar finns ändå bara för veckor med ark.
+- Noteringarna under rutnätet visar hela passets text (`sessionText`), också
+  andra klassers noteringar samma pass, som i Tidigare pass.
+- Provat i webbläsaren mot ett påhittat API (Playwright, v. 46 och 47): raden,
+  förvald Rosa måndag 10.20, pricken (Olivs notering ger ingen prick på Tema
+  Rosa), klick på Engelska väljer alla klasser, Lunch går inte att klicka på,
+  en äldre veckas noteringar visas i dialogen, mobilhuvudet, och bara
+  GET-anrop mot `/api/planner`.

@@ -65,19 +65,7 @@ export function NarvaroScheduleLine({
   }
 
   const ask = !myName && !!onChooseName && teacherNames.length > 0;
-  const picker = ask && (
-    <label className="inline-flex items-center gap-1.5 text-xs text-ui-muted">
-      Vem är du i schemat?
-      <select
-        value=""
-        onChange={e => { if (e.target.value) onChooseName?.(e.target.value); }}
-        className="sp-input rounded-ui-sm bg-ui-paper px-1.5 py-0.5 text-xs text-ui-ink"
-      >
-        <option value="">Välj</option>
-        {teacherNames.map(n => <option key={n} value={n}>{n}</option>)}
-      </select>
-    </label>
-  );
+  const picker = ask && <ScheduleNamePicker label="Vem är du i schemat?" names={teacherNames} value="" onChange={name => onChooseName?.(name)} />;
 
   return (
     <div className={cn('flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5', variant === 'muted' ? 'text-xs text-ui-muted' : 'text-sm')}>
@@ -95,5 +83,29 @@ export function NarvaroScheduleLine({
       )}
       {picker}
     </div>
+  );
+}
+
+/** Väljaren för vem användaren är i schemats lärarfält. */
+export function ScheduleNamePicker({ label, names, value, onChange }: {
+  label: string;
+  names: string[];
+  value: string;
+  onChange: (name: string) => void;
+}) {
+  // Ett sparat namn som inte står i veckans schema ska ändå synas som valt.
+  const options = value && !names.includes(value) ? [value, ...names] : names;
+  return (
+    <label className="inline-flex items-center gap-1.5 text-xs text-ui-muted">
+      {label}
+      <select
+        value={value}
+        onChange={e => { if (e.target.value) onChange(e.target.value); }}
+        className="sp-input rounded-ui-sm bg-ui-paper px-1.5 py-0.5 text-xs text-ui-ink"
+      >
+        {!value && <option value="">Välj</option>}
+        {options.map(n => <option key={n} value={n}>{n}</option>)}
+      </select>
+    </label>
   );
 }

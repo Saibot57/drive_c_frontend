@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, ClipboardPaste, Copy, Hourglass, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Check, ClipboardPaste, Copy, Hourglass, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
@@ -12,6 +12,7 @@ import { NarvaroLock } from '@/components/narvaro/NarvaroLock';
 import { NarvaroMobile, NarvaroMobileHeader } from '@/components/narvaro/NarvaroMobile';
 import { MobileGroupChoices } from '@/components/narvaro/NarvaroMobileGroups';
 import { NarvaroScheduleLine } from '@/components/narvaro/NarvaroScheduleLine';
+import { NarvaroWeekDialog } from '@/components/narvaro/NarvaroWeekDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { NarvaroSaveStatus, useNarvaroSync } from '@/hooks/useNarvaroSync';
 import { useNarvaroSchedule, useNarvaroScheduleName } from '@/hooks/useNarvaroSchedule';
@@ -82,7 +83,7 @@ import {
 } from '@/utils/narvaroMobile';
 import { exampleTable } from '@/utils/narvaroExample';
 import { PurgeTier, dismissWeek, purgeBadge, purgeInfo, purgeWhen, sanitizeDismissed, weeksNearPurge } from '@/utils/narvaroRetention';
-import { entriesForChoice, entriesForClasses, myClassesNow, sortForDisplay } from '@/utils/narvaroSchedule';
+import { ScheduleTarget, entriesForChoice, entriesForClasses, myClassesNow, sortForDisplay } from '@/utils/narvaroSchedule';
 import { collectTeacherNames } from '@/utils/scheduleStats';
 import type { ScheduledEntry } from '@/types/schedule';
 import '@/styles/schedule-theme.css';
@@ -223,6 +224,15 @@ export default function Narvaro() {
     const mine = myClassesNow(combineSheets(sheets, allClasses), thisWeek.entries, classNames, scheduleName.name, now);
     if (mine.length) setChosen(mine);
   }, [thisWeek]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Veckovyn. Ett klick på ett pass i den aktuella veckan väljer det på sidan.
+  const [weekOpen, setWeekOpen] = useState(false);
+  const pickFromSchedule = (target: ScheduleTarget) => {
+    userPicked.current = true;
+    setChosen(target.classes);
+    setDay(target.day);
+    setPass(target.pass);
+    setWeekOpen(false);
+  };
 
   const [klass, setKlass] = useState('all');
   const [mode, setMode] = useState<Mode>('notes');
@@ -491,6 +501,11 @@ export default function Narvaro() {
           {sync.phase === 'ready' && (
             <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
               <SaveIndicator status={sync.saveStatus} />
+              {thisWeek && (
+                <Button variant="neutral" className="sp-btn" onClick={() => setWeekOpen(true)} title="Veckans schema">
+                  <CalendarDays /> Veckan
+                </Button>
+              )}
               <Button variant="neutral" className="sp-btn" onClick={() => setMobilePref('on')} title="Stora rutor och stämplar i tummens räckvidd">
                 <Smartphone /> Mobilläge
               </Button>
@@ -1187,6 +1202,25 @@ export default function Narvaro() {
           setEditing(null);
         }}
       />
+
+      {thisWeek && !mobile && (
+        <NarvaroWeekDialog
+          open={weekOpen}
+          onOpenChange={setWeekOpen}
+          currentWeek={weekKey}
+          weeks={schedule.weeks}
+          ensureWeek={schedule.ensureWeek}
+          resolveColor={schedule.resolveColor}
+          resolveRoom={schedule.resolveRoom}
+          myName={scheduleName.name}
+          onChooseName={scheduleName.setName}
+          tables={sync.data.tables}
+          notes={savedNotes}
+          stamps={stamps}
+          onPick={pickFromSchedule}
+          onCopy={copyText}
+        />
+      )}
 
       <Dialog open={copyFallback !== null} onOpenChange={open => { if (!open) setCopyFallback(null); }}>
         <DialogContent className="max-w-md">
