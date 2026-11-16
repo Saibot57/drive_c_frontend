@@ -91,6 +91,32 @@ Innehåll: Historia: Historiebruk
 Filen heter `noteringar-v47.txt`, eller `noteringar-v45-v47.txt` för flera
 veckor.
 
+## 3b. Formatering i Google Dokument (2026-11-16)
+
+Kopiera i dialogen lägger två versioner i urklippet: den rena texten och
+samma innehåll som HTML (`exportHtml`). Google Dokument tar HTML-versionen,
+ett textfält tar den rena. Ladda ner .txt är oförändrad.
+
+| I texten | I dokumentet |
+|---|---|
+| Veckan | Rubrik 1 |
+| Passet med datum, tid och klass | Rubrik 2 |
+| Schema, Innehåll och raden om ett äldre ark | Ett kursivt stycke |
+| Namnet | Fetstil, med stämplar och notering efter kolon |
+| En grupp | Ett eget stycke |
+
+Rubrikerna ger dokumentet en disposition i Docs vänsterkant. Noteringarna är
+stycken, inte tabell (Tobias val). Bara taggar som Docs behåller används
+(`h1`, `h2`, `p`, `b`, `i`, `br`), utan färger och typsnitt: utseendet i
+övrigt bestämmer Docs. Tecken som `<` och `&` i noteringar skyddas.
+
+Stöder webbläsaren inte formaterad kopiering (`ClipboardItem`) kopieras den
+rena texten som förut. Kopiera och Kopiera veckan på sidan ger ren text.
+
+Övervägt och inte byggt: nedladdning som .docx (kräver ett nytt bibliotek),
+.html (ett extra steg i Drive) och att skapa dokumentet direkt i Drive
+(kräver inloggning mot Google, och då passerar elevnamnen en ny koppling).
+
 ## 4. Sekretess
 
 Texten har elevernas namn och noteringar i klartext och lämnar därmed
@@ -128,6 +154,9 @@ Mot riktig backend, med noteringar i minst två veckor och två klasser.
 4c. Kopiera i Noteringar ger samma lista som exportens stycke för passet.
 5. Kopiera ger samma text som förhandsvisningen. Ladda ner ger en .txt som
    öppnas med å, ä och ö i Google Drive.
+5b. Klistra in i ett Google-dokument: veckan är rubrik 1, passen rubrik 2
+   och syns i dispositionen, schemat är kursivt, namnen i fetstil och
+   grupperna egna stycken. Klistra in i ett textfält: ren text.
 6. En vecka utan schema: raden om att schema saknas visas, och passen
    exporteras utan schemarader.
 7. Inga anrop med annan metod än GET mot `/api/planner`.

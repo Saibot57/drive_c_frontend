@@ -8,7 +8,7 @@ import { chip } from '@/components/narvaro/chip';
 import type { ScheduleWeeks } from '@/hooks/useNarvaroSchedule';
 import { downloadBlob } from '@/utils/download';
 import type { NarvaroData } from '@/utils/narvaroDocs';
-import { exportClasses, exportFileName, exportText, exportWeeks } from '@/utils/narvaroExport';
+import { exportClasses, exportFileName, exportHtml, exportText, exportWeeks } from '@/utils/narvaroExport';
 
 /**
  * Exportera noteringar: välj veckor och klasser, och kopiera texten eller
@@ -27,7 +27,8 @@ type Props = {
   /** Veckan och klasserna som visas på sidan, förvalda när dialogen öppnas. */
   shownWeek: string;
   shownClasses: readonly string[];
-  onCopy: (text: string) => void;
+  /** `html` är samma text med formatering, för Google Docs. */
+  onCopy: (text: string, html: string) => void;
 };
 
 const weekNumber = (weekKey: string) => weekKey.slice(-2).replace(/^0/, '');
@@ -55,20 +56,25 @@ export function NarvaroExportDialog({
 
   const picked = classes.filter(k => classChoices.includes(k));
   const loading = weeks.some(w => schedules[w] === undefined);
-  const text = useMemo(() => (loading ? '' : exportText({
-    weeks,
-    classes: picked,
-    tables: data.tables,
-    notes: data.notes,
-    groups: data.groups,
-    passNames: data.passNames,
-    stamps: data.stamps,
-    schedules: Object.fromEntries(weeks.map(w => [w, schedules[w]?.entries ?? null])),
-    myName,
-    resolveRoom,
-    today: new Date(),
+  const exported = useMemo(() => {
+    if (loading) return { text: '', html: '' };
+    const input = {
+      weeks,
+      classes: picked,
+      tables: data.tables,
+      notes: data.notes,
+      groups: data.groups,
+      passNames: data.passNames,
+      stamps: data.stamps,
+      schedules: Object.fromEntries(weeks.map(w => [w, schedules[w]?.entries ?? null])),
+      myName,
+      resolveRoom,
+      today: new Date(),
+    };
+    return { text: exportText(input), html: exportHtml(input) };
     // `picked` är en ny lista varje rendering; nyckeln står för den.
-  })), [loading, weeks, picked.join('+'), data, schedules, myName, resolveRoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, weeks, picked.join('+'), data, schedules, myName, resolveRoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { text, html } = exported;
 
   const toggle = (list: string[], value: string) =>
     (list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
@@ -80,7 +86,7 @@ export function NarvaroExportDialog({
         <DialogHeader>
           <DialogTitle>Exportera noteringar</DialogTitle>
           <DialogDescription>
-            Ett stycke per pass med datum, schemats titel och innehåll. Texten har elevernas namn i klartext, så lägg den bara där den får finnas.
+            Ett stycke per pass med datum, schemats titel och innehåll. Kopiera ger rubriker och fetstil i Google Dokument. Texten har elevernas namn i klartext, så lägg den bara där den får finnas.
           </DialogDescription>
         </DialogHeader>
 
@@ -134,7 +140,7 @@ export function NarvaroExportDialog({
             )}
 
             <div className="flex flex-wrap gap-2">
-              <Button variant="neutral" className="sp-btn" disabled={!text} onClick={() => onCopy(text)}>
+              <Button variant="neutral" className="sp-btn" disabled={!text} onClick={() => onCopy(text, html)} title="Klistras in i Google Dokument med rubriker och fetstil">
                 <Copy /> Kopiera
               </Button>
               <Button

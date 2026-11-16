@@ -502,32 +502,45 @@ export function sessionChoice(table: AttendanceTable, key: string): { day: strin
   return { day, pass: col?.id ?? null };
 }
 
+/** En rad i passets lista: namnet, och stämplar och notering när det finns. */
+export type SessionRow = { name: string; text: string };
+
 /**
  * Passets rader: alla närvarande i en lista, med stämplar och notering där
  * det finns, och sist de som har en notering utan att vara närvarande. Ingen
- * uppdelning på skola. Med grupper: grupp för grupp med en tom rad mellan och
- * utan rubrik, och de som inte är med i någon grupp sist.
+ * uppdelning på skola. Med grupper blir det en lista per grupp, och de som
+ * inte är med i någon grupp sist.
  */
+export function sessionRows(
+  sess: SessionNotes,
+  present: readonly string[],
+  groups: readonly (readonly string[])[] | null,
+  stamps: readonly Stamp[],
+): SessionRow[][] {
+  const noted = new Map(noteEntries(sess));
+  const names = Array.from(new Set([...present, ...Array.from(noted.keys())]));
+  const row = (name: string): SessionRow => {
+    const n = noted.get(name);
+    const labels = n ? n.tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ') : '';
+    return { name, text: [labels, n?.note].filter(Boolean).join('. ') };
+  };
+  if (!groups?.some(g => g.length > 0)) return names.length ? [names.map(row)] : [];
+  const known = new Set(names);
+  const used = new Set<string>();
+  const chunks = groups.map(g => g.filter(name => known.has(name) && !used.has(name) && !!used.add(name)));
+  chunks.push(names.filter(name => !used.has(name)));
+  return chunks.filter(c => c.length > 0).map(c => c.map(row));
+}
+
+/** Raderna som text ("Namn: Aktiv. notering"), med en tom rad mellan grupperna och utan rubrik. */
 export function sessionLines(
   sess: SessionNotes,
   present: readonly string[],
   groups: readonly (readonly string[])[] | null,
   stamps: readonly Stamp[],
 ): string[] {
-  const noted = new Map(noteEntries(sess));
-  const names = Array.from(new Set([...present, ...Array.from(noted.keys())]));
-  const line = (name: string) => {
-    const n = noted.get(name);
-    const labels = n ? n.tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ') : '';
-    const text = [labels, n?.note].filter(Boolean).join('. ');
-    return text ? `${name}: ${text}` : name;
-  };
-  if (!groups?.some(g => g.length > 0)) return names.map(line);
-  const known = new Set(names);
-  const used = new Set<string>();
-  const chunks = groups.map(g => g.filter(name => known.has(name) && !used.has(name) && !!used.add(name)));
-  chunks.push(names.filter(name => !used.has(name)));
-  return chunks.filter(c => c.length > 0).flatMap((c, i) => [...(i ? [''] : []), ...c.map(line)]);
+  return sessionRows(sess, present, groups, stamps)
+    .flatMap((c, i) => [...(i ? [''] : []), ...c.map(r => (r.text ? `${r.name}: ${r.text}` : r.name))]);
 }
 
 /**
