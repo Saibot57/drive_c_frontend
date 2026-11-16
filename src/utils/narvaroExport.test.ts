@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_STAMPS, NotesStore } from '@/utils/narvaro';
+import { DEFAULT_STAMPS, NotesStore, parseAttendance } from '@/utils/narvaro';
 import { ExportInput, exportClasses, exportFileName, exportText, exportWeeks, weekTitle } from '@/utils/narvaroExport';
 import { ME, sheets, week } from '@/utils/__fixtures__/narvaroSchedule';
 
@@ -7,6 +7,16 @@ import { ME, sheets, week } from '@/utils/__fixtures__/narvaroSchedule';
 const W47 = 'w2026-47';
 const W46 = 'w2026-46';
 const note = (tags: string[], text = '') => ({ tags, note: text });
+
+/** Ett ark med två skolor som rubriker. */
+const schools = () => parseAttendance([
+  ['', 'Måndag'],
+  ['', '8.30-9.45'],
+  ['NORR'],
+  ['Norr Ett', 'TRUE'],
+  ['SYD'],
+  ['Syd Ett', 'TRUE'],
+])!;
 
 const notes = (): NotesStore => ({
   // Måndag andra passet (kolumn C): Rosa och Oliv i samma pass.
@@ -30,6 +40,7 @@ const input = (over: Partial<ExportInput> = {}): ExportInput => ({
   classes: ['Grund', 'Oliv', 'Rosa'],
   tables: { [W46]: sheets() },
   notes: notes(),
+  groups: {},
   passNames: {},
   stamps: DEFAULT_STAMPS,
   schedules: { [W47]: week(), [W46]: week() },
@@ -123,6 +134,48 @@ describe('exportText', () => {
     };
     const text = exportText(input({ notes: store, classes: ['Rosa'] }));
     expect(text).toContain('Måndag 16/11 · gammalt pass · Rosa\n\n  Rosa Ett: Aktiv');
+  });
+
+  it('skriver alla i en lista utan uppdelning på skola', () => {
+    const tables = { [W46]: { Rosa: schools() } };
+    const store: NotesStore = {
+      '2026-11-16|Måndag|B': { label: '', people: { 'Norr Ett': note(['aktiv']), 'Syd Ett': note(['tyst']) }, added: [] },
+    };
+    const text = exportText(input({ tables, notes: store, classes: ['Rosa'], schedules: {} }));
+    expect(text).toContain('· Rosa\n\n  Norr Ett: Aktiv\n  Syd Ett: Tyst idag\n');
+    expect(text).not.toContain('NORR');
+  });
+
+  it('skriver grupperna var för sig med en tom rad mellan, och de utan grupp sist', () => {
+    const store: NotesStore = {
+      '2026-11-16|Måndag|B': {
+        label: '',
+        people: { 'Grund Ett': note(['aktiv']), 'Grund Två': note(['tyst']), 'Rosa Ett': note(['star']), 'Oliv Ett': note(['stod']) },
+        added: [],
+      },
+    };
+    const groups = {
+      // Grund och Rosa delades in tillsammans; en tom grupp och ett namn utan notering hoppas över.
+      '2026-11-16|Måndag|B#Grund+Rosa': { groups: [['Rosa Ett', 'Grund Två', 'Delad Namnsson (Rosa)'], [], ['Grund Ett']] },
+    };
+    const text = exportText(input({ notes: store, groups, schedules: {} }));
+    expect(text).toContain(
+      'Måndag 16/11 · 8.30-9.45 · Grund, Rosa\n\n  Rosa Ett: Utmärkte sig\n  Grund Två: Tyst idag\n\n  Grund Ett: Aktiv\n',
+    );
+    expect(text).toContain('Måndag 16/11 · 8.30-9.45 · Oliv\n\n  Oliv Ett: Behöver stöd');
+    // Bara Rosa vald: gruppernas ordning gäller, utan Grund.
+    const rosa = exportText(input({ notes: store, groups, schedules: {}, classes: ['Rosa'] }));
+    expect(rosa).toContain('· Rosa\n\n  Rosa Ett: Utmärkte sig\n');
+    expect(rosa).not.toContain('Grund Två');
+  });
+
+  it('lägger den som saknar grupp sist, efter en tom rad, och visar båda klassernas schemapass', () => {
+    const store: NotesStore = {
+      '2026-11-16|Måndag|C': { label: '', people: { 'Rosa Ett': note(['aktiv']), 'Oliv Ett': note(['tyst']) }, added: [] },
+    };
+    const groups = { '2026-11-16|Måndag|C#Oliv+Rosa': { groups: [['Oliv Ett']] } };
+    const text = exportText(input({ notes: store, groups, myName: '' }));
+    expect(text).toContain('· Oliv, Rosa\nSchema: Tema Oliv · Sam\nSchema: Tema Rosa · Kim · Rådhuset\nInnehåll: Historia: Historiebruk\n\n  Oliv Ett: Tyst idag\n\n  Rosa Ett: Aktiv');
   });
 
   it('ger tom text när inget finns att exportera', () => {

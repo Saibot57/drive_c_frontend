@@ -11,16 +11,17 @@
 import type { ScheduledEntry } from '@/types/schedule';
 import {
   AttendanceTable,
+  GroupsStore,
   NotesStore,
   PassChoice,
   PassNames,
+  PersonNote,
   SessionNotes,
   Stamp,
   combineSheets,
   noteEntries,
   passNameFor,
   sessionLabel,
-  sessionText,
 } from '@/utils/narvaro';
 import { Sheets, isWeekKey, latestSheets, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
 import { entriesForChoice, entriesForClasses, isMine, scheduleLineParts, sortForDisplay } from '@/utils/narvaroSchedule';
@@ -35,6 +36,8 @@ export type ExportInput = {
   classes: readonly string[];
   tables: Record<string, Sheets>;
   notes: NotesStore;
+  /** Passens sparade grupper. Finns de skrivs noteringarna grupp för grupp. */
+  groups: GroupsStore;
   passNames: PassNames;
   stamps: readonly Stamp[];
   /** Veckans schemapass. Saknas veckan, eller är den `null`, skrivs inga schemarader. */
@@ -79,34 +82,81 @@ function sessionsOfWeek(weekKey: string, notes: NotesStore, table: AttendanceTab
     .sort((a, b) => a.key.slice(0, 10).localeCompare(b.key.slice(0, 10)) || order(a.pass) - order(b.pass) || a.key.localeCompare(b.key));
 }
 
+type Noted = [string, PersonNote][];
+
 /** Passets noteringar delade per klass. Namn utanför arken hamnar under `UNKNOWN_CLASS`. */
-function byClass(sess: SessionNotes, sheets: Sheets, combined: AttendanceTable): Map<string, SessionNotes> {
+function byClass(sess: SessionNotes, sheets: Sheets, combined: AttendanceTable): Map<string, Noted> {
   const classOf = new Map<string, string>();
   // Arkets egna namn först, så att namnet som `combineSheets` skriver vinner.
   Object.entries(sheets).forEach(([klass, t]) => t.people.forEach(p => { if (!classOf.has(p.name)) classOf.set(p.name, klass); }));
   combined.people.forEach(p => classOf.set(p.name, p.klass ?? ''));
-  const out = new Map<string, SessionNotes>();
-  noteEntries(sess).forEach(([name, note]) => {
-    const klass = classOf.get(name) ?? UNKNOWN_CLASS;
-    const part = out.get(klass) ?? { label: '', people: {}, added: [] };
-    part.people[name] = note;
-    out.set(klass, part);
+  const out = new Map<string, Noted>();
+  noteEntries(sess).forEach(entry => {
+    const klass = classOf.get(entry[0]) ?? UNKNOWN_CLASS;
+    out.set(klass, [...(out.get(klass) ?? []), entry]);
   });
   return out;
 }
 
-/** Schemaraderna för passet och klassen: det egna passet om det finns, annars alla. */
+type Unit = { classes: string[]; groups: string[][] | null };
+
+/**
+ * Styckena för ett pass. Klasser som delats in i grupper tillsammans blir ett
+ * stycke, så att grupperna hålls hela; övriga klasser får var sitt. Finns
+ * flera indelningar väljs den som täcker flest av klasserna, sedan nästa
+ * bland de klasser som är kvar.
+ */
+function unitsFor(key: string, classes: string[], groups: GroupsStore): Unit[] {
+  const sets = Object.keys(groups)
+    .filter(k => k.startsWith(`${key}#`) && groups[k]?.groups?.some(g => g.length > 0))
+    .map(k => ({ classes: k.slice(key.length + 1).split('+'), groups: groups[k].groups }));
+  let left = [...classes];
+  const units: Unit[] = [];
+  for (;;) {
+    const best = sets
+      .map(s => ({ ...s, hit: s.classes.filter(c => left.includes(c)) }))
+      .filter(s => s.hit.length > 0)
+      .sort((a, b) => b.hit.length - a.hit.length || a.classes.length - b.classes.length)[0];
+    if (!best) break;
+    units.push({ classes: best.hit, groups: best.groups });
+    left = left.filter(c => !best.hit.includes(c));
+  }
+  left.forEach(c => units.push({ classes: [c], groups: null }));
+  // I klassernas ordning, efter styckets första klass.
+  return units.sort((a, b) => classes.indexOf(a.classes[0]) - classes.indexOf(b.classes[0]));
+}
+
+/**
+ * Noteringarna som rader, alla i en lista. Med grupper: grupp för grupp med
+ * en tom rad mellan och utan rubrik, och de som inte är med i någon grupp sist.
+ */
+function noteLines(noted: Noted, groups: string[][] | null, stamps: readonly Stamp[]): string[] {
+  const line = ([name, n]: Noted[number]) => {
+    const labels = n.tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ');
+    return `  ${name}: ${[labels, n.note].filter(Boolean).join('. ')}`;
+  };
+  if (!groups) return noted.map(line);
+  const byName = new Map(noted);
+  const used = new Set<string>();
+  const chunks = groups.map(g => g.filter(name => byName.has(name) && !used.has(name) && !!used.add(name)));
+  chunks.push(noted.map(([name]) => name).filter(name => !used.has(name)));
+  return chunks
+    .filter(c => c.length > 0)
+    .flatMap((c, i) => [...(i ? [''] : []), ...c.map(name => line([name, byName.get(name)!]))]);
+}
+
+/** Schemaraderna för passet och klasserna: det egna passet om det finns, annars alla. */
 function scheduleLines(
   table: AttendanceTable,
   day: string,
   pass: PassChoice,
-  klass: string,
+  classes: string[],
   classNames: string[],
   weekEntries: ScheduledEntry[],
   myName: string,
   resolveRoom: ExportInput['resolveRoom'],
 ): string[] {
-  const forClass = entriesForClasses(entriesForChoice(table, day, pass, weekEntries), classNames, [klass]);
+  const forClass = entriesForClasses(entriesForChoice(table, day, pass, weekEntries), classNames, classes);
   const mine = forClass.filter(e => isMine(e, myName));
   return sortForDisplay(mine.length ? mine : forClass, myName).flatMap(entry => {
     const p = scheduleLineParts(entry, resolveRoom);
@@ -132,20 +182,21 @@ function weekBlocks(weekKey: string, input: ExportInput): string[] {
   sessionsOfWeek(weekKey, input.notes, combined).forEach(({ key, day, pass }) => {
     const sess = input.notes[key];
     const parts = byClass(sess, sheets, combined);
-    [...allClasses, UNKNOWN_CLASS].forEach(klass => {
-      const part = parts.get(klass);
-      // Namn utan ark följer med när något alls exporteras; annars försvinner de tyst.
-      if (!part || (klass !== UNKNOWN_CLASS && !wanted.has(klass))) return;
-      const name = klass === UNKNOWN_CLASS ? '' : passNameFor(input.passNames, key, [klass]);
+    const present = allClasses.filter(k => parts.has(k) && wanted.has(k));
+    const units = unitsFor(key, present, input.groups);
+    // Namn utan ark följer med när något alls exporteras; annars försvinner de tyst.
+    if (parts.has(UNKNOWN_CLASS)) units.push({ classes: [UNKNOWN_CLASS], groups: null });
+    units.forEach(unit => {
+      const known = !unit.classes.includes(UNKNOWN_CLASS);
+      const name = known ? passNameFor(input.passNames, key, unit.classes) : '';
       // Ett pass vars kolumn inte finns i veckans ark behåller rubriken det sparades med.
       const heading = pass ? sessionLabel(combined, day, pass, monday, name) : sess.label || key;
-      const lines = [`${heading} · ${classLabel(klass)}`];
-      if (pass && weekEntries && klass !== UNKNOWN_CLASS) {
-        lines.push(...scheduleLines(combined, day, pass, klass, classNames, weekEntries, input.myName, input.resolveRoom));
+      const lines = [`${heading} · ${unit.classes.map(classLabel).join(', ')}`];
+      if (pass && weekEntries && known) {
+        lines.push(...scheduleLines(combined, day, pass, unit.classes, classNames, weekEntries, input.myName, input.resolveRoom));
       }
-      const people = { ...combined, people: combined.people.filter(p => (p.klass ?? '') === klass) };
-      const body = sessionText(part, people, input.stamps).split('\n').slice(1);
-      lines.push('', ...body.map(l => (l ? `  ${l}` : l)));
+      const noted = unit.classes.flatMap(k => parts.get(k) ?? []);
+      lines.push('', ...noteLines(noted, unit.groups, input.stamps));
       blocks.push(lines.join('\n'));
     });
   });

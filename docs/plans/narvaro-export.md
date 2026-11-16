@@ -54,7 +54,9 @@ Innehåll: Historia: Historiebruk
 
 - **Ett stycke per pass och klass.** Noteringarna ligger per pass (datum och
   kolumn), inte per klass, men varje klass har sitt eget schemapass. Ett pass
-  med noteringar från två klasser blir därför två stycken.
+  med noteringar från två klasser blir därför två stycken. Undantaget är
+  klasser som delats in i grupper tillsammans: de blir ett stycke
+  ("· Grund, Rosa"), så att grupperna hålls hela.
 - **Rubriken** är sidans egen (`sessionLabel`), med passets eget namn om det
   har ett, och klassen sist.
 - **Schema:** titel, lärare och sal. Finns användarens eget pass bland dem
@@ -63,8 +65,13 @@ Innehåll: Historia: Historiebruk
 - **Innehåll:** schemats anteckning. Platshållaren "." hoppas över.
 - **Utan schema** för veckan, eller utan pass för kolumnen, skrivs inga
   schemarader. Dialogen säger vilka veckor som saknar schema.
-- **Noteringarna** skrivs som i Kopiera (`sessionText`): stämplar, sedan
-  fritext. Har klassen flera skolor står de som underrubriker.
+- **Noteringarna** står i en enda lista per stycke: namn, stämplar, sedan
+  fritext. Ingen uppdelning på skola (ändrat 2026-11-16 på Tobias begäran).
+- **Grupper:** har passet sparade grupper skrivs noteringarna grupp för
+  grupp, med en tom rad mellan och utan rubrik. Den som inte är med i någon
+  grupp står sist. Bara de som har en notering skrivs. Finns flera
+  indelningar för passet (olika klasser visade tillsammans) gäller den som
+  täcker flest av klasserna.
 - **Namn som inte finns i något ark** (en elev som tagits bort ur arket)
   hamnar under "Okänd klass" och följer alltid med, så att inget försvinner
   ur exporten utan att det syns.
