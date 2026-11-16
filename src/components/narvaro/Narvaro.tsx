@@ -15,6 +15,8 @@ import { NarvaroScheduleLine } from '@/components/narvaro/NarvaroScheduleLine';
 import { NarvaroWeekMap } from '@/components/narvaro/NarvaroWeekMap';
 import { ChipRow, NarvaroPassChips } from '@/components/narvaro/NarvaroPassChips';
 import { chip } from '@/components/narvaro/chip';
+import { ClassPicker } from '@/components/narvaro/NarvaroClassPicker';
+import { NarvaroSheetsDialog, PasteMessage } from '@/components/narvaro/NarvaroSheetsDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { NarvaroSaveStatus, useNarvaroSync } from '@/hooks/useNarvaroSync';
 import { useNarvaroSchedule, useNarvaroScheduleName } from '@/hooks/useNarvaroSchedule';
@@ -24,9 +26,7 @@ import {
   AttendanceTable,
   CUSTOM_STAMP_COLORS,
   ClassSuggestion,
-  MAX_CLASS_NAME_LENGTH,
   MAX_PASS_NAME_LENGTH,
-  cleanClassName,
   classesOnDay,
   combineSheets,
   groupsKey,
@@ -132,7 +132,6 @@ const sanitizeView = (raw: unknown): string[] =>
   Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : [];
 const classLabel = (klass: string) => klass || 'Utan klass';
 const weekNumber = (weekKey: string) => weekKey.slice(-2).replace(/^0/, '');
-type PasteMessage = { kind: 'ok' | 'error'; text: string } | null;
 
 /** Mobilläget per enhet: eget val, annars skärmens bredd. */
 const MOBILE_KEY = 'narvaro.mobile.v1';
@@ -260,13 +259,13 @@ export default function Narvaro() {
   const [editing, setEditing] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
 
-  const [pasteOpen, setPasteOpen] = useState<boolean | null>(null);
-  const showPaste = pasteOpen ?? !savedTable;
+  // Veckans ark: en dialog, eller ett kort på sidan innan något ark finns.
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const sheetsInline = allClasses.length === 0;
   const [pending, setPending] = useState<PendingPaste | null>(null);
   const [newClass, setNewClass] = useState('');
   const [justSaved, setJustSaved] = useState<string | null>(null);
   const [nameUnnamed, setNameUnnamed] = useState('');
-  const [armedSheet, setArmedSheet] = useState<string | null>(null);
   const [pasteText, setPasteText] = useState('');
   const [pasteMsg, setPasteMsg] = useState<PasteMessage>(null);
   const [pasteRaw, setPasteRaw] = useState('');
@@ -514,6 +513,15 @@ export default function Narvaro() {
     );
   };
   const cols = dayColumns(table, day);
+  const sheetsThisWeek = Object.keys(sync.data.tables[weekKey] ?? {}).length;
+  const sheetRows = allClasses.map(k => ({
+    klass: k,
+    label: classLabel(k),
+    thisWeek: latest[k].week === weekKey,
+    week: latest[k].week,
+    people: latest[k].table.people.length,
+    schools: latest[k].table.groups.length,
+  }));
   const classChips = !isExample && shownClasses.length > 1 ? shownClasses.map(k => (
     <button
       key={k}
@@ -581,14 +589,19 @@ export default function Narvaro() {
               <Button variant="neutral" className="sp-btn" onClick={() => setMobilePref('on')} title="Stora rutor och stämplar i tummens räckvidd">
                 <Smartphone /> Mobilläge
               </Button>
-              <Button
-                variant="neutral"
-                className="sp-btn"
-                aria-expanded={showPaste}
-                onClick={() => setPasteOpen(!showPaste)}
-              >
-                <ClipboardPaste /> Klistra in tabell
-              </Button>
+              {!sheetsInline && (
+                <Button variant="neutral" className="sp-btn" onClick={() => setPasteOpen(true)} title="Klassernas ark för veckan, och inklistring">
+                  <ClipboardPaste /> Veckans ark
+                  <span
+                    className={cn(
+                      'rounded-ui-sm border border-ui-line px-1.5 text-xs font-bold text-ui-mark-fg',
+                      sheetsThisWeek < allClasses.length ? 'bg-ui-mark-yellow' : 'bg-ui-mark-green',
+                    )}
+                  >
+                    {sheetsThisWeek} av {allClasses.length}
+                  </span>
+                </Button>
+              )}
               <Button
                 variant="neutral"
                 size="icon"
@@ -672,48 +685,19 @@ export default function Narvaro() {
           </section>
         )}
 
-        {showPaste && !mobile && (
-          <section className="sp-card flex flex-col gap-3 p-4" aria-label="Klistra in">
-            <h2 className="text-lg font-bold">Klistra in en klass från Google Kalkylark</h2>
-            <ol className="ml-5 list-decimal text-sm">
-              <li>Markera hela tabellen i klassens ark, med dag- och tidsraderna överst (till exempel A1:Q34).</li>
-              <li>Kopiera med Ctrl+C, eller Cmd+C på Mac.</li>
-              <li>Klicka i rutan nedan och klistra in. Gör likadant för varje klass.</li>
-            </ol>
-            <textarea
-              id="narvaro-paste"
-              className="sp-input min-h-[80px] w-full rounded-ui-sm bg-ui-surface-2 p-2.5 font-mono text-xs"
-              placeholder="Klistra in här"
-              value={pasteText}
-              onChange={e => setPasteText(e.target.value)}
-              onPaste={e => {
-                const html = e.clipboardData.getData('text/html');
-                const text = e.clipboardData.getData('text/plain');
-                if (html || text) { e.preventDefault(); handlePaste(text, html); }
-              }}
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button className="sp-btn" onClick={() => handlePaste(pasteText, '')}>Läs in</Button>
-              <Button
-                variant="neutral"
-                className="sp-btn"
-                onClick={() => { setShowExample(true); setPasteMsg({ kind: 'ok', text: 'Exemplet visas.' }); }}
-              >
-                Visa exemplet
-              </Button>
-              {pasteMsg && (
-                <span
-                  role="status"
-                  className={cn(
-                    'rounded-ui-sm border border-ui-line px-2 py-0.5 text-sm font-semibold text-ui-mark-fg',
-                    pasteMsg.kind === 'ok' ? 'bg-ui-mark-green' : 'bg-ui-mark-pink',
-                  )}
-                >
-                  {pasteMsg.text}
-                </span>
-              )}
-            </div>
-            {pending && (
+        {!mobile && (
+          <NarvaroSheetsDialog
+            open={pasteOpen}
+            onOpenChange={setPasteOpen}
+            inline={sheetsInline}
+            weekNumber={weekNumber(weekKey)}
+            rows={sheetRows}
+            onRemove={k => update(d => removeSheet(d, weekKey, k))}
+            pasteText={pasteText}
+            onPasteText={setPasteText}
+            onPaste={handlePaste}
+            message={pasteMsg}
+            picker={pending ? (
               <ClassPicker
                 title={`Vilken klass är det här? ${pending.table.people.length} deltagare och ${pending.table.cols.length} pass.`}
                 hint={pending.suggestion
@@ -726,65 +710,22 @@ export default function Narvaro() {
                 onPick={k => saveAs(k, pending.table, pending.suggestion)}
                 onCancel={() => { setPending(null); setNewClass(''); }}
               />
-            )}
-            {justSaved && !pending && (
+            ) : justSaved ? (
               <details className="text-sm">
                 <summary className="cursor-pointer text-ui-muted underline">Fel klass?</summary>
                 <ClassPicker
-                  title={`Flytta tabellen från ${justSaved} till:`}
+                  title={`Flytta arket från ${justSaved} till:`}
                   classes={classNames.filter(c => c !== justSaved)}
                   newName={newClass}
                   onNewName={setNewClass}
                   onPick={moveJustSaved}
                 />
               </details>
-            )}
-            {allClasses.length > 0 && (
-              <div className="flex flex-col gap-1.5 text-sm">
-                <span className="font-mono text-2xs font-bold uppercase tracking-widest text-ui-muted">Klasser</span>
-                <ul className="flex flex-wrap gap-2">
-                  {allClasses.map(k => {
-                    const ref = latest[k];
-                    const thisWeek = ref.week === weekKey;
-                    const id = `${ref.week}|${k}`;
-                    return (
-                      <li key={k} className="flex items-center gap-1.5 rounded-ui-sm border border-ui-line bg-ui-paper px-2 py-0.5">
-                        <span className="font-semibold">{classLabel(k)}</span>
-                        <span className="text-xs text-ui-muted">
-                          {thisWeek ? `vecka ${weekNumber(weekKey)}` : `från vecka ${weekNumber(ref.week)}`} · {ref.table.people.length} deltagare
-                        </span>
-                        {thisWeek && (
-                          <button
-                            type="button"
-                            className="text-xs text-ui-muted underline"
-                            onClick={() => {
-                              if (armedSheet !== id) { setArmedSheet(id); return; }
-                              update(d => removeSheet(d, weekKey, k));
-                              setArmedSheet(null);
-                            }}
-                          >
-                            {armedSheet === id ? 'Säker? Tryck igen' : 'Ta bort'}
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="text-xs text-ui-muted">Ta bort gäller bara veckans tabell. Noteringarna finns kvar.</p>
-              </div>
-            )}
-            {pasteRaw && (
-              <details className="flex flex-col gap-1.5">
-                <summary className="cursor-pointer text-sm font-semibold">Så här såg det inklistrade ut (de första raderna)</summary>
-                <textarea readOnly rows={8} value={pasteRaw} className="sp-input my-1.5 w-full whitespace-pre rounded-ui-sm bg-ui-surface-2 p-2 font-mono text-2xs" />
-                <Button variant="neutral" size="sm" className="sp-btn self-start" onClick={() => copyText(pasteRaw)}>Kopiera</Button>
-              </details>
-            )}
-            <p className="text-xs text-ui-muted">
-              Allt krypteras här innan det sparas, och servern kan inte läsa något. Tabellen sparas för vecka{' '}
-              {weekNumber(weekKey)}. Klistra in på nytt när arket har uppdaterats.
-            </p>
-          </section>
+            ) : null}
+            raw={pasteRaw}
+            onCopyRaw={() => copyText(pasteRaw)}
+            onShowExample={() => { setShowExample(true); setPasteOpen(false); setPasteMsg({ kind: 'ok', text: 'Exemplet visas.' }); }}
+          />
         )}
 
         {isExample && (
@@ -1271,54 +1212,5 @@ function SaveIndicator({ status }: { status: NarvaroSaveStatus }) {
       <Icon size={14} className={cn((status === 'saving' || status === 'pending') && 'animate-spin')} />
       {SAVE_LABEL[status]}
     </span>
-  );
-}
-
-type ClassPickerProps = {
-  title: string;
-  hint?: string;
-  classes: string[];
-  suggested?: string;
-  newName: string;
-  onNewName: (name: string) => void;
-  onPick: (klass: string) => void;
-  onCancel?: () => void;
-};
-
-/** Välj en befintlig klass eller skriv en ny. */
-function ClassPicker({ title, hint, classes, suggested, newName, onNewName, onPick, onCancel }: ClassPickerProps) {
-  const name = cleanClassName(newName);
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="font-semibold">{title}</p>
-      {hint && <p className="text-sm">{hint}</p>}
-      <div className="flex flex-wrap items-center gap-2">
-        {[...classes].sort((a, b) => (a === suggested ? -1 : b === suggested ? 1 : 0)).map(k => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => onPick(k)}
-            className={cn(chip(k === suggested), 'text-sm')}
-          >
-            {k}
-          </button>
-        ))}
-        <form
-          className="flex gap-1.5"
-          onSubmit={e => { e.preventDefault(); if (name) onPick(name); }}
-        >
-          <input
-            value={newName}
-            onChange={e => onNewName(e.target.value)}
-            maxLength={MAX_CLASS_NAME_LENGTH}
-            placeholder="Ny klass"
-            aria-label="Ny klass"
-            className="sp-input w-32 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm text-ui-ink"
-          />
-          <Button type="submit" variant="neutral" size="sm" className="sp-btn" disabled={!name}>Spara</Button>
-        </form>
-        {onCancel && <button type="button" className="text-sm text-ui-muted underline" onClick={onCancel}>Avbryt</button>}
-      </div>
-    </div>
   );
 }

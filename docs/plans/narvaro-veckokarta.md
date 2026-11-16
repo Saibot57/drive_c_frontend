@@ -204,7 +204,7 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
   Mobilen får `NarvaroPassChips`. Veckan-dialogen och props i
   `PublicTimeGrid` tas bort.
 - [x] **3. Hopfälld** (2026-11-16) med `narvaro.weekMap.v1`.
-- [ ] **4. Veckans ark** som dialog, `ClassPicker` i egen fil.
+- [x] **4. Veckans ark** (2026-11-16) som dialog, `ClassPicker` i egen fil.
 - [ ] **5. Tidigare veckor.** Hela sidan byter vecka och går att redigera.
   Tidigare pass tas bort, Noteringar får Ta bort, och gallringens "Visa"
   byter vecka i kartan.
@@ -276,3 +276,14 @@ Skrivna av sessionen som bygger stegen.
 - Provat i webbläsaren mot ett påhittat API: kartan, ‹ › över dagar,
   studiebesöket som Hela dagen, hopfällt läge kvar efter omladdning, 1024
   px bredd och mobilens passval.
+
+### Steg 4 (2026-11-16)
+
+- `NarvaroSheetsDialog.tsx` ritar både dialogen och kortet på sidan
+  (`inline`), som visas när inget ark finns än. Tillståndet för
+  inklistringen ligger kvar i `Narvaro.tsx`; frågan om klass skickas in
+  som `picker`.
+- Raden "Ta bort" med sitt "Säker? Tryck igen" bor nu i dialogen.
+- Mobilläget har ingen inklistring, som förut.
+- Provat i webbläsaren: inklistring direkt på sidan öppnar dialogen, och
+  märket i knappen går från "0 av 3" till "1 av 3".
