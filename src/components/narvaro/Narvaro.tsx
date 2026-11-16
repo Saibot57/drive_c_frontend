@@ -82,7 +82,7 @@ import {
 } from '@/utils/narvaroMobile';
 import { exampleTable } from '@/utils/narvaroExample';
 import { PurgeTier, dismissWeek, purgeBadge, purgeInfo, purgeWhen, sanitizeDismissed, weeksNearPurge } from '@/utils/narvaroRetention';
-import { entriesForChoice, entriesForClasses, sortForDisplay } from '@/utils/narvaroSchedule';
+import { entriesForChoice, entriesForClasses, myClassesNow, sortForDisplay } from '@/utils/narvaroSchedule';
 import { collectTeacherNames } from '@/utils/scheduleStats';
 import type { ScheduledEntry } from '@/types/schedule';
 import '@/styles/schedule-theme.css';
@@ -158,6 +158,8 @@ export default function Narvaro() {
   const unnamed = latest[''] ?? null;
   const allClasses = unnamed ? [...classNames, ''] : classNames;
   const [chosen, setChosen] = usePersistentState(VIEW_KEY, sanitizeView, NO_CLASSES);
+  // Sätts när användaren själv väljer klass, dag eller pass. Då väljer schemat ingen klass.
+  const userPicked = useRef(false);
   const sheets = useMemo(
     () => Object.fromEntries(Object.entries(latest).map(([k, ref]) => [k, ref.table])),
     [latest],
@@ -184,6 +186,7 @@ export default function Narvaro() {
   const setSavedGroups = (next: GroupsStore) => update(d => ({ ...d, groups: next }));
   const toggleClass = (klass: string) => {
     const next = toggleClassOnDay(selected, chosen, onDay, klass);
+    userPicked.current = true;
     if (next) setChosen(next);
   };
 
@@ -210,6 +213,16 @@ export default function Narvaro() {
   const weekEntries = thisWeek?.entries ?? NO_ENTRIES;
   const teacherNames = useMemo(() => collectTeacherNames(weekEntries), [weekEntries]);
   const scheduleName = useNarvaroScheduleName(user?.username, teacherNames);
+  // Första gången veckans schema finns: välj klassen användaren har nu, om
+  // hen inte redan valt något själv. Skriver över det sparade klassvalet.
+  const preselected = useRef(false);
+  useEffect(() => {
+    if (preselected.current || !thisWeek || isExample) return;
+    preselected.current = true;
+    if (userPicked.current) return;
+    const mine = myClassesNow(combineSheets(sheets, allClasses), thisWeek.entries, classNames, scheduleName.name, now);
+    if (mine.length) setChosen(mine);
+  }, [thisWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [klass, setKlass] = useState('all');
   const [mode, setMode] = useState<Mode>('notes');
@@ -303,6 +316,7 @@ export default function Narvaro() {
   const pickGroups = (k: string) => {
     const c = groupChoices.find(x => x.key === k);
     if (!c) return;
+    userPicked.current = true;
     setChosen(c.classes);
     setPass(c.pass);
     setMobileView('groups');
@@ -350,6 +364,7 @@ export default function Narvaro() {
   /** Sparar tabellen som klassens för veckan och visar klassen. */
   const saveAs = useCallback((klass: string, table: AttendanceTable, suggestion: ClassSuggestion | null) => {
     update(d => setSheet(d, weekKey, klass, table));
+    userPicked.current = true;
     setChosen([klass]);
     setPending(null);
     setNewClass('');
@@ -702,6 +717,7 @@ export default function Narvaro() {
               onNewName={setNameUnnamed}
               onPick={k => {
                 update(d => renameClass(d, '', k));
+                userPicked.current = true;
                 setChosen(Array.from(new Set([...selected.filter(c => c !== ''), k])));
                 setNameUnnamed('');
               }}
@@ -751,14 +767,14 @@ export default function Narvaro() {
                 type="button"
                 className={chip(day === d)}
                 aria-pressed={day === d}
-                onClick={() => { setDay(d); setPass(defaultPass(tableForDay(d), d, now)); }}
+                onClick={() => { userPicked.current = true; setDay(d); setPass(defaultPass(tableForDay(d), d, now)); }}
               >
                 {d}
               </button>
             ))}
           </ChipRow>
           <ChipRow label="Pass">
-            <button type="button" className={chip(pass === 'day')} aria-pressed={pass === 'day'} onClick={() => setPass('day')}>
+            <button type="button" className={chip(pass === 'day')} aria-pressed={pass === 'day'} onClick={() => { userPicked.current = true; setPass('day'); }}>
               Hela dagen
             </button>
             {cols.map(c => {
@@ -770,7 +786,7 @@ export default function Narvaro() {
                   className={cn(chip(pass === c.id), !any && pass !== c.id && 'border-dashed text-ui-muted')}
                   aria-pressed={pass === c.id}
                   title={any ? undefined : 'Ingen markerad än'}
-                  onClick={() => setPass(c.id)}
+                  onClick={() => { userPicked.current = true; setPass(c.id); }}
                 >
                   {c.pass}
                   {c.letter && <small className="font-mono text-2xs opacity-70">{c.letter}</small>}

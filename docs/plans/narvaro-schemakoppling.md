@@ -404,7 +404,7 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
   färg och sal, och nyckeln för namnet. Byggd 2026-11-16.
 - [x] **3. Raden "Enligt schemat"** på sidan och i mobilhuvudet, med
   väljaren för namnet. Byggd 2026-11-16.
-- [ ] **4. Förvald klass.**
+- [x] **4. Förvald klass.** Byggd 2026-11-16.
 - [ ] **5. Veckovyn:** props i `PublicTimeGrid`, `NarvaroWeekDialog`, klick i
   aktuell och äldre vecka, pricken.
 - [ ] **6. Tidigare pass** med schemats text, hämtad när veckan fälls ut.
@@ -482,3 +482,9 @@ Skrivna av sessionen som byggde stegen.
   följer med när man scrollar. Väljaren för namnet finns inte i mobilläget;
   namnet väljs på datorn och gäller per enhet. Utan namn visas raden ändå,
   bara utan fetstil.
+
+### Steg 4 (2026-11-16)
+
+- Refen som stoppar förvalet sätts också när en tabell klistras in och sparas
+  som en klass, när en tabell utan klass får en klass och när en grupp väljs
+  i mobilläget, eftersom alla tre väljer klass.
