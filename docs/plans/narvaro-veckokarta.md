@@ -1,6 +1,6 @@
 # Närvarorutor: veckokartan överst
 
-Status: Planerad
+Status: Pågår
 
 Skriven 2026-11-16 efter att schemakopplingen byggts
 ([narvaro-schemakoppling.md](narvaro-schemakoppling.md)). Tobias provade
@@ -28,7 +28,7 @@ Planen ska gå att lämna till en ny session: det som behövs står här.
 | Layout | B: ett kort överst med veckan, som ersätter Dag och Pass på datorn. |
 | Hopfällning | Knappen "Bara dagen" krymper kartan till den valda dagen på en rad. Läget minns per enhet. |
 | Utan schema | Kartan bygger på arkets kolumner och fungerar ändå. Rutorna heter då som passraden i arket. |
-| Tidigare veckor | Väljs i kartans veckorad. Sidan visar den veckans pass i läsläge. Tidigare pass längst ned tas bort. |
+| Tidigare veckor | Väljs i kartans veckorad. Hela sidan visar då den veckan och går att redigera som vanligt. Tidigare pass längst ned tas bort. |
 | Veckans ark | Klistra in flyttar till en dialog bakom knappen "Veckans ark" i sidhuvudet. Att klistra in var som helst på sidan fungerar som förut. |
 | Veckan-dialogen | Tas bort. Kartan ersätter den. |
 | Mobilläget | Ändras inte. Mobilens passval behåller Dag- och Pass-chippen. |
@@ -94,23 +94,26 @@ Kartan krymper till en rad:
 Läget sparas i `narvaro.weekMap.v1` (`'week' | 'day'`, standard `'week'`),
 läst med `usePersistentState` och en `sanitize`-funktion.
 
-## 6. Veckorna och läsläget (B3)
+## 6. Tidigare veckor (B3)
 
 **Veckoraden** visar veckorna som har ett ark eller noteringar
 (`sync.data.tables` och `groupByWeek(historyKeys(…))`), plus den här
 veckan, äldst till vänster, och rullar i sidled. Prick = noteringar. En
 vecka som snart gallras får påminnelsens färg (`purgeInfo`).
 
-**En annan vecka vald:** kartan visar den veckans ark
-(`sheetsForWeek`) och schema (`ensureWeek`). Huvudet får en gul etikett
-"Tidigare vecka, bara läsning" med "Till vecka 47". Rutor med noteringar
-är framhävda, övriga grå men klickbara.
+**En annan vecka vald:** hela sidan visar den veckan: kartan med den
+veckans ark (`sheetsForWeek`) och schema (`ensureWeek`), och passkortet,
+namnrutorna, grupperna och noteringarna för det valda passet där. Allt går
+att redigera som vanligt; noteringarna sparas i den veckans dokument,
+eftersom nyckeln börjar med passets datum. Datumen räknas från veckans
+måndag i stället för från i dag. Överst står en gul rad: "Vecka 46. Det du
+ändrar sparas i den veckan." med Kopiera veckan och Till vecka 47.
 
-**Klick på ett pass i en annan vecka** visar det i läsläge i stället för
-passkortet och namnrutorna: rubriken med datum och schemats rad,
-noteringarna (`sessionText`) och knapparna Kopiera, Kopiera veckan,
-Namnge och Ta bort (som Tidigare pass har i dag). Inga namnrutor,
-stämplar eller grupper.
+Noteringar-kortet får Ta bort (tryck två gånger), som Tidigare pass har i
+dag. Namnge passet finns redan i passkortet.
+
+Inklistring gäller alltid den här veckan, och efter en inklistring visar
+sidan den här veckan igen. Mobilläget visar alltid den här veckan.
 
 Tidigare pass längst ned tas bort. Påminnelsen om gallring ("Visa") byter
 i stället till veckan i kartan.
@@ -137,27 +140,28 @@ Ren logik i `src/utils/narvaroWeekMap.ts` med test:
 ```ts
 type WeekMapCell = {
   pass: PassChoice;          // kolumnens id, eller 'day' för en ihopslagen ruta
-  letters: string;           // "D" eller "K–N"
+  columns: string[];         // kolumnerna rutan står för
+  letters: string;           // "D" eller "K–M"
   time: string;              // "12:30" eller "08:30–15:30"
   title: string;
   teachers: string[];
   more: number;              // antal fler pass i kolumnen
   mine: boolean;
   present: number;
-  empty: boolean;            // ingen markerad i arket
+  empty: boolean;            // ingen markerad i arket eller tillagd
   hasNotes: boolean;
-  sessionKey: string;
 };
 type WeekMapDay = { day: string; date: Date; isToday: boolean; cells: WeekMapCell[] };
 
 weekMapDays(input: {
-  sheets: Sheets; classes: string[]; classNames: string[];
+  sheets: Sheets; allClasses: string[]; chosen: string[]; classNames: string[];
   weekEntries: ScheduledEntry[] | null; myName: string;
   notes: NotesStore; weekKey: string; now: Date;
 }): WeekMapDay[]
 
-adjacentPass(table: AttendanceTable, day: string, pass: PassChoice, step: -1 | 1): { day: string; pass: PassChoice } | null
-mapWeeks(tables, notes, currentWeek): string[]
+isCellSelected(cell: WeekMapCell, pass: PassChoice): boolean
+adjacentPass(days: WeekMapDay[], day: string, pass: PassChoice, step: -1 | 1): { day: string; pass: PassChoice } | null
+mapWeeks(tables, notes, currentWeek): { week: string; hasNotes: boolean }[]
 sanitizeWeekMapMode(raw: unknown): 'week' | 'day'
 ```
 
@@ -169,7 +173,6 @@ nyckel från någon av de valda klasserna.
 
 Nya komponenter i `src/components/narvaro/`:
 - `NarvaroWeekMap.tsx`: kartan, utfälld och hopfälld.
-- `NarvaroPastPass.tsx`: läsläget för ett pass i en annan vecka.
 - `NarvaroSheetsDialog.tsx`: Veckans ark.
 - `NarvaroClassPicker.tsx`: `ClassPicker` flyttad ut ur `Narvaro.tsx`.
 - `NarvaroPassChips.tsx`: Dag- och Pass-chippen, som bara mobilen
@@ -191,7 +194,7 @@ Varje steg avslutas med `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test`
 och `pnpm build`. Bocka av steget här och uppdatera raden i
 `docs/plans/README.md` i samma PR.
 
-- [ ] **1. Logiken.** `utils/narvaroWeekMap.ts` med test: rutor per dag,
+- [x] **1. Logiken.** Byggd 2026-11-16, se avsnitt 12. `utils/narvaroWeekMap.ts` med test: rutor per dag,
   ihopslagning av heldagspass, antal, pricken (Olivs notering ger ingen
   prick när bara Rosa visas), utan schema, `adjacentPass` över dagsgränser,
   `mapWeeks`, `sanitizeWeekMapMode`. Testdata ur
@@ -202,8 +205,9 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
   `PublicTimeGrid` tas bort.
 - [ ] **3. Hopfälld** med `narvaro.weekMap.v1`.
 - [ ] **4. Veckans ark** som dialog, `ClassPicker` i egen fil.
-- [ ] **5. Tidigare veckor och läsläget.** Tidigare pass tas bort, och
-  gallringens "Visa" byter vecka i kartan.
+- [ ] **5. Tidigare veckor.** Hela sidan byter vecka och går att redigera.
+  Tidigare pass tas bort, Noteringar får Ta bort, och gallringens "Visa"
+  byter vecka i kartan.
 
 ## 10. Prov i webbläsaren
 
@@ -218,20 +222,38 @@ Mot riktig backend, i Neo och Kronberg, på en bred och en smal skärm
 5. Skriv en notering: rutan får en prick.
 6. Bara dagen: kartan blir en rad, och läget finns kvar efter omladdning.
 7. Döp om veckans schema: kartan visar arkets passtexter.
-8. Välj en tidigare vecka: läsläget visar noteringarna. Kopiera, Namnge och
-   Ta bort fungerar. Till vecka 47 går tillbaka.
+8. Välj en tidigare vecka: sidan visar den veckans ark och noteringar. Ändra
+   en notering, ladda om och kontrollera att den finns kvar i rätt vecka.
+   Namnge, Ta bort och Kopiera veckan fungerar. Till vecka 47 går tillbaka.
 9. Gallringens Visa öppnar rätt vecka.
 10. Veckans ark: klistra in en klass, flytta den till en annan klass, ta
     bort veckans ark.
 11. Klistra in på sidan utan att öppna dialogen.
 12. Mobilläget fungerar som förut.
 
-## 11. Öppna frågor
+## 11. Besvarade frågor (2026-11-16)
 
-1. Ska kartan börja hopfälld under lektionstid (när ett pass pågår) och
-   utfälld annars? Planen säger: det sparade läget gäller alltid.
-2. Ska ett tidigare pass gå att redigera (stämplar och noteringar), eller
-   räcker läsläget? Planen säger läsläge, med Namnge och Ta bort som i dag.
-3. Ska veckoraden också visa veckor som bara har ett schema men inget ark
-   (till exempel nästa vecka)? Planen säger nej: en vecka utan ark har inga
-   kolumner att visa.
+1. Kartan börjar inte hopfälld under lektionstid. Det sparade läget gäller
+   alltid.
+2. Ett tidigare pass går att redigera. Hela sidan visar då den veckan
+   (avsnitt 6), i stället för det läsläge som först ritades (B3).
+3. Veckoraden visar bara veckor som har ett ark eller noteringar, plus den
+   här veckan. En vecka med bara ett schema visas inte.
+
+## 12. Avvikelser från planen
+
+Skrivna av sessionen som bygger stegen.
+
+### Steg 1 (2026-11-16)
+
+- `weekMapDays` tar det sparade klassvalet (`chosen`) och alla klasser, och
+  räknar varje dags urval med `selectionForDay`, som sidan gör. En klass
+  utan pass den dagen faller då bort för dagen också i kartan.
+- `adjacentPass` går på kartans rutor i stället för på arkets kolumner, så
+  att en ihopslagen ruta är ett steg. `isCellSelected` är ny: en
+  ihopslagen ruta är vald när sidans pass är någon av dess kolumner.
+- En kolumn utan tid som inte har något pass i schemat slås inte ihop med
+  heldagspasset. I v. 47 blir torsdagen därför "K–M" och "N", inte "K–N"
+  som i mock-upen.
+- Antalet i en ruta räknar också de som lagts till för hand i passet, som
+  antalet närvarande på sidan gör.
