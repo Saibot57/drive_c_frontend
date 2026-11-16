@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_STAMPS, NotesStore, parseAttendance } from '@/utils/narvaro';
-import { ExportInput, exportClasses, exportFileName, exportText, exportWeeks, weekTitle } from '@/utils/narvaroExport';
+import { ExportInput, exportClasses, exportFileName, exportHtml, exportText, exportWeeks, weekTitle } from '@/utils/narvaroExport';
 import { ME, sheets, week } from '@/utils/__fixtures__/narvaroSchedule';
 
 // Vecka 47 år 2026 börjar måndag 16 november.
@@ -204,6 +204,40 @@ describe('exportText', () => {
   it('ger tom text när inget finns att exportera', () => {
     expect(exportText(input({ weeks: ['w2026-40'] }))).toBe('');
     expect(exportText(input({ classes: [] , notes: { '2026-11-16|Måndag|B': notes()['2026-11-16|Måndag|B'] } }))).toBe('');
+  });
+});
+
+describe('exportHtml', () => {
+  it('gör veckan till rubrik 1 och passet till rubrik 2, med kursivt schema och namn i fetstil', () => {
+    const html = exportHtml(input({ classes: ['Rosa'] }));
+    expect(html).toContain('<p><b>Noteringar från Närvarorutor</b><br>Klasser: Rosa<br>Exporterad 2026-11-20</p>');
+    expect(html).toContain('<h1>Vecka 47 · 16/11–22/11 2026</h1>');
+    expect(html).toContain(
+      '<h2>Måndag 16/11 · 10.00-11.30 · Rosa</h2><p><i>Schema: Tema Rosa · Kim · Rådhuset<br>Innehåll: Historia: Historiebruk</i></p>'
+      + '<p><b>Rosa Ett</b>: Aktiv. Bra fråga<br><b>Delad Namnsson (Rosa)</b></p>',
+    );
+  });
+
+  it('skriver varje grupp som ett eget stycke och hoppar över schemat när det saknas', () => {
+    const store: NotesStore = {
+      '2026-11-16|Måndag|B': { label: '', people: { 'Grund Ett': note(['aktiv']) }, added: [] },
+    };
+    const groups = { '2026-11-16|Måndag|B#Grund': { groups: [['Grund Två'], ['Grund Ett']] } };
+    const html = exportHtml(input({ notes: store, groups, classes: ['Grund'], schedules: {} }));
+    expect(html).toContain('· Grund</h2><p><b>Grund Två</b></p><p><b>Grund Ett</b>: Aktiv</p>');
+  });
+
+  it('skyddar tecken som annars blir taggar', () => {
+    const store: NotesStore = {
+      '2026-11-16|Måndag|B': { label: '', people: { 'Rosa Ett': note([], 'a < b & "c" <script>') }, added: [] },
+    };
+    const html = exportHtml(input({ notes: store, classes: ['Rosa'] }));
+    expect(html).toContain('<b>Rosa Ett</b>: a &lt; b &amp; &quot;c&quot; &lt;script&gt;');
+    expect(html).not.toContain('<script>');
+  });
+
+  it('är tom när inget finns att exportera', () => {
+    expect(exportHtml(input({ weeks: ['w2026-40'] }))).toBe('');
   });
 });
 

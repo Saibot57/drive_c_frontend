@@ -24,7 +24,8 @@ import {
   roster,
   sessionChoice,
   sessionLabel,
-  sessionLines,
+  SessionRow,
+  sessionRows,
 } from '@/utils/narvaro';
 import { Sheets, isWeekKey, latestSheets, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
 import { entriesForChoice, entriesForClasses, isMine, scheduleLineParts, sortForDisplay } from '@/utils/narvaroSchedule';
@@ -145,7 +146,16 @@ function scheduleLines(
   });
 }
 
-function weekBlocks(weekKey: string, input: ExportInput): string[] {
+/** Ett stycke i exporten: ett pass för en klass, eller för klasser som delats in i grupper tillsammans. */
+type Block = {
+  heading: string;
+  /** Schemats rader och raden om ett äldre ark. */
+  meta: string[];
+  /** En lista per grupp, eller en enda. */
+  chunks: SessionRow[][];
+};
+
+function weekBlocks(weekKey: string, input: ExportInput): Block[] {
   const monday = weekMonday(weekKey);
   if (!monday) return [];
   const latest = latestSheets(input.tables, weekKey);
@@ -156,7 +166,7 @@ function weekBlocks(weekKey: string, input: ExportInput): string[] {
   const weekEntries = input.schedules[weekKey] ?? null;
   const wanted = new Set(input.classes);
 
-  const blocks: string[] = [];
+  const blocks: Block[] = [];
   sessionsOfWeek(weekKey, input.notes, combined).forEach(({ key, day, pass }) => {
     const sess = input.notes[key];
     const parts = byClass(sess, sheets, combined);
@@ -169,36 +179,81 @@ function weekBlocks(weekKey: string, input: ExportInput): string[] {
       const name = known ? passNameFor(input.passNames, key, unit.classes) : '';
       // Ett pass vars kolumn inte finns i veckans ark behåller rubriken det sparades med.
       const heading = pass ? sessionLabel(combined, day, pass, monday, name) : sess.label || key;
-      const lines = [`${heading} · ${unit.classes.map(classLabel).join(', ')}`];
+      const meta: string[] = [];
       if (pass && weekEntries && known) {
-        lines.push(...scheduleLines(combined, day, pass, unit.classes, classNames, weekEntries, input.myName, input.resolveRoom));
+        meta.push(...scheduleLines(combined, day, pass, unit.classes, classNames, weekEntries, input.myName, input.resolveRoom));
       }
       // Kryssen kommer ur klassens senaste ark. Är det en äldre veckas ska det synas.
       const older = Array.from(new Set(unit.classes.map(k => latest[k]?.week).filter((w): w is string => !!w && w !== weekKey))).sort();
-      if (pass && older.length) lines.push(`Närvaro enligt arket från v. ${older.map(weekNumber).join(', ')}`);
+      if (pass && older.length) meta.push(`Närvaro enligt arket från v. ${older.map(weekNumber).join(', ')}`);
       const part: SessionNotes = { label: '', people: Object.fromEntries(unit.classes.flatMap(k => parts.get(k) ?? [])), added: sess.added };
       const people = { ...combined, people: combined.people.filter(p => unit.classes.includes(p.klass ?? '')) };
       const present = pass && known ? roster(people, { klass: 'all', day, pass, added: sess.added }).present.map(p => p.name) : [];
-      lines.push('', ...sessionLines(part, present, unit.groups, input.stamps).map(l => (l ? `  ${l}` : l)));
-      blocks.push(lines.join('\n'));
+      blocks.push({
+        heading: `${heading} · ${unit.classes.map(classLabel).join(', ')}`,
+        meta,
+        chunks: sessionRows(part, present, unit.groups, input.stamps),
+      });
     });
   });
   return blocks;
 }
 
-/** Hela exporten. Veckor utan noteringar för de valda klasserna hoppas över. */
-export function exportText(input: ExportInput): string {
-  const weeks = Array.from(new Set(input.weeks)).filter(isWeekKey).sort();
-  const sections = weeks
-    .map(week => ({ week, blocks: weekBlocks(week, input) }))
+type ExportDoc = { title: string; head: string[]; weeks: { title: string; blocks: Block[] }[] };
+
+/** Exportens innehåll, eller null när inget finns. Veckor utan noteringar för de valda klasserna hoppas över. */
+function exportDoc(input: ExportInput): ExportDoc | null {
+  const weeks = Array.from(new Set(input.weeks)).filter(isWeekKey).sort()
+    .map(week => ({ title: weekTitle(week), blocks: weekBlocks(week, input) }))
     .filter(s => s.blocks.length > 0);
-  if (!sections.length) return '';
+  if (!weeks.length) return null;
   const classes = [...input.classes].sort((a, b) => a.localeCompare(b, 'sv')).map(classLabel).join(', ');
-  const head = ['Noteringar från Närvarorutor', classes && `Klasser: ${classes}`, `Exporterad ${isoDay(input.today)}`].filter(Boolean);
+  return {
+    title: 'Noteringar från Närvarorutor',
+    head: [classes && `Klasser: ${classes}`, `Exporterad ${isoDay(input.today)}`].filter(Boolean),
+    weeks,
+  };
+}
+
+const rowText = (r: SessionRow) => (r.text ? `${r.name}: ${r.text}` : r.name);
+
+/** Hela exporten som ren text. Tom när inget finns att exportera. */
+export function exportText(input: ExportInput): string {
+  const doc = exportDoc(input);
+  if (!doc) return '';
+  const block = (b: Block) => [
+    b.heading,
+    ...b.meta,
+    '',
+    ...b.chunks.flatMap((c, i) => [...(i ? [''] : []), ...c.map(r => `  ${rowText(r)}`)]),
+  ].join('\n');
   return [
-    head.join('\n'),
-    ...sections.map(s => [`== ${weekTitle(s.week)} ==`, ...s.blocks].join('\n\n')),
+    [doc.title, ...doc.head].join('\n'),
+    ...doc.weeks.map(w => [`== ${w.title} ==`, ...w.blocks.map(block)].join('\n\n')),
   ].join('\n\n\n') + '\n';
+}
+
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * Samma export som HTML, för urklippet: Google Docs gör veckan till rubrik 1
+ * och passet till rubrik 2, så att dokumentet får en disposition. Schemats
+ * rader är kursiva, namnen i fetstil, och varje grupp är ett eget stycke.
+ * Bara taggar som Docs behåller; inga färger eller typsnitt.
+ */
+export function exportHtml(input: ExportInput): string {
+  const doc = exportDoc(input);
+  if (!doc) return '';
+  const row = (r: SessionRow) => `<b>${esc(r.name)}</b>${r.text ? `: ${esc(r.text)}` : ''}`;
+  const block = (b: Block) => [
+    `<h2>${esc(b.heading)}</h2>`,
+    b.meta.length ? `<p><i>${b.meta.map(esc).join('<br>')}</i></p>` : '',
+    ...b.chunks.map(c => `<p>${c.map(row).join('<br>')}</p>`),
+  ].join('');
+  return [
+    `<p><b>${esc(doc.title)}</b>${doc.head.map(l => `<br>${esc(l)}`).join('')}</p>`,
+    ...doc.weeks.map(w => `<h1>${esc(w.title)}</h1>${w.blocks.map(block).join('')}`),
+  ].join('');
 }
 
 export type ExportWeek = { week: string; sessions: number };

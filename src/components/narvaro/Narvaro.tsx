@@ -378,11 +378,20 @@ export default function Narvaro() {
   const saveGroups = (next: string[][]) =>
     setGroups(trimSessions({ ...groups, [gKey]: { groups: next } }, MAX_STORED_GROUP_SESSIONS));
 
-  const copyText = useCallback((text: string) => {
+  // Med `html` får urklippet också en formaterad version, som Google Docs tar före den rena texten.
+  const copyText = useCallback((text: string, html?: string) => {
     const fallback = () => setCopyFallback(text);
-    try {
+    const plain = () => {
       if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => setToast('Kopierat'), fallback);
       else fallback();
+    };
+    try {
+      if (html && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+        })]).then(() => setToast('Kopierat'), plain);
+      } else plain();
     } catch {
       fallback();
     }
