@@ -2,8 +2,7 @@
 
 Status: Pågår
 
-Läget 2026-11-16: alla steg 1–5 är byggda på grenen
-`claude/upbeat-bardeen-sn7y2i`. Kvar är proven i avsnitt 10 mot riktig
+Läget 2026-11-16: alla steg 1–5 är byggda (#287). Kvar är proven i avsnitt 10 mot riktig
 backend. Avvikelserna står i avsnitt 12.
 
 Skriven 2026-11-16 efter att schemakopplingen byggts

@@ -6,8 +6,7 @@ Veckovyn (4.2, steg 5) ska ersättas av veckokartan i
 [narvaro-veckokarta.md](narvaro-veckokarta.md), som också tar bort Tidigare
 pass (4.4, steg 6) till förmån för läsläget där.
 
-Läget 2026-11-16: alla steg 1–6 är byggda på grenen
-`claude/upbeat-bardeen-sn7y2i`. Kvar är proven i avsnitt 10 mot den riktiga
+Läget 2026-11-16: alla steg 1–6 är byggda (#286). Kvar är proven i avsnitt 10 mot den riktiga
 backenden, i Neo och Kronberg. Avvikelserna står i avsnitt 11.
 
 Skriven 2026-11-16 efter en genomgång av veckoschemana v. 45–47 och
