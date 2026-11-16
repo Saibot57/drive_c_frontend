@@ -402,8 +402,8 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
   Testdatan ligger i `utils/__fixtures__/narvaroSchedule.ts`.
 - [x] **2. Hämtningen.** `hooks/useNarvaroSchedule.ts` med test, reglerna för
   färg och sal, och nyckeln för namnet. Byggd 2026-11-16.
-- [ ] **3. Raden "Enligt schemat"** på sidan och i mobilhuvudet, med
-  väljaren för namnet.
+- [x] **3. Raden "Enligt schemat"** på sidan och i mobilhuvudet, med
+  väljaren för namnet. Byggd 2026-11-16.
 - [ ] **4. Förvald klass.**
 - [ ] **5. Veckovyn:** props i `PublicTimeGrid`, `NarvaroWeekDialog`, klick i
   aktuell och äldre vecka, pricken.
@@ -472,3 +472,13 @@ Skrivna av sessionen som byggde stegen.
   `utils/narvaroSchedule.ts` med test.
 - Går listan över scheman inte att hämta blir veckan `null`, och nästa vecka
   som efterfrågas försöker hämta listan igen.
+
+### Steg 3 (2026-11-16)
+
+- I det egna passets rad står titeln och användarens namn i fetstil, inte
+  hela raden, så att namnet syns som i exemplet i 4.1.
+- I mobilhuvudet står passen på en avkortad rad, skilda med " / ", inuti
+  huvudet (en ny prop `schedule` på `NarvaroMobileHeader`) så att raden
+  följer med när man scrollar. Väljaren för namnet finns inte i mobilläget;
+  namnet väljs på datorn och gäller per enhet. Utan namn visas raden ändå,
+  bara utan fetstil.

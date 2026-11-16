@@ -11,8 +11,10 @@ import { STAMP_BG, StampTag } from '@/components/narvaro/stampStyle';
 import { NarvaroLock } from '@/components/narvaro/NarvaroLock';
 import { NarvaroMobile, NarvaroMobileHeader } from '@/components/narvaro/NarvaroMobile';
 import { MobileGroupChoices } from '@/components/narvaro/NarvaroMobileGroups';
+import { NarvaroScheduleLine } from '@/components/narvaro/NarvaroScheduleLine';
 import { useAuth } from '@/contexts/AuthContext';
 import { NarvaroSaveStatus, useNarvaroSync } from '@/hooks/useNarvaroSync';
+import { useNarvaroSchedule, useNarvaroScheduleName } from '@/hooks/useNarvaroSchedule';
 import { cn } from '@/lib/utils';
 import { isEditableElement } from '@/utils/dom';
 import {
@@ -80,6 +82,9 @@ import {
 } from '@/utils/narvaroMobile';
 import { exampleTable } from '@/utils/narvaroExample';
 import { PurgeTier, dismissWeek, purgeBadge, purgeInfo, purgeWhen, sanitizeDismissed, weeksNearPurge } from '@/utils/narvaroRetention';
+import { entriesForChoice, entriesForClasses, sortForDisplay } from '@/utils/narvaroSchedule';
+import { collectTeacherNames } from '@/utils/scheduleStats';
+import type { ScheduledEntry } from '@/types/schedule';
 import '@/styles/schedule-theme.css';
 
 /**
@@ -126,6 +131,7 @@ const MOBILE_STAMP_KEY = 'narvaro.stamp.v1';
 /** Veckor vars påminnelse om gallring är avfärdad, per enhet (bara veckonycklar). */
 const DISMISSED_KEY = 'narvaro.retentionDismissed.v1';
 const NO_WEEKS: string[] = [];
+const NO_ENTRIES: ScheduledEntry[] = [];
 const TIER_BG: Record<PurgeTier, string> = { 14: 'bg-ui-mark-grey', 7: 'bg-ui-mark-yellow', 1: 'bg-ui-mark-pink' };
 const weekAnchor = (week: string) => `narvaro-vecka-${week}`;
 
@@ -197,6 +203,13 @@ export default function Narvaro() {
   const passNames = isExample ? exPassNames : savedPassNames;
   const setNotes = isExample ? setExNotes : setSavedNotes;
   const setGroups = isExample ? setExGroups : setSavedGroups;
+
+  // Veckans schema ur schemaplaneraren (bara läsning). Exemplet får inget.
+  const schedule = useNarvaroSchedule(sync.phase === 'ready' && !isExample, weekKey);
+  const thisWeek = schedule.weeks[weekKey];
+  const weekEntries = thisWeek?.entries ?? NO_ENTRIES;
+  const teacherNames = useMemo(() => collectTeacherNames(weekEntries), [weekEntries]);
+  const scheduleName = useNarvaroScheduleName(user?.username, teacherNames);
 
   const [klass, setKlass] = useState('all');
   const [mode, setMode] = useState<Mode>('notes');
@@ -296,6 +309,11 @@ export default function Narvaro() {
   };
   const showSchool = klass === 'all' && table.groups.length > 1;
   const showClassName = !isExample && selected.length > 1;
+  // Passen enligt schemat för det valda passet, eller null när veckan saknar schema.
+  const scheduleEntries = thisWeek
+    ? sortForDisplay(entriesForClasses(entriesForChoice(table, day, pass, weekEntries), classNames, selected), scheduleName.name)
+    : null;
+  const scheduleEmpty = `Inget pass för ${selected.map(classLabel).join(' och ')} enligt schemat`;
 
   const updateSession = (fn: (s: SessionNotes) => SessionNotes) =>
     setNotes({ ...notes, [key]: { ...fn(sess), label } });
@@ -506,6 +524,9 @@ export default function Narvaro() {
             pickerOpen={pickerOpen}
             onTogglePicker={() => setPickerOpen(o => !o)}
             onExit={() => { setMobilePref('off'); setPickerOpen(false); }}
+            schedule={scheduleEntries && (
+              <NarvaroScheduleLine variant="compact" entries={scheduleEntries} myName={scheduleName.name} resolveRoom={schedule.resolveRoom} emptyText={scheduleEmpty} />
+            )}
           />
         )}
         {sync.saveStatus === 'conflict' && (
@@ -786,6 +807,18 @@ export default function Narvaro() {
               </form>
             )}
           </ChipRow>
+          {scheduleEntries && !mobile && (
+            <div className="sm:pl-[68px]">
+              <NarvaroScheduleLine
+                entries={scheduleEntries}
+                myName={scheduleName.name}
+                resolveRoom={schedule.resolveRoom}
+                emptyText={scheduleEmpty}
+                teacherNames={teacherNames}
+                onChooseName={scheduleName.setName}
+              />
+            </div>
+          )}
 
           {!mobile && (<>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ui-hair pt-3">
