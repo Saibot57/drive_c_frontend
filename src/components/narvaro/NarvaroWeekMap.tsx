@@ -28,7 +28,7 @@ type Props = {
   /** "Vecka 47". */
   title: string;
   /** Veckoraden och pilarna. Saknas de visas bara rubriken. */
-  weeks?: MapWeek[];
+  weeks?: (MapWeek & { tone?: string; hint?: string })[];
   shownWeek?: string;
   onWeek?: (week: string) => void;
   onStepWeek?: (step: -1 | 1) => void;
@@ -60,7 +60,7 @@ function Cell({ cell, selected, onClick, tall }: { cell: WeekMapCell; selected: 
       title={cell.empty ? 'Ingen markerad än' : undefined}
       style={tall && span > 1 ? { minHeight: span * CELL_MIN_H + (span - 1) * CELL_GAP } : undefined}
       className={cn(
-        'relative flex min-h-[64px] w-full min-w-0 flex-col gap-0.5 rounded-ui-sm border-frame border-ui-line px-2.5 py-2 text-left transition-colors',
+        'relative flex min-h-[64px] w-full min-w-0 flex-col gap-0.5 rounded-ui-sm border-frame border-ui-line px-2.5 py-2 text-left',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)] focus-visible:ring-offset-2',
         selected ? 'bg-ui-ink text-ui-paper' : 'bg-ui-paper text-ui-ink hover:bg-ui-surface-3',
         cell.empty && !selected && 'border-dashed text-ui-muted',
@@ -129,9 +129,10 @@ export function NarvaroWeekMap({
           type="button"
           aria-pressed={w.week === shownWeek}
           onClick={() => onWeek(w.week)}
+          title={w.hint}
           className={cn(
             'flex shrink-0 items-center gap-1 rounded-ui-sm border-frame border-ui-line px-2 py-0.5 font-mono text-xs font-semibold',
-            w.week === shownWeek ? 'bg-ui-ink text-ui-paper' : 'bg-ui-paper text-ui-ink hover:bg-ui-surface-3',
+            w.week === shownWeek ? 'bg-ui-ink text-ui-paper' : cn(w.tone ?? 'bg-ui-paper hover:bg-ui-surface-3', 'text-ui-ink'),
           )}
         >
           v.{weekNumber(w.week)}

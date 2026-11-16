@@ -51,7 +51,7 @@ export type WeekMapCell = {
 export type WeekMapDay = { day: string; date: Date; isToday: boolean; cells: WeekMapCell[] };
 
 export type WeekMapInput = {
-  /** Veckans ark per klass (`sheetsForWeek`). */
+  /** Veckans ark per klass, det senaste fram till veckan (`latestSheets`). */
   sheets: Sheets;
   /** Alla klasser som visas, i ordning (`''` för ett ark utan klass). */
   allClasses: string[];

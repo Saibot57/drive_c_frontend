@@ -56,7 +56,6 @@ import {
   noteEntries,
   parsePasted,
   passNameFor,
-  relabelSession,
   pastePreview,
   randomGroups,
   roster,
@@ -69,7 +68,7 @@ import {
   toggleStamp,
   trimSessions,
 } from '@/utils/narvaro';
-import { groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading } from '@/utils/narvaroDocs';
+import { groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -85,16 +84,9 @@ import {
 } from '@/utils/narvaroMobile';
 import { exampleTable } from '@/utils/narvaroExample';
 import { PurgeTier, dismissWeek, purgeBadge, purgeInfo, purgeWhen, sanitizeDismissed, weeksNearPurge } from '@/utils/narvaroRetention';
-import {
-  entriesForChoice,
-  entriesForClasses,
-  entriesForSession,
-  myClassesNow,
-  sheetsForWeek,
-  sortForDisplay,
-} from '@/utils/narvaroSchedule';
+import { entriesForChoice, entriesForClasses, myClassesNow, sortForDisplay } from '@/utils/narvaroSchedule';
 import { collectTeacherNames } from '@/utils/scheduleStats';
-import { WeekMapMode, adjacentPass, sanitizeWeekMapMode, weekMapDays } from '@/utils/narvaroWeekMap';
+import { WeekMapMode, adjacentPass, mapWeeks, sanitizeWeekMapMode, weekMapDays } from '@/utils/narvaroWeekMap';
 import type { ScheduledEntry } from '@/types/schedule';
 import '@/styles/schedule-theme.css';
 
@@ -143,7 +135,6 @@ const DISMISSED_KEY = 'narvaro.retentionDismissed.v1';
 const NO_WEEKS: string[] = [];
 const NO_ENTRIES: ScheduledEntry[] = [];
 const TIER_BG: Record<PurgeTier, string> = { 14: 'bg-ui-mark-grey', 7: 'bg-ui-mark-yellow', 1: 'bg-ui-mark-pink' };
-const weekAnchor = (week: string) => `narvaro-vecka-${week}`;
 
 /** Veckokartan hel eller bara den valda dagen, per enhet. */
 const WEEK_MAP_KEY = 'narvaro.weekMap.v1';
@@ -160,9 +151,15 @@ export default function Narvaro() {
   const sync = useNarvaroSync(user?.id ?? null, now);
   const { update } = sync;
   const weekKey = isoWeekKey(now);
+  // Veckan som visas. En tidigare vecka väljs i kartan och går att redigera;
+  // datumen räknas då från dess måndag (`viewNow`) i stället för från i dag.
+  const [viewWeek, setViewWeek] = useState(weekKey);
+  const isCurrentWeek = viewWeek === weekKey;
+  const viewNow = useMemo(() => (isCurrentWeek ? now : weekMonday(viewWeek) ?? now), [isCurrentWeek, viewWeek, now]);
 
-  // Varje klass senaste tabell, och de valda klasserna som en tabell.
-  const latest = useMemo(() => latestSheets(sync.data.tables, weekKey), [sync.data.tables, weekKey]);
+  // Varje klass senaste tabell fram till veckan, och de valda klasserna som en tabell.
+  const latest = useMemo(() => latestSheets(sync.data.tables, viewWeek), [sync.data.tables, viewWeek]);
+  const currentLatest = useMemo(() => latestSheets(sync.data.tables, weekKey), [sync.data.tables, weekKey]);
   const classNames = Object.keys(latest).filter(Boolean).sort((a, b) => a.localeCompare(b, 'sv'));
   const unnamed = latest[''] ?? null;
   const allClasses = unnamed ? [...classNames, ''] : classNames;
@@ -219,14 +216,17 @@ export default function Narvaro() {
   // Veckans schema ur schemaplaneraren (bara läsning). Exemplet får inget.
   const schedule = useNarvaroSchedule(sync.phase === 'ready' && !isExample, weekKey);
   const thisWeek = schedule.weeks[weekKey];
+  const shownSchedule = schedule.weeks[viewWeek];
   const weekEntries = thisWeek?.entries ?? NO_ENTRIES;
+  const { ensureWeek } = schedule;
+  useEffect(() => { ensureWeek(viewWeek); }, [viewWeek, ensureWeek]);
   const teacherNames = useMemo(() => collectTeacherNames(weekEntries), [weekEntries]);
   const scheduleName = useNarvaroScheduleName(user?.username, teacherNames);
   // Första gången veckans schema finns: välj klassen användaren har nu, om
   // hen inte redan valt något själv. Skriver över det sparade klassvalet.
   const preselected = useRef(false);
   useEffect(() => {
-    if (preselected.current || !thisWeek || isExample) return;
+    if (preselected.current || !thisWeek || isExample || !isCurrentWeek) return;
     preselected.current = true;
     if (userPicked.current) return;
     const mine = myClassesNow(combineSheets(sheets, allClasses), thisWeek.entries, classNames, scheduleName.name, now);
@@ -236,13 +236,29 @@ export default function Narvaro() {
   const [mapMode, setMapMode] = usePersistentState(WEEK_MAP_KEY, sanitizeWeekMapMode, WEEK_MAP_DEFAULT);
   const mapDays = weekMapDays(isExample
     ? { sheets: { exempel: example }, allClasses: EXAMPLE_CLASS, chosen: EXAMPLE_CLASS, classNames: [], weekEntries: null, myName: '', notes, weekKey, now }
-    : { sheets, allClasses, chosen, classNames, weekEntries: thisWeek?.entries ?? null, myName: scheduleName.name, notes, weekKey, now });
+    : { sheets, allClasses, chosen, classNames, weekEntries: shownSchedule?.entries ?? null, myName: scheduleName.name, notes, weekKey: viewWeek, now });
+  // Veckoraden: veckor med ark eller noteringar, men bara de som har ett ark att visa.
+  const shownWeeks = mapWeeks(sync.data.tables, savedNotes, weekKey)
+    .filter(w => Object.keys(latestSheets(sync.data.tables, w.week)).length > 0)
+    .map(w => {
+      const purge = purgeInfo(w.week, now);
+      return purge ? { ...w, tone: TIER_BG[purge.tier], hint: `Gallras: ${purgeBadge(purge.daysLeft).toLowerCase()}` } : w;
+    });
+  const showWeek = (week: string) => {
+    userPicked.current = true;
+    setViewWeek(week);
+  };
+  const stepWeek = (step: -1 | 1) => {
+    const at = shownWeeks.findIndex(w => w.week === viewWeek);
+    const next = shownWeeks[at + step];
+    if (next) showWeek(next.week);
+  };
   const pickPass = (d: string, p: PassChoice) => {
     userPicked.current = true;
     setDay(d);
     setPass(p);
   };
-  const pickDay = (d: string) => pickPass(d, defaultPass(tableForDay(d), d, now));
+  const pickDay = (d: string) => pickPass(d, defaultPass(tableForDay(d), d, viewNow));
   const stepPass = (step: -1 | 1) => {
     const next = adjacentPass(mapDays, day, pass, step);
     if (next) pickPass(next.day, next.pass);
@@ -261,7 +277,7 @@ export default function Narvaro() {
 
   // Veckans ark: en dialog, eller ett kort på sidan innan något ark finns.
   const [pasteOpen, setPasteOpen] = useState(false);
-  const sheetsInline = allClasses.length === 0;
+  const sheetsInline = Object.keys(currentLatest).length === 0;
   const [pending, setPending] = useState<PendingPaste | null>(null);
   const [newClass, setNewClass] = useState('');
   const [justSaved, setJustSaved] = useState<string | null>(null);
@@ -274,8 +290,6 @@ export default function Narvaro() {
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
   // Rutan för passets namn: utkastet, eller null när den är stängd.
   const [naming, setNaming] = useState<string | null>(null);
-  // Ett tidigare pass som får nytt namn (högerklick i Tidigare pass).
-  const [renaming, setRenaming] = useState<{ key: string; draft: string } | null>(null);
 
   const [mobilePref, setMobilePref] = usePersistentState(MOBILE_KEY, sanitizeMobilePref, MOBILE_AUTO);
   const smallScreen = useMediaQuery('(max-width: 639px)');
@@ -287,22 +301,22 @@ export default function Narvaro() {
 
   // Första riktiga tabellen: välj dagens veckodag och passet som pågår.
   // Byts sedan klasser behålls dag och pass, så länge de finns kvar.
-  const shownKind = isExample ? 'example' : 'real';
+  const shownKind = isExample ? 'example' : `real:${viewWeek}`;
   const initialized = useRef<string | null>(null);
   useEffect(() => {
     setKlass(k => (k === 'all' || table.groups.includes(k) ? k : 'all'));
     if (initialized.current !== shownKind) {
       initialized.current = shownKind;
-      const d = defaultDay({ days }, now) ?? day;
+      const d = defaultDay({ days }, viewNow) ?? day;
       setDay(d);
-      setPass(defaultPass(tableForDay(d), d, now));
+      setPass(defaultPass(tableForDay(d), d, viewNow));
       return;
     }
-    const d = days.includes(day) ? day : defaultDay({ days }, now) ?? day;
+    const d = days.includes(day) ? day : defaultDay({ days }, viewNow) ?? day;
     if (d !== day) setDay(d);
     const t = tableForDay(d);
-    setPass(p => (p === 'day' || dayColumns(t, d).some(c => c.id === p) ? p : defaultPass(t, d, now)));
-  }, [table, now, shownKind]); // eslint-disable-line react-hooks/exhaustive-deps
+    setPass(p => (p === 'day' || dayColumns(t, d).some(c => c.id === p) ? p : defaultPass(t, d, viewNow)));
+  }, [table, viewNow, shownKind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!toast) return;
@@ -310,23 +324,15 @@ export default function Narvaro() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  // Påminnelser om gallring. "Visa" byter till noteringarna, fäller ut veckan och scrollar dit.
+  // Påminnelser om gallring. "Visa" visar veckan i kartan.
   const [dismissedWeeks, setDismissedWeeks] = usePersistentState(DISMISSED_KEY, sanitizeDismissed, NO_WEEKS);
-  const [revealWeek, setRevealWeek] = useState<string | null>(null);
-  useEffect(() => {
-    if (!revealWeek) return;
-    const el = document.getElementById(weekAnchor(revealWeek));
-    if (el instanceof HTMLDetailsElement) {
-      el.open = true;
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    setRevealWeek(null);
-  }, [revealWeek]);
+  // Mobilläget visar alltid den här veckan.
+  useEffect(() => { if (mobile) setViewWeek(weekKey); }, [mobile, weekKey]);
 
-  const key = sessionKey(table, day, pass, now);
+  const key = sessionKey(table, day, pass, viewNow);
   // Passets namn hör till passet och klassen; visas flera klasser får alla samma.
   const nameClasses = isExample ? ['exempel'] : selected;
-  const label = sessionLabel(table, day, pass, now, passNameFor(passNames, key, nameClasses));
+  const label = sessionLabel(table, day, pass, viewNow, passNameFor(passNames, key, nameClasses));
   const sess: SessionNotes = notes[key] ?? emptySession(label);
   const { present, absent } = roster(table, { klass, day, pass, added: sess.added });
   // Grupperna hör till passet och till de klasser som visas tillsammans.
@@ -348,26 +354,22 @@ export default function Narvaro() {
   const showSchool = klass === 'all' && table.groups.length > 1;
   const showClassName = !isExample && selected.length > 1;
   // Passen enligt schemat för det valda passet, eller null när veckan saknar schema.
-  const scheduleEntries = thisWeek
-    ? sortForDisplay(entriesForClasses(entriesForChoice(table, day, pass, weekEntries), classNames, selected), scheduleName.name)
+  const scheduleEntries = shownSchedule
+    ? sortForDisplay(entriesForClasses(entriesForChoice(table, day, pass, shownSchedule.entries), classNames, selected), scheduleName.name)
     : null;
   const scheduleEmpty = `Inget pass för ${selected.map(classLabel).join(' och ')} enligt schemat`;
 
   const updateSession = (fn: (s: SessionNotes) => SessionNotes) =>
     setNotes({ ...notes, [key]: { ...fn(sess), label } });
-  // Ett tidigare pass får sin rubrik från den sparade, eftersom dess tabell kan vara en annan veckas.
-  const savePassName = (name: string, k = key) => {
-    const labelFor = k === key
-      ? (n: string) => sessionLabel(table, day, pass, now, n)
-      : (n: string) => relabelSession(notes[k]?.label ?? '', n);
-    const sel = { key: k, classes: nameClasses, name, labelFor };
+  const savePassName = (name: string) => {
+    const labelFor = (n: string) => sessionLabel(table, day, pass, viewNow, n);
+    const sel = { key, classes: nameClasses, name, labelFor };
     if (isExample) {
       const r = namePass(exNotes, exPassNames, sel);
       setExNotes(r.notes);
       setExPassNames(r.passNames);
     } else update(d => ({ ...d, ...namePass(d.notes, d.passNames, sel) }));
     setNaming(null);
-    setRenaming(null);
   };
   useEffect(() => setNaming(null), [key]);
   const saveGroups = (next: string[][]) =>
@@ -389,6 +391,7 @@ export default function Narvaro() {
   const saveAs = useCallback((klass: string, table: AttendanceTable, suggestion: ClassSuggestion | null) => {
     update(d => setSheet(d, weekKey, klass, table));
     userPicked.current = true;
+    setViewWeek(weekKey);
     setChosen([klass]);
     setPending(null);
     setNewClass('');
@@ -494,33 +497,25 @@ export default function Narvaro() {
 
   const entries = noteEntries(sess);
   const pastWeeks = groupByWeek(historyKeys(notes, key));
-  const history = mode === 'notes' ? pastWeeks : [];
   const nearPurge = isExample || mobile ? [] : weeksNearPurge(pastWeeks.map(g => g.week), now, dismissedWeeks);
-  const weekText = (keys: readonly string[]) => keys.map(k => sessionText(notes[k], table, stamps)).join('\n\n');
-  // Tidigare pass: schemats text under rubriken. Veckans schema hämtas när gruppen fälls ut.
-  const { ensureWeek } = schedule;
-  const firstHistoryWeek = history[0]?.week ?? null;
-  useEffect(() => { if (firstHistoryWeek) ensureWeek(firstHistoryWeek); }, [firstHistoryWeek, ensureWeek]);
-  const historySchedule = (week: string | null, k: string) => {
-    const w = week ? schedule.weeks[week] : null;
-    if (!week || !w) return null;
-    const shownEntries = sortForDisplay(entriesForSession(k, notes[k], sheetsForWeek(sync.data.tables, week), w.entries), scheduleName.name);
-    if (!shownEntries.length) return null;
-    return (
-      <div className="pl-4 font-normal">
-        <NarvaroScheduleLine variant="muted" entries={shownEntries} myName={scheduleName.name} resolveRoom={schedule.resolveRoom} emptyText="" />
-      </div>
-    );
+  // Kopiera veckan, för den vecka som visas.
+  const viewWeekKeys = Object.keys(notes).filter(k => weekOfSession(k) === viewWeek && noteEntries(notes[k]).length > 0).sort();
+  const deleteSession = () => {
+    if (armedDelete !== key) { setArmedDelete(key); return; }
+    const next = { ...notes };
+    delete next[key];
+    setNotes(next);
+    setArmedDelete(null);
   };
   const cols = dayColumns(table, day);
   const sheetsThisWeek = Object.keys(sync.data.tables[weekKey] ?? {}).length;
-  const sheetRows = allClasses.map(k => ({
+  const sheetRows = Object.keys(currentLatest).sort((a, b) => (a ? (b ? a.localeCompare(b, 'sv') : -1) : 1)).map(k => ({
     klass: k,
     label: classLabel(k),
-    thisWeek: latest[k].week === weekKey,
-    week: latest[k].week,
-    people: latest[k].table.people.length,
-    schools: latest[k].table.groups.length,
+    thisWeek: currentLatest[k].week === weekKey,
+    week: currentLatest[k].week,
+    people: currentLatest[k].table.people.length,
+    schools: currentLatest[k].table.groups.length,
   }));
   const classChips = !isExample && shownClasses.length > 1 ? shownClasses.map(k => (
     <button
@@ -532,7 +527,7 @@ export default function Narvaro() {
       title="Välj flera för att visa klasserna tillsammans"
     >
       {classLabel(k)}
-      {latest[k].week !== weekKey && <small className="font-mono text-2xs opacity-70">v. {weekNumber(latest[k].week)}</small>}
+      {latest[k].week !== viewWeek && <small className="font-mono text-2xs opacity-70">v. {weekNumber(latest[k].week)}</small>}
     </button>
   )) : null;
   const schoolChips = table.groups.length > 1 ? ['all', ...table.groups].map(k => (
@@ -595,10 +590,10 @@ export default function Narvaro() {
                   <span
                     className={cn(
                       'rounded-ui-sm border border-ui-line px-1.5 text-xs font-bold text-ui-mark-fg',
-                      sheetsThisWeek < allClasses.length ? 'bg-ui-mark-yellow' : 'bg-ui-mark-green',
+                      sheetsThisWeek < Object.keys(currentLatest).length ? 'bg-ui-mark-yellow' : 'bg-ui-mark-green',
                     )}
                   >
-                    {sheetsThisWeek} av {allClasses.length}
+                    {sheetsThisWeek} av {Object.keys(currentLatest).length}
                   </span>
                 </Button>
               )}
@@ -667,7 +662,7 @@ export default function Narvaro() {
                   {weekHeading(w.week, weekKey)} gallras {purgeWhen(w.daysLeft)}, med alla noteringar. Kopiera det du vill spara.
                 </span>
                 <span className="flex gap-2">
-                  <Button variant="neutral" size="sm" className="sp-btn" onClick={() => { setMode('notes'); setRevealWeek(w.week); }}>
+                  <Button variant="neutral" size="sm" className="sp-btn" onClick={() => { setMode('notes'); showWeek(w.week); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                     Visa
                   </Button>
                   <Button
@@ -752,7 +747,7 @@ export default function Narvaro() {
             />
           </section>
         )}
-        {!isExample && selected.some(k => latest[k] && latest[k].week !== weekKey) && (
+        {!isExample && isCurrentWeek && selected.some(k => latest[k] && latest[k].week !== weekKey) && (
           <div className="sp-toast bg-ui-mark-yellow px-4 py-2 text-sm font-semibold text-ui-mark-fg">
             {selected.filter(k => latest[k] && latest[k].week !== weekKey)
               .map(k => `${classLabel(k)}: tabellen är från vecka ${weekNumber(latest[k].week)}.`).join(' ')}{' '}
@@ -769,12 +764,25 @@ export default function Narvaro() {
             onDay={pickDay}
             mode={mapMode}
             onMode={setMapMode}
-            title={`Vecka ${weekNumber(weekKey)}`}
+            title={`Vecka ${weekNumber(viewWeek)}`}
+            weeks={isExample ? undefined : shownWeeks}
+            shownWeek={viewWeek}
+            onWeek={showWeek}
+            onStepWeek={isExample ? undefined : stepWeek}
+            notice={!isCurrentWeek && (
+              <span className="inline-flex flex-wrap items-center gap-2 rounded-ui-sm border-frame border-ui-line bg-ui-mark-yellow px-2 py-1 text-sm font-semibold text-ui-mark-fg">
+                Vecka {weekNumber(viewWeek)}. Det du ändrar sparas i den veckan.
+                <Button variant="neutral" size="sm" className="sp-btn h-7" disabled={!viewWeekKeys.length} onClick={() => copyText(viewWeekKeys.map(k => sessionText(notes[k], table, stamps)).join('\n\n'))}>
+                  <Copy /> Kopiera veckan
+                </Button>
+                <Button variant="neutral" size="sm" className="sp-btn h-7" onClick={() => showWeek(weekKey)}>Till vecka {weekNumber(weekKey)}</Button>
+              </span>
+            )}
             classChips={classChips}
             myName={scheduleName.name}
             teacherNames={teacherNames}
             onChooseName={scheduleName.setName}
-            hasSchedule={!!thisWeek}
+            hasSchedule={!!shownSchedule}
           />
         )}
 
@@ -1038,9 +1046,14 @@ export default function Narvaro() {
           <section className="sp-card flex flex-col gap-2 p-4" aria-label="Noteringar">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-bold">Noteringar · {label}</h3>
-              <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps))}>
-                <Copy /> Kopiera
-              </Button>
+              <span className="flex gap-2">
+                <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps))}>
+                  <Copy /> Kopiera
+                </Button>
+                <Button variant="neutral" size="sm" className="sp-btn" disabled={!notes[key]} onClick={deleteSession} title="Tar bort passets noteringar och tillagda">
+                  <Trash2 /> {armedDelete === key ? 'Säker? Tryck igen' : 'Ta bort'}
+                </Button>
+              </span>
             </div>
             {entries.length ? (
               <ul className="flex flex-col divide-y divide-ui-hair">
@@ -1058,94 +1071,6 @@ export default function Narvaro() {
           </section>
         )}
 
-        {history.length > 0 && (
-          <section className="sp-card flex flex-col p-4" aria-label="Tidigare pass">
-            <h3 className="mb-1 text-lg font-bold">Tidigare pass</h3>
-            {history.map((group, i) => {
-              const purge = purgeInfo(group.week, now);
-              return (
-              <details
-                key={group.week ?? ''}
-                id={group.week ? weekAnchor(group.week) : undefined}
-                open={i === 0}
-                onToggle={e => { if (e.currentTarget.open && group.week) ensureWeek(group.week); }}
-                className="scroll-mt-4 border-t border-ui-line py-2"
-              >
-                <summary className="cursor-pointer font-mono text-xs font-semibold tracking-wider text-ui-muted">
-                  {weekHeading(group.week, weekKey)} · {group.keys.length} pass
-                  {purge && (
-                    <span className={cn('ml-2 inline-flex items-center gap-1 rounded-ui-sm border border-ui-line px-1.5 py-0.5 font-sans normal-case tracking-normal text-ui-mark-fg', TIER_BG[purge.tier])}>
-                      <Hourglass className="h-3 w-3" aria-hidden /> {purgeBadge(purge.daysLeft)}
-                    </span>
-                  )}
-                </summary>
-                {purge && (
-                  <div className="ml-4 flex flex-wrap items-center gap-2 py-2 text-sm">
-                    <span className="text-ui-muted">Veckan gallras {purgeWhen(purge.daysLeft)}.</span>
-                    <Button variant="neutral" size="sm" className="sp-btn" onClick={() => copyText(weekText(group.keys))}>
-                      <Copy /> Kopiera veckan
-                    </Button>
-                  </div>
-                )}
-                {group.keys.map(k => renaming?.key === k ? (
-                  <form
-                    key={k}
-                    className="ml-4 flex flex-wrap items-center gap-1.5 border-t border-ui-hair py-2"
-                    onSubmit={e => { e.preventDefault(); savePassName(renaming.draft, k); }}
-                    onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setRenaming(null); } }}
-                  >
-                    <input
-                      autoFocus
-                      value={renaming.draft}
-                      onChange={e => setRenaming({ key: k, draft: e.target.value })}
-                      maxLength={MAX_PASS_NAME_LENGTH}
-                      placeholder="Passets namn, t.ex. Svenska"
-                      aria-label={`Namn på passet ${notes[k].label}`}
-                      title="Tomt namn tar bort det"
-                      className="sp-input w-48 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm"
-                    />
-                    <Button type="submit" variant="neutral" size="sm" className="sp-btn">Spara</Button>
-                    <Button type="button" variant="neutral" size="sm" className="sp-btn" onClick={() => setRenaming(null)}>Avbryt</Button>
-                  </form>
-                ) : (
-                  <details key={k} className="ml-4 border-t border-ui-hair py-2">
-                    <summary
-                      className="cursor-pointer font-semibold"
-                      title="Högerklicka för att namnge passet"
-                      onContextMenu={e => { e.preventDefault(); setRenaming({ key: k, draft: passNameFor(passNames, k, nameClasses) }); }}
-                    >
-                      {notes[k].label}
-                      {historySchedule(group.week, k)}
-                    </summary>
-                    <pre className="my-2 overflow-x-auto whitespace-pre-wrap rounded-ui-sm border border-ui-line bg-ui-surface-2 p-2.5 font-mono text-xs">
-                      {sessionText(notes[k], table, stamps)}
-                    </pre>
-                    <div className="flex gap-2">
-                      <Button variant="neutral" size="sm" className="sp-btn" onClick={() => copyText(sessionText(notes[k], table, stamps))}>
-                        <Copy /> Kopiera
-                      </Button>
-                      <Button
-                        variant="neutral"
-                        size="sm"
-                        className="sp-btn"
-                        onClick={() => {
-                          if (armedDelete !== k) { setArmedDelete(k); return; }
-                          const next = { ...notes };
-                          delete next[k];
-                          setNotes(next);
-                          setArmedDelete(null);
-                        }}
-                      >
-                        <Trash2 /> {armedDelete === k ? 'Säker? Tryck igen' : 'Ta bort'}
-                      </Button>
-                    </div>
-                  </details>
-                ))}
-              </details>
-              );
-            })}
-          </section>
-        )}
         </>)}
         </>)}
       </div>

@@ -8,7 +8,6 @@ import {
   entriesForClasses,
   entriesForColumn,
   entriesForDay,
-  entriesForSession,
   entryClasses,
   isClassDivided,
   isMine,
@@ -17,8 +16,6 @@ import {
   sanitizeScheduleName,
   scheduleLineParts,
   sessionClasses,
-  sheetsForWeek,
-  shiftWeek,
   sortForDisplay,
 } from '@/utils/narvaroSchedule';
 import { CLASSES, ME, sheet, sheets, week } from '@/utils/__fixtures__/narvaroSchedule';
@@ -248,36 +245,5 @@ describe('namnet i schemat', () => {
     expect(effectiveScheduleName('', 'kim', ['Kim', 'Robin'])).toBe('Kim');
     expect(effectiveScheduleName('', 'Admin', ['Kim', 'Robin'])).toBe('');
     expect(effectiveScheduleName('', null, ['Kim'])).toBe('');
-  });
-});
-
-describe('veckor', () => {
-  it('shiftWeek bläddrar över årsskiftet', () => {
-    expect(shiftWeek('w2026-47', -1)).toBe('w2026-46');
-    expect(shiftWeek('w2026-53', 1)).toBe('w2027-01');
-    expect(shiftWeek('w2027-01', -1)).toBe('w2026-53');
-    expect(shiftWeek('settings', 1)).toBe('settings');
-  });
-  it('sheetsForWeek tar varje klass senaste ark fram till veckan', () => {
-    const a = sheet(['Gammal']);
-    const b = sheet(['Ny']);
-    const tables = { 'w2026-45': { Oliv: a, Rosa: a }, 'w2026-47': { Oliv: b } };
-    expect(sheetsForWeek(tables, 'w2026-46')).toEqual({ Oliv: a, Rosa: a });
-    expect(sheetsForWeek(tables, 'w2026-47')).toEqual({ Oliv: b, Rosa: a });
-  });
-});
-
-describe('noteringar per schemapass', () => {
-  const s = sheets();
-  const entries = week();
-  const note = (name: string) => ({ ...emptySession('Måndag 16/11 · 10.00-11.30'), people: { [name]: { tags: [], note: 'x' } } });
-
-  it('entriesForSession: kolumnen ur nyckeln och klasserna ur noteringarna', () => {
-    expect(titles(entriesForSession('2026-11-16|Måndag|C', note('Rosa Ett'), s, entries))).toEqual(['Tema Rosa']);
-    expect(titles(entriesForSession('2026-11-10|Tisdag|E', note('Rosa Ett'), s, entries)).sort()).toEqual(['Ma 1', 'Ma Grund', 'Studieverkstad']);
-    const v47 = week({ studiebesok: true });
-    expect(titles(entriesForSession('2026-11-19|Torsdag|dag', note('Oliv Ett'), s, v47))).toEqual(['Studiebesök i Malmö']);
-    expect(entriesForSession('2026-11-16|Måndag|Z', note('Rosa Ett'), s, entries)).toEqual([]);
-    expect(entriesForSession('trasig', note('Rosa Ett'), s, entries)).toEqual([]);
   });
 });

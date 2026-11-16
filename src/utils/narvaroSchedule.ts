@@ -18,7 +18,7 @@ import {
   defaultPass,
   weekdayName,
 } from '@/utils/narvaro';
-import { Sheets, isWeekKey, isoWeekKey, latestSheets, weekMonday } from '@/utils/narvaroDocs';
+import { isWeekKey } from '@/utils/narvaroDocs';
 import { compareLaneEntries } from '@/utils/scheduleLayout';
 import { isAllTeachersField, splitTeacherNames } from '@/utils/scheduleStats';
 import { timeToMinutes } from '@/utils/scheduleTime';
@@ -231,37 +231,4 @@ export function effectiveScheduleName(saved: string, username: string | null | u
   const user = (username ?? '').trim().toLocaleLowerCase('sv');
   if (!user) return '';
   return teacherNames.find(n => n.trim().toLocaleLowerCase('sv') === user) ?? '';
-}
-
-/* ---------- veckor och noteringar per pass ---------- */
-
-/** Veckan `delta` veckor från `weekKey`. */
-export function shiftWeek(weekKey: string, delta: number): string {
-  const monday = weekMonday(weekKey);
-  if (!monday) return weekKey;
-  return isoWeekKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + delta * 7));
-}
-
-/** Varje klass ark som det gällde veckan (det senaste fram till den). */
-export function sheetsForWeek(tables: Record<string, Sheets>, weekKey: string): Sheets {
-  return Object.fromEntries(Object.entries(latestSheets(tables, weekKey)).map(([k, ref]) => [k, ref.table]));
-}
-
-/**
- * Schemapassen för ett sparat pass (Tidigare pass). Kolumnen fås ur nyckelns
- * tredje del (`letter`, eller `dag`), och urvalet ur klasserna med noteringar.
- */
-export function entriesForSession(
-  key: string,
-  sess: SessionNotes,
-  sheets: Sheets,
-  weekEntries: ScheduledEntry[],
-): ScheduledEntry[] {
-  const [, day, which] = key.split('|');
-  if (!day || !which) return [];
-  const table = combineSheets(sheets, Object.keys(sheets));
-  const pass: PassChoice | null = which === 'dag' ? 'day' : table.cols.find(c => c.day === day && c.letter === which)?.id ?? null;
-  if (!pass) return [];
-  const classNames = Object.keys(sheets).filter(Boolean);
-  return entriesForClasses(entriesForChoice(table, day, pass, weekEntries), classNames, sessionClasses(sess, sheets));
 }

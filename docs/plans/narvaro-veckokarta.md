@@ -2,6 +2,10 @@
 
 Status: Pågår
 
+Läget 2026-11-16: alla steg 1–5 är byggda på grenen
+`claude/upbeat-bardeen-sn7y2i`. Kvar är proven i avsnitt 10 mot riktig
+backend. Avvikelserna står i avsnitt 12.
+
 Skriven 2026-11-16 efter att schemakopplingen byggts
 ([narvaro-schemakoppling.md](narvaro-schemakoppling.md)). Tobias provade
 sidan med sina riktiga ark och ville göra om layouten. Två riktningar
@@ -205,7 +209,7 @@ och `pnpm build`. Bocka av steget här och uppdatera raden i
   `PublicTimeGrid` tas bort.
 - [x] **3. Hopfälld** (2026-11-16) med `narvaro.weekMap.v1`.
 - [x] **4. Veckans ark** (2026-11-16) som dialog, `ClassPicker` i egen fil.
-- [ ] **5. Tidigare veckor.** Hela sidan byter vecka och går att redigera.
+- [x] **5. Tidigare veckor.** (2026-11-16) Hela sidan byter vecka och går att redigera.
   Tidigare pass tas bort, Noteringar får Ta bort, och gallringens "Visa"
   byter vecka i kartan.
 
@@ -287,3 +291,24 @@ Skrivna av sessionen som bygger stegen.
 - Mobilläget har ingen inklistring, som förut.
 - Provat i webbläsaren: inklistring direkt på sidan öppnar dialogen, och
   märket i knappen går från "0 av 3" till "1 av 3".
+
+### Steg 5 (2026-11-16)
+
+- Pilarna vid veckans rubrik går mellan veckorna i veckoraden, inte en
+  kalendervecka i taget. En vecka före det första arket har inget att visa,
+  och sidan skulle då falla tillbaka på exemplet. `shiftWeek` togs därför
+  bort med sitt test.
+- Veckoraden visar bara veckor där `latestSheets` ger minst ett ark, så att
+  en vecka med noteringar men utan ark (från före veckoarken) inte visar
+  exemplet.
+- En vecka som snart gallras har påminnelsens färg i veckoraden och
+  "Gallras: 6 dagar kvar" när man håller musen över den.
+- Kopiera veckan och Till vecka 47 står i den gula raden i kartans huvud.
+- Varningen "tabellen är från vecka 46" visas bara för den här veckan.
+- Det som bara Tidigare pass använde togs bort: `relabelSession`,
+  `entriesForSession` och `sheetsForWeek`, med sina test. Att namnge ett
+  pass görs med pennan i passkortet, också i en tidigare vecka.
+- Provat i webbläsaren mot ett påhittat API: v. 46 vald i veckoraden,
+  pricken på Olivs pass, en ändrad notering sparad i dokumentet för v. 46
+  (version 2 till 3, inget nytt dokument för v. 47), kvar efter omladdning,
+  och Till vecka 47 tillbaka till dagens pass.
