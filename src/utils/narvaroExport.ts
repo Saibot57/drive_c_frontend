@@ -21,7 +21,10 @@ import {
   combineSheets,
   noteEntries,
   passNameFor,
+  roster,
+  sessionChoice,
   sessionLabel,
+  sessionLines,
 } from '@/utils/narvaro';
 import { Sheets, isWeekKey, latestSheets, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
 import { entriesForChoice, entriesForClasses, isMine, scheduleLineParts, sortForDisplay } from '@/utils/narvaroSchedule';
@@ -73,12 +76,7 @@ function sessionsOfWeek(weekKey: string, notes: NotesStore, table: AttendanceTab
   };
   return Object.keys(notes)
     .filter(k => weekOfSession(k) === weekKey && noteEntries(notes[k]).length > 0)
-    .map(key => {
-      const [, day = '', which = ''] = key.split('|');
-      const col = table.cols.find(c => c.day === day && (c.letter === which || c.id === which));
-      const pass: PassChoice | null = which === 'dag' ? 'day' : col?.id ?? null;
-      return { key, day, pass };
-    })
+    .map(key => ({ key, ...sessionChoice(table, key) }))
     .sort((a, b) => a.key.slice(0, 10).localeCompare(b.key.slice(0, 10)) || order(a.pass) - order(b.pass) || a.key.localeCompare(b.key));
 }
 
@@ -126,25 +124,6 @@ function unitsFor(key: string, classes: string[], groups: GroupsStore): Unit[] {
   return units.sort((a, b) => classes.indexOf(a.classes[0]) - classes.indexOf(b.classes[0]));
 }
 
-/**
- * Noteringarna som rader, alla i en lista. Med grupper: grupp för grupp med
- * en tom rad mellan och utan rubrik, och de som inte är med i någon grupp sist.
- */
-function noteLines(noted: Noted, groups: string[][] | null, stamps: readonly Stamp[]): string[] {
-  const line = ([name, n]: Noted[number]) => {
-    const labels = n.tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ');
-    return `  ${name}: ${[labels, n.note].filter(Boolean).join('. ')}`;
-  };
-  if (!groups) return noted.map(line);
-  const byName = new Map(noted);
-  const used = new Set<string>();
-  const chunks = groups.map(g => g.filter(name => byName.has(name) && !used.has(name) && !!used.add(name)));
-  chunks.push(noted.map(([name]) => name).filter(name => !used.has(name)));
-  return chunks
-    .filter(c => c.length > 0)
-    .flatMap((c, i) => [...(i ? [''] : []), ...c.map(name => line([name, byName.get(name)!]))]);
-}
-
 /** Schemaraderna för passet och klasserna: det egna passet om det finns, annars alla. */
 function scheduleLines(
   table: AttendanceTable,
@@ -169,9 +148,8 @@ function scheduleLines(
 function weekBlocks(weekKey: string, input: ExportInput): string[] {
   const monday = weekMonday(weekKey);
   if (!monday) return [];
-  const sheets: Sheets = Object.fromEntries(
-    Object.entries(latestSheets(input.tables, weekKey)).map(([k, ref]) => [k, ref.table]),
-  );
+  const latest = latestSheets(input.tables, weekKey);
+  const sheets: Sheets = Object.fromEntries(Object.entries(latest).map(([k, ref]) => [k, ref.table]));
   const allClasses = Object.keys(sheets).sort((a, b) => a.localeCompare(b, 'sv'));
   const classNames = allClasses.filter(Boolean);
   const combined = combineSheets(sheets, allClasses);
@@ -195,8 +173,13 @@ function weekBlocks(weekKey: string, input: ExportInput): string[] {
       if (pass && weekEntries && known) {
         lines.push(...scheduleLines(combined, day, pass, unit.classes, classNames, weekEntries, input.myName, input.resolveRoom));
       }
-      const noted = unit.classes.flatMap(k => parts.get(k) ?? []);
-      lines.push('', ...noteLines(noted, unit.groups, input.stamps));
+      // Kryssen kommer ur klassens senaste ark. Är det en äldre veckas ska det synas.
+      const older = Array.from(new Set(unit.classes.map(k => latest[k]?.week).filter((w): w is string => !!w && w !== weekKey))).sort();
+      if (pass && older.length) lines.push(`Närvaro enligt arket från v. ${older.map(weekNumber).join(', ')}`);
+      const part: SessionNotes = { label: '', people: Object.fromEntries(unit.classes.flatMap(k => parts.get(k) ?? [])), added: sess.added };
+      const people = { ...combined, people: combined.people.filter(p => unit.classes.includes(p.klass ?? '')) };
+      const present = pass && known ? roster(people, { klass: 'all', day, pass, added: sess.added }).present.map(p => p.name) : [];
+      lines.push('', ...sessionLines(part, present, unit.groups, input.stamps).map(l => (l ? `  ${l}` : l)));
       blocks.push(lines.join('\n'));
     });
   });
