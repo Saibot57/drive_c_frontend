@@ -30,6 +30,8 @@ import {
   sanitizeStamps,
   sanitizeTable,
   sessionKey,
+  sessionChoice,
+  sessionLines,
   sessionText,
   setPersonNote,
   toggleStamp,
@@ -304,10 +306,28 @@ describe('anteckningar', () => {
   it('skriver passet som text per klass', () => {
     let s = toggleStamp(emptySession('Måndag 2/11 · 8.30-9.45'), 'Test Person', 'aktiv');
     s = setPersonNote(s, 'Tredje Person', { tags: ['stod'], note: 'frågade om uppsatsen' });
+    // Utan pass: bara de med notering, i en lista utan skolor.
     expect(sessionText(s, table, DEFAULT_STAMPS)).toBe([
-      'Måndag 2/11 · 8.30-9.45', '', 'TORA VEGA', 'Test Person: Aktiv', '', 'ÖSTRA GREVIE',
+      'Måndag 2/11 · 8.30-9.45', '', 'Test Person: Aktiv',
       'Tredje Person: Behöver stöd. frågade om uppsatsen',
     ].join('\n'));
+  });
+
+  it('tar med alla närvarande, och delar på grupper med en tom rad', () => {
+    const s = setPersonNote(emptySession('Pass'), 'B', { tags: ['aktiv'], note: '' });
+    expect(sessionLines(s, ['A', 'B', 'C'], null, DEFAULT_STAMPS)).toEqual(['A', 'B: Aktiv', 'C']);
+    // En notering på någon som inte är närvarande hamnar sist.
+    expect(sessionLines(s, ['A'], null, DEFAULT_STAMPS)).toEqual(['A', 'B: Aktiv']);
+    // Grupper: tomma och okända hoppas över, de utan grupp sist.
+    expect(sessionLines(s, ['A', 'B', 'C'], [['C', 'Okänd'], [], ['B']], DEFAULT_STAMPS)).toEqual(['C', '', 'B: Aktiv', '', 'A']);
+    expect(sessionLines(s, ['A', 'B'], [[], []], DEFAULT_STAMPS)).toEqual(['A', 'B: Aktiv']);
+  });
+
+  it('läser dag och pass ur passets nyckel', () => {
+    const col = table.cols[0];
+    expect(sessionChoice(table, `2026-11-02|${col.day}|${col.letter}`)).toEqual({ day: col.day, pass: col.id });
+    expect(sessionChoice(table, `2026-11-02|${col.day}|dag`)).toEqual({ day: col.day, pass: 'day' });
+    expect(sessionChoice(table, `2026-11-02|${col.day}|ZZ`)).toEqual({ day: col.day, pass: null });
   });
 
   it('listar tidigare pass med noteringar, senaste först', () => {

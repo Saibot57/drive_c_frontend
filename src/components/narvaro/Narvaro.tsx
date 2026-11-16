@@ -63,6 +63,7 @@ import {
   selectionForDay,
   sessionKey,
   sessionLabel,
+  sessionChoice,
   sessionText,
   setPersonNote,
   toggleClassOnDay,
@@ -779,7 +780,7 @@ export default function Narvaro() {
             notice={!isCurrentWeek && (
               <span className="inline-flex flex-wrap items-center gap-2 rounded-ui-sm border-frame border-ui-line bg-ui-mark-yellow px-2 py-1 text-sm font-semibold text-ui-mark-fg">
                 Vecka {weekNumber(viewWeek)}. Det du ändrar sparas i den veckan.
-                <Button variant="neutral" size="sm" className="sp-btn h-7" disabled={!viewWeekKeys.length} onClick={() => copyText(viewWeekKeys.map(k => sessionText(notes[k], table, stamps)).join('\n\n'))}>
+                <Button variant="neutral" size="sm" className="sp-btn h-7" disabled={!viewWeekKeys.length} onClick={() => copyText(viewWeekKeys.map(k => sessionText(notes[k], table, stamps, { ...sessionChoice(table, k), groups: groups[groupsKey(k, nameClasses)]?.groups })).join('\n\n\n'))}>
                   <Copy /> Kopiera veckan
                 </Button>
                 <Button variant="neutral" size="sm" className="sp-btn h-7" onClick={() => showWeek(weekKey)}>Till vecka {weekNumber(weekKey)}</Button>
@@ -1054,7 +1055,7 @@ export default function Narvaro() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-bold">Noteringar · {label}</h3>
               <span className="flex gap-2">
-                <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps))}>
+                <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length && !present.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps, { day, pass, groups: stored }))}>
                   <Copy /> Kopiera
                 </Button>
                 <Button variant="neutral" size="sm" className="sp-btn" disabled={!notes[key]} onClick={deleteSession} title="Tar bort passets noteringar och tillagda">

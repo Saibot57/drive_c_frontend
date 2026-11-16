@@ -54,7 +54,9 @@ Innehåll: Historia: Historiebruk
 
 - **Ett stycke per pass och klass.** Noteringarna ligger per pass (datum och
   kolumn), inte per klass, men varje klass har sitt eget schemapass. Ett pass
-  med noteringar från två klasser blir därför två stycken.
+  med noteringar från två klasser blir därför två stycken. Undantaget är
+  klasser som delats in i grupper tillsammans: de blir ett stycke
+  ("· Grund, Rosa"), så att grupperna hålls hela.
 - **Rubriken** är sidans egen (`sessionLabel`), med passets eget namn om det
   har ett, och klassen sist.
 - **Schema:** titel, lärare och sal. Finns användarens eget pass bland dem
@@ -63,8 +65,21 @@ Innehåll: Historia: Historiebruk
 - **Innehåll:** schemats anteckning. Platshållaren "." hoppas över.
 - **Utan schema** för veckan, eller utan pass för kolumnen, skrivs inga
   schemarader. Dialogen säger vilka veckor som saknar schema.
-- **Noteringarna** skrivs som i Kopiera (`sessionText`): stämplar, sedan
-  fritext. Har klassen flera skolor står de som underrubriker.
+- **Alla närvarande** står i en enda lista per stycke: namn, och efter
+  kolon stämplar och fritext för den som har något. Den som var närvarande
+  utan notering står med bara namnet. Närvarande är de som är kryssade i
+  passet eller tillagda för hand, som på sidan. Ingen uppdelning på skola.
+  (Ändrat 2026-11-16 på Tobias begäran.)
+- **Bara pass med minst en notering** exporteras. Ett pass där ingen fått
+  något kommer inte med, även om det har kryss.
+- **Kryssen kommer ur klassens senaste ark.** Är det en äldre veckas (veckans
+  ark är inte inklistrat) står raden "Närvaro enligt arket från v. 46" under
+  rubriken, eftersom kryssen då inte gäller veckan.
+- **Grupper:** har passet sparade grupper skrivs noteringarna grupp för
+  grupp, med en tom rad mellan och utan rubrik. Den som inte är med i någon
+  grupp står sist. Finns flera
+  indelningar för passet (olika klasser visade tillsammans) gäller den som
+  täcker flest av klasserna.
 - **Namn som inte finns i något ark** (en elev som tagits bort ur arket)
   hamnar under "Okänd klass" och följer alltid med, så att inget försvinner
   ur exporten utan att det syns.
@@ -92,7 +107,10 @@ som förut med GET, och texten byggs i webbläsaren. Logga den inte.
   väntar tills alla är lästa innan texten byggs.
 - `Narvaro.tsx`: knappen Exportera i sidhuvudet och dialogen. Inget annat.
 
-"Kopiera veckan" i den gula raden för en tidigare vecka är kvar som den var.
+Raderna byggs av `sessionLines` i `utils/narvaro.ts`, som också Kopiera och
+Kopiera veckan på sidan använder (`sessionText`). De ger därför samma lista:
+alla närvarande, utan skolor, grupp för grupp när passet har grupper. Kopiera
+har inga schemarader.
 
 ## 6. Prov i webbläsaren
 
@@ -105,6 +123,9 @@ Mot riktig backend, med noteringar i minst två veckor och två klasser.
 3. Välj en vecka till: den hämtar schemat och hamnar före i texten om den är
    äldre.
 4. Avmarkera en klass: dess stycken försvinner.
+4b. En närvarande utan notering står med bara namnet. En okryssad står inte
+   med. Ett pass med grupper är uppdelat med en tom rad mellan grupperna.
+4c. Kopiera i Noteringar ger samma lista som exportens stycke för passet.
 5. Kopiera ger samma text som förhandsvisningen. Ladda ner ger en .txt som
    öppnas med å, ä och ö i Google Drive.
 6. En vecka utan schema: raden om att schema saknas visas, och passen

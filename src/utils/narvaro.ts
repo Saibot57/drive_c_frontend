@@ -494,24 +494,56 @@ export function noteEntries(sess: SessionNotes): [string, PersonNote][] {
   return Object.entries(sess.people).filter(([, n]) => hasContent(n));
 }
 
-/** Passets noteringar som text, grupperade per klass och skola när det finns flera. */
-export function sessionText(sess: SessionNotes, table: AttendanceTable, stamps: readonly Stamp[]): string {
-  const lines = [sess.label];
-  const byGroup = new Map<string, [string, PersonNote][]>();
-  noteEntries(sess).forEach(([name, n]) => {
-    const p = table.people.find(x => x.name === name);
-    const g = p ? [p.klass, p.group].filter(Boolean).join(' · ') : '';
-    byGroup.set(g, [...(byGroup.get(g) ?? []), [name, n]]);
-  });
-  const multi = byGroup.size > 1;
-  byGroup.forEach((entries, g) => {
-    if (multi && g) lines.push('', g);
-    entries.forEach(([name, n]) => {
-      const labels = n.tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ');
-      lines.push(`${name}: ${[labels, n.note].filter(Boolean).join('. ')}`);
-    });
-  });
-  return lines.join('\n');
+/** Dagen och passet i en passnyckel (`datum|dag|kolumn`). `pass` är null när kolumnen inte finns i arket. */
+export function sessionChoice(table: AttendanceTable, key: string): { day: string; pass: PassChoice | null } {
+  const [, day = '', which = ''] = key.split('|');
+  if (which === 'dag') return { day, pass: 'day' };
+  const col = table.cols.find(c => c.day === day && (c.letter === which || c.id === which));
+  return { day, pass: col?.id ?? null };
+}
+
+/**
+ * Passets rader: alla närvarande i en lista, med stämplar och notering där
+ * det finns, och sist de som har en notering utan att vara närvarande. Ingen
+ * uppdelning på skola. Med grupper: grupp för grupp med en tom rad mellan och
+ * utan rubrik, och de som inte är med i någon grupp sist.
+ */
+export function sessionLines(
+  sess: SessionNotes,
+  present: readonly string[],
+  groups: readonly (readonly string[])[] | null,
+  stamps: readonly Stamp[],
+): string[] {
+  const noted = new Map(noteEntries(sess));
+  const names = Array.from(new Set([...present, ...Array.from(noted.keys())]));
+  const line = (name: string) => {
+    const n = noted.get(name);
+    const labels = n ? n.tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ') : '';
+    const text = [labels, n?.note].filter(Boolean).join('. ');
+    return text ? `${name}: ${text}` : name;
+  };
+  if (!groups?.some(g => g.length > 0)) return names.map(line);
+  const known = new Set(names);
+  const used = new Set<string>();
+  const chunks = groups.map(g => g.filter(name => known.has(name) && !used.has(name) && !!used.add(name)));
+  chunks.push(names.filter(name => !used.has(name)));
+  return chunks.filter(c => c.length > 0).flatMap((c, i) => [...(i ? [''] : []), ...c.map(line)]);
+}
+
+/**
+ * Passet som text: rubriken, en tom rad och raderna ur `sessionLines`. Med
+ * `day` och `pass` kommer alla närvarande med, annars bara de med notering.
+ */
+export function sessionText(
+  sess: SessionNotes,
+  table: AttendanceTable,
+  stamps: readonly Stamp[],
+  at: { day?: string; pass?: PassChoice | null; groups?: readonly (readonly string[])[] | null } = {},
+): string {
+  const present = at.day && at.pass
+    ? roster(table, { klass: 'all', day: at.day, pass: at.pass, added: sess.added }).present.map(p => p.name)
+    : [];
+  return [sess.label, '', ...sessionLines(sess, present, at.groups ?? null, stamps)].join('\n');
 }
 
 /** Tidigare pass med noteringar, senaste först. */

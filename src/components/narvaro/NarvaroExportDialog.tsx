@@ -19,7 +19,7 @@ import { exportClasses, exportFileName, exportText, exportWeeks } from '@/utils/
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  data: Pick<NarvaroData, 'tables' | 'notes' | 'passNames' | 'stamps'>;
+  data: Pick<NarvaroData, 'tables' | 'notes' | 'groups' | 'passNames' | 'stamps'>;
   schedules: ScheduleWeeks;
   ensureWeek: (week: string) => void;
   myName: string;
@@ -60,6 +60,7 @@ export function NarvaroExportDialog({
     classes: picked,
     tables: data.tables,
     notes: data.notes,
+    groups: data.groups,
     passNames: data.passNames,
     stamps: data.stamps,
     schedules: Object.fromEntries(weeks.map(w => [w, schedules[w]?.entries ?? null])),
