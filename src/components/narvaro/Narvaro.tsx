@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, Hourglass, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, Download, Hourglass, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
@@ -16,6 +16,7 @@ import { NarvaroWeekMap } from '@/components/narvaro/NarvaroWeekMap';
 import { ChipRow, NarvaroPassChips } from '@/components/narvaro/NarvaroPassChips';
 import { chip } from '@/components/narvaro/chip';
 import { ClassPicker } from '@/components/narvaro/NarvaroClassPicker';
+import { NarvaroExportDialog } from '@/components/narvaro/NarvaroExportDialog';
 import { NarvaroSheetsDialog, PasteMessage } from '@/components/narvaro/NarvaroSheetsDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { NarvaroSaveStatus, useNarvaroSync } from '@/hooks/useNarvaroSync';
@@ -287,6 +288,7 @@ export default function Narvaro() {
   const [pasteRaw, setPasteRaw] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [copyFallback, setCopyFallback] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
   // Rutan för passets namn: utkastet, eller null när den är stängd.
   const [naming, setNaming] = useState<string | null>(null);
@@ -595,6 +597,11 @@ export default function Narvaro() {
                   >
                     {sheetsThisWeek} av {Object.keys(currentLatest).length}
                   </span>
+                </Button>
+              )}
+              {!isExample && (
+                <Button variant="neutral" className="sp-btn" onClick={() => setExportOpen(true)} title="Kopiera eller ladda ner noteringarna som text, med schemats titel och innehåll">
+                  <Download /> Exportera
                 </Button>
               )}
               <Button
@@ -1097,6 +1104,21 @@ export default function Narvaro() {
           setEditing(null);
         }}
       />
+
+      {!mobile && !isExample && (
+        <NarvaroExportDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          data={sync.data}
+          schedules={schedule.weeks}
+          ensureWeek={ensureWeek}
+          myName={scheduleName.name}
+          resolveRoom={schedule.resolveRoom}
+          shownWeek={viewWeek}
+          shownClasses={selected}
+          onCopy={copyText}
+        />
+      )}
 
       <Dialog open={copyFallback !== null} onOpenChange={open => { if (!open) setCopyFallback(null); }}>
         <DialogContent className="max-w-md">
