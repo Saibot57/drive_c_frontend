@@ -37,6 +37,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Mindmap: markera flera, riktning för nya barn och arrangera](mindmap-arrangera.md) | Pågår. Alla delar A–E byggda 2026-11-13 (A i #283, B–E i #284). Kvar: Tobias prov och frågan om rutnätet i avsnitt 8 |
 | [Närvarorutor kopplade till schemat](narvaro-schemakoppling.md) | Pågår. Alla steg 1–6 byggda 2026-11-16 (#286). Veckovyn och Tidigare pass ersatta av veckokartan (#287). Kvar: proven i avsnitt 10 mot riktig backend |
 | [Närvarorutor: veckokartan överst](narvaro-veckokarta.md) | Pågår. Alla steg 1–5 byggda 2026-11-16 (#287). Kvar: proven i avsnitt 10 mot riktig backend |
+| [Närvarorutor: exportera noteringar som text](narvaro-export.md) | Pågår. Byggd 2026-11-16. Kvar: proven i avsnitt 6 |
 
 Lägg till en rad här när en ny plan skrivs.
 
