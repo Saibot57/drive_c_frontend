@@ -11,18 +11,14 @@ import type { PlannerArchiveSummary, ScheduledEntry } from '@/types/schedule';
 import {
   AttendanceColumn,
   AttendanceTable,
-  NotesStore,
   PassChoice,
   SessionNotes,
-  classesOnDay,
   combineSheets,
   dayColumns,
   defaultPass,
-  noteEntries,
-  sessionKey,
   weekdayName,
 } from '@/utils/narvaro';
-import { Sheets, isWeekKey, isoWeekKey, latestSheets, weekMonday } from '@/utils/narvaroDocs';
+import { isWeekKey } from '@/utils/narvaroDocs';
 import { compareLaneEntries } from '@/utils/scheduleLayout';
 import { isAllTeachersField, splitTeacherNames } from '@/utils/scheduleStats';
 import { timeToMinutes } from '@/utils/scheduleTime';
@@ -151,48 +147,6 @@ export function sortForDisplay(entries: ScheduledEntry[], myName: string): Sched
   return [...entries].sort((a, b) => Number(isMine(b, myName)) - Number(isMine(a, myName)) || compareLaneEntries(a, b));
 }
 
-/* ---------- från pass till kolumn ---------- */
-
-export type ScheduleTarget = { day: string; pass: PassChoice; classes: string[] };
-
-/**
- * Kolumnen på sidan som ett schemapass motsvarar, för klick i veckovyn.
- * `sheets` är veckans ark per klass och `classNames` alla klasser.
- * Null när passet inte motsvarar någon kolumn (Lunch, Paus, APT).
- */
-export function targetForEntry(
-  entry: ScheduledEntry,
-  sheets: Record<string, AttendanceTable>,
-  classNames: string[],
-  weekEntries: ScheduledEntry[],
-): ScheduleTarget | null {
-  const table = combineSheets(sheets, classNames);
-  const dayCols = dayColumns(table, entry.day);
-  const dayEntries = weekEntries.filter(e => e.day === entry.day);
-  const span = entrySpan(entry);
-  if (!span) return null;
-  const classesFor = (shown: ScheduledEntry[]) => (isClassDivided(shown, classNames)
-    ? entryClasses(entry.title, classNames)
-    : classesOnDay(sheets, classNames, entry.day));
-
-  const hits = dayCols
-    .map(col => ({ col, shown: entriesForColumn(col, dayCols, dayEntries) }))
-    .filter(h => h.shown.some(e => e.instanceId === entry.instanceId));
-  const wholeDay = entriesForDay(dayCols, dayEntries);
-  const inDay = wholeDay.some(e => e.instanceId === entry.instanceId);
-  // Ett pass som fyller flera kolumner och hela dagen (ett studiebesök) är hela dagen.
-  if (hits.length === 1 || (hits.length > 1 && !inDay)) {
-    const best = hits.reduce((a, b) => {
-      const sa = columnSpan(a.col, dayCols, dayEntries)!;
-      const sb = columnSpan(b.col, dayCols, dayEntries)!;
-      return overlap(sb, span) > overlap(sa, span) ? b : a;
-    });
-    return { day: entry.day, pass: best.col.id, classes: classesFor(best.shown) };
-  }
-  if (inDay) return { day: entry.day, pass: 'day', classes: classesFor(wholeDay) };
-  return null;
-}
-
 /* ---------- texten ---------- */
 
 /** Tom, eller bara skiljetecken och blanksteg ("."). */
@@ -277,69 +231,4 @@ export function effectiveScheduleName(saved: string, username: string | null | u
   const user = (username ?? '').trim().toLocaleLowerCase('sv');
   if (!user) return '';
   return teacherNames.find(n => n.trim().toLocaleLowerCase('sv') === user) ?? '';
-}
-
-/* ---------- veckor och noteringar per pass ---------- */
-
-/** Veckan `delta` veckor från `weekKey`. */
-export function shiftWeek(weekKey: string, delta: number): string {
-  const monday = weekMonday(weekKey);
-  if (!monday) return weekKey;
-  return isoWeekKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + delta * 7));
-}
-
-/** Varje klass ark som det gällde veckan (det senaste fram till den). */
-export function sheetsForWeek(tables: Record<string, Sheets>, weekKey: string): Sheets {
-  return Object.fromEntries(Object.entries(latestSheets(tables, weekKey)).map(([k, ref]) => [k, ref.table]));
-}
-
-export type EntrySession = {
-  target: ScheduleTarget;
-  /** Passets nyckel (`sessionKey`) i veckan. */
-  key: string;
-  /** Noteringarna, när de finns och hör till passets klasser. */
-  sess: SessionNotes | null;
-};
-
-/**
- * Kolumnen och noteringarna för ett schemapass i en vecka. Noteringarna
- * räknas bara när någon av klasserna med noteringar har passet, så att Olivs
- * notering inte ger Tema Rosa en prick. Null när passet saknar kolumn.
- */
-export function sessionForEntry(
-  entry: ScheduledEntry,
-  sheets: Sheets,
-  weekEntries: ScheduledEntry[],
-  weekKey: string,
-  notes: NotesStore,
-): EntrySession | null {
-  const monday = weekMonday(weekKey);
-  if (!monday) return null;
-  const classNames = Object.keys(sheets).filter(Boolean);
-  const target = targetForEntry(entry, sheets, classNames, weekEntries);
-  if (!target) return null;
-  const key = sessionKey(combineSheets(sheets, Object.keys(sheets)), target.day, target.pass, monday);
-  const stored = notes[key];
-  const has = !!stored && noteEntries(stored).length > 0
-    && sessionClasses(stored, sheets).some(k => target.classes.includes(k));
-  return { target, key, sess: has ? stored : null };
-}
-
-/**
- * Schemapassen för ett sparat pass (Tidigare pass). Kolumnen fås ur nyckelns
- * tredje del (`letter`, eller `dag`), och urvalet ur klasserna med noteringar.
- */
-export function entriesForSession(
-  key: string,
-  sess: SessionNotes,
-  sheets: Sheets,
-  weekEntries: ScheduledEntry[],
-): ScheduledEntry[] {
-  const [, day, which] = key.split('|');
-  if (!day || !which) return [];
-  const table = combineSheets(sheets, Object.keys(sheets));
-  const pass: PassChoice | null = which === 'dag' ? 'day' : table.cols.find(c => c.day === day && c.letter === which)?.id ?? null;
-  if (!pass) return [];
-  const classNames = Object.keys(sheets).filter(Boolean);
-  return entriesForClasses(entriesForChoice(table, day, pass, weekEntries), classNames, sessionClasses(sess, sheets));
 }

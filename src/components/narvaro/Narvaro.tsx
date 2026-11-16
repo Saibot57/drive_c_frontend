@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays, Check, ClipboardPaste, Copy, Hourglass, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, Hourglass, Loader2, Lock, PenLine, Shuffle, Smartphone, Trash2, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FeatureNavigation } from '@/components/FeatureNavigation';
@@ -12,7 +12,11 @@ import { NarvaroLock } from '@/components/narvaro/NarvaroLock';
 import { NarvaroMobile, NarvaroMobileHeader } from '@/components/narvaro/NarvaroMobile';
 import { MobileGroupChoices } from '@/components/narvaro/NarvaroMobileGroups';
 import { NarvaroScheduleLine } from '@/components/narvaro/NarvaroScheduleLine';
-import { NarvaroWeekDialog } from '@/components/narvaro/NarvaroWeekDialog';
+import { NarvaroWeekMap } from '@/components/narvaro/NarvaroWeekMap';
+import { ChipRow, NarvaroPassChips } from '@/components/narvaro/NarvaroPassChips';
+import { chip } from '@/components/narvaro/chip';
+import { ClassPicker } from '@/components/narvaro/NarvaroClassPicker';
+import { NarvaroSheetsDialog, PasteMessage } from '@/components/narvaro/NarvaroSheetsDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { NarvaroSaveStatus, useNarvaroSync } from '@/hooks/useNarvaroSync';
 import { useNarvaroSchedule, useNarvaroScheduleName } from '@/hooks/useNarvaroSchedule';
@@ -22,9 +26,7 @@ import {
   AttendanceTable,
   CUSTOM_STAMP_COLORS,
   ClassSuggestion,
-  MAX_CLASS_NAME_LENGTH,
   MAX_PASS_NAME_LENGTH,
-  cleanClassName,
   classesOnDay,
   combineSheets,
   groupsKey,
@@ -54,7 +56,6 @@ import {
   noteEntries,
   parsePasted,
   passNameFor,
-  relabelSession,
   pastePreview,
   randomGroups,
   roster,
@@ -67,7 +68,7 @@ import {
   toggleStamp,
   trimSessions,
 } from '@/utils/narvaro';
-import { groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading } from '@/utils/narvaroDocs';
+import { groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -83,16 +84,9 @@ import {
 } from '@/utils/narvaroMobile';
 import { exampleTable } from '@/utils/narvaroExample';
 import { PurgeTier, dismissWeek, purgeBadge, purgeInfo, purgeWhen, sanitizeDismissed, weeksNearPurge } from '@/utils/narvaroRetention';
-import {
-  ScheduleTarget,
-  entriesForChoice,
-  entriesForClasses,
-  entriesForSession,
-  myClassesNow,
-  sheetsForWeek,
-  sortForDisplay,
-} from '@/utils/narvaroSchedule';
+import { entriesForChoice, entriesForClasses, myClassesNow, sortForDisplay } from '@/utils/narvaroSchedule';
 import { collectTeacherNames } from '@/utils/scheduleStats';
+import { WeekMapMode, adjacentPass, mapWeeks, sanitizeWeekMapMode, weekMapDays } from '@/utils/narvaroWeekMap';
 import type { ScheduledEntry } from '@/types/schedule';
 import '@/styles/schedule-theme.css';
 
@@ -130,7 +124,6 @@ const sanitizeView = (raw: unknown): string[] =>
   Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : [];
 const classLabel = (klass: string) => klass || 'Utan klass';
 const weekNumber = (weekKey: string) => weekKey.slice(-2).replace(/^0/, '');
-type PasteMessage = { kind: 'ok' | 'error'; text: string } | null;
 
 /** Mobilläget per enhet: eget val, annars skärmens bredd. */
 const MOBILE_KEY = 'narvaro.mobile.v1';
@@ -142,13 +135,11 @@ const DISMISSED_KEY = 'narvaro.retentionDismissed.v1';
 const NO_WEEKS: string[] = [];
 const NO_ENTRIES: ScheduledEntry[] = [];
 const TIER_BG: Record<PurgeTier, string> = { 14: 'bg-ui-mark-grey', 7: 'bg-ui-mark-yellow', 1: 'bg-ui-mark-pink' };
-const weekAnchor = (week: string) => `narvaro-vecka-${week}`;
 
-const chip = (pressed: boolean) => cn(
-  'inline-flex items-baseline gap-1.5 rounded-ui-sm border-frame border-ui-line px-3 py-1 text-sm font-semibold transition-colors',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-focus)] focus-visible:ring-offset-2',
-  pressed ? 'bg-ui-ink text-ui-paper' : 'bg-ui-paper text-ui-ink hover:bg-ui-surface-3',
-);
+/** Veckokartan hel eller bara den valda dagen, per enhet. */
+const WEEK_MAP_KEY = 'narvaro.weekMap.v1';
+const WEEK_MAP_DEFAULT: WeekMapMode = 'week';
+const EXAMPLE_CLASS = ['exempel'];
 
 export default function Narvaro() {
   const [now] = useState(() => new Date());
@@ -160,9 +151,15 @@ export default function Narvaro() {
   const sync = useNarvaroSync(user?.id ?? null, now);
   const { update } = sync;
   const weekKey = isoWeekKey(now);
+  // Veckan som visas. En tidigare vecka väljs i kartan och går att redigera;
+  // datumen räknas då från dess måndag (`viewNow`) i stället för från i dag.
+  const [viewWeek, setViewWeek] = useState(weekKey);
+  const isCurrentWeek = viewWeek === weekKey;
+  const viewNow = useMemo(() => (isCurrentWeek ? now : weekMonday(viewWeek) ?? now), [isCurrentWeek, viewWeek, now]);
 
-  // Varje klass senaste tabell, och de valda klasserna som en tabell.
-  const latest = useMemo(() => latestSheets(sync.data.tables, weekKey), [sync.data.tables, weekKey]);
+  // Varje klass senaste tabell fram till veckan, och de valda klasserna som en tabell.
+  const latest = useMemo(() => latestSheets(sync.data.tables, viewWeek), [sync.data.tables, viewWeek]);
+  const currentLatest = useMemo(() => latestSheets(sync.data.tables, weekKey), [sync.data.tables, weekKey]);
   const classNames = Object.keys(latest).filter(Boolean).sort((a, b) => a.localeCompare(b, 'sv'));
   const unnamed = latest[''] ?? null;
   const allClasses = unnamed ? [...classNames, ''] : classNames;
@@ -219,27 +216,52 @@ export default function Narvaro() {
   // Veckans schema ur schemaplaneraren (bara läsning). Exemplet får inget.
   const schedule = useNarvaroSchedule(sync.phase === 'ready' && !isExample, weekKey);
   const thisWeek = schedule.weeks[weekKey];
+  const shownSchedule = schedule.weeks[viewWeek];
   const weekEntries = thisWeek?.entries ?? NO_ENTRIES;
+  const { ensureWeek } = schedule;
+  useEffect(() => { ensureWeek(viewWeek); }, [viewWeek, ensureWeek]);
   const teacherNames = useMemo(() => collectTeacherNames(weekEntries), [weekEntries]);
   const scheduleName = useNarvaroScheduleName(user?.username, teacherNames);
   // Första gången veckans schema finns: välj klassen användaren har nu, om
   // hen inte redan valt något själv. Skriver över det sparade klassvalet.
   const preselected = useRef(false);
   useEffect(() => {
-    if (preselected.current || !thisWeek || isExample) return;
+    if (preselected.current || !thisWeek || isExample || !isCurrentWeek) return;
     preselected.current = true;
     if (userPicked.current) return;
     const mine = myClassesNow(combineSheets(sheets, allClasses), thisWeek.entries, classNames, scheduleName.name, now);
     if (mine.length) setChosen(mine);
   }, [thisWeek]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Veckovyn. Ett klick på ett pass i den aktuella veckan väljer det på sidan.
-  const [weekOpen, setWeekOpen] = useState(false);
-  const pickFromSchedule = (target: ScheduleTarget) => {
+  // Veckokartan överst. Den ersätter Dag och Pass på datorn.
+  const [mapMode, setMapMode] = usePersistentState(WEEK_MAP_KEY, sanitizeWeekMapMode, WEEK_MAP_DEFAULT);
+  const mapDays = weekMapDays(isExample
+    ? { sheets: { exempel: example }, allClasses: EXAMPLE_CLASS, chosen: EXAMPLE_CLASS, classNames: [], weekEntries: null, myName: '', notes, weekKey, now }
+    : { sheets, allClasses, chosen, classNames, weekEntries: shownSchedule?.entries ?? null, myName: scheduleName.name, notes, weekKey: viewWeek, now });
+  // Veckoraden: veckor med ark eller noteringar, men bara de som har ett ark att visa.
+  const shownWeeks = mapWeeks(sync.data.tables, savedNotes, weekKey)
+    .filter(w => Object.keys(latestSheets(sync.data.tables, w.week)).length > 0)
+    .map(w => {
+      const purge = purgeInfo(w.week, now);
+      return purge ? { ...w, tone: TIER_BG[purge.tier], hint: `Gallras: ${purgeBadge(purge.daysLeft).toLowerCase()}` } : w;
+    });
+  const showWeek = (week: string) => {
     userPicked.current = true;
-    setChosen(target.classes);
-    setDay(target.day);
-    setPass(target.pass);
-    setWeekOpen(false);
+    setViewWeek(week);
+  };
+  const stepWeek = (step: -1 | 1) => {
+    const at = shownWeeks.findIndex(w => w.week === viewWeek);
+    const next = shownWeeks[at + step];
+    if (next) showWeek(next.week);
+  };
+  const pickPass = (d: string, p: PassChoice) => {
+    userPicked.current = true;
+    setDay(d);
+    setPass(p);
+  };
+  const pickDay = (d: string) => pickPass(d, defaultPass(tableForDay(d), d, viewNow));
+  const stepPass = (step: -1 | 1) => {
+    const next = adjacentPass(mapDays, day, pass, step);
+    if (next) pickPass(next.day, next.pass);
   };
 
   const [klass, setKlass] = useState('all');
@@ -253,13 +275,13 @@ export default function Narvaro() {
   const [editing, setEditing] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
 
-  const [pasteOpen, setPasteOpen] = useState<boolean | null>(null);
-  const showPaste = pasteOpen ?? !savedTable;
+  // Veckans ark: en dialog, eller ett kort på sidan innan något ark finns.
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const sheetsInline = Object.keys(currentLatest).length === 0;
   const [pending, setPending] = useState<PendingPaste | null>(null);
   const [newClass, setNewClass] = useState('');
   const [justSaved, setJustSaved] = useState<string | null>(null);
   const [nameUnnamed, setNameUnnamed] = useState('');
-  const [armedSheet, setArmedSheet] = useState<string | null>(null);
   const [pasteText, setPasteText] = useState('');
   const [pasteMsg, setPasteMsg] = useState<PasteMessage>(null);
   const [pasteRaw, setPasteRaw] = useState('');
@@ -268,8 +290,6 @@ export default function Narvaro() {
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
   // Rutan för passets namn: utkastet, eller null när den är stängd.
   const [naming, setNaming] = useState<string | null>(null);
-  // Ett tidigare pass som får nytt namn (högerklick i Tidigare pass).
-  const [renaming, setRenaming] = useState<{ key: string; draft: string } | null>(null);
 
   const [mobilePref, setMobilePref] = usePersistentState(MOBILE_KEY, sanitizeMobilePref, MOBILE_AUTO);
   const smallScreen = useMediaQuery('(max-width: 639px)');
@@ -281,22 +301,22 @@ export default function Narvaro() {
 
   // Första riktiga tabellen: välj dagens veckodag och passet som pågår.
   // Byts sedan klasser behålls dag och pass, så länge de finns kvar.
-  const shownKind = isExample ? 'example' : 'real';
+  const shownKind = isExample ? 'example' : `real:${viewWeek}`;
   const initialized = useRef<string | null>(null);
   useEffect(() => {
     setKlass(k => (k === 'all' || table.groups.includes(k) ? k : 'all'));
     if (initialized.current !== shownKind) {
       initialized.current = shownKind;
-      const d = defaultDay({ days }, now) ?? day;
+      const d = defaultDay({ days }, viewNow) ?? day;
       setDay(d);
-      setPass(defaultPass(tableForDay(d), d, now));
+      setPass(defaultPass(tableForDay(d), d, viewNow));
       return;
     }
-    const d = days.includes(day) ? day : defaultDay({ days }, now) ?? day;
+    const d = days.includes(day) ? day : defaultDay({ days }, viewNow) ?? day;
     if (d !== day) setDay(d);
     const t = tableForDay(d);
-    setPass(p => (p === 'day' || dayColumns(t, d).some(c => c.id === p) ? p : defaultPass(t, d, now)));
-  }, [table, now, shownKind]); // eslint-disable-line react-hooks/exhaustive-deps
+    setPass(p => (p === 'day' || dayColumns(t, d).some(c => c.id === p) ? p : defaultPass(t, d, viewNow)));
+  }, [table, viewNow, shownKind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!toast) return;
@@ -304,23 +324,15 @@ export default function Narvaro() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  // Påminnelser om gallring. "Visa" byter till noteringarna, fäller ut veckan och scrollar dit.
+  // Påminnelser om gallring. "Visa" visar veckan i kartan.
   const [dismissedWeeks, setDismissedWeeks] = usePersistentState(DISMISSED_KEY, sanitizeDismissed, NO_WEEKS);
-  const [revealWeek, setRevealWeek] = useState<string | null>(null);
-  useEffect(() => {
-    if (!revealWeek) return;
-    const el = document.getElementById(weekAnchor(revealWeek));
-    if (el instanceof HTMLDetailsElement) {
-      el.open = true;
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    setRevealWeek(null);
-  }, [revealWeek]);
+  // Mobilläget visar alltid den här veckan.
+  useEffect(() => { if (mobile) setViewWeek(weekKey); }, [mobile, weekKey]);
 
-  const key = sessionKey(table, day, pass, now);
+  const key = sessionKey(table, day, pass, viewNow);
   // Passets namn hör till passet och klassen; visas flera klasser får alla samma.
   const nameClasses = isExample ? ['exempel'] : selected;
-  const label = sessionLabel(table, day, pass, now, passNameFor(passNames, key, nameClasses));
+  const label = sessionLabel(table, day, pass, viewNow, passNameFor(passNames, key, nameClasses));
   const sess: SessionNotes = notes[key] ?? emptySession(label);
   const { present, absent } = roster(table, { klass, day, pass, added: sess.added });
   // Grupperna hör till passet och till de klasser som visas tillsammans.
@@ -342,26 +354,22 @@ export default function Narvaro() {
   const showSchool = klass === 'all' && table.groups.length > 1;
   const showClassName = !isExample && selected.length > 1;
   // Passen enligt schemat för det valda passet, eller null när veckan saknar schema.
-  const scheduleEntries = thisWeek
-    ? sortForDisplay(entriesForClasses(entriesForChoice(table, day, pass, weekEntries), classNames, selected), scheduleName.name)
+  const scheduleEntries = shownSchedule
+    ? sortForDisplay(entriesForClasses(entriesForChoice(table, day, pass, shownSchedule.entries), classNames, selected), scheduleName.name)
     : null;
   const scheduleEmpty = `Inget pass för ${selected.map(classLabel).join(' och ')} enligt schemat`;
 
   const updateSession = (fn: (s: SessionNotes) => SessionNotes) =>
     setNotes({ ...notes, [key]: { ...fn(sess), label } });
-  // Ett tidigare pass får sin rubrik från den sparade, eftersom dess tabell kan vara en annan veckas.
-  const savePassName = (name: string, k = key) => {
-    const labelFor = k === key
-      ? (n: string) => sessionLabel(table, day, pass, now, n)
-      : (n: string) => relabelSession(notes[k]?.label ?? '', n);
-    const sel = { key: k, classes: nameClasses, name, labelFor };
+  const savePassName = (name: string) => {
+    const labelFor = (n: string) => sessionLabel(table, day, pass, viewNow, n);
+    const sel = { key, classes: nameClasses, name, labelFor };
     if (isExample) {
       const r = namePass(exNotes, exPassNames, sel);
       setExNotes(r.notes);
       setExPassNames(r.passNames);
     } else update(d => ({ ...d, ...namePass(d.notes, d.passNames, sel) }));
     setNaming(null);
-    setRenaming(null);
   };
   useEffect(() => setNaming(null), [key]);
   const saveGroups = (next: string[][]) =>
@@ -383,6 +391,7 @@ export default function Narvaro() {
   const saveAs = useCallback((klass: string, table: AttendanceTable, suggestion: ClassSuggestion | null) => {
     update(d => setSheet(d, weekKey, klass, table));
     userPicked.current = true;
+    setViewWeek(weekKey);
     setChosen([klass]);
     setPending(null);
     setNewClass('');
@@ -488,25 +497,73 @@ export default function Narvaro() {
 
   const entries = noteEntries(sess);
   const pastWeeks = groupByWeek(historyKeys(notes, key));
-  const history = mode === 'notes' ? pastWeeks : [];
   const nearPurge = isExample || mobile ? [] : weeksNearPurge(pastWeeks.map(g => g.week), now, dismissedWeeks);
-  const weekText = (keys: readonly string[]) => keys.map(k => sessionText(notes[k], table, stamps)).join('\n\n');
-  // Tidigare pass: schemats text under rubriken. Veckans schema hämtas när gruppen fälls ut.
-  const { ensureWeek } = schedule;
-  const firstHistoryWeek = history[0]?.week ?? null;
-  useEffect(() => { if (firstHistoryWeek) ensureWeek(firstHistoryWeek); }, [firstHistoryWeek, ensureWeek]);
-  const historySchedule = (week: string | null, k: string) => {
-    const w = week ? schedule.weeks[week] : null;
-    if (!week || !w) return null;
-    const shownEntries = sortForDisplay(entriesForSession(k, notes[k], sheetsForWeek(sync.data.tables, week), w.entries), scheduleName.name);
-    if (!shownEntries.length) return null;
-    return (
-      <div className="pl-4 font-normal">
-        <NarvaroScheduleLine variant="muted" entries={shownEntries} myName={scheduleName.name} resolveRoom={schedule.resolveRoom} emptyText="" />
-      </div>
-    );
+  // Kopiera veckan, för den vecka som visas.
+  const viewWeekKeys = Object.keys(notes).filter(k => weekOfSession(k) === viewWeek && noteEntries(notes[k]).length > 0).sort();
+  const deleteSession = () => {
+    if (armedDelete !== key) { setArmedDelete(key); return; }
+    const next = { ...notes };
+    delete next[key];
+    setNotes(next);
+    setArmedDelete(null);
   };
   const cols = dayColumns(table, day);
+  const sheetsThisWeek = Object.keys(sync.data.tables[weekKey] ?? {}).length;
+  const sheetRows = Object.keys(currentLatest).sort((a, b) => (a ? (b ? a.localeCompare(b, 'sv') : -1) : 1)).map(k => ({
+    klass: k,
+    label: classLabel(k),
+    thisWeek: currentLatest[k].week === weekKey,
+    week: currentLatest[k].week,
+    people: currentLatest[k].table.people.length,
+    schools: currentLatest[k].table.groups.length,
+  }));
+  const classChips = !isExample && shownClasses.length > 1 ? shownClasses.map(k => (
+    <button
+      key={k}
+      type="button"
+      className={chip(selected.includes(k))}
+      aria-pressed={selected.includes(k)}
+      onClick={() => toggleClass(k)}
+      title="Välj flera för att visa klasserna tillsammans"
+    >
+      {classLabel(k)}
+      {latest[k].week !== viewWeek && <small className="font-mono text-2xs opacity-70">v. {weekNumber(latest[k].week)}</small>}
+    </button>
+  )) : null;
+  const schoolChips = table.groups.length > 1 ? ['all', ...table.groups].map(k => (
+    <button key={k} type="button" className={chip(klass === k)} aria-pressed={klass === k} onClick={() => setKlass(k)}>
+      {k === 'all' ? 'Alla' : k}
+    </button>
+  )) : null;
+  const namingControl = naming === null ? (
+    <button
+      type="button"
+      className={chip(false)}
+      aria-label="Namnge passet"
+      title="Namnge passet"
+      onClick={() => setNaming(passNameFor(passNames, key, nameClasses))}
+    >
+      <PenLine size={14} />
+    </button>
+  ) : (
+    <form
+      className="flex gap-1.5"
+      onSubmit={e => { e.preventDefault(); savePassName(naming); }}
+      onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setNaming(null); } }}
+    >
+      <input
+        autoFocus
+        value={naming}
+        onChange={e => setNaming(e.target.value)}
+        maxLength={MAX_PASS_NAME_LENGTH}
+        placeholder="Passets namn, t.ex. Svenska"
+        aria-label="Passets namn"
+        title="Tomt namn tar bort det"
+        className="sp-input w-48 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm"
+      />
+      <Button type="submit" variant="neutral" size="sm" className="sp-btn">Spara</Button>
+    </form>
+  );
   const weekday = now.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
@@ -524,22 +581,22 @@ export default function Narvaro() {
           {sync.phase === 'ready' && (
             <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
               <SaveIndicator status={sync.saveStatus} />
-              {thisWeek && (
-                <Button variant="neutral" className="sp-btn" onClick={() => setWeekOpen(true)} title="Veckans schema">
-                  <CalendarDays /> Veckan
-                </Button>
-              )}
               <Button variant="neutral" className="sp-btn" onClick={() => setMobilePref('on')} title="Stora rutor och stämplar i tummens räckvidd">
                 <Smartphone /> Mobilläge
               </Button>
-              <Button
-                variant="neutral"
-                className="sp-btn"
-                aria-expanded={showPaste}
-                onClick={() => setPasteOpen(!showPaste)}
-              >
-                <ClipboardPaste /> Klistra in tabell
-              </Button>
+              {!sheetsInline && (
+                <Button variant="neutral" className="sp-btn" onClick={() => setPasteOpen(true)} title="Klassernas ark för veckan, och inklistring">
+                  <ClipboardPaste /> Veckans ark
+                  <span
+                    className={cn(
+                      'rounded-ui-sm border border-ui-line px-1.5 text-xs font-bold text-ui-mark-fg',
+                      sheetsThisWeek < Object.keys(currentLatest).length ? 'bg-ui-mark-yellow' : 'bg-ui-mark-green',
+                    )}
+                  >
+                    {sheetsThisWeek} av {Object.keys(currentLatest).length}
+                  </span>
+                </Button>
+              )}
               <Button
                 variant="neutral"
                 size="icon"
@@ -605,7 +662,7 @@ export default function Narvaro() {
                   {weekHeading(w.week, weekKey)} gallras {purgeWhen(w.daysLeft)}, med alla noteringar. Kopiera det du vill spara.
                 </span>
                 <span className="flex gap-2">
-                  <Button variant="neutral" size="sm" className="sp-btn" onClick={() => { setMode('notes'); setRevealWeek(w.week); }}>
+                  <Button variant="neutral" size="sm" className="sp-btn" onClick={() => { setMode('notes'); showWeek(w.week); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                     Visa
                   </Button>
                   <Button
@@ -623,48 +680,19 @@ export default function Narvaro() {
           </section>
         )}
 
-        {showPaste && !mobile && (
-          <section className="sp-card flex flex-col gap-3 p-4" aria-label="Klistra in">
-            <h2 className="text-lg font-bold">Klistra in en klass från Google Kalkylark</h2>
-            <ol className="ml-5 list-decimal text-sm">
-              <li>Markera hela tabellen i klassens ark, med dag- och tidsraderna överst (till exempel A1:Q34).</li>
-              <li>Kopiera med Ctrl+C, eller Cmd+C på Mac.</li>
-              <li>Klicka i rutan nedan och klistra in. Gör likadant för varje klass.</li>
-            </ol>
-            <textarea
-              id="narvaro-paste"
-              className="sp-input min-h-[80px] w-full rounded-ui-sm bg-ui-surface-2 p-2.5 font-mono text-xs"
-              placeholder="Klistra in här"
-              value={pasteText}
-              onChange={e => setPasteText(e.target.value)}
-              onPaste={e => {
-                const html = e.clipboardData.getData('text/html');
-                const text = e.clipboardData.getData('text/plain');
-                if (html || text) { e.preventDefault(); handlePaste(text, html); }
-              }}
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button className="sp-btn" onClick={() => handlePaste(pasteText, '')}>Läs in</Button>
-              <Button
-                variant="neutral"
-                className="sp-btn"
-                onClick={() => { setShowExample(true); setPasteMsg({ kind: 'ok', text: 'Exemplet visas.' }); }}
-              >
-                Visa exemplet
-              </Button>
-              {pasteMsg && (
-                <span
-                  role="status"
-                  className={cn(
-                    'rounded-ui-sm border border-ui-line px-2 py-0.5 text-sm font-semibold text-ui-mark-fg',
-                    pasteMsg.kind === 'ok' ? 'bg-ui-mark-green' : 'bg-ui-mark-pink',
-                  )}
-                >
-                  {pasteMsg.text}
-                </span>
-              )}
-            </div>
-            {pending && (
+        {!mobile && (
+          <NarvaroSheetsDialog
+            open={pasteOpen}
+            onOpenChange={setPasteOpen}
+            inline={sheetsInline}
+            weekNumber={weekNumber(weekKey)}
+            rows={sheetRows}
+            onRemove={k => update(d => removeSheet(d, weekKey, k))}
+            pasteText={pasteText}
+            onPasteText={setPasteText}
+            onPaste={handlePaste}
+            message={pasteMsg}
+            picker={pending ? (
               <ClassPicker
                 title={`Vilken klass är det här? ${pending.table.people.length} deltagare och ${pending.table.cols.length} pass.`}
                 hint={pending.suggestion
@@ -677,65 +705,22 @@ export default function Narvaro() {
                 onPick={k => saveAs(k, pending.table, pending.suggestion)}
                 onCancel={() => { setPending(null); setNewClass(''); }}
               />
-            )}
-            {justSaved && !pending && (
+            ) : justSaved ? (
               <details className="text-sm">
                 <summary className="cursor-pointer text-ui-muted underline">Fel klass?</summary>
                 <ClassPicker
-                  title={`Flytta tabellen från ${justSaved} till:`}
+                  title={`Flytta arket från ${justSaved} till:`}
                   classes={classNames.filter(c => c !== justSaved)}
                   newName={newClass}
                   onNewName={setNewClass}
                   onPick={moveJustSaved}
                 />
               </details>
-            )}
-            {allClasses.length > 0 && (
-              <div className="flex flex-col gap-1.5 text-sm">
-                <span className="font-mono text-2xs font-bold uppercase tracking-widest text-ui-muted">Klasser</span>
-                <ul className="flex flex-wrap gap-2">
-                  {allClasses.map(k => {
-                    const ref = latest[k];
-                    const thisWeek = ref.week === weekKey;
-                    const id = `${ref.week}|${k}`;
-                    return (
-                      <li key={k} className="flex items-center gap-1.5 rounded-ui-sm border border-ui-line bg-ui-paper px-2 py-0.5">
-                        <span className="font-semibold">{classLabel(k)}</span>
-                        <span className="text-xs text-ui-muted">
-                          {thisWeek ? `vecka ${weekNumber(weekKey)}` : `från vecka ${weekNumber(ref.week)}`} · {ref.table.people.length} deltagare
-                        </span>
-                        {thisWeek && (
-                          <button
-                            type="button"
-                            className="text-xs text-ui-muted underline"
-                            onClick={() => {
-                              if (armedSheet !== id) { setArmedSheet(id); return; }
-                              update(d => removeSheet(d, weekKey, k));
-                              setArmedSheet(null);
-                            }}
-                          >
-                            {armedSheet === id ? 'Säker? Tryck igen' : 'Ta bort'}
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="text-xs text-ui-muted">Ta bort gäller bara veckans tabell. Noteringarna finns kvar.</p>
-              </div>
-            )}
-            {pasteRaw && (
-              <details className="flex flex-col gap-1.5">
-                <summary className="cursor-pointer text-sm font-semibold">Så här såg det inklistrade ut (de första raderna)</summary>
-                <textarea readOnly rows={8} value={pasteRaw} className="sp-input my-1.5 w-full whitespace-pre rounded-ui-sm bg-ui-surface-2 p-2 font-mono text-2xs" />
-                <Button variant="neutral" size="sm" className="sp-btn self-start" onClick={() => copyText(pasteRaw)}>Kopiera</Button>
-              </details>
-            )}
-            <p className="text-xs text-ui-muted">
-              Allt krypteras här innan det sparas, och servern kan inte läsa något. Tabellen sparas för vecka{' '}
-              {weekNumber(weekKey)}. Klistra in på nytt när arket har uppdaterats.
-            </p>
-          </section>
+            ) : null}
+            raw={pasteRaw}
+            onCopyRaw={() => copyText(pasteRaw)}
+            onShowExample={() => { setShowExample(true); setPasteOpen(false); setPasteMsg({ kind: 'ok', text: 'Exemplet visas.' }); }}
+          />
         )}
 
         {isExample && (
@@ -762,7 +747,7 @@ export default function Narvaro() {
             />
           </section>
         )}
-        {!isExample && selected.some(k => latest[k] && latest[k].week !== weekKey) && (
+        {!isExample && isCurrentWeek && selected.some(k => latest[k] && latest[k].week !== weekKey) && (
           <div className="sp-toast bg-ui-mark-yellow px-4 py-2 text-sm font-semibold text-ui-mark-fg">
             {selected.filter(k => latest[k] && latest[k].week !== weekKey)
               .map(k => `${classLabel(k)}: tabellen är från vecka ${weekNumber(latest[k].week)}.`).join(' ')}{' '}
@@ -770,109 +755,72 @@ export default function Narvaro() {
           </div>
         )}
 
-        {(!mobile || pickerOpen) && (
-        <section className="sp-card flex flex-col gap-3 p-4" aria-label="Urval">
-          {!isExample && shownClasses.length > 1 && (
-            <ChipRow label="Klass">
-              {shownClasses.map(k => (
-                <button
-                  key={k}
-                  type="button"
-                  className={chip(selected.includes(k))}
-                  aria-pressed={selected.includes(k)}
-                  onClick={() => toggleClass(k)}
-                  title="Välj flera för att visa klasserna tillsammans"
-                >
-                  {classLabel(k)}
-                  {latest[k].week !== weekKey && <small className="font-mono text-2xs opacity-70">v. {weekNumber(latest[k].week)}</small>}
-                </button>
-              ))}
-            </ChipRow>
-          )}
-          {table.groups.length > 1 && (
-            <ChipRow label="Skola">
-              {['all', ...table.groups].map(k => (
-                <button key={k} type="button" className={chip(klass === k)} aria-pressed={klass === k} onClick={() => setKlass(k)}>
-                  {k === 'all' ? 'Alla' : k}
-                </button>
-              ))}
-            </ChipRow>
-          )}
-          <ChipRow label="Dag">
-            {days.map(d => (
-              <button
-                key={d}
-                type="button"
-                className={chip(day === d)}
-                aria-pressed={day === d}
-                onClick={() => { userPicked.current = true; setDay(d); setPass(defaultPass(tableForDay(d), d, now)); }}
-              >
-                {d}
-              </button>
-            ))}
-          </ChipRow>
-          <ChipRow label="Pass">
-            <button type="button" className={chip(pass === 'day')} aria-pressed={pass === 'day'} onClick={() => { userPicked.current = true; setPass('day'); }}>
-              Hela dagen
-            </button>
-            {cols.map(c => {
-              const any = table.people.some(p => p.marks[c.index] === true);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={cn(chip(pass === c.id), !any && pass !== c.id && 'border-dashed text-ui-muted')}
-                  aria-pressed={pass === c.id}
-                  title={any ? undefined : 'Ingen markerad än'}
-                  onClick={() => { userPicked.current = true; setPass(c.id); }}
-                >
-                  {c.pass}
-                  {c.letter && <small className="font-mono text-2xs opacity-70">{c.letter}</small>}
-                </button>
-              );
-            })}
-            {naming === null ? (
-              <button
-                type="button"
-                className={chip(false)}
-                aria-label="Namnge passet"
-                title="Namnge passet"
-                onClick={() => setNaming(passNameFor(passNames, key, nameClasses))}
-              >
-                <PenLine size={14} />
-              </button>
-            ) : (
-              <form
-                className="flex gap-1.5"
-                onSubmit={e => { e.preventDefault(); savePassName(naming); }}
-                onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setNaming(null); } }}
-              >
-                <input
-                  autoFocus
-                  value={naming}
-                  onChange={e => setNaming(e.target.value)}
-                  maxLength={MAX_PASS_NAME_LENGTH}
-                  placeholder="Passets namn, t.ex. Svenska"
-                  aria-label="Passets namn"
-                  title="Tomt namn tar bort det"
-                  className="sp-input w-48 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm"
-                />
-                <Button type="submit" variant="neutral" size="sm" className="sp-btn">Spara</Button>
-              </form>
+        {!mobile && (
+          <NarvaroWeekMap
+            days={mapDays}
+            day={day}
+            pass={pass}
+            onPick={pickPass}
+            onDay={pickDay}
+            mode={mapMode}
+            onMode={setMapMode}
+            title={`Vecka ${weekNumber(viewWeek)}`}
+            weeks={isExample ? undefined : shownWeeks}
+            shownWeek={viewWeek}
+            onWeek={showWeek}
+            onStepWeek={isExample ? undefined : stepWeek}
+            notice={!isCurrentWeek && (
+              <span className="inline-flex flex-wrap items-center gap-2 rounded-ui-sm border-frame border-ui-line bg-ui-mark-yellow px-2 py-1 text-sm font-semibold text-ui-mark-fg">
+                Vecka {weekNumber(viewWeek)}. Det du ändrar sparas i den veckan.
+                <Button variant="neutral" size="sm" className="sp-btn h-7" disabled={!viewWeekKeys.length} onClick={() => copyText(viewWeekKeys.map(k => sessionText(notes[k], table, stamps)).join('\n\n'))}>
+                  <Copy /> Kopiera veckan
+                </Button>
+                <Button variant="neutral" size="sm" className="sp-btn h-7" onClick={() => showWeek(weekKey)}>Till vecka {weekNumber(weekKey)}</Button>
+              </span>
             )}
-          </ChipRow>
-          {scheduleEntries && !mobile && (
-            <div className="sm:pl-[68px]">
-              <NarvaroScheduleLine
-                entries={scheduleEntries}
-                myName={scheduleName.name}
-                resolveRoom={schedule.resolveRoom}
-                emptyText={scheduleEmpty}
-                teacherNames={teacherNames}
-                onChooseName={scheduleName.setName}
-              />
+            classChips={classChips}
+            myName={scheduleName.name}
+            teacherNames={teacherNames}
+            onChooseName={scheduleName.setName}
+            hasSchedule={!!shownSchedule}
+          />
+        )}
+
+        {(!mobile || pickerOpen) && (
+        <section className="sp-card flex flex-col gap-3 p-4" aria-label={mobile ? 'Urval' : 'Valt pass'}>
+          {mobile ? (<>
+            {classChips && <ChipRow label="Klass">{classChips}</ChipRow>}
+            {schoolChips && <ChipRow label="Skola">{schoolChips}</ChipRow>}
+            <NarvaroPassChips
+              days={days}
+              day={day}
+              onDay={pickDay}
+              cols={cols}
+              pass={pass}
+              onPass={p => pickPass(day, p)}
+              hasMarks={c => table.people.some(p => p.marks[c.index] === true)}
+              naming={namingControl}
+            />
+          </>) : (<>
+            <div className="flex items-start gap-3">
+              <Button variant="neutral" size="icon" className="sp-btn mt-0.5 shrink-0" aria-label="Föregående pass" onClick={() => stepPass(-1)}>
+                <ChevronLeft />
+              </Button>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-bold leading-tight">{label}</h1>
+                  {namingControl}
+                </div>
+                {scheduleEntries && (
+                  <NarvaroScheduleLine entries={scheduleEntries} myName={scheduleName.name} resolveRoom={schedule.resolveRoom} emptyText={scheduleEmpty} />
+                )}
+              </div>
+              <Button variant="neutral" size="icon" className="sp-btn mt-0.5 shrink-0" aria-label="Nästa pass" onClick={() => stepPass(1)}>
+                <ChevronRight />
+              </Button>
             </div>
-          )}
+            {schoolChips && <ChipRow label="Skola">{schoolChips}</ChipRow>}
+          </>)}
 
           {!mobile && (<>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ui-hair pt-3">
@@ -1098,9 +1046,14 @@ export default function Narvaro() {
           <section className="sp-card flex flex-col gap-2 p-4" aria-label="Noteringar">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-bold">Noteringar · {label}</h3>
-              <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps))}>
-                <Copy /> Kopiera
-              </Button>
+              <span className="flex gap-2">
+                <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps))}>
+                  <Copy /> Kopiera
+                </Button>
+                <Button variant="neutral" size="sm" className="sp-btn" disabled={!notes[key]} onClick={deleteSession} title="Tar bort passets noteringar och tillagda">
+                  <Trash2 /> {armedDelete === key ? 'Säker? Tryck igen' : 'Ta bort'}
+                </Button>
+              </span>
             </div>
             {entries.length ? (
               <ul className="flex flex-col divide-y divide-ui-hair">
@@ -1118,94 +1071,6 @@ export default function Narvaro() {
           </section>
         )}
 
-        {history.length > 0 && (
-          <section className="sp-card flex flex-col p-4" aria-label="Tidigare pass">
-            <h3 className="mb-1 text-lg font-bold">Tidigare pass</h3>
-            {history.map((group, i) => {
-              const purge = purgeInfo(group.week, now);
-              return (
-              <details
-                key={group.week ?? ''}
-                id={group.week ? weekAnchor(group.week) : undefined}
-                open={i === 0}
-                onToggle={e => { if (e.currentTarget.open && group.week) ensureWeek(group.week); }}
-                className="scroll-mt-4 border-t border-ui-line py-2"
-              >
-                <summary className="cursor-pointer font-mono text-xs font-semibold tracking-wider text-ui-muted">
-                  {weekHeading(group.week, weekKey)} · {group.keys.length} pass
-                  {purge && (
-                    <span className={cn('ml-2 inline-flex items-center gap-1 rounded-ui-sm border border-ui-line px-1.5 py-0.5 font-sans normal-case tracking-normal text-ui-mark-fg', TIER_BG[purge.tier])}>
-                      <Hourglass className="h-3 w-3" aria-hidden /> {purgeBadge(purge.daysLeft)}
-                    </span>
-                  )}
-                </summary>
-                {purge && (
-                  <div className="ml-4 flex flex-wrap items-center gap-2 py-2 text-sm">
-                    <span className="text-ui-muted">Veckan gallras {purgeWhen(purge.daysLeft)}.</span>
-                    <Button variant="neutral" size="sm" className="sp-btn" onClick={() => copyText(weekText(group.keys))}>
-                      <Copy /> Kopiera veckan
-                    </Button>
-                  </div>
-                )}
-                {group.keys.map(k => renaming?.key === k ? (
-                  <form
-                    key={k}
-                    className="ml-4 flex flex-wrap items-center gap-1.5 border-t border-ui-hair py-2"
-                    onSubmit={e => { e.preventDefault(); savePassName(renaming.draft, k); }}
-                    onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setRenaming(null); } }}
-                  >
-                    <input
-                      autoFocus
-                      value={renaming.draft}
-                      onChange={e => setRenaming({ key: k, draft: e.target.value })}
-                      maxLength={MAX_PASS_NAME_LENGTH}
-                      placeholder="Passets namn, t.ex. Svenska"
-                      aria-label={`Namn på passet ${notes[k].label}`}
-                      title="Tomt namn tar bort det"
-                      className="sp-input w-48 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm"
-                    />
-                    <Button type="submit" variant="neutral" size="sm" className="sp-btn">Spara</Button>
-                    <Button type="button" variant="neutral" size="sm" className="sp-btn" onClick={() => setRenaming(null)}>Avbryt</Button>
-                  </form>
-                ) : (
-                  <details key={k} className="ml-4 border-t border-ui-hair py-2">
-                    <summary
-                      className="cursor-pointer font-semibold"
-                      title="Högerklicka för att namnge passet"
-                      onContextMenu={e => { e.preventDefault(); setRenaming({ key: k, draft: passNameFor(passNames, k, nameClasses) }); }}
-                    >
-                      {notes[k].label}
-                      {historySchedule(group.week, k)}
-                    </summary>
-                    <pre className="my-2 overflow-x-auto whitespace-pre-wrap rounded-ui-sm border border-ui-line bg-ui-surface-2 p-2.5 font-mono text-xs">
-                      {sessionText(notes[k], table, stamps)}
-                    </pre>
-                    <div className="flex gap-2">
-                      <Button variant="neutral" size="sm" className="sp-btn" onClick={() => copyText(sessionText(notes[k], table, stamps))}>
-                        <Copy /> Kopiera
-                      </Button>
-                      <Button
-                        variant="neutral"
-                        size="sm"
-                        className="sp-btn"
-                        onClick={() => {
-                          if (armedDelete !== k) { setArmedDelete(k); return; }
-                          const next = { ...notes };
-                          delete next[k];
-                          setNotes(next);
-                          setArmedDelete(null);
-                        }}
-                      >
-                        <Trash2 /> {armedDelete === k ? 'Säker? Tryck igen' : 'Ta bort'}
-                      </Button>
-                    </div>
-                  </details>
-                ))}
-              </details>
-              );
-            })}
-          </section>
-        )}
         </>)}
         </>)}
       </div>
@@ -1232,25 +1097,6 @@ export default function Narvaro() {
           setEditing(null);
         }}
       />
-
-      {thisWeek && !mobile && (
-        <NarvaroWeekDialog
-          open={weekOpen}
-          onOpenChange={setWeekOpen}
-          currentWeek={weekKey}
-          weeks={schedule.weeks}
-          ensureWeek={schedule.ensureWeek}
-          resolveColor={schedule.resolveColor}
-          resolveRoom={schedule.resolveRoom}
-          myName={scheduleName.name}
-          onChooseName={scheduleName.setName}
-          tables={sync.data.tables}
-          notes={savedNotes}
-          stamps={stamps}
-          onPick={pickFromSchedule}
-          onCopy={copyText}
-        />
-      )}
 
       <Dialog open={copyFallback !== null} onOpenChange={open => { if (!open) setCopyFallback(null); }}>
         <DialogContent className="max-w-md">
@@ -1284,15 +1130,6 @@ export default function Narvaro() {
   );
 }
 
-function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid items-start gap-1 sm:grid-cols-[56px_1fr] sm:gap-3">
-      <span className="pt-0 font-mono text-2xs font-bold uppercase tracking-widest text-ui-muted sm:pt-2">{label}</span>
-      <div className="flex min-w-0 flex-wrap gap-2">{children}</div>
-    </div>
-  );
-}
-
 function SaveIndicator({ status }: { status: NarvaroSaveStatus }) {
   const Icon = status === 'saved' ? Check : status === 'error' || status === 'conflict' ? AlertTriangle : Loader2;
   return (
@@ -1300,54 +1137,5 @@ function SaveIndicator({ status }: { status: NarvaroSaveStatus }) {
       <Icon size={14} className={cn((status === 'saving' || status === 'pending') && 'animate-spin')} />
       {SAVE_LABEL[status]}
     </span>
-  );
-}
-
-type ClassPickerProps = {
-  title: string;
-  hint?: string;
-  classes: string[];
-  suggested?: string;
-  newName: string;
-  onNewName: (name: string) => void;
-  onPick: (klass: string) => void;
-  onCancel?: () => void;
-};
-
-/** Välj en befintlig klass eller skriv en ny. */
-function ClassPicker({ title, hint, classes, suggested, newName, onNewName, onPick, onCancel }: ClassPickerProps) {
-  const name = cleanClassName(newName);
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="font-semibold">{title}</p>
-      {hint && <p className="text-sm">{hint}</p>}
-      <div className="flex flex-wrap items-center gap-2">
-        {[...classes].sort((a, b) => (a === suggested ? -1 : b === suggested ? 1 : 0)).map(k => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => onPick(k)}
-            className={cn(chip(k === suggested), 'text-sm')}
-          >
-            {k}
-          </button>
-        ))}
-        <form
-          className="flex gap-1.5"
-          onSubmit={e => { e.preventDefault(); if (name) onPick(name); }}
-        >
-          <input
-            value={newName}
-            onChange={e => onNewName(e.target.value)}
-            maxLength={MAX_CLASS_NAME_LENGTH}
-            placeholder="Ny klass"
-            aria-label="Ny klass"
-            className="sp-input w-32 rounded-ui-sm bg-ui-paper px-2 py-1 text-sm text-ui-ink"
-          />
-          <Button type="submit" variant="neutral" size="sm" className="sp-btn" disabled={!name}>Spara</Button>
-        </form>
-        {onCancel && <button type="button" className="text-sm text-ui-muted underline" onClick={onCancel}>Avbryt</button>}
-      </div>
-    </div>
   );
 }

@@ -2,8 +2,11 @@
 
 Status: Pågår
 
-Läget 2026-11-16: alla steg 1–6 är byggda på grenen
-`claude/upbeat-bardeen-sn7y2i`. Kvar är proven i avsnitt 10 mot den riktiga
+Veckovyn (4.2, steg 5) ska ersättas av veckokartan i
+[narvaro-veckokarta.md](narvaro-veckokarta.md), som också tar bort Tidigare
+pass (4.4, steg 6) till förmån för läsläget där.
+
+Läget 2026-11-16: alla steg 1–6 är byggda (#286). Kvar är proven i avsnitt 10 mot den riktiga
 backenden, i Neo och Kronberg. Avvikelserna står i avsnitt 11.
 
 Skriven 2026-11-16 efter en genomgång av veckoschemana v. 45–47 och
@@ -524,3 +527,9 @@ Skrivna av sessionen som byggde stegen.
   hämtas direkt. Övriga hämtas när de fälls ut (`onToggle`).
 - Provat i webbläsaren mot samma påhittade API som steg 5: v. 46 visar Tema
   Oliv för Olivs notering och v. 47 Tema Rosa för Rosas.
+
+### Efter planen (2026-11-16)
+
+Veckodialogen (`NarvaroWeekDialog`), props i `PublicTimeGrid`,
+`targetForEntry` och `sessionForEntry` togs bort när veckokartan byggdes
+(steg 2 i [narvaro-veckokarta.md](narvaro-veckokarta.md)).
