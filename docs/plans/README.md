@@ -38,6 +38,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Närvarorutor kopplade till schemat](narvaro-schemakoppling.md) | Pågår. Alla steg 1–6 byggda 2026-11-16 (#286). Veckovyn och Tidigare pass ersatta av veckokartan (#287). Kvar: proven i avsnitt 10 mot riktig backend |
 | [Närvarorutor: veckokartan överst](narvaro-veckokarta.md) | Pågår. Alla steg 1–5 byggda 2026-11-16 (#287). Kvar: proven i avsnitt 10 mot riktig backend |
 | [Närvarorutor: exportera noteringar som text](narvaro-export.md) | Pågår. Byggd 2026-11-16. Kvar: proven i avsnitt 6 |
+| [Närvarorutor: exportera noteringar som Excel-fil](narvaro-excel.md) | Pågår. Byggd 2026-11-18. Kvar: Tobias prov i avsnitt 7 |
 
 Lägg till en rad här när en ny plan skrivs.
 

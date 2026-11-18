@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_STAMPS, NotesStore, parseAttendance } from '@/utils/narvaro';
-import { ExportInput, exportClasses, exportFileName, exportHtml, exportText, exportWeeks, weekTitle } from '@/utils/narvaroExport';
+import {
+  ExportInput,
+  exportClasses,
+  exportFileName,
+  exportHtml,
+  exportRows,
+  exportText,
+  exportWeeks,
+  subjectOf,
+  titleClass,
+  weekTitle,
+} from '@/utils/narvaroExport';
 import { ME, sheets, week } from '@/utils/__fixtures__/narvaroSchedule';
 
 // Vecka 47 år 2026 börjar måndag 16 november.
@@ -241,6 +252,171 @@ describe('exportHtml', () => {
   });
 });
 
+describe('exportRows', () => {
+  /** Raderna som objekt efter kolumnernas namn. */
+  const rowsOf = (over: Partial<ExportInput> = {}) => {
+    const { columns, rows } = exportRows(input(over));
+    return rows.map(r => Object.fromEntries(columns.map((c, i) => [c, r[i] ?? null])));
+  };
+
+  it('har en kolumn per stämpel och noteringen sist', () => {
+    const { columns } = exportRows(input());
+    expect(columns.slice(0, 3)).toEqual(['Vecka', 'Datum', 'Dag']);
+    expect(columns.slice(-5)).toEqual(['Aktiv', 'Utmärkte sig', 'Tyst idag', 'Behöver stöd', 'Notering']);
+  });
+
+  it('ger en rad per närvarande med schemats uppgifter och stämplarna var för sig', () => {
+    const rows = rowsOf({ classes: ['Rosa'] });
+    const c = rows.filter(r => r['Pass i arket'] === '10.00-11.30');
+    expect(c.map(r => r.Elev)).toEqual(['Rosa Ett', 'Delad Namnsson']);
+    expect(c[0]).toMatchObject({
+      Vecka: 47,
+      Datum: { date: '2026-11-16' },
+      Dag: 'Måndag',
+      Start: { time: 10 * 60 + 15 },
+      Slut: { time: 11 * 60 + 30 },
+      Klass: 'Rosa',
+      Ämne: 'Historia',
+      Schemapass: 'Tema Rosa',
+      Lärare: 'Kim',
+      Sal: 'Rådhuset',
+      Innehåll: 'Historia: Historiebruk',
+      Närvarande: 'Kryssad',
+      Grupp: null,
+      'Arkets vecka': null,
+      Aktiv: 1,
+      'Utmärkte sig': null,
+      Notering: 'Bra fråga',
+    });
+    // Närvarande utan notering kommer med, utan klassen efter namnet.
+    expect(c[1]).toMatchObject({ Klass: 'Rosa', Närvarande: 'Kryssad', Aktiv: null, Notering: '' });
+  });
+
+  it('ordnar raderna efter datum och arkets kolumner', () => {
+    const rows = rowsOf({ classes: ['Rosa'] });
+    expect(rows.map(r => r['Pass i arket'])).toEqual(['8.30-9.45', '8.30-9.45', '10.00-11.30', '10.00-11.30']);
+  });
+
+  it('tar ämnet ur titeln utan klassen när innehållet saknar kolon', () => {
+    const oliv = rowsOf({ classes: ['Oliv'] }).find(r => r.Elev === 'Oliv Ett');
+    expect(oliv).toMatchObject({ Ämne: 'Tema', Schemapass: 'Tema Oliv', Lärare: 'Sam', Innehåll: '' });
+  });
+
+  it('väljer det egna passet bland nivågrupperna, och Grund är ingen klass i "Ma Grund"', () => {
+    expect(rowsOf({ classes: ['Grund'] }).find(r => r.Dag === 'Tisdag')).toMatchObject({ Ämne: 'Engelska 2', Schemapass: 'Engelska 2' });
+    const store: NotesStore = {
+      '2026-11-17|Tisdag|E': { label: '', people: { 'Grund Ett': note(['aktiv']) }, added: [] },
+    };
+    expect(rowsOf({ notes: store, classes: ['Grund'], myName: 'Sam' })[0]).toMatchObject({ Ämne: 'Ma Grund', Schemapass: 'Ma Grund', Start: { time: 615 } });
+    // Inget av passen är användarens: alla, och platshållaren "." ger titeln.
+    expect(rowsOf({ notes: store, classes: ['Grund'], myName: '' })[0]).toMatchObject({
+      Ämne: 'Ma 1 / Ma Grund / Studieverkstad',
+      Schemapass: 'Ma 1 / Ma Grund / Studieverkstad',
+      Lärare: 'Robin, Kim, Sam, Alex',
+    });
+  });
+
+  it('skiljer på kryssad, tillagd och bara notering', () => {
+    const table = parseAttendance([
+      ['', 'Måndag', ''],
+      ['', '8.30-9.45', '10.00-11.30'],
+      ['Med Notering', 'TRUE', 'TRUE'],
+      ['Bara Närvarande', 'TRUE', 'FALSE'],
+      ['Borta', 'FALSE', 'TRUE'],
+      ['Inte Här', 'FALSE', 'FALSE'],
+      ['Tillagd', 'FALSE', 'FALSE'],
+    ])!;
+    const store: NotesStore = {
+      '2026-11-16|Måndag|B': { label: '', people: { 'Med Notering': note(['aktiv']), Borta: note([], 'Kom sent') }, added: ['Tillagd'] },
+    };
+    const rows = rowsOf({ tables: { [W47]: { Rosa: table } }, notes: store, classes: ['Rosa'], schedules: {} });
+    expect(rows.map(r => [r.Elev, r.Närvarande])).toEqual([
+      ['Med Notering', 'Kryssad'],
+      ['Bara Närvarande', 'Kryssad'],
+      ['Tillagd', 'Tillagd'],
+      ['Borta', ''],
+    ]);
+    // Utan schema: arkets tid, inga schemauppgifter.
+    expect(rows[0]).toMatchObject({ Start: { time: 510 }, Slut: { time: 585 }, Ämne: '', Schemapass: '' });
+  });
+
+  it('anger arkets vecka när kryssen kommer ur en äldre veckas ark', () => {
+    const rows = rowsOf({ tables: { [W46]: sheets() }, classes: ['Rosa'] });
+    expect(rows.every(r => r['Arkets vecka'] === 46)).toBe(true);
+  });
+
+  it('ger gruppens nummer, och inget för den som inte är med i någon grupp', () => {
+    const store: NotesStore = {
+      '2026-11-16|Måndag|B': { label: '', people: { 'Grund Ett': note(['aktiv']), 'Rosa Ett': note(['star']) }, added: [] },
+    };
+    const groups = { '2026-11-16|Måndag|B#Grund+Rosa': { groups: [['Rosa Ett', 'Grund Två'], [], ['Grund Ett']] } };
+    const rows = rowsOf({ notes: store, groups, classes: ['Grund', 'Rosa'] });
+    expect(rows.map(r => [r.Elev, r.Klass, r.Grupp])).toEqual([
+      ['Rosa Ett', 'Rosa', 1],
+      ['Grund Två', 'Grund', 1],
+      ['Grund Ett', 'Grund', 3],
+      ['Delad Namnsson', 'Rosa', null],
+    ]);
+  });
+
+  it('ger varje rad elevens egen klass pass när klasser delats in i grupper tillsammans', () => {
+    const store: NotesStore = {
+      '2026-11-16|Måndag|C': { label: '', people: { 'Rosa Ett': note(['aktiv']), 'Oliv Ett': note(['tyst']) }, added: [] },
+    };
+    const groups = { '2026-11-16|Måndag|C#Oliv+Rosa': { groups: [['Oliv Ett'], ['Rosa Ett']] } };
+    const rows = rowsOf({ notes: store, groups, classes: ['Oliv', 'Rosa'] });
+    expect(rows.find(r => r.Elev === 'Oliv Ett')).toMatchObject({ Klass: 'Oliv', Schemapass: 'Tema Oliv', Ämne: 'Tema', Lärare: 'Sam', Grupp: 1 });
+    expect(rows.find(r => r.Elev === 'Rosa Ett')).toMatchObject({ Klass: 'Rosa', Schemapass: 'Tema Rosa', Ämne: 'Historia', Lärare: 'Kim', Grupp: 2 });
+  });
+
+  it('tar med namn utan ark som Okänd klass, och inte pass utan noteringar', () => {
+    const store: NotesStore = {
+      '2026-11-16|Måndag|B': { label: '', people: { 'Flyttad Elev': note([], 'Slutade') }, added: [] },
+      '2026-11-18|Onsdag|H': { label: '', people: { 'Rosa Ett': note([]) }, added: [] },
+    };
+    const rows = rowsOf({ notes: store, classes: ['Rosa'] });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ Elev: 'Flyttad Elev', Klass: 'Okänd klass', Schemapass: '', Närvarande: '', Notering: 'Slutade' });
+  });
+
+  it('ger ett heldagspass schemats tider', () => {
+    const store: NotesStore = {
+      '2026-11-19|Torsdag|dag': { label: '', people: { 'Rosa Ett': note(['aktiv']) }, added: [] },
+    };
+    const row = rowsOf({ notes: store, classes: ['Rosa'], schedules: { [W47]: week({ studiebesok: true }) } })[0];
+    expect(row).toMatchObject({
+      'Pass i arket': 'Hela dagen',
+      Start: { time: 510 },
+      Slut: { time: 930 },
+      Schemapass: 'Studiebesök i Malmö',
+      Ämne: 'Studiebesök i Malmö',
+    });
+  });
+
+  it('är tom när inget finns att exportera', () => {
+    expect(exportRows(input({ weeks: ['w2026-40'] })).rows).toEqual([]);
+  });
+});
+
+describe('ämne och klass ur schemat', () => {
+  it('titleClass är ordet efter Tema', () => {
+    expect(titleClass('Tema Rosa')).toBe('Rosa');
+    expect(titleClass('  tema   Oliv ')).toBe('Oliv');
+    expect(titleClass('Tema')).toBe('');
+    expect(titleClass('Engelska Grund')).toBe('');
+  });
+
+  it('subjectOf tar texten före kolonet, annars titeln utan klassen', () => {
+    expect(subjectOf('Tema Rosa', 'Historia: Historiebruk')).toBe('Historia');
+    expect(subjectOf('Tema Rosa', 'Film: Lost in Translation + filmsamtal')).toBe('Film');
+    expect(subjectOf('Tema Rosa', 'Historia:')).toBe('Historia');
+    expect(subjectOf('Tema Rosa', 'Medea')).toBe('Tema');
+    expect(subjectOf('Tema Rosa', 'https://exempel.se/x')).toBe('Tema');
+    expect(subjectOf('Tema Rosa', 'En mening som är längre än trettio tecken: x')).toBe('Tema');
+    expect(subjectOf('Engelska Grund', '')).toBe('Engelska Grund');
+  });
+});
+
 describe('hjälparna', () => {
   it('exportWeeks räknar pass med innehåll, senaste veckan först', () => {
     expect(exportWeeks(notes())).toEqual([{ week: W47, sessions: 3 }, { week: W46, sessions: 1 }]);
@@ -254,6 +430,7 @@ describe('hjälparna', () => {
   it('exportFileName och weekTitle', () => {
     expect(exportFileName([W47])).toBe('noteringar-v47.txt');
     expect(exportFileName([W47, W46])).toBe('noteringar-v46-v47.txt');
+    expect(exportFileName([W47], 'xlsx')).toBe('noteringar-v47.xlsx');
     expect(exportFileName([])).toBe('noteringar.txt');
     expect(weekTitle('w2026-53')).toBe('Vecka 53 · 28/12–3/1 2027');
   });
