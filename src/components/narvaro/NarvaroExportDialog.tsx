@@ -1,19 +1,21 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Download, Loader2 } from 'lucide-react';
+import { Copy, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { chip } from '@/components/narvaro/chip';
 import type { ScheduleWeeks } from '@/hooks/useNarvaroSchedule';
 import { downloadBlob } from '@/utils/download';
 import type { NarvaroData } from '@/utils/narvaroDocs';
-import { exportClasses, exportFileName, exportHtml, exportText, exportWeeks } from '@/utils/narvaroExport';
+import { ExportInput, exportClasses, exportFileName, exportHtml, exportRows, exportText, exportWeeks } from '@/utils/narvaroExport';
+import { XLSX_MIME, buildXlsx } from '@/utils/xlsx';
 
 /**
- * Exportera noteringar: välj veckor och klasser, och kopiera texten eller
- * ladda ner den som .txt. Texten byggs i `utils/narvaroExport.ts`; se
- * docs/plans/narvaro-export.md.
+ * Exportera noteringar: välj veckor och klasser, och kopiera texten, ladda
+ * ner den som .txt eller ladda ner raderna som Excel-fil. Allt byggs i
+ * `utils/narvaroExport.ts`; se docs/plans/narvaro-export.md och
+ * docs/plans/narvaro-excel.md.
  */
 
 type Props = {
@@ -57,8 +59,8 @@ export function NarvaroExportDialog({
   const picked = classes.filter(k => classChoices.includes(k));
   const loading = weeks.some(w => schedules[w] === undefined);
   const exported = useMemo(() => {
-    if (loading) return { text: '', html: '' };
-    const input = {
+    if (loading) return { input: null, text: '', html: '' };
+    const input: ExportInput = {
       weeks,
       classes: picked,
       tables: data.tables,
@@ -71,10 +73,18 @@ export function NarvaroExportDialog({
       resolveRoom,
       today: new Date(),
     };
-    return { text: exportText(input), html: exportHtml(input) };
+    return { input, text: exportText(input), html: exportHtml(input) };
     // `picked` är en ny lista varje rendering; nyckeln står för den.
   }, [loading, weeks, picked.join('+'), data, schedules, myName, resolveRoom]); // eslint-disable-line react-hooks/exhaustive-deps
-  const { text, html } = exported;
+  const { input, text, html } = exported;
+
+  // Kalkylarket byggs först vid klick, eftersom det inte behövs för förhandsvisningen.
+  const downloadXlsx = () => {
+    if (!input) return;
+    const { columns, rows, widths } = exportRows(input);
+    const file = buildXlsx({ name: 'Noteringar', columns, rows, widths });
+    downloadBlob(new Blob([file], { type: XLSX_MIME }), exportFileName(weeks, 'xlsx'));
+  };
 
   const toggle = (list: string[], value: string) =>
     (list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
@@ -151,7 +161,19 @@ export function NarvaroExportDialog({
               >
                 <Download /> Ladda ner .txt
               </Button>
+              <Button
+                variant="neutral"
+                className="sp-btn"
+                disabled={!text}
+                onClick={downloadXlsx}
+                title="En rad per elev och pass, med en kolumn per stämpel"
+              >
+                <FileSpreadsheet /> Ladda ner Excel
+              </Button>
             </div>
+            <p className="text-xs text-ui-muted">
+              Excel-filen har en rad per elev och pass. I Google Drive öppnas den i Kalkylark; välj Arkiv → Spara som Google Kalkylark för att göra om den.
+            </p>
           </div>
         )}
       </DialogContent>
