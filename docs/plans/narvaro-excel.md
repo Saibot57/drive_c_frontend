@@ -2,8 +2,19 @@
 
 Status: Pågår
 
-Läget 2026-11-18: byggd. Kvar är Tobias prov i Excel och Google Kalkylark
-(avsnitt 7).
+Läget 2026-11-19: byggd 2026-11-18 och sammanslagen i #292, men tagen bort
+ur main igen 2026-11-19 med en revert. Tobias har provat filen och vill
+arbeta vidare med hur kalkylarket ska formateras för att bli användbart
+innan funktionen ligger ute. Planen nedan beskriver det som byggdes.
+
+**Ta tillbaka koden:** den finns i commit `1362f82` ("Närvaro: exportera
+noteringar som Excel-fil"). Börja nästa steg med `git cherry-pick 1362f82`
+på en ny gren från main; konflikten i den här filen och i
+`docs/plans/README.md` löses genom att behålla den nyare texten. Cherry-pick
+fungerar eftersom reverten gäller commiten och inte sammanslagningen.
+
+Nästa steg är formateringen (avsnitt 8). Kvar efter det är Tobias prov i
+Excel och Google Kalkylark (avsnitt 7).
 
 Bygger på textexporten ([narvaro-export.md](narvaro-export.md)).
 
@@ -92,3 +103,17 @@ skrevs.
 4. Ett pass med grupper över två klasser: varje elev har sin egen klass
    schemapass.
 5. En elev som var närvarande utan notering har en rad med tom Notering.
+
+## 8. Nästa steg: formateringen
+
+Inte bestämt än. Tobias har provfilen (byggd ur testdatan) och vill arbeta
+vidare med hur kalkylarket ska se ut för att vara användbart. Frågor att ta
+med till det samtalet:
+
+- Vilka kolumner som behövs, och i vilken ordning. Många är tomma för de
+  flesta rader (Passnamn, Skola, Grupp, Arkets vecka).
+- Om noteringarna ska radbrytas i cellen, och hur breda kolumnerna ska vara.
+- Om det behövs fler blad, till exempel en sammanställning per elev eller per
+  ämne med antal stämplar, utöver bladet med alla rader.
+- Om stämpelkolumnerna ska ha färg som stämplarna på sidan.
+

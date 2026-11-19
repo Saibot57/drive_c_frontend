@@ -502,14 +502,8 @@ export function sessionChoice(table: AttendanceTable, key: string): { day: strin
   return { day, pass: col?.id ?? null };
 }
 
-/**
- * En rad i passets lista: namnet, och stämplar och notering när det finns.
- * `text` är stämplarnas namn och noteringen ihop; `tags` och `note` är de
- * var för sig. `group` är gruppens nummer i passets indelning (1 för den
- * första), eller null när passet saknar grupper eller personen inte är med i
- * någon.
- */
-export type SessionRow = { name: string; text: string; tags: string[]; note: string; group: number | null };
+/** En rad i passets lista: namnet, och stämplar och notering när det finns. */
+export type SessionRow = { name: string; text: string };
 
 /**
  * Passets rader: alla närvarande i en lista, med stämplar och notering där
@@ -525,21 +519,17 @@ export function sessionRows(
 ): SessionRow[][] {
   const noted = new Map(noteEntries(sess));
   const names = Array.from(new Set([...present, ...Array.from(noted.keys())]));
-  const row = (name: string, group: number | null): SessionRow => {
+  const row = (name: string): SessionRow => {
     const n = noted.get(name);
-    const tags = n?.tags ?? [];
-    const labels = tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ');
-    return { name, text: [labels, n?.note].filter(Boolean).join('. '), tags: [...tags], note: n?.note ?? '', group };
+    const labels = n ? n.tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ') : '';
+    return { name, text: [labels, n?.note].filter(Boolean).join('. ') };
   };
-  if (!groups?.some(g => g.length > 0)) return names.length ? [names.map(name => row(name, null))] : [];
+  if (!groups?.some(g => g.length > 0)) return names.length ? [names.map(row)] : [];
   const known = new Set(names);
   const used = new Set<string>();
-  const chunks: { group: number | null; names: string[] }[] = groups.map((g, i) => ({
-    group: i + 1,
-    names: g.filter(name => known.has(name) && !used.has(name) && !!used.add(name)),
-  }));
-  chunks.push({ group: null, names: names.filter(name => !used.has(name)) });
-  return chunks.filter(c => c.names.length > 0).map(c => c.names.map(name => row(name, c.group)));
+  const chunks = groups.map(g => g.filter(name => known.has(name) && !used.has(name) && !!used.add(name)));
+  chunks.push(names.filter(name => !used.has(name)));
+  return chunks.filter(c => c.length > 0).map(c => c.map(row));
 }
 
 /** Raderna som text ("Namn: Aktiv. notering"), med en tom rad mellan grupperna och utan rubrik. */
