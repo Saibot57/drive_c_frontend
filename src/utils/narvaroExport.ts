@@ -1,18 +1,15 @@
 /**
- * Export av noteringarna i Närvarorutor: som text och HTML (ett stycke per
- * pass och klass, med datum, schemats titel och schemats anteckning) och som
- * rader för ett kalkylark (en rad per elev och pass).
- * Se docs/plans/narvaro-export.md och docs/plans/narvaro-excel.md.
+ * Export av noteringarna i Närvarorutor som text: ett stycke per pass och
+ * klass, med datum, schemats titel och schemats anteckning, så att texten går
+ * att lägga i ett dokument och härleda till rätt pass.
+ * Se docs/plans/narvaro-export.md.
  *
- * Exporten innehåller elevnamn i klartext. Den byggs i webbläsaren och
- * skickas ingenstans härifrån.
+ * Texten innehåller elevnamn i klartext. Den byggs i webbläsaren och skickas
+ * ingenstans härifrån.
  */
 
 import type { ScheduledEntry } from '@/types/schedule';
-import type { XlsxCell } from '@/utils/xlsx';
-import { timeToMinutes } from '@/utils/scheduleTime';
 import {
-  AttendancePerson,
   AttendanceTable,
   GroupsStore,
   NotesStore,
@@ -31,7 +28,7 @@ import {
   sessionRows,
 } from '@/utils/narvaro';
 import { Sheets, isWeekKey, latestSheets, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
-import { ScheduleLineParts, entriesForChoice, entriesForClasses, isMine, scheduleLineParts, sortForDisplay } from '@/utils/narvaroSchedule';
+import { entriesForChoice, entriesForClasses, isMine, scheduleLineParts, sortForDisplay } from '@/utils/narvaroSchedule';
 
 /** Namn i ett pass som inte finns i något av veckans ark. */
 export const UNKNOWN_CLASS = '\u0000okänd';
@@ -128,8 +125,8 @@ function unitsFor(key: string, classes: string[], groups: GroupsStore): Unit[] {
   return units.sort((a, b) => classes.indexOf(a.classes[0]) - classes.indexOf(b.classes[0]));
 }
 
-/** Schemapassen för passet och klasserna: det egna passet om det finns, annars alla. */
-function chosenEntries(
+/** Schemaraderna för passet och klasserna: det egna passet om det finns, annars alla. */
+function scheduleLines(
   table: AttendanceTable,
   day: string,
   pass: PassChoice,
@@ -137,25 +134,17 @@ function chosenEntries(
   classNames: string[],
   weekEntries: ScheduledEntry[],
   myName: string,
-): ScheduledEntry[] {
+  resolveRoom: ExportInput['resolveRoom'],
+): string[] {
   const forClass = entriesForClasses(entriesForChoice(table, day, pass, weekEntries), classNames, classes);
   const mine = forClass.filter(e => isMine(e, myName));
-  return sortForDisplay(mine.length ? mine : forClass, myName);
+  return sortForDisplay(mine.length ? mine : forClass, myName).flatMap(entry => {
+    const p = scheduleLineParts(entry, resolveRoom);
+    const lines = [`Schema: ${[p.title, p.teachers.join(', '), p.room].filter(Boolean).join(' · ')}`];
+    if (p.notes) lines.push(`Innehåll: ${p.notes}`);
+    return lines;
+  });
 }
-
-/** Schemaraderna i texten: titel, lärare och sal, och innehållet på en egen rad. */
-const scheduleLines = (parts: ScheduleLineParts[]): string[] => parts.flatMap(p => {
-  const lines = [`Schema: ${[p.title, p.teachers.join(', '), p.room].filter(Boolean).join(' · ')}`];
-  if (p.notes) lines.push(`Innehåll: ${p.notes}`);
-  return lines;
-});
-
-type ChosenPass = { parts: ScheduleLineParts; span: [number, number] | null };
-
-const entrySpan = (e: ScheduledEntry): [number, number] | null => {
-  const span: [number, number] = [timeToMinutes(e.startTime), timeToMinutes(e.endTime)];
-  return Number.isFinite(span[0]) && Number.isFinite(span[1]) ? span : null;
-};
 
 /** Ett stycke i exporten: ett pass för en klass, eller för klasser som delats in i grupper tillsammans. */
 type Block = {
@@ -164,29 +153,6 @@ type Block = {
   meta: string[];
   /** En lista per grupp, eller en enda. */
   chunks: SessionRow[][];
-  // Det som kalkylarket behöver utöver texten.
-  weekKey: string;
-  /** Passets datum ur nyckeln, `ÅÅÅÅ-MM-DD`. */
-  date: string;
-  day: string;
-  /** Arkets passtext, "Hela dagen", eller den sparade rubriken när kolumnen inte finns i arket. */
-  passText: string;
-  /** Arkets tid för kolumnen i minuter. Schemapassets tid går före i kalkylarket. */
-  span: [number, number] | null;
-  /**
-   * De valda schemapassen per klass i stycket. Ett stycke med flera klasser
-   * (grupper över klasserna) har ett pass per klass; varje rad i kalkylarket
-   * får sin egen klass pass.
-   */
-  scheduleByClass: Map<string, ChosenPass[]>;
-  key: string;
-  /** Styckets personer ur arken, efter namnet som de står i passet. */
-  people: Map<string, AttendancePerson>;
-  /** Kryssade i arket för passet, och de som lagts till för hand. */
-  marked: Set<string>;
-  added: Set<string>;
-  /** Klassens senaste ark, när det är en äldre veckas. */
-  olderSheet: Map<string, string>;
 };
 
 function weekBlocks(weekKey: string, input: ExportInput): Block[] {
@@ -213,43 +179,20 @@ function weekBlocks(weekKey: string, input: ExportInput): Block[] {
       const name = known ? passNameFor(input.passNames, key, unit.classes) : '';
       // Ett pass vars kolumn inte finns i veckans ark behåller rubriken det sparades med.
       const heading = pass ? sessionLabel(combined, day, pass, monday, name) : sess.label || key;
-      const chosen = pass && weekEntries && known
-        ? chosenEntries(combined, day, pass, unit.classes, classNames, weekEntries, input.myName)
-        : [];
-      const meta = scheduleLines(chosen.map(e => scheduleLineParts(e, input.resolveRoom)));
-      const scheduleByClass = new Map(unit.classes.map(k => [
-        k,
-        pass && weekEntries && known
-          ? chosenEntries(combined, day, pass, [k], classNames, weekEntries, input.myName)
-            .map(e => ({ parts: scheduleLineParts(e, input.resolveRoom), span: entrySpan(e) }))
-          : [],
-      ]));
+      const meta: string[] = [];
+      if (pass && weekEntries && known) {
+        meta.push(...scheduleLines(combined, day, pass, unit.classes, classNames, weekEntries, input.myName, input.resolveRoom));
+      }
       // Kryssen kommer ur klassens senaste ark. Är det en äldre veckas ska det synas.
-      const olderSheet = new Map(unit.classes
-        .map(k => [k, latest[k]?.week] as const)
-        .filter((x): x is readonly [string, string] => !!x[1] && x[1] !== weekKey));
-      const older = Array.from(new Set(olderSheet.values())).sort();
+      const older = Array.from(new Set(unit.classes.map(k => latest[k]?.week).filter((w): w is string => !!w && w !== weekKey))).sort();
       if (pass && older.length) meta.push(`Närvaro enligt arket från v. ${older.map(weekNumber).join(', ')}`);
       const part: SessionNotes = { label: '', people: Object.fromEntries(unit.classes.flatMap(k => parts.get(k) ?? [])), added: sess.added };
       const people = { ...combined, people: combined.people.filter(p => unit.classes.includes(p.klass ?? '')) };
       const present = pass && known ? roster(people, { klass: 'all', day, pass, added: sess.added }).present.map(p => p.name) : [];
-      const marked = pass && known ? roster(people, { klass: 'all', day, pass, added: [] }).present.map(p => p.name) : [];
-      const col = pass && pass !== 'day' ? combined.cols.find(c => c.id === pass) : undefined;
       blocks.push({
         heading: `${heading} · ${unit.classes.map(classLabel).join(', ')}`,
         meta,
         chunks: sessionRows(part, present, unit.groups, input.stamps),
-        weekKey,
-        date: key.slice(0, 10),
-        day,
-        passText: pass === 'day' ? 'Hela dagen' : col?.pass ?? (sess.label || ''),
-        span: col?.time ?? null,
-        scheduleByClass,
-        key,
-        people: new Map(people.people.map(p => [p.name, p])),
-        marked: new Set(marked),
-        added: new Set(sess.added),
-        olderSheet,
       });
     });
   });
@@ -313,95 +256,6 @@ export function exportHtml(input: ExportInput): string {
   ].join('');
 }
 
-/* ---------- kalkylarket ---------- */
-
-/** Klassen i en schematitel: ordet efter "Tema" ("Tema Rosa" → Rosa). Andra titlar har ingen klass. */
-export function titleClass(title: string): string {
-  const words = title.trim().split(/\s+/);
-  return words.length > 1 && words[0].toLocaleLowerCase('sv') === 'tema' ? words[1] : '';
-}
-
-/** Titeln utan klassen: "Tema Rosa" → Tema. */
-const titleWithoutClass = (title: string) => {
-  const words = title.trim().split(/\s+/).filter(Boolean);
-  return titleClass(title) ? [words[0], ...words.slice(2)].join(' ') : words.join(' ');
-};
-
-/**
- * Ämnet för ett schemapass: texten före kolonet i innehållet ("Historia:
- * Historiebruk" → Historia). Kolonet räknas bara när det följs av blanksteg
- * eller slutet, och texten före är 1–30 tecken, så att en länk inte ger ämnet
- * "https". Annars titeln utan klassen.
- */
-export function subjectOf(title: string, notes: string): string {
-  const m = /^([^\n:]{1,30}):(\s|$)/.exec(notes.trim());
-  const before = m?.[1].trim();
-  return before || titleWithoutClass(title);
-}
-
-/** Namnet utan klassen som `combineSheets` lägger till när två elever heter likadant. */
-function plainName(name: string, person: AttendancePerson | undefined): string {
-  if (!person) return name;
-  const suffix = ` (${person.klass || 'utan klass'})`;
-  return name.endsWith(suffix) ? name.slice(0, -suffix.length) : name;
-}
-
-const joinUnique = (values: string[], sep: string) => Array.from(new Set(values.filter(Boolean))).join(sep);
-
-export const EXPORT_COLUMNS = [
-  'Vecka', 'Datum', 'Dag', 'Start', 'Slut', 'Pass i arket', 'Klass', 'Ämne', 'Schemapass', 'Lärare', 'Sal',
-  'Innehåll', 'Passnamn', 'Elev', 'Skola', 'Närvarande', 'Grupp', 'Arkets vecka',
-] as const;
-
-export type ExportRows = { columns: string[]; rows: XlsxCell[][]; widths: (number | undefined)[] };
-
-/**
- * Exporten som rader för ett kalkylark: en rad per elev och pass, för samma
- * pass och elever som texten. Stämplarna får en kolumn var (1 där stämpeln
- * finns), och noteringen står sist.
- */
-export function exportRows(input: ExportInput): ExportRows {
-  const stamps = [...input.stamps];
-  const columns = [...EXPORT_COLUMNS, ...stamps.map(s => s.label), 'Notering'];
-  const widths: (number | undefined)[] = columns.map(c => (c === 'Notering' ? 60 : c === 'Innehåll' ? 40 : undefined));
-  const rows: XlsxCell[][] = [];
-  const weeks = Array.from(new Set(input.weeks)).filter(isWeekKey).sort();
-  weeks.forEach(week => weekBlocks(week, input).forEach(b => {
-    b.chunks.flat().forEach(r => {
-      const person = b.people.get(r.name);
-      const klass = person ? person.klass ?? '' : UNKNOWN_CLASS;
-      const chosen = b.scheduleByClass.get(klass) ?? [];
-      const parts = chosen.map(x => x.parts);
-      const span = chosen.find(x => x.span)?.span ?? b.span;
-      const older = person ? b.olderSheet.get(klass) : undefined;
-      const presence = b.marked.has(r.name) ? 'Kryssad' : b.added.has(r.name) ? 'Tillagd' : '';
-      rows.push([
-        Number(weekNumber(b.weekKey)),
-        { date: b.date },
-        b.day,
-        span ? { time: span[0] } : null,
-        span ? { time: span[1] } : null,
-        b.passText,
-        classLabel(klass),
-        joinUnique(parts.map(p => subjectOf(p.title, p.notes)), ' / '),
-        joinUnique(parts.map(p => p.title), ' / '),
-        joinUnique(parts.flatMap(p => p.teachers), ', '),
-        joinUnique(parts.map(p => p.room), ' / '),
-        joinUnique(parts.map(p => p.notes), ' / '),
-        person ? passNameFor(input.passNames, b.key, [klass]) : '',
-        plainName(r.name, person),
-        person?.group ?? '',
-        presence,
-        r.group,
-        older ? Number(weekNumber(older)) : null,
-        ...stamps.map(s => (r.tags.includes(s.id) ? 1 : null)),
-        r.note.trim(),
-      ]);
-    });
-  }));
-  return { columns, rows, widths };
-}
-
 export type ExportWeek = { week: string; sessions: number };
 
 /** Veckorna som har noteringar, senaste först, med antalet pass. */
@@ -421,11 +275,11 @@ export function exportClasses(tables: Record<string, Sheets>, weeks: readonly st
   return Array.from(all).sort((a, b) => Number(!a) - Number(!b) || a.localeCompare(b, 'sv'));
 }
 
-/** "noteringar-v47.txt" eller "noteringar-v45-v47.xlsx". */
-export function exportFileName(weeks: readonly string[], extension: 'txt' | 'xlsx' = 'txt'): string {
+/** "noteringar-v47.txt" eller "noteringar-v45-v47.txt". */
+export function exportFileName(weeks: readonly string[]): string {
   const sorted = Array.from(new Set(weeks)).filter(isWeekKey).sort();
-  if (!sorted.length) return `noteringar.${extension}`;
+  if (!sorted.length) return 'noteringar.txt';
   const first = `v${weekNumber(sorted[0])}`;
   const last = `v${weekNumber(sorted[sorted.length - 1])}`;
-  return `noteringar-${first === last ? first : `${first}-${last}`}.${extension}`;
+  return `noteringar-${first === last ? first : `${first}-${last}`}.txt`;
 }
