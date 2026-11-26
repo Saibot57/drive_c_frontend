@@ -4,16 +4,23 @@
  * pass som helst: de närvarande hamnar då i sina grupper. Planen finns i
  * `docs/plans/narvaro-sparade-grupper.md`.
  *
- * En elev i en indelning är namnet i arket utan klasstillägget som
- * `combineSheets` sätter på dubbletter, plus klassen hen kom från. Klassen
- * skiljer bara två elever med samma namn åt; en elev som bytt klass hittas
- * ändå på namnet när det är entydigt.
+ * En elev i en indelning är namnet i arket utan tillägget som
+ * `combineSheets` sätter på dubbletter, plus klassen hen kom från och, när
+ * namnet står flera gånger i samma ark, löpnumret ("Ali (Rosa 2)" blir
+ * `{ name: 'Ali', klass: 'Rosa', n: 2 }`). Klassen och numret skiljer bara
+ * elever med samma namn åt; en elev som bytt klass hittas ändå på namnet när
+ * det är entydigt.
  */
 
 import type { AttendancePerson, AttendanceTable, PassGroups } from '@/utils/narvaro';
 import { classesOnDay, cleanGroupName } from '@/utils/narvaro';
 
-export type TemplateMember = { name: string; klass: string };
+export type TemplateMember = {
+  name: string;
+  klass: string;
+  /** Löpnumret när namnet står flera gånger i samma ark, från 2. Saknas för den första. */
+  n?: number;
+};
 export type TemplateGroup = { name: string; members: TemplateMember[] };
 export type GroupTemplate = {
   id: string;
@@ -39,17 +46,27 @@ export function newTemplateId(): string {
 type Person = Pick<AttendancePerson, 'name' | 'klass'>;
 
 const klassOf = (p: Person) => p.klass ?? '';
-const suffix = (klass: string) => ` (${klass || 'utan klass'})`;
+const classLabel = (klass: string) => klass || 'utan klass';
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Namnet utan det klasstillägg `combineSheets` satt efter det. */
-export function baseName(p: Person): string {
-  if (p.klass === undefined) return p.name;
-  const s = suffix(p.klass);
-  return p.name.endsWith(s) && p.name.length > s.length ? p.name.slice(0, -s.length) : p.name;
+/**
+ * Namnet utan tillägget `combineSheets` satt efter det ("Ali (Rosa)" eller
+ * "Ali (Rosa 2)"), och löpnumret när det finns ett.
+ */
+export function parseName(p: Person): { name: string; n?: number } {
+  if (p.klass === undefined) return { name: p.name };
+  const m = new RegExp(`^(.+) \\(${escapeRe(classLabel(p.klass))}(?: (\\d+))?\\)$`).exec(p.name);
+  if (!m) return { name: p.name };
+  const n = m[2] ? Number(m[2]) : 1;
+  return n > 1 ? { name: m[1], n } : { name: m[1] };
 }
 
-const memberKey = (m: TemplateMember) => `${m.klass}\u0000${m.name}`;
-const toMember = (p: Person): TemplateMember => ({ name: baseName(p), klass: klassOf(p) });
+/** Namnet utan tillägget från `combineSheets`. */
+export const baseName = (p: Person) => parseName(p).name;
+
+const ordinal = (m: { n?: number }) => m.n ?? 1;
+const memberKey = (m: TemplateMember) => `${m.klass}\u0000${m.name}\u0000${ordinal(m)}`;
+const toMember = (p: Person): TemplateMember => ({ ...parseName(p), klass: klassOf(p) });
 
 /**
  * Vilken person (passets namn) varje medlem motsvarar, med medlemmens plats
@@ -63,7 +80,7 @@ function matchMembers(template: GroupTemplate, people: readonly Person[]): Map<s
   const slots = template.groups.flatMap((g, gi) => g.members.map((m, mi) => ({ at: `${gi}:${mi}`, m })));
 
   slots.forEach(({ at, m }) => {
-    const p = people.find(x => !used.has(x.name) && baseName(x) === m.name && klassOf(x) === m.klass);
+    const p = people.find(x => !used.has(x.name) && memberKey(toMember(x)) === memberKey(m));
     if (p) { used.add(p.name); out.set(at, p.name); }
   });
 
@@ -205,17 +222,20 @@ export function missingMembers(template: GroupTemplate, sheets: Record<string, A
 
 /**
  * Visningsnamn för redigeringen, där `NarvaroGroups` bara känner strängar.
- * " (Klass)" sätts bara när samma namn finns med mer än en klass bland
- * medlemmarna och arkens elever. Samma namn och klass är samma elev.
+ * " (Klass)" eller " (Klass 2)" sätts bara när samma namn finns med mer än
+ * en klass eller ett löpnummer bland medlemmarna och arkens elever. Samma
+ * namn, klass och nummer är samma elev.
  */
 export function memberLabels(
   members: readonly TemplateMember[],
   people: readonly Person[],
 ): { label: (m: TemplateMember) => string; member: Map<string, TemplateMember> } {
   const all = [...members, ...people.map(toMember)];
-  const classes = new Map<string, Set<string>>();
-  all.forEach(m => classes.set(m.name, (classes.get(m.name) ?? new Set()).add(m.klass)));
-  const label = (m: TemplateMember) => ((classes.get(m.name)?.size ?? 0) > 1 ? m.name + suffix(m.klass) : m.name);
+  const variants = new Map<string, Set<string>>();
+  all.forEach(m => variants.set(m.name, (variants.get(m.name) ?? new Set()).add(memberKey(m))));
+  const label = (m: TemplateMember) => ((variants.get(m.name)?.size ?? 0) > 1
+    ? `${m.name} (${classLabel(m.klass)}${ordinal(m) > 1 ? ` ${ordinal(m)}` : ''})`
+    : m.name);
   const member = new Map<string, TemplateMember>();
   all.forEach(m => { if (!member.has(label(m))) member.set(label(m), m); });
   return { label, member };
@@ -240,7 +260,7 @@ export function renameTemplate(list: readonly GroupTemplate[], id: string, name:
   return list.map(t => (t.id === id ? { ...t, name: clean, updatedAt: now.toISOString() } : t));
 }
 
-/** Byter klass på medlemmarna när en klass byter namn (`renameClass`). */
+/** Byter klass på medlemmarna när en klass byter namn (`renameClass`). Numret följer med. */
 export function renameTemplatesClass(list: readonly GroupTemplate[], from: string, to: string): GroupTemplate[] {
   return list.map(t => ({
     ...t,
@@ -267,7 +287,8 @@ export function sanitizeTemplates(raw: unknown): GroupTemplate[] {
     const groups = t.groups.filter(isRecord).slice(0, MAX_TEMPLATE_GROUPS).map(g => ({
       name: cleanGroupName(str(g.name)),
       members: (Array.isArray(g.members) ? g.members : []).filter(isRecord).flatMap(m => {
-        const member = { name: str(m.name).trim(), klass: str(m.klass) };
+        const n = typeof m.n === 'number' && Number.isInteger(m.n) && m.n > 1 ? m.n : undefined;
+        const member: TemplateMember = { name: str(m.name).trim(), klass: str(m.klass), ...(n && { n }) };
         if (!member.name || seen.has(memberKey(member))) return [];
         seen.add(memberKey(member));
         return [member];
