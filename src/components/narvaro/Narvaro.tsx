@@ -349,7 +349,7 @@ export default function Narvaro() {
   const stored = storedPass?.groups;
   const view = stored ? groupView(stored, active) : null;
   // Mobilen: andra pass samma dag som har grupper, när det valda saknar.
-  const groupChoices = mobile && !isExample && !stored ? groupsOptions(groups, key, gKey, sheets, passNames) : [];
+  const groupChoices = mobile && !isExample && !stored ? groupsOptions(groups, key, gKey, sheets, passNames, notes) : [];
   const pickGroups = (k: string) => {
     const c = groupChoices.find(x => x.key === k);
     if (!c) return;
@@ -794,7 +794,7 @@ export default function Narvaro() {
             notice={!isCurrentWeek && (
               <span className="inline-flex flex-wrap items-center gap-2 rounded-ui-sm border-frame border-ui-line bg-ui-mark-yellow px-2 py-1 text-sm font-semibold text-ui-mark-fg">
                 Vecka {weekNumber(viewWeek)}. Det du ändrar sparas i den veckan.
-                <Button variant="neutral" size="sm" className="sp-btn h-7" disabled={!viewWeekKeys.length} onClick={() => copyText(viewWeekKeys.map(k => sessionText(notes[k], table, stamps, { ...sessionChoice(table, k), groups: groups[groupsKey(k, nameClasses)]?.groups })).join('\n\n\n'))}>
+                <Button variant="neutral" size="sm" className="sp-btn h-7" disabled={!viewWeekKeys.length} onClick={() => copyText(viewWeekKeys.map(k => sessionText(notes[k], table, stamps, { ...sessionChoice(table, k), groups: groups[groupsKey(k, nameClasses)]?.groups, names: groups[groupsKey(k, nameClasses)]?.names })).join('\n\n\n'))}>
                   <Copy /> Kopiera veckan
                 </Button>
                 <Button variant="neutral" size="sm" className="sp-btn h-7" onClick={() => showWeek(weekKey)}>Till vecka {weekNumber(weekKey)}</Button>
@@ -988,6 +988,7 @@ export default function Narvaro() {
             activeStamp={pickActiveStamp(stamps, mobileStamp)}
             onPickStamp={setMobileStamp}
             storedGroups={stored}
+            storedGroupNames={storedPass?.names}
             detail={p => [splitName(p.name)[1], showClassName && p.klass, showSchool && p.group].filter(Boolean).join(' · ')}
             onSetStamp={(name, id, on) => updateSession(s => setStampOn(s, name, id, on))}
             onEdit={setEditing}
@@ -1060,7 +1061,8 @@ export default function Narvaro() {
             onMove={(name, target) => saveGroups(movePassGroup(storedPass ?? { groups: [] }, name, target))}
             onAddGroup={() => saveGroups(addPassGroup(storedPass ?? { groups: [] }))}
             onDeleteGroup={i => saveGroups(removePassGroup(storedPass ?? { groups: [] }, i))}
-            onCopy={() => copyText(groupsText(label, view))}
+            names={storedPass?.names}
+            onCopy={() => copyText(groupsText(label, view, storedPass?.names))}
           />
         )}
 
@@ -1069,7 +1071,7 @@ export default function Narvaro() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-bold">Noteringar · {label}</h3>
               <span className="flex gap-2">
-                <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length && !present.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps, { day, pass, groups: stored }))}>
+                <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length && !present.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps, { day, pass, groups: stored, names: storedPass?.names }))}>
                   <Copy /> Kopiera
                 </Button>
                 <Button variant="neutral" size="sm" className="sp-btn" disabled={!notes[key]} onClick={deleteSession} title="Tar bort passets noteringar och tillagda">

@@ -359,6 +359,29 @@ describe('exportRows', () => {
     ]);
   });
 
+  it('ger gruppens namn i en egen kolumn, och Grupp N för en grupp utan namn', () => {
+    const store: NotesStore = {
+      '2026-11-16|Måndag|B': { label: '', people: { 'Grund Ett': note(['aktiv']), 'Rosa Ett': note(['star']) }, added: [] },
+    };
+    const groups = {
+      '2026-11-16|Måndag|B#Grund+Rosa': { groups: [['Rosa Ett', 'Grund Två'], ['Grund Ett']], names: ['Röda', ''] },
+    };
+    const { columns } = exportRows(input());
+    expect(columns.slice(columns.indexOf('Grupp'), columns.indexOf('Grupp') + 2)).toEqual(['Grupp', 'Gruppnamn']);
+    const rows = rowsOf({ notes: store, groups, classes: ['Grund', 'Rosa'] });
+    expect(rows.map(r => [r.Elev, r.Grupp, r.Gruppnamn])).toEqual([
+      ['Rosa Ett', 1, 'Röda'],
+      ['Grund Två', 1, 'Röda'],
+      ['Grund Ett', 2, 'Grupp 2'],
+      ['Delad Namnsson', null, ''],
+    ]);
+    // Texten och urklippet får rubriker när grupperna har namn.
+    const text = exportText(input({ notes: store, groups, classes: ['Grund', 'Rosa'] }));
+    expect(text).toContain('  Röda:\n  Rosa Ett: Utmärkte sig\n  Grund Två\n\n  Grupp 2:\n  Grund Ett: Aktiv\n\n  Utan grupp:\n  Delad Namnsson');
+    const html = exportHtml(input({ notes: store, groups, classes: ['Grund', 'Rosa'] }));
+    expect(html).toContain('<p><i>Röda</i><br><b>Rosa Ett</b>');
+  });
+
   it('ger varje rad elevens egen klass pass när klasser delats in i grupper tillsammans', () => {
     const store: NotesStore = {
       '2026-11-16|Måndag|C': { label: '', people: { 'Rosa Ett': note(['aktiv']), 'Oliv Ett': note(['tyst']) }, added: [] },

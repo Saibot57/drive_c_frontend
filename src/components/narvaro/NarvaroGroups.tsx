@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Copy, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { PersonNote, Stamp } from '@/utils/narvaro';
+import { groupTitle, type PersonNote, type Stamp } from '@/utils/narvaro';
 import { findExact, uniquePrefixMatch } from '@/utils/autocomplete';
 import { StampTag } from '@/components/narvaro/stampStyle';
 
@@ -14,6 +14,8 @@ type Props = {
   view: { groups: string[][]; pool: string[] };
   people: Record<string, PersonNote>;
   stamps: readonly Stamp[];
+  /** Gruppernas namn, annars "Grupp N". */
+  names?: readonly string[];
   onMove: (name: string, target: Target) => void;
   onAddGroup: () => void;
   onDeleteGroup: (index: number) => void;
@@ -38,7 +40,7 @@ type Drag = {
  * tre tecken bara kan vara ett namn fylls resten i (som SmartTextInput i
  * schemaplaneraren); Enter eller + lägger personen i gruppen.
  */
-function GroupNameInput({ group, pool, onAdd }: { group: number; pool: readonly string[]; onAdd: (name: string) => void }) {
+function GroupNameInput({ title, pool, onAdd }: { title: string; pool: readonly string[]; onAdd: (name: string) => void }) {
   const [value, setValue] = useState('');
   const [miss, setMiss] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -72,7 +74,7 @@ function GroupNameInput({ group, pool, onAdd }: { group: number; pool: readonly 
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="Lägg till namn…"
-        aria-label={`Lägg till namn i grupp ${group + 1}`}
+        aria-label={`Lägg till namn i ${title}`}
         aria-invalid={miss || undefined}
         autoComplete="off"
         autoCorrect="off"
@@ -86,7 +88,7 @@ function GroupNameInput({ group, pool, onAdd }: { group: number; pool: readonly 
       <button
         type="submit"
         className="rounded-ui-sm border-2 border-ui-line bg-ui-paper p-1 hover:bg-ui-surface-3"
-        aria-label={`Lägg in i grupp ${group + 1}`}
+        aria-label={`Lägg in i ${title}`}
         title="Lägg in i gruppen"
       >
         <Plus size={14} />
@@ -107,7 +109,7 @@ const targetOf = (value: string | undefined): Target | null =>
  * Draget bygger på pekhändelser i stället för HTML:s drag and drop, som inte
  * fungerar med finger i alla webbläsare.
  */
-export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDeleteGroup, onCopy }: Props) {
+export function NarvaroGroups({ view, people, stamps, names, onMove, onAddGroup, onDeleteGroup, onCopy }: Props) {
   const [picked, setPicked] = useState<string | null>(null);
   const [over, setOver] = useState<Target | null>(null);
   const drag = useRef<Drag | null>(null);
@@ -297,14 +299,14 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
         {view.groups.map((group, i) => (
           <div key={i} data-gdrop={i} className={card(i)} onClick={e => onCardClick(e, i)}>
             <h4 className="flex items-center justify-between border-b-frame border-ui-line bg-ui-mark-green px-3 py-1.5 font-bold text-ui-mark-fg">
-              Grupp {i + 1}
+              {groupTitle(names, i)}
               <span className="flex items-center gap-2 font-mono text-xs font-normal">
                 {group.length} st
                 <button
                   type="button"
                   className="rounded-sm p-0.5 hover:bg-ui-paper"
                   onClick={() => onDeleteGroup(i)}
-                  aria-label={`Ta bort grupp ${i + 1}`}
+                  aria-label={`Ta bort ${groupTitle(names, i)}`}
                   title="Ta bort gruppen. De som var i den blir inte indelade."
                 >
                   <X size={14} />
@@ -314,7 +316,7 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
             <ul className="flex flex-col gap-0.5 p-2">
               {group.length ? group.map(n => nameItem(n, false)) : <li className="px-1.5 text-sm italic text-ui-muted">Dra hit namn</li>}
             </ul>
-            <GroupNameInput group={i} pool={view.pool} onAdd={name => onMove(name, i)} />
+            <GroupNameInput title={groupTitle(names, i)} pool={view.pool} onAdd={name => onMove(name, i)} />
           </div>
         ))}
       </div>

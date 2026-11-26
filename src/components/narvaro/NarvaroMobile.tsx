@@ -110,6 +110,8 @@ type Props = {
   activeStamp: string | null;
   onPickStamp: (id: string) => void;
   storedGroups: string[][] | undefined;
+  /** Gruppernas namn i passet, annars "Grupp N". */
+  storedGroupNames?: string[];
   /** Raden under förnamnet: efternamn, klass och skola. */
   detail: (person: AttendancePerson) => string;
   onSetStamp: (name: string, stampId: string, on: boolean) => void;
@@ -121,7 +123,7 @@ type Press = { name: string; x: number; y: number; timer: ReturnType<typeof setT
 
 /** Rutorna, de frånvarande och stämpellisten längst ned. */
 export function NarvaroMobile({
-  sessKey, view, present, absent, sess, stamps, activeStamp, onPickStamp, storedGroups, detail,
+  sessKey, view, present, absent, sess, stamps, activeStamp, onPickStamp, storedGroups, storedGroupNames, detail,
   onSetStamp, onEdit, onAdd,
 }: Props) {
   const [flash, setFlash] = useState<string | null>(null);
@@ -132,7 +134,7 @@ export function NarvaroMobile({
 
   const undoHere = undo.filter(e => e.key === sessKey);
   const byName = new Map(present.map(p => [p.name, p]));
-  const sections = mobileSections(view, present.map(p => p.name), storedGroups);
+  const sections = mobileSections(view, present.map(p => p.name), storedGroups, storedGroupNames);
   const stampLabel = (id: string) => stamps.find(s => s.id === id)?.label ?? '';
 
   useEffect(() => {
