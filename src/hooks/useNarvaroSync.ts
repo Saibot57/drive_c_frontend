@@ -14,6 +14,7 @@ import {
   unlockKey,
 } from '@/utils/narvaroCrypto';
 import {
+  GRUPPER_KEY,
   KEYINFO_KEY,
   LegacyData,
   NarvaroData,
@@ -25,6 +26,7 @@ import {
   isWeekKey,
   mergeLegacy,
   mergeWeeks,
+  sanitizeGrupperDoc,
   sanitizeSettingsDoc,
   sanitizeWeekDoc,
 } from '@/utils/narvaroDocs';
@@ -42,7 +44,7 @@ import { createSaveQueue, type SaveQueue, type SaveQueueEvent } from '@/utils/sa
  * - `ready`: datan är dekrypterad och ändringar sparas.
  * - `error`: servern svarade inte.
  *
- * Varje vecka och stämplarna är egna dokument med egen version, som i
+ * Varje vecka, stämplarna och indelningarna är egna dokument med egen version, som i
  * Arbetslag: en sparning som bygger på en gammal version avvisas (409) och
  * blir `conflict`, så att en annan enhet inte skrivs över. När sidan blir
  * synlig igen hämtas det senaste, om inget väntar på att sparas.
@@ -97,6 +99,8 @@ export function useNarvaroSync(userId: string | null, now: Date) {
   const [busy, setBusy] = useState(false);
   const [data, setDataState] = useState<NarvaroData>(emptyData);
   const [saveStatus, setSaveStatus] = useState<NarvaroSaveStatus>('saved');
+  /** Status per dokument, för den som väntar på just ett (indelningarna). */
+  const [docStatuses, setDocStatuses] = useState<Record<string, NarvaroSaveStatus>>({});
   /** Dokument som inte gick att dekryptera. De visas inte och skrivs aldrig över. */
   const [unreadable, setUnreadable] = useState(0);
 
@@ -122,6 +126,7 @@ export function useNarvaroSync(userId: string | null, now: Date) {
       ? (e.error instanceof NarvaroConflictError ? 'conflict' : 'error')
       : e.status;
     statuses.current.set(e.key, status);
+    setDocStatuses(Object.fromEntries(statuses.current));
     const overall = Array.from(statuses.current.values())
       .reduce<NarvaroSaveStatus>((a, s) => (STATUS_RANK[s] > STATUS_RANK[a] ? s : a), 'saved');
     setSaveStatus(overall);
@@ -152,6 +157,7 @@ export function useNarvaroSync(userId: string | null, now: Date) {
     skip.current.clear();
     statuses.current.forEach((_, k) => queueRef.current?.forget(k));
     statuses.current.clear();
+    setDocStatuses({});
     setSaveStatus('saved');
     setUnreadable(0);
     setData(emptyData());
@@ -188,6 +194,7 @@ export function useNarvaroSync(userId: string | null, now: Date) {
   const enterReady = useCallback(async (docs: NarvaroDocument[], key: CryptoKey) => {
     const weeks: Record<string, WeekDoc> = {};
     let stamps = [...DEFAULT_STAMPS];
+    let templates: NarvaroData['templates'] = [];
     let bad = 0;
     versions.current.clear();
     skip.current.clear();
@@ -197,13 +204,14 @@ export function useNarvaroSync(userId: string | null, now: Date) {
       try {
         const plain = await decryptJson(key, doc.payload);
         if (doc.key === SETTINGS_KEY) stamps = sanitizeSettingsDoc(plain).stamps;
+        else if (doc.key === GRUPPER_KEY) templates = sanitizeGrupperDoc(plain).templates;
         else if (isWeekKey(doc.key)) weeks[doc.key] = sanitizeWeekDoc(plain);
       } catch {
         bad++;
         skip.current.add(doc.key);
       }
     }
-    const fromServer = mergeWeeks(weeks, stamps, now);
+    const fromServer = mergeWeeks(weeks, stamps, now, templates);
     // Det som sparas jämförs mot serverns innehåll i samma form, så att
     // inläsningen inte i sig ger några sparningar.
     lastJson.current.clear();
@@ -339,6 +347,7 @@ export function useNarvaroSync(userId: string | null, now: Date) {
     if (force) {
       statuses.current.forEach((_, k) => q.forget(k));
       statuses.current.clear();
+      setDocStatuses({});
       setSaveStatus('saved');
     }
     if (!force && q.hasUnsaved()) return;
@@ -370,5 +379,7 @@ export function useNarvaroSync(userId: string | null, now: Date) {
     };
   }, [refresh]);
 
-  return { phase, error, busy, data, saveStatus, unreadable, update, setup, unlock, lock, reset, refresh, retry: load };
+  const statusOf = useCallback((docKey: string): NarvaroSaveStatus => docStatuses[docKey] ?? 'saved', [docStatuses]);
+
+  return { phase, error, busy, data, saveStatus, statusOf, unreadable, update, setup, unlock, lock, reset, refresh, retry: load };
 }

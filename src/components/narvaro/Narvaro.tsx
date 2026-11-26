@@ -52,7 +52,10 @@ import {
   splitName,
   historyKeys,
   isoWeek,
-  moveToGroup,
+  movePassGroup,
+  addPassGroup,
+  removePassGroup,
+  PassGroups,
   namePass,
   noteEntries,
   parsePasted,
@@ -342,7 +345,8 @@ export default function Narvaro() {
   const gKey = groupsKey(key, nameClasses);
   const excludedHere = useMemo(() => new Set(excluded[gKey] ?? []), [excluded, gKey]);
   const active = present.filter(p => !excludedHere.has(p.name)).map(p => p.name);
-  const stored = groups[gKey]?.groups;
+  const storedPass = groups[gKey];
+  const stored = storedPass?.groups;
   const view = stored ? groupView(stored, active) : null;
   // Mobilen: andra pass samma dag som har grupper, när det valda saknar.
   const groupChoices = mobile && !isExample && !stored ? groupsOptions(groups, key, gKey, sheets, passNames) : [];
@@ -375,8 +379,9 @@ export default function Narvaro() {
     setNaming(null);
   };
   useEffect(() => setNaming(null), [key]);
-  const saveGroups = (next: string[][]) =>
-    setGroups(trimSessions({ ...groups, [gKey]: { groups: next } }, MAX_STORED_GROUP_SESSIONS));
+  // Slumpade och tomma grupper är inte längre en indelnings: namnen och `from` släpps.
+  const saveGroups = (next: PassGroups | string[][]) =>
+    setGroups(trimSessions({ ...groups, [gKey]: Array.isArray(next) ? { groups: next } : next }, MAX_STORED_GROUP_SESSIONS));
 
   // Med `html` får urklippet också en formaterad version, som Google Docs tar före den rena texten.
   const copyText = useCallback((text: string, html?: string) => {
@@ -1052,9 +1057,9 @@ export default function Narvaro() {
             view={view}
             people={sess.people}
             stamps={stamps}
-            onMove={(name, target) => saveGroups(moveToGroup(stored ?? [], name, target))}
-            onAddGroup={() => saveGroups([...(stored ?? []), []])}
-            onDeleteGroup={i => saveGroups((stored ?? []).filter((_, j) => j !== i))}
+            onMove={(name, target) => saveGroups(movePassGroup(storedPass ?? { groups: [] }, name, target))}
+            onAddGroup={() => saveGroups(addPassGroup(storedPass ?? { groups: [] }))}
+            onDeleteGroup={i => saveGroups(removePassGroup(storedPass ?? { groups: [] }, i))}
             onCopy={() => copyText(groupsText(label, view))}
           />
         )}

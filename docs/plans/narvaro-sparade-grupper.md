@@ -461,10 +461,10 @@ Där "Grupp N" skrivs i dag används `groupTitle`:
 
 - [x] **1. Backend**: `grupper` i `FIXED_KEYS`, test, `DEPLOY.md`. Egen PR i
   backend. Byggd 2026-11-26 (backend #61).
-- [ ] **2. Logik**: `src/utils/narvaroTemplates.ts` med tester (avsnitt 4).
+- [x] **2. Logik** (byggd 2026-11-26): `src/utils/narvaroTemplates.ts` med tester (avsnitt 4).
   `PassGroups` med `names`/`from` och `sanitizeGroups` i `narvaro.ts`, med
   tester. `addGroup`/`removeGroup`/`moveToGroup` håller `names` i takt.
-- [ ] **3. Sparning**: `templates` i `NarvaroData`, `grupper` i
+- [x] **3. Sparning** (byggd 2026-11-26): `templates` i `NarvaroData`, `grupper` i
   `narvaroDocs.ts` (`documentsToSave`, `sanitizeGrupperDoc`, `mergeWeeks`,
   `renameClass`) och i `useNarvaroSync` (`enterReady`, `statusOf(key)`). Tester i
   `narvaroDocs.test.ts`: inget `grupper` utan indelningar och utan känd
@@ -526,4 +526,19 @@ ska kunna provas för sig), och 5–7 i en tredje. Varje steg ska klara
 
 ## 12. Avvikelser från planen
 
-(Fylls i av den session som bygger.)
+Steg 2–3 (2026-11-26):
+
+- `templateFromPass` tar också passets aktiva namn (`active`), som behövs
+  för att räkna `absent`, och ett `{ id, now }` i stället för att skapa id
+  och tid själv, så att den går att testa.
+- `updateTemplateFromPass` ger utöver `dropped` även `moved` och `removed`
+  (elever som flyttats till en annan grupp, och som tagits ur grupperna),
+  för rutan före sparningen.
+- `sanitizeGroups` sparar bara `names` när minst en grupp har ett namn. Ett
+  pass där alla heter "Grupp N" har alltså inget `names`.
+- Passets namn och `from` följer redan nu med när ett namn flyttas och när
+  en grupp läggs till eller tas bort i `Narvaro.tsx` (`movePassGroup`,
+  `addPassGroup`, `removePassGroup`). Slumpa och Tomma grupper släpper dem.
+- `statusOf(key)` i `useNarvaroSync` läser ett eget state med status per
+  dokument, inte bara `statuses.current`, så att sidan ritas om när just
+  `grupper` blir sparat medan den samlade statusen är oförändrad.
