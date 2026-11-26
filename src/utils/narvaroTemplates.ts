@@ -68,6 +68,9 @@ const ordinal = (m: { n?: number }) => m.n ?? 1;
 const memberKey = (m: TemplateMember) => `${m.klass}\u0000${m.name}\u0000${ordinal(m)}`;
 const toMember = (p: Person): TemplateMember => ({ ...parseName(p), klass: klassOf(p) });
 
+/** Personen i en tabell (`combineSheets`) som medlem i en indelning. */
+export const personMember = toMember;
+
 /**
  * Vilken person (passets namn) varje medlem motsvarar, med medlemmens plats
  * `[grupp, index]` som nyckel. Två varv, så att ordningen inte spelar roll:
@@ -166,13 +169,15 @@ export function templateFromPass(
  * "Uppdatera indelningen": eleverna i passets tabell får passets placering
  * (står de i Inte indelade tas de bort ur indelningen), övriga stannar i sin
  * grupp. Hade en grupp som passet tagit bort sådana övriga blir de `dropped`.
+ * `moved`, `removed` och `added` räknar passets elever som byter grupp, tas
+ * ur indelningen och kommer nya in i den.
  */
 export function updateTemplateFromPass(
   template: GroupTemplate,
   pass: PassGroups,
   people: readonly Person[],
   now: Date,
-): { template: GroupTemplate; dropped: TemplateMember[]; moved: number; removed: number } {
+): { template: GroupTemplate; dropped: TemplateMember[]; moved: number; removed: number; added: number } {
   const match = matchMembers(template, people);
   const peopleKeys = new Set(people.map(p => memberKey(toMember(p))));
   const passNames = new Set(pass.groups.flat());
@@ -198,9 +203,11 @@ export function updateTemplateFromPass(
     groups[i].members.push(m);
   };
   let moved = 0;
+  let added = 0;
   pass.groups.slice(0, count).forEach((g, i) => g.forEach(n => {
     put(i, memberFor(n, people));
-    if (oldPlace.has(n) && oldPlace.get(n) !== i) moved++;
+    if (!oldPlace.has(n)) added++;
+    else if (oldPlace.get(n) !== i) moved++;
   }));
   const removed = Array.from(oldPlace.keys()).filter(n => !passNames.has(n)).length;
 
@@ -211,7 +218,7 @@ export function updateTemplateFromPass(
     else dropped.push(m);
   }));
 
-  return { template: { ...template, groups, updatedAt: now.toISOString() }, dropped, moved, removed };
+  return { template: { ...template, groups, updatedAt: now.toISOString() }, dropped, moved, removed, added };
 }
 
 /** Medlemmar vars namn inte finns i något ark (`knownClasses`). */
@@ -240,6 +247,61 @@ export function memberLabels(
   all.forEach(m => { if (!member.has(label(m))) member.set(label(m), m); });
   return { label, member };
 }
+
+/**
+ * Klasserna som ska visas när indelningen läggs på: de som redan visas och
+ * indelningens klasser som har pass den dagen, i arkens ordning (`allClasses`).
+ */
+export function templateTargetClasses(
+  template: GroupTemplate,
+  sheets: Record<string, AttendanceTable>,
+  allClasses: readonly string[],
+  selected: readonly string[],
+  day: string,
+): string[] {
+  const want = new Set([...selected, ...templateClasses(template, sheets, day)]);
+  return allClasses.filter(k => want.has(k));
+}
+
+/** Antalet elever i indelningen. */
+export const templateSize = (t: GroupTemplate) => t.groups.reduce((n, g) => n + g.members.length, 0);
+
+/* ---------- redigeringen ---------- */
+
+export const emptyTemplate = (id: string, name: string, now: Date, groups = 4): GroupTemplate => ({
+  id,
+  name: cleanTemplateName(name),
+  groups: Array.from({ length: Math.max(1, Math.min(MAX_TEMPLATE_GROUPS, groups)) }, () => ({ name: '', members: [] })),
+  updatedAt: now.toISOString(),
+});
+
+/** Flyttar en elev till gruppen `target`, eller ut ur indelningen med `'pool'`. */
+export function moveMember(t: GroupTemplate, member: TemplateMember, target: number | 'pool'): GroupTemplate {
+  const key = memberKey(member);
+  const groups = t.groups.map(g => ({ ...g, members: g.members.filter(m => memberKey(m) !== key) }));
+  if (target !== 'pool' && groups[target]) groups[target].members.push(member);
+  return { ...t, groups };
+}
+
+export function addTemplateGroup(t: GroupTemplate): GroupTemplate {
+  if (t.groups.length >= MAX_TEMPLATE_GROUPS) return t;
+  return { ...t, groups: [...t.groups, { name: '', members: [] }] };
+}
+
+export const removeTemplateGroup = (t: GroupTemplate, index: number): GroupTemplate =>
+  ({ ...t, groups: t.groups.filter((_, i) => i !== index) });
+
+export const renameTemplateGroup = (t: GroupTemplate, index: number, name: string): GroupTemplate =>
+  ({ ...t, groups: t.groups.map((g, i) => (i === index ? { ...g, name: cleanGroupName(name) } : g)) });
+
+/** Tar bort elever vars namn inte finns i något ark (`missingMembers`). */
+export function removeMissing(t: GroupTemplate, sheets: Record<string, AttendanceTable>): GroupTemplate {
+  const gone = new Set(missingMembers(t, sheets).map(memberKey));
+  return { ...t, groups: t.groups.map(g => ({ ...g, members: g.members.filter(m => !gone.has(memberKey(m))) })) };
+}
+
+/** Samma elev (namn, klass och löpnummer). */
+export const sameMember = (a: TemplateMember, b: TemplateMember) => memberKey(a) === memberKey(b);
 
 /* ---------- listan ---------- */
 
