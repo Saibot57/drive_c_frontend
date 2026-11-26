@@ -36,6 +36,7 @@ import {
   sessionKey,
   sessionChoice,
   sessionLines,
+  sessionRows,
   sessionText,
   setPersonNote,
   toggleStamp,
@@ -327,6 +328,16 @@ describe('anteckningar', () => {
     expect(sessionLines(s, ['A', 'B'], [[], []], DEFAULT_STAMPS)).toEqual(['A', 'B: Aktiv']);
   });
 
+  it('ger grupperna rubriker när de har namn', () => {
+    const s = setPersonNote(emptySession('Pass'), 'B', { tags: ['aktiv'], note: '' });
+    expect(sessionLines(s, ['A', 'B', 'C'], [['C'], ['B']], DEFAULT_STAMPS, ['Röda', '']))
+      .toEqual(['Röda:', 'C', '', 'Grupp 2:', 'B: Aktiv', '', 'Utan grupp:', 'A']);
+    // Utan namn som förut.
+    expect(sessionLines(s, ['A', 'B', 'C'], [['C'], ['B']], DEFAULT_STAMPS, ['', ''])).toEqual(['C', '', 'B: Aktiv', '', 'A']);
+    expect(sessionRows(s, ['B'], [['B']], DEFAULT_STAMPS, ['Röda'])[0][0]).toMatchObject({ group: 1, groupName: 'Röda' });
+    expect(sessionRows(s, ['B'], null, DEFAULT_STAMPS)[0][0]).toMatchObject({ group: null, groupName: null });
+  });
+
   it('läser dag och pass ur passets nyckel', () => {
     const col = table.cols[0];
     expect(sessionChoice(table, `2026-11-02|${col.day}|${col.letter}`)).toEqual({ day: col.day, pass: col.id });
@@ -451,6 +462,10 @@ describe('groupsText', () => {
 
   it('tar inte med klassen som combineSheets satt efter namnet', () => {
     expect(groupsText('Pass', { groups: [['Ali Hassan (Rosa)', 'Nils Berg']], pool: [] })).toBe('Pass\n\nGrupp 1: Ali, Nils');
+  });
+
+  it('använder gruppernas namn', () => {
+    expect(groupsText('Pass', { groups: [['Amira'], ['Nils']], pool: [] }, ['Röda', ''])).toBe('Pass\n\nRöda: Amira\nGrupp 2: Nils');
   });
 
   it('behåller ett namn med ett enda ord', () => {

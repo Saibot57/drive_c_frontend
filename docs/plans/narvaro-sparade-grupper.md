@@ -469,7 +469,7 @@ Där "Grupp N" skrivs i dag används `groupTitle`:
   `renameClass`) och i `useNarvaroSync` (`enterReady`, `statusOf(key)`). Tester i
   `narvaroDocs.test.ts`: inget `grupper` utan indelningar och utan känd
   nyckel; tomt `grupper` när den sista tagits bort; rundtur; `renameClass`.
-- [ ] **4. Gruppnamnen syns**: `groupTitle` i `NarvaroGroups`,
+- [x] **4. Gruppnamnen syns** (byggd 2026-11-26): `groupTitle` i `NarvaroGroups`,
   `groupsText`, `sessionRows` (`groupName`), `narvaroExport` (`Unit.names`,
   Excel-kolumnen Gruppnamn), `narvaroMobile` (även `groupsForDate` räknar
   närvarande). Testerna för texterna uppdateras.
@@ -542,3 +542,17 @@ Steg 2–3 (2026-11-26):
 - `statusOf(key)` i `useNarvaroSync` läser ett eget state med status per
   dokument, inte bara `statuses.current`, så att sidan ritas om när just
   `grupper` blir sparat medan den samlade statusen är oförändrad.
+
+Steg 4 (2026-11-26):
+
+- **Rubriker i texterna bara när grupperna har namn.** Kopiera
+  noteringar, textexporten och urklippet till Google Dokument skrev aldrig
+  "Grupp N" före, bara en tom rad mellan grupperna. Det formatet är
+  oförändrat för pass utan gruppnamn. Har passet namn (från en indelning)
+  får varje grupp en rubrikrad ("Röda:", "Grupp 2:") och de utan grupp
+  "Utan grupp:". Logiken ligger i `chunkHeading` i `narvaro.ts`. Kopiera
+  grupperna skrev redan "Grupp N" och använder nu namnen.
+- **Mobilens antal räknas i `groupsOptions`**, inte i `groupsForDate`,
+  eftersom det är där passets ark och kolumn finns. Den har fått ett
+  valfritt `notes`, så att de som lagts till för hand räknas.
+- Excel-kolumnen Gruppnamn står i `narvaro-excel.md`.

@@ -26,8 +26,10 @@ sammanställa dem i ett kalkylark, till exempel per ämne, elev eller stämpel.
 ## 3. Kolumnerna
 
 Vecka, Datum, Dag, Start, Slut, Pass i arket, Klass, Ämne, Schemapass,
-Lärare, Sal, Innehåll, Passnamn, Elev, Skola, Närvarande, Grupp, Arkets
-vecka, en kolumn per stämpel, Notering.
+Lärare, Sal, Innehåll, Passnamn, Elev, Skola, Närvarande, Grupp, Gruppnamn,
+Arkets vecka, en kolumn per stämpel, Notering. (Gruppnamn tillkom
+2026-11-26 med de sparade gruppindelningarna, se
+[narvaro-sparade-grupper.md](narvaro-sparade-grupper.md).)
 
 - **Datum** är ett riktigt datum och **Start** och **Slut** riktiga
   klockslag, så att de sorterar rätt. Tiden är schemapassets, annars arkets
@@ -46,6 +48,8 @@ vecka, en kolumn per stämpel, Notering.
   notering).
 - **Grupp** är gruppens nummer i passets indelning, tom för den som inte är
   med i någon grupp.
+- **Gruppnamn** är gruppens namn ("Röda"), eller "Grupp 2" när gruppen inte
+  har något. Tom för den som inte är med i någon grupp.
 - **Arkets vecka** är ifylld när kryssen kommer ur en äldre veckas ark.
 
 Rubrikraden är fet och låst, och filtret är på. Cellerna skrivs som text,

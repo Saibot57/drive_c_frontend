@@ -515,21 +515,29 @@ export function sessionChoice(table: AttendanceTable, key: string): { day: strin
  * `text` är stämplarnas namn och noteringen ihop; `tags` och `note` är de
  * var för sig. `group` är gruppens nummer i passets indelning (1 för den
  * första), eller null när passet saknar grupper eller personen inte är med i
- * någon.
+ * någon. `groupName` är gruppens rubrik (`groupTitle`) när `group` finns.
  */
-export type SessionRow = { name: string; text: string; tags: string[]; note: string; group: number | null };
+export type SessionRow = {
+  name: string;
+  text: string;
+  tags: string[];
+  note: string;
+  group: number | null;
+  groupName: string | null;
+};
 
 /**
  * Passets rader: alla närvarande i en lista, med stämplar och notering där
  * det finns, och sist de som har en notering utan att vara närvarande. Ingen
  * uppdelning på skola. Med grupper blir det en lista per grupp, och de som
- * inte är med i någon grupp sist.
+ * inte är med i någon grupp sist. `groupNames` är gruppernas namn (`PassGroups`).
  */
 export function sessionRows(
   sess: SessionNotes,
   present: readonly string[],
   groups: readonly (readonly string[])[] | null,
   stamps: readonly Stamp[],
+  groupNames?: readonly string[],
 ): SessionRow[][] {
   const noted = new Map(noteEntries(sess));
   const names = Array.from(new Set([...present, ...Array.from(noted.keys())]));
@@ -537,7 +545,8 @@ export function sessionRows(
     const n = noted.get(name);
     const tags = n?.tags ?? [];
     const labels = tags.map(id => stamps.find(s => s.id === id)?.label).filter(Boolean).join(', ');
-    return { name, text: [labels, n?.note].filter(Boolean).join('. '), tags: [...tags], note: n?.note ?? '', group };
+    const groupName = group === null ? null : groupTitle(groupNames, group - 1);
+    return { name, text: [labels, n?.note].filter(Boolean).join('. '), tags: [...tags], note: n?.note ?? '', group, groupName };
   };
   if (!groups?.some(g => g.length > 0)) return names.length ? [names.map(name => row(name, null))] : [];
   const known = new Set(names);
@@ -550,15 +559,29 @@ export function sessionRows(
   return chunks.filter(c => c.names.length > 0).map(c => c.names.map(name => row(name, c.group)));
 }
 
-/** Raderna som text ("Namn: Aktiv. notering"), med en tom rad mellan grupperna och utan rubrik. */
+/**
+ * Rubriken för en grupp i texterna, eller null. Grupperna får rubriker bara
+ * när passet har gruppnamn (från en sparad indelning); annars ser texten ut
+ * som förut, med bara en tom rad mellan grupperna. De utan grupp heter då
+ * "Utan grupp".
+ */
+export function chunkHeading(chunk: readonly SessionRow[], names: readonly string[] | undefined): string | null {
+  if (!names?.some(Boolean) || !chunk.length) return null;
+  return chunk[0].groupName ?? 'Utan grupp';
+}
+
+/** Raderna som text ("Namn: Aktiv. notering"), med en tom rad mellan grupperna och gruppens namn när den har ett. */
 export function sessionLines(
   sess: SessionNotes,
   present: readonly string[],
   groups: readonly (readonly string[])[] | null,
   stamps: readonly Stamp[],
+  names?: readonly string[],
 ): string[] {
-  return sessionRows(sess, present, groups, stamps)
-    .flatMap((c, i) => [...(i ? [''] : []), ...c.map(r => (r.text ? `${r.name}: ${r.text}` : r.name))]);
+  return sessionRows(sess, present, groups, stamps, names).flatMap((c, i) => {
+    const heading = chunkHeading(c, names);
+    return [...(i ? [''] : []), ...(heading ? [`${heading}:`] : []), ...c.map(r => (r.text ? `${r.name}: ${r.text}` : r.name))];
+  });
 }
 
 /**
@@ -569,12 +592,17 @@ export function sessionText(
   sess: SessionNotes,
   table: AttendanceTable,
   stamps: readonly Stamp[],
-  at: { day?: string; pass?: PassChoice | null; groups?: readonly (readonly string[])[] | null } = {},
+  at: {
+    day?: string;
+    pass?: PassChoice | null;
+    groups?: readonly (readonly string[])[] | null;
+    names?: readonly string[];
+  } = {},
 ): string {
   const present = at.day && at.pass
     ? roster(table, { klass: 'all', day: at.day, pass: at.pass, added: sess.added }).present.map(p => p.name)
     : [];
-  return [sess.label, '', ...sessionLines(sess, present, at.groups ?? null, stamps)].join('\n');
+  return [sess.label, '', ...sessionLines(sess, present, at.groups ?? null, stamps, at.names)].join('\n');
 }
 
 /** Tidigare pass med noteringar, senaste först. */
@@ -644,7 +672,7 @@ export const MAX_GROUP_NAME_LENGTH = 30;
 export const cleanGroupName = (name: string) => name.replace(/\s+/g, ' ').trim().slice(0, MAX_GROUP_NAME_LENGTH);
 
 /** Gruppens rubrik: dess namn, eller "Grupp N". */
-export const groupTitle = (names: readonly string[] | undefined, index: number) =>
+export const groupTitle = (names: readonly string[] | undefined, index: number): string =>
   names?.[index] || `Grupp ${index + 1}`;
 
 /** Flyttar ett namn i passets grupper. Namnen och indelningen följer med. */
@@ -696,11 +724,11 @@ export function firstNames(names: readonly string[]): Map<string, string> {
   }));
 }
 
-/** Grupperna som text att kopiera, med bara förnamnen. */
-export function groupsText(label: string, view: { groups: string[][]; pool: string[] }): string {
+/** Grupperna som text att kopiera, med bara förnamnen och gruppernas namn. */
+export function groupsText(label: string, view: { groups: string[][]; pool: string[] }, groupNames?: readonly string[]): string {
   const short = firstNames([...view.groups.flat(), ...view.pool]);
   const join = (names: string[]) => names.map(n => short.get(n) ?? n).join(', ');
-  const lines = view.groups.map((g, i) => `Grupp ${i + 1}: ${join(g) || '(tom)'}`);
+  const lines = view.groups.map((g, i) => `${groupTitle(groupNames, i)}: ${join(g) || '(tom)'}`);
   if (view.pool.length) lines.push('', `Inte indelade: ${join(view.pool)}`);
   return `${label}\n\n${lines.join('\n')}`;
 }

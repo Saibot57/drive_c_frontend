@@ -28,6 +28,7 @@ import {
   sessionChoice,
   sessionLabel,
   SessionRow,
+  chunkHeading,
   sessionRows,
 } from '@/utils/narvaro';
 import { Sheets, isWeekKey, latestSheets, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
@@ -100,7 +101,7 @@ function byClass(sess: SessionNotes, sheets: Sheets, combined: AttendanceTable):
   return out;
 }
 
-type Unit = { classes: string[]; groups: string[][] | null };
+type Unit = { classes: string[]; groups: string[][] | null; names?: string[] };
 
 /**
  * Styckena för ett pass. Klasser som delats in i grupper tillsammans blir ett
@@ -111,7 +112,7 @@ type Unit = { classes: string[]; groups: string[][] | null };
 function unitsFor(key: string, classes: string[], groups: GroupsStore): Unit[] {
   const sets = Object.keys(groups)
     .filter(k => k.startsWith(`${key}#`) && groups[k]?.groups?.some(g => g.length > 0))
-    .map(k => ({ classes: k.slice(key.length + 1).split('+'), groups: groups[k].groups }));
+    .map(k => ({ classes: k.slice(key.length + 1).split('+'), groups: groups[k].groups, names: groups[k].names }));
   let left = [...classes];
   const units: Unit[] = [];
   for (;;) {
@@ -120,7 +121,7 @@ function unitsFor(key: string, classes: string[], groups: GroupsStore): Unit[] {
       .filter(s => s.hit.length > 0)
       .sort((a, b) => b.hit.length - a.hit.length || a.classes.length - b.classes.length)[0];
     if (!best) break;
-    units.push({ classes: best.hit, groups: best.groups });
+    units.push({ classes: best.hit, groups: best.groups, names: best.names });
     left = left.filter(c => !best.hit.includes(c));
   }
   left.forEach(c => units.push({ classes: [c], groups: null }));
@@ -164,6 +165,8 @@ type Block = {
   meta: string[];
   /** En lista per grupp, eller en enda. */
   chunks: SessionRow[][];
+  /** Gruppernas namn, när passet har några (`chunkHeading`). */
+  groupNames?: string[];
   // Det som kalkylarket behöver utöver texten.
   weekKey: string;
   /** Passets datum ur nyckeln, `ÅÅÅÅ-MM-DD`. */
@@ -238,7 +241,8 @@ function weekBlocks(weekKey: string, input: ExportInput): Block[] {
       blocks.push({
         heading: `${heading} · ${unit.classes.map(classLabel).join(', ')}`,
         meta,
-        chunks: sessionRows(part, present, unit.groups, input.stamps),
+        chunks: sessionRows(part, present, unit.groups, input.stamps, unit.names),
+        groupNames: unit.names,
         weekKey,
         date: key.slice(0, 10),
         day,
@@ -282,7 +286,10 @@ export function exportText(input: ExportInput): string {
     b.heading,
     ...b.meta,
     '',
-    ...b.chunks.flatMap((c, i) => [...(i ? [''] : []), ...c.map(r => `  ${rowText(r)}`)]),
+    ...b.chunks.flatMap((c, i) => {
+      const heading = chunkHeading(c, b.groupNames);
+      return [...(i ? [''] : []), ...(heading ? [`  ${heading}:`] : []), ...c.map(r => `  ${rowText(r)}`)];
+    }),
   ].join('\n');
   return [
     [doc.title, ...doc.head].join('\n'),
@@ -305,7 +312,10 @@ export function exportHtml(input: ExportInput): string {
   const block = (b: Block) => [
     `<h2>${esc(b.heading)}</h2>`,
     b.meta.length ? `<p><i>${b.meta.map(esc).join('<br>')}</i></p>` : '',
-    ...b.chunks.map(c => `<p>${c.map(row).join('<br>')}</p>`),
+    ...b.chunks.map(c => {
+      const heading = chunkHeading(c, b.groupNames);
+      return `<p>${heading ? `<i>${esc(heading)}</i><br>` : ''}${c.map(row).join('<br>')}</p>`;
+    }),
   ].join('');
   return [
     `<p><b>${esc(doc.title)}</b>${doc.head.map(l => `<br>${esc(l)}`).join('')}</p>`,
@@ -350,7 +360,7 @@ const joinUnique = (values: string[], sep: string) => Array.from(new Set(values.
 
 export const EXPORT_COLUMNS = [
   'Vecka', 'Datum', 'Dag', 'Start', 'Slut', 'Pass i arket', 'Klass', 'Ämne', 'Schemapass', 'Lärare', 'Sal',
-  'Innehåll', 'Passnamn', 'Elev', 'Skola', 'Närvarande', 'Grupp', 'Arkets vecka',
+  'Innehåll', 'Passnamn', 'Elev', 'Skola', 'Närvarande', 'Grupp', 'Gruppnamn', 'Arkets vecka',
 ] as const;
 
 export type ExportRows = { columns: string[]; rows: XlsxCell[][]; widths: (number | undefined)[] };
@@ -393,6 +403,7 @@ export function exportRows(input: ExportInput): ExportRows {
         person?.group ?? '',
         presence,
         r.group,
+        r.groupName ?? '',
         older ? Number(weekNumber(older)) : null,
         ...stamps.map(s => (r.tags.includes(s.id) ? 1 : null)),
         r.note.trim(),
