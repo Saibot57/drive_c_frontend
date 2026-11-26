@@ -1,6 +1,6 @@
 # Närvarorutor: sparade gruppindelningar
 
-Status: Planerad
+Status: Pågår
 
 ## 1. Vad användaren vill
 
@@ -459,8 +459,8 @@ Där "Grupp N" skrivs i dag används `groupTitle`:
 
 ## 9. Steg
 
-- [ ] **1. Backend**: `grupper` i `FIXED_KEYS`, test, `DEPLOY.md`. Egen PR i
-  backend.
+- [x] **1. Backend**: `grupper` i `FIXED_KEYS`, test, `DEPLOY.md`. Egen PR i
+  backend. Byggd 2026-11-26 (backend, commit deabaa7).
 - [ ] **2. Logik**: `src/utils/narvaroTemplates.ts` med tester (avsnitt 4).
   `PassGroups` med `names`/`from` och `sanitizeGroups` i `narvaro.ts`, med
   tester. `addGroup`/`removeGroup`/`moveToGroup` håller `names` i takt.
