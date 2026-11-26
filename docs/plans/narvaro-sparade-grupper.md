@@ -479,11 +479,14 @@ Där "Grupp N" skrivs i dag används `groupTitle`:
   `groupsText`, `sessionRows` (`groupName`), `narvaroExport` (`Unit.names`,
   Excel-kolumnen Gruppnamn), `narvaroMobile` (även `groupsForDate` räknar
   närvarande). Testerna för texterna uppdateras.
-- [ ] **5. Datorn, passet**: Lägg på indelning (med fråga), Från, Spara som
+- [x] **5. Datorn, passet** (byggd 2026-11-26): Lägg på indelning (med fråga), Från, Spara som
   indelning, Uppdatera indelningen.
-- [ ] **6. Datorn, hantera**: listan och redigeringen (5.2).
-- [ ] **7. Mobilen**: Lägg på sparad indelning i `MobileGroupChoices`.
-- [ ] **8. Prov** i webbläsaren (avsnitt 11).
+- [x] **6. Datorn, hantera** (byggd 2026-11-26): listan och redigeringen (5.2).
+- [x] **7. Mobilen** (byggd 2026-11-26): Lägg på sparad indelning i `MobileGroupChoices`.
+- [ ] **8. Prov** i webbläsaren (avsnitt 11). Provat 2026-11-26 mot ett
+  påhittat API i Playwright (inte mot riktig backend): prov 1, 3, 4, 5, 6
+  (utan export), 8 och 13 fungerade. Kvar: Tobias prov mot riktig backend,
+  efter backend #61.
 
 PR:er: steg 2–3 i en, **steg 4 i en egen liten PR** (den ändrar
 textformaten och Excel, som Tobias redan provar i `narvaro-excel.md`, och
@@ -566,3 +569,24 @@ Steg 4 (2026-11-26):
   eftersom det är där passets ark och kolumn finns. Den har fått ett
   valfritt `notes`, så att de som lagts till för hand räknas.
 - Excel-kolumnen Gruppnamn står i `narvaro-excel.md`.
+
+Steg 5–7 (2026-11-26):
+
+- **Menyn Lägg på indelning är inte modal** (`modal={false}`). Provet
+  visade att en dialog som öppnas från en Radix-meny (Ersätta grupperna?)
+  lämnade `pointer-events: none` på sidan när den stängdes, så att inget gick
+  att klicka.
+- **Uppdatera indelningen räknar också tillagda** (`added`): en elev som
+  inte fanns i indelningen men står i en grupp i passet. Utan den sa frågan
+  "Inga elever byter grupp" när någon lades till.
+- **Hantera indelningar tar hela passets plats** på datorn (rutorna, de
+  inte markerade och grupperna eller noteringarna), inte bara grupperna.
+  Byts läget mellan Anteckningar och Grupper stängs vyn.
+- **Spara som indelning och Uppdatera** sitter i gruppernas rubrikrad
+  (`NarvaroGroups` fick `actions`), "Från: X" bredvid. I exemplet visas de
+  inte, och menyn säger att indelningar inte läggs på i exemplet.
+- På mobilen visas indelningarna bara när passet saknar grupper. Har
+  passet med indelningens klasser redan grupper byter ett tryck dit utan
+  att ersätta dem.
+- Nya filer: `NarvaroTemplateMenu.tsx` (menyn, raden och frågorna) och
+  `NarvaroTemplates.tsx` (listan och redigeringen).

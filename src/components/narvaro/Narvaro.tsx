@@ -11,6 +11,8 @@ import { STAMP_BG, StampTag } from '@/components/narvaro/stampStyle';
 import { NarvaroLock } from '@/components/narvaro/NarvaroLock';
 import { NarvaroMobile, NarvaroMobileHeader } from '@/components/narvaro/NarvaroMobile';
 import { MobileGroupChoices } from '@/components/narvaro/NarvaroMobileGroups';
+import { NarvaroTemplateAsk, NarvaroTemplateBar, NarvaroTemplateMenu, type TemplateAsk } from '@/components/narvaro/NarvaroTemplateMenu';
+import { NarvaroTemplates } from '@/components/narvaro/NarvaroTemplates';
 import { NarvaroScheduleLine } from '@/components/narvaro/NarvaroScheduleLine';
 import { NarvaroWeekMap } from '@/components/narvaro/NarvaroWeekMap';
 import { ChipRow, NarvaroPassChips } from '@/components/narvaro/NarvaroPassChips';
@@ -73,7 +75,19 @@ import {
   toggleStamp,
   trimSessions,
 } from '@/utils/narvaro';
-import { groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
+import {
+  GroupTemplate,
+  applyTemplate,
+  newTemplateId,
+  removeTemplate,
+  renameTemplate,
+  sortTemplates,
+  templateFromPass,
+  templateTargetClasses,
+  updateTemplateFromPass,
+  upsertTemplate,
+} from '@/utils/narvaroTemplates';
+import { GRUPPER_KEY, groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -382,6 +396,61 @@ export default function Narvaro() {
   // Slumpade och tomma grupper är inte längre en indelnings: namnen och `from` släpps.
   const saveGroups = (next: PassGroups | string[][]) =>
     setGroups(trimSessions({ ...groups, [gKey]: Array.isArray(next) ? { groups: next } : next }, MAX_STORED_GROUP_SESSIONS));
+
+  /* ---------- sparade indelningar ---------- */
+  // Indelningarna är alltid de riktiga, även när exemplet visas, men läggs inte på exemplets pass.
+  const templates = sync.data.templates;
+  const setTemplates = (fn: (list: GroupTemplate[]) => GroupTemplate[]) => update(d => ({ ...d, templates: fn(d.templates) }));
+  const [manageOpen, setManageOpen] = useState(false);
+  const [ask, setAsk] = useState<TemplateAsk | null>(null);
+  const fromTemplate = (storedPass?.from && templates.find(t => t.id === storedPass.from)) || null;
+  /** Klasserna som visas när indelningen läggs på, och var grupperna sparas. */
+  const applyTarget = (t: GroupTemplate) => {
+    const classes = templateTargetClasses(t, sheets, allClasses, selected, day);
+    const tbl = combineSheets(sheets, classes);
+    return { classes, tbl, gk: groupsKey(sessionKey(tbl, day, pass, viewNow), classes) };
+  };
+  const applyNow = (id: string, replace = true) => {
+    const t = templates.find(x => x.id === id);
+    setAsk(null);
+    if (!t || isExample) return;
+    const { classes, tbl, gk } = applyTarget(t);
+    userPicked.current = true;
+    if (classes.join('+') !== selected.join('+')) setChosen(classes);
+    if (replace) {
+      setSavedGroups(trimSessions({ ...savedGroups, [gk]: applyTemplate(t, tbl.people) }, MAX_STORED_GROUP_SESSIONS));
+      setToast(`${t.name} lagd på`);
+    }
+    setMode('groups');
+    setMobileView('groups');
+  };
+  /** Har passet redan grupper frågar datorn först; mobilen visar dem i stället. */
+  const requestApply = (id: string, askFirst = true) => {
+    const t = templates.find(x => x.id === id);
+    if (!t || isExample) return;
+    const has = !!savedGroups[applyTarget(t).gk]?.groups.some(g => g.length);
+    if (!has) applyNow(id);
+    else if (askFirst) setAsk({ kind: 'replace', id, name: t.name });
+    else applyNow(id, false);
+  };
+  const startSaveAs = () => {
+    if (!storedPass) return;
+    setAsk({ kind: 'saveAs', absent: templateFromPass('', storedPass, table.people, active, { id: '', now: new Date() }).absent });
+  };
+  const saveAsTemplate = (name: string, overwrite: string | null) => {
+    setAsk(null);
+    if (!storedPass) return;
+    const id = overwrite ?? newTemplateId();
+    const { template } = templateFromPass(name, storedPass, table.people, active, { id, now: new Date() });
+    setTemplates(list => upsertTemplate(list, template));
+    saveGroups({ ...storedPass, from: id });
+    setToast('Sparad som indelning');
+  };
+  const startUpdate = () => {
+    if (!storedPass || !fromTemplate) return;
+    const r = updateTemplateFromPass(fromTemplate, storedPass, table.people, new Date());
+    setAsk({ kind: 'update', template: r.template, moved: r.moved, removed: r.removed, added: r.added, dropped: r.dropped.length });
+  };
 
   // Med `html` får urklippet också en formaterad version, som Google Docs tar före den rena texten.
   const copyText = useCallback((text: string, html?: string) => {
@@ -853,7 +922,7 @@ export default function Narvaro() {
                   role="tab"
                   type="button"
                   aria-selected={mode === m}
-                  onClick={() => setMode(m)}
+                  onClick={() => { setMode(m); setManageOpen(false); }}
                   className={cn(
                     'flex items-center gap-2 px-4 py-1.5 text-sm font-semibold [&+&]:border-l-frame [&+&]:border-ui-line',
                     mode === m ? 'bg-ui-mark-green text-ui-mark-fg' : 'bg-ui-paper hover:bg-ui-surface-3',
@@ -968,6 +1037,12 @@ export default function Narvaro() {
                 </label>
                 <Button className="sp-btn" onClick={makeRandom}><Shuffle /> Slumpa grupper</Button>
                 <Button variant="neutral" className="sp-btn" onClick={makeManual}>Dela in själv</Button>
+                <NarvaroTemplateMenu
+                  templates={sortTemplates(templates)}
+                  canApply={!isExample}
+                  onApply={id => requestApply(id)}
+                  onManage={() => setManageOpen(true)}
+                />
               </div>
               <p className="text-sm text-ui-muted">Tryck på en namnruta för att lämna personen utanför grupperna.</p>
             </div>
@@ -976,7 +1051,14 @@ export default function Narvaro() {
         </section>
         )}
 
-        {mobile && <MobileGroupChoices choices={groupChoices} onPick={pickGroups} />}
+        {mobile && (
+          <MobileGroupChoices
+            choices={groupChoices}
+            onPick={pickGroups}
+            templates={!isExample && !stored ? templates : []}
+            onApplyTemplate={id => requestApply(id, false)}
+          />
+        )}
         {mobile && (
           <NarvaroMobile
             sessKey={key}
@@ -996,7 +1078,28 @@ export default function Narvaro() {
           />
         )}
 
-        {!mobile && (<>
+        {!mobile && manageOpen && (
+          <NarvaroTemplates
+            templates={templates}
+            sheets={knownClasses(sync.data.tables)}
+            defaultClasses={selected}
+            status={sync.statusOf(GRUPPER_KEY)}
+            onSave={t => setTemplates(list => upsertTemplate(list, t))}
+            onRename={(id, name) => setTemplates(list => renameTemplate(list, id, name, new Date()))}
+            onDelete={id => setTemplates(list => removeTemplate(list, id))}
+            onClose={() => setManageOpen(false)}
+          />
+        )}
+        <NarvaroTemplateAsk
+          ask={ask}
+          templates={templates}
+          onCancel={() => setAsk(null)}
+          onReplace={id => applyNow(id)}
+          onSaveAs={saveAsTemplate}
+          onUpdate={t => { setAsk(null); setTemplates(list => upsertTemplate(list, t)); setToast('Indelningen uppdaterad'); }}
+        />
+
+        {!mobile && !manageOpen && (<>
 
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
           {present.length ? present.map(p => {
@@ -1063,6 +1166,7 @@ export default function Narvaro() {
             onDeleteGroup={i => saveGroups(removePassGroup(storedPass ?? { groups: [] }, i))}
             names={storedPass?.names}
             onCopy={() => copyText(groupsText(label, view, storedPass?.names))}
+            actions={!isExample && <NarvaroTemplateBar from={fromTemplate} onUpdate={startUpdate} onSaveAs={startSaveAs} />}
           />
         )}
 
