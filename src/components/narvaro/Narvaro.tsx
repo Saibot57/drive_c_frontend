@@ -11,6 +11,8 @@ import { STAMP_BG, StampTag } from '@/components/narvaro/stampStyle';
 import { NarvaroLock } from '@/components/narvaro/NarvaroLock';
 import { NarvaroMobile, NarvaroMobileHeader } from '@/components/narvaro/NarvaroMobile';
 import { MobileGroupChoices } from '@/components/narvaro/NarvaroMobileGroups';
+import { NarvaroTemplateAsk, NarvaroTemplateBar, NarvaroTemplateMenu, type TemplateAsk } from '@/components/narvaro/NarvaroTemplateMenu';
+import { NarvaroTemplates } from '@/components/narvaro/NarvaroTemplates';
 import { NarvaroScheduleLine } from '@/components/narvaro/NarvaroScheduleLine';
 import { NarvaroWeekMap } from '@/components/narvaro/NarvaroWeekMap';
 import { ChipRow, NarvaroPassChips } from '@/components/narvaro/NarvaroPassChips';
@@ -73,7 +75,19 @@ import {
   toggleStamp,
   trimSessions,
 } from '@/utils/narvaro';
-import { groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
+import {
+  GroupTemplate,
+  applyTemplate,
+  newTemplateId,
+  removeTemplate,
+  renameTemplate,
+  sortTemplates,
+  templateFromPass,
+  templateTargetClasses,
+  updateTemplateFromPass,
+  upsertTemplate,
+} from '@/utils/narvaroTemplates';
+import { GRUPPER_KEY, groupByWeek, isoWeekKey, knownClasses, latestSheets, removeSheet, renameClass, setSheet, weekHeading, weekMonday, weekOfSession } from '@/utils/narvaroDocs';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -349,7 +363,7 @@ export default function Narvaro() {
   const stored = storedPass?.groups;
   const view = stored ? groupView(stored, active) : null;
   // Mobilen: andra pass samma dag som har grupper, när det valda saknar.
-  const groupChoices = mobile && !isExample && !stored ? groupsOptions(groups, key, gKey, sheets, passNames) : [];
+  const groupChoices = mobile && !isExample && !stored ? groupsOptions(groups, key, gKey, sheets, passNames, notes) : [];
   const pickGroups = (k: string) => {
     const c = groupChoices.find(x => x.key === k);
     if (!c) return;
@@ -382,6 +396,61 @@ export default function Narvaro() {
   // Slumpade och tomma grupper är inte längre en indelnings: namnen och `from` släpps.
   const saveGroups = (next: PassGroups | string[][]) =>
     setGroups(trimSessions({ ...groups, [gKey]: Array.isArray(next) ? { groups: next } : next }, MAX_STORED_GROUP_SESSIONS));
+
+  /* ---------- sparade indelningar ---------- */
+  // Indelningarna är alltid de riktiga, även när exemplet visas, men läggs inte på exemplets pass.
+  const templates = sync.data.templates;
+  const setTemplates = (fn: (list: GroupTemplate[]) => GroupTemplate[]) => update(d => ({ ...d, templates: fn(d.templates) }));
+  const [manageOpen, setManageOpen] = useState(false);
+  const [ask, setAsk] = useState<TemplateAsk | null>(null);
+  const fromTemplate = (storedPass?.from && templates.find(t => t.id === storedPass.from)) || null;
+  /** Klasserna som visas när indelningen läggs på, och var grupperna sparas. */
+  const applyTarget = (t: GroupTemplate) => {
+    const classes = templateTargetClasses(t, sheets, allClasses, selected, day);
+    const tbl = combineSheets(sheets, classes);
+    return { classes, tbl, gk: groupsKey(sessionKey(tbl, day, pass, viewNow), classes) };
+  };
+  const applyNow = (id: string, replace = true) => {
+    const t = templates.find(x => x.id === id);
+    setAsk(null);
+    if (!t || isExample) return;
+    const { classes, tbl, gk } = applyTarget(t);
+    userPicked.current = true;
+    if (classes.join('+') !== selected.join('+')) setChosen(classes);
+    if (replace) {
+      setSavedGroups(trimSessions({ ...savedGroups, [gk]: applyTemplate(t, tbl.people) }, MAX_STORED_GROUP_SESSIONS));
+      setToast(`${t.name} lagd på`);
+    }
+    setMode('groups');
+    setMobileView('groups');
+  };
+  /** Har passet redan grupper frågar datorn först; mobilen visar dem i stället. */
+  const requestApply = (id: string, askFirst = true) => {
+    const t = templates.find(x => x.id === id);
+    if (!t || isExample) return;
+    const has = !!savedGroups[applyTarget(t).gk]?.groups.some(g => g.length);
+    if (!has) applyNow(id);
+    else if (askFirst) setAsk({ kind: 'replace', id, name: t.name });
+    else applyNow(id, false);
+  };
+  const startSaveAs = () => {
+    if (!storedPass) return;
+    setAsk({ kind: 'saveAs', absent: templateFromPass('', storedPass, table.people, active, { id: '', now: new Date() }).absent });
+  };
+  const saveAsTemplate = (name: string, overwrite: string | null) => {
+    setAsk(null);
+    if (!storedPass) return;
+    const id = overwrite ?? newTemplateId();
+    const { template } = templateFromPass(name, storedPass, table.people, active, { id, now: new Date() });
+    setTemplates(list => upsertTemplate(list, template));
+    saveGroups({ ...storedPass, from: id });
+    setToast('Sparad som indelning');
+  };
+  const startUpdate = () => {
+    if (!storedPass || !fromTemplate) return;
+    const r = updateTemplateFromPass(fromTemplate, storedPass, table.people, new Date());
+    setAsk({ kind: 'update', template: r.template, moved: r.moved, removed: r.removed, added: r.added, dropped: r.dropped.length });
+  };
 
   // Med `html` får urklippet också en formaterad version, som Google Docs tar före den rena texten.
   const copyText = useCallback((text: string, html?: string) => {
@@ -794,7 +863,7 @@ export default function Narvaro() {
             notice={!isCurrentWeek && (
               <span className="inline-flex flex-wrap items-center gap-2 rounded-ui-sm border-frame border-ui-line bg-ui-mark-yellow px-2 py-1 text-sm font-semibold text-ui-mark-fg">
                 Vecka {weekNumber(viewWeek)}. Det du ändrar sparas i den veckan.
-                <Button variant="neutral" size="sm" className="sp-btn h-7" disabled={!viewWeekKeys.length} onClick={() => copyText(viewWeekKeys.map(k => sessionText(notes[k], table, stamps, { ...sessionChoice(table, k), groups: groups[groupsKey(k, nameClasses)]?.groups })).join('\n\n\n'))}>
+                <Button variant="neutral" size="sm" className="sp-btn h-7" disabled={!viewWeekKeys.length} onClick={() => copyText(viewWeekKeys.map(k => sessionText(notes[k], table, stamps, { ...sessionChoice(table, k), groups: groups[groupsKey(k, nameClasses)]?.groups, names: groups[groupsKey(k, nameClasses)]?.names })).join('\n\n\n'))}>
                   <Copy /> Kopiera veckan
                 </Button>
                 <Button variant="neutral" size="sm" className="sp-btn h-7" onClick={() => showWeek(weekKey)}>Till vecka {weekNumber(weekKey)}</Button>
@@ -853,7 +922,7 @@ export default function Narvaro() {
                   role="tab"
                   type="button"
                   aria-selected={mode === m}
-                  onClick={() => setMode(m)}
+                  onClick={() => { setMode(m); setManageOpen(false); }}
                   className={cn(
                     'flex items-center gap-2 px-4 py-1.5 text-sm font-semibold [&+&]:border-l-frame [&+&]:border-ui-line',
                     mode === m ? 'bg-ui-mark-green text-ui-mark-fg' : 'bg-ui-paper hover:bg-ui-surface-3',
@@ -968,6 +1037,12 @@ export default function Narvaro() {
                 </label>
                 <Button className="sp-btn" onClick={makeRandom}><Shuffle /> Slumpa grupper</Button>
                 <Button variant="neutral" className="sp-btn" onClick={makeManual}>Dela in själv</Button>
+                <NarvaroTemplateMenu
+                  templates={sortTemplates(templates)}
+                  canApply={!isExample}
+                  onApply={id => requestApply(id)}
+                  onManage={() => setManageOpen(true)}
+                />
               </div>
               <p className="text-sm text-ui-muted">Tryck på en namnruta för att lämna personen utanför grupperna.</p>
             </div>
@@ -976,7 +1051,14 @@ export default function Narvaro() {
         </section>
         )}
 
-        {mobile && <MobileGroupChoices choices={groupChoices} onPick={pickGroups} />}
+        {mobile && (
+          <MobileGroupChoices
+            choices={groupChoices}
+            onPick={pickGroups}
+            templates={!isExample && !stored ? templates : []}
+            onApplyTemplate={id => requestApply(id, false)}
+          />
+        )}
         {mobile && (
           <NarvaroMobile
             sessKey={key}
@@ -988,6 +1070,7 @@ export default function Narvaro() {
             activeStamp={pickActiveStamp(stamps, mobileStamp)}
             onPickStamp={setMobileStamp}
             storedGroups={stored}
+            storedGroupNames={storedPass?.names}
             detail={p => [splitName(p.name)[1], showClassName && p.klass, showSchool && p.group].filter(Boolean).join(' · ')}
             onSetStamp={(name, id, on) => updateSession(s => setStampOn(s, name, id, on))}
             onEdit={setEditing}
@@ -995,7 +1078,28 @@ export default function Narvaro() {
           />
         )}
 
-        {!mobile && (<>
+        {!mobile && manageOpen && (
+          <NarvaroTemplates
+            templates={templates}
+            sheets={knownClasses(sync.data.tables)}
+            defaultClasses={selected}
+            status={sync.statusOf(GRUPPER_KEY)}
+            onSave={t => setTemplates(list => upsertTemplate(list, t))}
+            onRename={(id, name) => setTemplates(list => renameTemplate(list, id, name, new Date()))}
+            onDelete={id => setTemplates(list => removeTemplate(list, id))}
+            onClose={() => setManageOpen(false)}
+          />
+        )}
+        <NarvaroTemplateAsk
+          ask={ask}
+          templates={templates}
+          onCancel={() => setAsk(null)}
+          onReplace={id => applyNow(id)}
+          onSaveAs={saveAsTemplate}
+          onUpdate={t => { setAsk(null); setTemplates(list => upsertTemplate(list, t)); setToast('Indelningen uppdaterad'); }}
+        />
+
+        {!mobile && !manageOpen && (<>
 
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
           {present.length ? present.map(p => {
@@ -1060,7 +1164,9 @@ export default function Narvaro() {
             onMove={(name, target) => saveGroups(movePassGroup(storedPass ?? { groups: [] }, name, target))}
             onAddGroup={() => saveGroups(addPassGroup(storedPass ?? { groups: [] }))}
             onDeleteGroup={i => saveGroups(removePassGroup(storedPass ?? { groups: [] }, i))}
-            onCopy={() => copyText(groupsText(label, view))}
+            names={storedPass?.names}
+            onCopy={() => copyText(groupsText(label, view, storedPass?.names))}
+            actions={!isExample && <NarvaroTemplateBar from={fromTemplate} onUpdate={startUpdate} onSaveAs={startSaveAs} />}
           />
         )}
 
@@ -1069,7 +1175,7 @@ export default function Narvaro() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-bold">Noteringar · {label}</h3>
               <span className="flex gap-2">
-                <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length && !present.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps, { day, pass, groups: stored }))}>
+                <Button variant="neutral" size="sm" className="sp-btn" disabled={!entries.length && !present.length} onClick={() => copyText(sessionText({ ...sess, label }, table, stamps, { day, pass, groups: stored, names: storedPass?.names }))}>
                   <Copy /> Kopiera
                 </Button>
                 <Button variant="neutral" size="sm" className="sp-btn" disabled={!notes[key]} onClick={deleteSession} title="Tar bort passets noteringar och tillagda">

@@ -1,10 +1,13 @@
 import {
   combineSheets,
+  groupTitle,
   groupView,
   passNameFor,
+  roster,
   setPersonNote,
   type AttendanceTable,
   type GroupsStore,
+  type NotesStore,
   type PassChoice,
   type PassNames,
   type SessionNotes,
@@ -48,17 +51,19 @@ export type MobileSection = { title: string | null; names: string[] };
 /**
  * Rutorna i sektioner. Klassvyn är en sektion. Gruppvyn följer passets
  * sparade grupper, och närvarande utan grupp (även de som lämnats utanför)
- * hamnar sist under "Utan grupp". Tomma grupper hoppas över.
+ * hamnar sist under "Utan grupp". Tomma grupper hoppas över. Grupperna
+ * heter som i passet (`groupNames`), annars "Grupp N".
  */
 export function mobileSections(
   view: MobileView,
   present: readonly string[],
   stored: string[][] | undefined,
+  groupNames?: readonly string[],
 ): MobileSection[] {
   if (view === 'class' || !stored) return [{ title: null, names: byFirstName(present) }];
   const { groups, pool } = groupView(stored, present);
   const sections: MobileSection[] = groups
-    .map((names, i) => ({ title: `Grupp ${i + 1}`, names: byFirstName(names) }))
+    .map((names, i) => ({ title: groupTitle(groupNames, i), names: byFirstName(names) }))
     .filter(s => s.names.length > 0);
   if (pool.length) sections.push({ title: 'Utan grupp', names: byFirstName(pool) });
   return sections;
@@ -130,7 +135,9 @@ export type GroupsOption = { key: string; label: string; count: number; classes:
 /**
  * Valen som mobilen visar när det valda passet saknar grupper: passets namn
  * (eget namn, annars tiden), klasserna och vilket pass ett tryck byter till.
- * `current` är det valda passets gruppnyckel och visas inte.
+ * `current` är det valda passets gruppnyckel och visas inte. `count` är de
+ * närvarande i grupperna: grupper från en sparad indelning har även de
+ * frånvarandes platser.
  */
 export function groupsOptions(
   store: GroupsStore,
@@ -138,16 +145,20 @@ export function groupsOptions(
   current: string,
   sheets: Record<string, AttendanceTable>,
   passNames: PassNames,
+  notes: NotesStore = {},
 ): GroupsOption[] {
   const day = sessKey.split('|')[1];
   return groupsForDate(store, sessKey, Object.keys(sheets)).flatMap(c => {
     if (c.key === current) return [];
-    const col = combineSheets(sheets, c.classes).cols
-      .find(x => x.day === day && (x.letter === c.which || x.id === c.which));
+    const table = combineSheets(sheets, c.classes);
+    const col = table.cols.find(x => x.day === day && (x.letter === c.which || x.id === c.which));
     const pass: PassChoice | undefined = c.which === 'dag' ? 'day' : col?.id;
     if (!pass) return [];
+    const added = notes[c.sessKey]?.added ?? [];
+    const present = new Set(roster(table, { klass: 'all', day, pass, added }).present.map(p => p.name));
+    const count = store[c.key].groups.flat().filter(n => present.has(n)).length;
     const name = passNameFor(passNames, c.sessKey, c.classes) || (pass === 'day' ? 'Hela dagen' : col?.pass ?? c.which);
     const classes = c.classes.map(k => k || 'Utan klass').join(' + ');
-    return [{ key: c.key, label: `${name} · ${classes}`, count: c.count, classes: c.classes, pass }];
+    return [{ key: c.key, label: `${name} · ${classes}`, count, classes: c.classes, pass }];
   });
 }

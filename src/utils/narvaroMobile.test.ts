@@ -72,6 +72,11 @@ describe('mobileSections', () => {
       { title: 'Utan grupp', names: ['Adam C'] },
     ]);
   });
+
+  it('använder gruppernas namn', () => {
+    expect(mobileSections('groups', present, [['Bo B'], ['Dan D']], ['Röda', '']).map(s => s.title))
+      .toEqual(['Röda', 'Grupp 2', 'Utan grupp']);
+  });
 });
 
 describe('setStamp och ångra', () => {
@@ -178,6 +183,16 @@ describe('val av grupper i mobilen', () => {
     const names = { '2026-11-02|Måndag|C': { Grund: 'Svenska', Rosa: 'Svenska' } };
     const opts = groupsOptions(store, sess, '', sheets, names);
     expect(opts.find(o => o.pass === 'c2')?.label).toBe('Svenska · Grund + Rosa');
+  });
+
+  it('räknar bara de närvarande i grupperna', () => {
+    const withAbsent = { '2026-11-02|Måndag|C#Grund+Rosa': { groups: [['Ali', 'Borta'], ['Nils']] } };
+    expect(groupsOptions(withAbsent, sess, '', sheets, {})[0].count).toBe(2);
+    const off = { Rosa: sheet('Ali'), Grund: parsePasted('\tMåndag\t\tTisdag\n\t8.30-9.45\t10.00-11.45\t8.30-9.45\nTORA VEGA\nNils\tTRUE\tFALSE\tTRUE', '')! };
+    expect(groupsOptions(withAbsent, sess, '', off, {})[0].count).toBe(1);
+    // Den som lagts till för hand räknas.
+    const notes = { '2026-11-02|Måndag|C': { label: '', people: {}, added: ['Nils'] } };
+    expect(groupsOptions(withAbsent, sess, '', off, {}, notes)[0].count).toBe(2);
   });
 
   it('hoppar över ett pass som inte längre finns i arket', () => {

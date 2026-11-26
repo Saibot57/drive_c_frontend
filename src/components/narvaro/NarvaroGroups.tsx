@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Copy, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { PersonNote, Stamp } from '@/utils/narvaro';
+import { MAX_GROUP_NAME_LENGTH, groupTitle, type PersonNote, type Stamp } from '@/utils/narvaro';
 import { findExact, uniquePrefixMatch } from '@/utils/autocomplete';
 import { StampTag } from '@/components/narvaro/stampStyle';
 
@@ -14,10 +14,21 @@ type Props = {
   view: { groups: string[][]; pool: string[] };
   people: Record<string, PersonNote>;
   stamps: readonly Stamp[];
+  /** Gruppernas namn, annars "Grupp N". */
+  names?: readonly string[];
   onMove: (name: string, target: Target) => void;
   onAddGroup: () => void;
   onDeleteGroup: (index: number) => void;
-  onCopy: () => void;
+  /** Utan den visas ingen Kopiera-knapp (redigeringen av en indelning). */
+  onCopy?: () => void;
+  /** Med den går gruppens namn att ändra i rubriken. */
+  onRenameGroup?: (index: number, name: string) => void;
+  /** Namn som inte finns i något ark; de markeras. */
+  missing?: ReadonlySet<string>;
+  /** Rubriken, "Grupper" om den saknas. */
+  title?: string;
+  /** Knappar bredvid rubriken, före Ny grupp. */
+  actions?: React.ReactNode;
 };
 
 type Drag = {
@@ -38,7 +49,7 @@ type Drag = {
  * tre tecken bara kan vara ett namn fylls resten i (som SmartTextInput i
  * schemaplaneraren); Enter eller + lägger personen i gruppen.
  */
-function GroupNameInput({ group, pool, onAdd }: { group: number; pool: readonly string[]; onAdd: (name: string) => void }) {
+function GroupNameInput({ title, pool, onAdd }: { title: string; pool: readonly string[]; onAdd: (name: string) => void }) {
   const [value, setValue] = useState('');
   const [miss, setMiss] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -72,7 +83,7 @@ function GroupNameInput({ group, pool, onAdd }: { group: number; pool: readonly 
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="Lägg till namn…"
-        aria-label={`Lägg till namn i grupp ${group + 1}`}
+        aria-label={`Lägg till namn i ${title}`}
         aria-invalid={miss || undefined}
         autoComplete="off"
         autoCorrect="off"
@@ -86,7 +97,7 @@ function GroupNameInput({ group, pool, onAdd }: { group: number; pool: readonly 
       <button
         type="submit"
         className="rounded-ui-sm border-2 border-ui-line bg-ui-paper p-1 hover:bg-ui-surface-3"
-        aria-label={`Lägg in i grupp ${group + 1}`}
+        aria-label={`Lägg in i ${title}`}
         title="Lägg in i gruppen"
       >
         <Plus size={14} />
@@ -107,7 +118,9 @@ const targetOf = (value: string | undefined): Target | null =>
  * Draget bygger på pekhändelser i stället för HTML:s drag and drop, som inte
  * fungerar med finger i alla webbläsare.
  */
-export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDeleteGroup, onCopy }: Props) {
+export function NarvaroGroups({
+  view, people, stamps, names, onMove, onAddGroup, onDeleteGroup, onCopy, onRenameGroup, missing, title = 'Grupper', actions,
+}: Props) {
   const [picked, setPicked] = useState<string | null>(null);
   const [over, setOver] = useState<Target | null>(null);
   const drag = useRef<Drag | null>(null);
@@ -253,6 +266,11 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
       )}
     >
       {name}
+      {missing?.has(name) && (
+        <span className="rounded-sm bg-ui-mark-pink px-1 font-mono text-2xs uppercase text-ui-mark-fg" title="Namnet finns inte i något ark">
+          saknas
+        </span>
+      )}
       {(people[name]?.tags ?? []).map(id => <StampTag key={id} stamp={stamps.find(s => s.id === id)} small />)}
     </li>
   );
@@ -263,17 +281,18 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
     over === target && 'outline-dashed outline-[3px] outline-offset-2 outline-[var(--ui-focus)]',
   );
   const onCardClick = (e: React.MouseEvent, target: Target) => {
-    if ((e.target as HTMLElement).closest('[data-gname],button,form')) return;
+    if ((e.target as HTMLElement).closest('[data-gname],button,form,input')) return;
     pickTo(target);
   };
 
   return (
     <section className="sp-card flex flex-col gap-3 p-4" aria-label="Grupper">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-bold">Grupper</h3>
+        <h3 className="text-lg font-bold">{title}</h3>
         <div className="flex flex-wrap gap-2">
+          {actions}
           <Button variant="neutral" size="sm" className="sp-btn" onClick={onAddGroup}><Plus /> Ny grupp</Button>
-          <Button variant="neutral" size="sm" className="sp-btn" onClick={onCopy}><Copy /> Kopiera grupperna</Button>
+          {onCopy && <Button variant="neutral" size="sm" className="sp-btn" onClick={onCopy}><Copy /> Kopiera grupperna</Button>}
         </div>
       </div>
       <p className="max-w-prose text-sm text-ui-muted">
@@ -296,15 +315,24 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
         {view.groups.map((group, i) => (
           <div key={i} data-gdrop={i} className={card(i)} onClick={e => onCardClick(e, i)}>
-            <h4 className="flex items-center justify-between border-b-frame border-ui-line bg-ui-mark-green px-3 py-1.5 font-bold text-ui-mark-fg">
-              Grupp {i + 1}
+            <h4 className="flex items-center justify-between gap-2 border-b-frame border-ui-line bg-ui-mark-green px-3 py-1.5 font-bold text-ui-mark-fg">
+              {onRenameGroup ? (
+                <input
+                  value={names?.[i] ?? ''}
+                  onChange={e => onRenameGroup(i, e.target.value)}
+                  placeholder={`Grupp ${i + 1}`}
+                  maxLength={MAX_GROUP_NAME_LENGTH}
+                  aria-label={`Namn på grupp ${i + 1}`}
+                  className="sp-input min-w-0 flex-1 rounded-ui-sm bg-ui-paper px-1.5 py-0.5 text-sm font-bold text-ui-ink"
+                />
+              ) : groupTitle(names, i)}
               <span className="flex items-center gap-2 font-mono text-xs font-normal">
                 {group.length} st
                 <button
                   type="button"
                   className="rounded-sm p-0.5 hover:bg-ui-paper"
                   onClick={() => onDeleteGroup(i)}
-                  aria-label={`Ta bort grupp ${i + 1}`}
+                  aria-label={`Ta bort ${groupTitle(names, i)}`}
                   title="Ta bort gruppen. De som var i den blir inte indelade."
                 >
                   <X size={14} />
@@ -314,7 +342,7 @@ export function NarvaroGroups({ view, people, stamps, onMove, onAddGroup, onDele
             <ul className="flex flex-col gap-0.5 p-2">
               {group.length ? group.map(n => nameItem(n, false)) : <li className="px-1.5 text-sm italic text-ui-muted">Dra hit namn</li>}
             </ul>
-            <GroupNameInput group={i} pool={view.pool} onAdd={name => onMove(name, i)} />
+            <GroupNameInput title={groupTitle(names, i)} pool={view.pool} onAdd={name => onMove(name, i)} />
           </div>
         ))}
       </div>

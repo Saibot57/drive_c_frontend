@@ -15,6 +15,14 @@ import {
   templateFromPass,
   updateTemplateFromPass,
   upsertTemplate,
+  addTemplateGroup,
+  emptyTemplate,
+  moveMember,
+  removeMissing,
+  removeTemplateGroup,
+  renameTemplateGroup,
+  templateSize,
+  templateTargetClasses,
   type GroupTemplate,
   type TemplateMember,
 } from '@/utils/narvaroTemplates';
@@ -163,7 +171,7 @@ describe('updateTemplateFromPass', () => {
       { name: 'Röda', members: [m('Amira'), m('Bilal'), m('Ola', 'Grön')] },
       { name: 'Blå', members: [] },
     ]);
-    expect(r).toMatchObject({ dropped: [], moved: 1, removed: 1 });
+    expect(r).toMatchObject({ dropped: [], moved: 1, removed: 1, added: 0 });
     expect(r.template.updatedAt).toBe(NOW.toISOString());
   });
 
@@ -183,6 +191,7 @@ describe('updateTemplateFromPass', () => {
   it('sparar ett namn som inte finns i tabellen utan klass', () => {
     const r = updateTemplateFromPass(template([[m('Amira')]]), { groups: [['Amira', 'Gammal']] }, [p('Amira')], NOW);
     expect(r.template.groups[0].members).toEqual([m('Amira'), { name: 'Gammal', klass: '' }]);
+    expect(r.added).toBe(1);
   });
 });
 
@@ -274,5 +283,34 @@ describe('sanitizeTemplates', () => {
     const out = sanitizeTemplates(many);
     expect(out).toHaveLength(50);
     expect(out[0].groups).toHaveLength(30);
+  });
+});
+
+describe('läggs på med klasserna', () => {
+  it('lägger till indelningens klasser i arkens ordning', () => {
+    const sheets = { Blå: sheet(['Cleo']), Grön: sheet(['Bilal']), Rosa: sheet(['Amira']) };
+    const t = template([[m('Amira'), m('Bilal', 'Grön')]]);
+    expect(templateTargetClasses(t, sheets, ['Blå', 'Grön', 'Rosa'], ['Blå'], 'Måndag')).toEqual(['Blå', 'Grön', 'Rosa']);
+    expect(templateTargetClasses(t, sheets, ['Blå', 'Grön', 'Rosa'], ['Rosa'], 'Tisdag')).toEqual(['Rosa']);
+    expect(templateSize(t)).toBe(2);
+  });
+});
+
+describe('redigeringen', () => {
+  it('skapar, flyttar, lägger till, döper om och tar bort grupper', () => {
+    let t = emptyTemplate('x', '  Ny  ', NOW, 2);
+    expect(t).toEqual({ id: 'x', name: 'Ny', groups: [{ name: '', members: [] }, { name: '', members: [] }], updatedAt: NOW.toISOString() });
+    t = moveMember(t, m('Amira'), 0);
+    t = moveMember(t, m('Amira'), 1);
+    expect(t.groups.map(g => g.members)).toEqual([[], [m('Amira')]]);
+    expect(moveMember(t, m('Amira'), 'pool').groups.map(g => g.members)).toEqual([[], []]);
+    t = renameTemplateGroup(addTemplateGroup(t), 2, '  Röda ');
+    expect(t.groups.map(g => g.name)).toEqual(['', '', 'Röda']);
+    expect(removeTemplateGroup(t, 1).groups.map(g => g.members)).toEqual([[], []]);
+  });
+
+  it('tar bort saknade elever', () => {
+    const t = template([[m('Amira'), m('Slutat')], [m('Borta', 'Grön')]]);
+    expect(removeMissing(t, { Rosa: sheet(['Amira']) }).groups.map(g => g.members)).toEqual([[m('Amira')], []]);
   });
 });
