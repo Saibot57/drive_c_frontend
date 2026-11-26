@@ -114,9 +114,12 @@ Sparar någon en indelning innan backend godkänner nyckeln blir det värre
 
 En konflikt (409) på `grupper` hanteras som på de andra dokumenten. Väljer
 användaren att läsa in på nytt (`refresh(true)`) går det som inte sparats
-förlorat. Redigeringen (5.2) är därför öppen med sin kopia tills
-sparningen är bekräftad (`status === 'saved'`), och vid konflikt står det
-i redigeringen att ändringen måste göras om efter inläsningen.
+förlorat. Redigeringen (5.2) är därför öppen med sin kopia tills just
+`grupper` är sparat. Hookens `saveStatus` gäller alla dokument tillsammans,
+så ett veckodokument i `pending` eller `error` skulle hålla redigeringen
+öppen i onödan. `useNarvaroSync` exponerar därför också status per nyckel
+(`statusOf(key)`, ur `statuses.current`, som redan finns). Vid konflikt
+står det i redigeringen att ändringen måste göras om efter inläsningen.
 
 ### 3.3 Passets grupper
 
@@ -184,9 +187,10 @@ ordning grupperna står:
 3. En person placeras högst en gång. Står hen i två grupper i indelningen
    vinner den första.
 4. Två personer med samma namn i **samma** ark får samma visningsnamn
-   ("Ali (Rosa)") och kan inte skiljas åt. Den första placeras; den andra
-   hamnar i Inte indelade, och namnet förekommer aldrig två gånger i
-   grupperna.
+   ("Ali (Rosa)") och kan inte skiljas åt. Namnet står bara en gång i
+   grupperna. `groupView` identifierar eleverna med strängen, så den andra
+   syns inte alls i gruppvyn, inte ens i Inte indelade. Det är en känd
+   begränsning sedan tidigare och rättas inte här.
 
 Klassvalet: innan indelningen läggs på väljer sidan de klasser som
 indelningens medlemmar finns i (bland de klasser som har ark den dagen),
@@ -271,8 +275,9 @@ från `pass.names`. Inte indelade tas inte med.
   och G2 {Ali, Rosa}; passet har bara Ali i Rosa. Ali hamnar i G2.
 - Två medlemmar med samma basnamn, bara en person med det namnet i passet
   och klassen stämmer för ingen: ingen matchas.
-- Två elever med samma namn i samma ark ("Ali (Rosa)" två gånger): den
-  första placeras, den andra står i Inte indelade, inga dubbletter.
+- Två elever med samma namn i samma ark ("Ali (Rosa)" två gånger): namnet
+  står en gång i grupperna, och `groupView` visar det en gång (den andra
+  syns inte; känd begränsning).
 - En grupp vars medlemmar alla saknas i passets tabell finns kvar, tom.
 - `templateClasses` ger indelningens klasser som har ark den dagen.
 - `templateFromPass` → `applyTemplate` på samma pass ger samma grupper och
@@ -283,7 +288,8 @@ från `pass.names`. Inte indelade tas inte med.
 - `templateFromPass` och `updateTemplateFromPass` med ett namn som inte
   finns i `table.people`: sparas med `klass: ''`. `absent` räknas rätt.
 - `memberLabels`: två "Ali" ur olika klasser får olika visningsnamn och
-  översätts tillbaka till rätt medlem.
+  översätts tillbaka till rätt medlem. En medlem som också finns i arket
+  får inget tillägg.
 - `missingMembers` hittar namn som inte finns i något ark.
 - `sanitizeTemplates`: skräp, för långa namn, för många indelningar,
   saknade fält, `groups` som inte är en lista.
@@ -352,9 +358,10 @@ props, inga fler grenar.
     (`data-gname`, `moveToGroup`, `uniquePrefixMatch` över `pool`), medan en
     medlem är `{ name, klass }`. `memberLabels(members, sheets)` ger varje
     medlem och varje elev i de valda arken ett visningsnamn: namnet, och
-    " (Klass)" efter det när samma basnamn förekommer flera gånger bland
-    indelningens medlemmar och de valda arkens elever (samma regel som
-    `combineSheets`). Redigeringen arbetar med visningsnamnen och översätter
+    " (Klass)" efter det bara när samma basnamn finns med **mer än en
+    klass** bland indelningens medlemmar och de valda arkens elever. Det
+    räknas på olika par (basnamn, klass), så en medlem som också finns i
+    arket räknas en gång och får inget tillägg. Redigeringen arbetar med visningsnamnen och översätter
     tillbaka med en `Map` när den sparar. Får två medlemmar ändå samma
     visningsnamn (samma namn och klass, en dubblett) slås de ihop till en
     medlem; `sanitizeTemplates` tar redan bort sådana dubbletter.
@@ -459,7 +466,7 @@ Där "Grupp N" skrivs i dag används `groupTitle`:
   tester. `addGroup`/`removeGroup`/`moveToGroup` håller `names` i takt.
 - [ ] **3. Sparning**: `templates` i `NarvaroData`, `grupper` i
   `narvaroDocs.ts` (`documentsToSave`, `sanitizeGrupperDoc`, `mergeWeeks`,
-  `renameClass`) och i `useNarvaroSync` (`enterReady`). Tester i
+  `renameClass`) och i `useNarvaroSync` (`enterReady`, `statusOf(key)`). Tester i
   `narvaroDocs.test.ts`: inget `grupper` utan indelningar och utan känd
   nyckel; tomt `grupper` när den sista tagits bort; rundtur; `renameClass`.
 - [ ] **4. Gruppnamnen syns**: `groupTitle` i `NarvaroGroups`,
@@ -506,6 +513,8 @@ ska kunna provas för sig), och 5–7 i en tredje. Varje steg ska klara
 9. Två enheter: spara en indelning på den ena, ladda om den andra: den
    finns där. Ändra samtidigt: den andra får konflikt, inte tyst
    överskrivning, och redigeringen säger att ändringen måste göras om.
+10. Byt namn på och ta bort en indelning; ett pass som kom från den behåller
+    sina grupper men visar inte längre "Från".
 11. Indelning med NA1 + NA2, passet visar bara NA1: Lägg på väljer NA2 också
     och alla placeras. Uppdatera indelningen från ett pass med bara NA1
     lämnar NA2:s elever orörda.
@@ -514,8 +523,6 @@ ska kunna provas för sig), och 5–7 i en tredje. Varje steg ska klara
 13. Utan ark (exemplet visas): Hantera indelningar visar de riktiga
     indelningarna.
 14. Byt namn på en klass: dess elever placeras fortfarande rätt.
-10. Byt namn på och ta bort en indelning; ett pass som kom från den behåller
-    sina grupper men visar inte längre "Från".
 
 ## 12. Avvikelser från planen
 
