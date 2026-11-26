@@ -570,7 +570,7 @@ Steg 4 (2026-11-26):
   valfritt `notes`, så att de som lagts till för hand räknas.
 - Excel-kolumnen Gruppnamn står i `narvaro-excel.md`.
 
-Steg 5–7 (2026-11-26):
+Steg 5–7 (2026-11-26, #297):
 
 - **Menyn Lägg på indelning är inte modal** (`modal={false}`). Provet
   visade att en dialog som öppnas från en Radix-meny (Ersätta grupperna?)
