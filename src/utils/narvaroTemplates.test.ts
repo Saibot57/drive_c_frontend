@@ -3,6 +3,7 @@ import { combineSheets, groupView, type AttendanceTable } from '@/utils/narvaro'
 import {
   applyTemplate,
   baseName,
+  parseName,
   memberLabels,
   missingMembers,
   renameTemplate,
@@ -43,6 +44,14 @@ describe('baseName', () => {
     expect(baseName({ name: 'Ali (Rosa)', klass: 'Rosa' })).toBe('Ali');
     expect(baseName({ name: 'Ali (utan klass)', klass: '' })).toBe('Ali');
     expect(baseName({ name: 'Ali', klass: 'Rosa' })).toBe('Ali');
+  });
+
+  it('läser löpnumret för samma namn i samma ark', () => {
+    expect(parseName({ name: 'Ali (Rosa 2)', klass: 'Rosa' })).toEqual({ name: 'Ali', n: 2 });
+    expect(parseName({ name: 'Ali (Rosa)', klass: 'Rosa' })).toEqual({ name: 'Ali' });
+    expect(parseName({ name: 'Ali (Rosa 2)', klass: 'Rosa 2' })).toEqual({ name: 'Ali' });
+    expect(parseName({ name: 'Ali (a.b)', klass: 'a.b' })).toEqual({ name: 'Ali' });
+    expect(parseName({ name: 'Ali (axb)', klass: 'a.b' })).toEqual({ name: 'Ali (axb)' });
   });
 
   it('lämnar en parentes som inte är klassen', () => {
@@ -95,12 +104,15 @@ describe('applyTemplate', () => {
     expect(applyTemplate(twice, [p('Amira'), p('Bilal')]).groups).toEqual([['Amira'], ['Bilal']]);
   });
 
-  it('sätter två med samma namn i samma ark i grupperna en gång', () => {
-    // Båda heter "Ali (Rosa)" och kan inte skiljas åt (känd begränsning i groupView).
-    const table = combineSheets({ Rosa: sheet(['Ali', 'Ali']) }, ['Rosa']);
-    const pg = applyTemplate(template([[m('Ali')]]), table.people);
-    expect(pg.groups).toEqual([['Ali (Rosa)']]);
-    expect(groupView(pg.groups, table.people.map(x => x.name))).toEqual({ groups: [['Ali (Rosa)']], pool: [] });
+  it('skiljer två med samma namn i samma ark åt med löpnumret', () => {
+    // combineSheets kallar dem "Ali (Rosa)" och "Ali (Rosa 2)".
+    const table = combineSheets({ Rosa: sheet(['Ali', 'Ali', 'Bo']) }, ['Rosa']);
+    const two = template([[{ name: 'Ali', klass: 'Rosa', n: 2 }], [m('Ali'), m('Bo')]]);
+    const pg = applyTemplate(two, table.people);
+    expect(pg.groups).toEqual([['Ali (Rosa 2)'], ['Ali (Rosa)', 'Bo']]);
+    expect(groupView(pg.groups, table.people.map(x => x.name)).pool).toEqual([]);
+    // Bara en av dem i indelningen: namnet är inte entydigt, så den andra placeras inte.
+    expect(applyTemplate(template([[m('Ali', 'Grön')]]), table.people).groups).toEqual([[]]);
   });
 });
 
@@ -190,6 +202,13 @@ describe('missingMembers och memberLabels', () => {
     expect(member.get('Ali (Grön)')).toEqual(m('Ali', 'Grön'));
     expect(member.get('Amira')).toEqual(m('Amira'));
   });
+
+  it('ger löpnumret i visningsnamnet', () => {
+    const { label, member } = memberLabels([], [p('Ali (Rosa)'), p('Ali (Rosa 2)')]);
+    expect(label({ name: 'Ali', klass: 'Rosa', n: 2 })).toBe('Ali (Rosa 2)');
+    expect(label(m('Ali'))).toBe('Ali (Rosa)');
+    expect(member.get('Ali (Rosa 2)')).toEqual({ name: 'Ali', klass: 'Rosa', n: 2 });
+  });
 });
 
 describe('listan', () => {
@@ -225,7 +244,13 @@ describe('sanitizeTemplates', () => {
         name: 'x'.repeat(60),
         updatedAt: 5,
         groups: [
-          { name: 'y'.repeat(40), members: [{ name: ' Amira ', klass: 'Rosa' }, { name: 'Amira', klass: 'Rosa' }, { name: '' }, 3] },
+          {
+            name: 'y'.repeat(40),
+            members: [
+              { name: ' Amira ', klass: 'Rosa' }, { name: 'Amira', klass: 'Rosa' }, { name: '' }, 3,
+              { name: 'Amira', klass: 'Rosa', n: 2 }, { name: 'Bo', klass: 'Rosa', n: 1 }, { name: 'Ce', klass: 'Rosa', n: 'x' },
+            ],
+          },
           { members: 'x' },
         ],
       },
@@ -235,7 +260,10 @@ describe('sanitizeTemplates', () => {
       id: 'a',
       name: 'x'.repeat(40),
       updatedAt: '',
-      groups: [{ name: 'y'.repeat(30), members: [m('Amira')] }, { name: '', members: [] }],
+      groups: [
+        { name: 'y'.repeat(30), members: [m('Amira'), { name: 'Amira', klass: 'Rosa', n: 2 }, m('Bo'), m('Ce')] },
+        { name: '', members: [] },
+      ],
     }]);
   });
 

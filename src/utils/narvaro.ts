@@ -314,19 +314,50 @@ export const cleanClassName = (name: string) =>
   name.replace(/[+#|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CLASS_NAME_LENGTH);
 
 /**
+ * Namnen som eleverna får i `combineSheets`, ark för ark och rad för rad.
+ * Ett namn som bara finns en gång står som i arket. Finns det i flera ark
+ * får det klassen efter sig ("Ali Hassan (Rosa)"), och står det flera gånger
+ * i samma ark får den andra och följande ett löpnummer ("Ali Hassan (Rosa 2)").
+ * Den första behåller namnet utan nummer, så att noteringar och grupper som
+ * sparats innan numret fanns stannar hos den första. Namnen räknas över alla ark,
+ * inte bara de valda, så att en elev heter likadant vilka klasser som än visas.
+ */
+function personNames(sheets: Record<string, AttendanceTable>): Map<string, string[]> {
+  const counts = new Map<string, number>();
+  Object.values(sheets).forEach(t => t.people.forEach(p => counts.set(p.name, (counts.get(p.name) ?? 0) + 1)));
+  // Namnen som står som i arket tas först, så att ett tillägg aldrig krockar med dem.
+  const used = new Set(Array.from(counts).filter(([, n]) => n === 1).map(([name]) => name));
+  const out = new Map<string, string[]>();
+  Object.entries(sheets).forEach(([klass, t]) => {
+    const seen = new Map<string, number>();
+    out.set(klass, t.people.map(p => {
+      if ((counts.get(p.name) ?? 0) <= 1) return p.name;
+      const label = klass || 'utan klass';
+      let n = (seen.get(p.name) ?? 0) + 1;
+      let name = `${p.name} (${n === 1 ? label : `${label} ${n}`})`;
+      // Krockar tillägget ändå (en klass som heter "Rosa 2"), räkna vidare.
+      while (used.has(name)) name = `${p.name} (${label} ${++n})`;
+      seen.set(p.name, n);
+      used.add(name);
+      return name;
+    }));
+  });
+  return out;
+}
+
+/**
  * Arken för de valda klasserna som en tabell. Passen paras ihop efter
  * kolumn, eftersom arken har samma uppställning; namnet tas från det första
- * arket. Heter två elever i veckans ark exakt likadant får båda klassen efter
- * namnet, så att deras noteringar hålls isär.
+ * arket. Namnen görs unika med `personNames`, så att två elever som heter
+ * exakt likadant har var sina noteringar, stämplar och grupper.
  */
 export function combineSheets(sheets: Record<string, AttendanceTable>, classes: readonly string[]): AttendanceTable {
   const chosen = classes.filter(c => sheets[c]);
-  const counts = new Map<string, number>();
-  Object.values(sheets).forEach(t => t.people.forEach(p => counts.set(p.name, (counts.get(p.name) ?? 0) + 1)));
-  const people = chosen.flatMap(klass => sheets[klass].people.map(p => ({
+  const names = personNames(sheets);
+  const people = chosen.flatMap(klass => sheets[klass].people.map((p, i) => ({
     ...p,
     klass,
-    name: (counts.get(p.name) ?? 0) > 1 ? `${p.name} (${klass || 'utan klass'})` : p.name,
+    name: names.get(klass)?.[i] ?? p.name,
   })));
   const byIndex = new Map<number, AttendanceColumn>();
   chosen.forEach(klass => sheets[klass].cols.forEach(c => { if (!byIndex.has(c.index)) byIndex.set(c.index, c); }));
@@ -650,12 +681,14 @@ export function randomGroups(
 
 /**
  * Grupperna som de ska visas: bara de som är närvarande och inte uteslutna,
- * och alla närvarande utan grupp i `pool`.
+ * var och en en gång, och alla närvarande utan grupp i `pool`.
  */
 export function groupView(stored: string[][], active: readonly string[]): { groups: string[][]; pool: string[] } {
   const on = new Set(active);
-  const groups = stored.map(g => g.filter(n => on.has(n)));
-  const placed = new Set(groups.flat());
+  // Ett namn räknas bara i den första grupp där det står. Grupper sparade
+  // innan namnen blev unika kan ha samma namn två gånger.
+  const placed = new Set<string>();
+  const groups = stored.map(g => g.filter(n => on.has(n) && !placed.has(n) && !!placed.add(n)));
   return { groups, pool: active.filter(n => !placed.has(n)) };
 }
 

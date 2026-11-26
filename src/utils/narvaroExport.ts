@@ -349,7 +349,12 @@ export function subjectOf(title: string, notes: string): string {
   return before || titleWithoutClass(title);
 }
 
-/** Namnet utan klassen som `combineSheets` lägger till när två elever heter likadant. */
+/**
+ * Namnet utan klassen som `combineSheets` lägger till när två elever i olika
+ * klasser heter likadant; klassen står i en egen kolumn. Ett löpnummer
+ * ("Ali Hassan (Rosa 2)") får stå kvar, så att två med samma namn i samma
+ * klass går att skilja åt.
+ */
 function plainName(name: string, person: AttendancePerson | undefined): string {
   if (!person) return name;
   const suffix = ` (${person.klass || 'utan klass'})`;

@@ -251,6 +251,58 @@ describe('klasser', () => {
     expect(one.cols).toHaveLength(4);
   });
 
+  describe('samma namn två gånger i ett ark', () => {
+    const tvilling = parsePasted([
+      '\tMåndag',
+      '\t8.30-9.45',
+      'Ali Hassan\tTRUE',
+      'Nils Berg\tTRUE',
+      'Ali Hassan\tTRUE',
+    ].join('\n'), '')!;
+
+    it('ger den andra ett löpnummer så att namnen blir unika', () => {
+      const t = combineSheets({ Rosa: tvilling }, ['Rosa']);
+      expect(t.people.map(p => p.name)).toEqual(['Ali Hassan (Rosa)', 'Nils Berg', 'Ali Hassan (Rosa 2)']);
+    });
+
+    it('ger samma namn oavsett vilka klasser som visas', () => {
+      const sheets = { Rosa: tvilling, Grund: grund };
+      const alone = combineSheets(sheets, ['Rosa']).people.map(p => p.name);
+      const both = combineSheets(sheets, ['Grund', 'Rosa']).people.filter(p => p.klass === 'Rosa').map(p => p.name);
+      expect(alone).toEqual(both);
+    });
+
+    it('räknar vidare om tillägget redan är någons namn', () => {
+      const krock = parsePasted('\tMåndag\n\t8.30-9.45\nAli Hassan (Rosa 2)\tTRUE', '')!;
+      const t = combineSheets({ Rosa: tvilling, Annan: krock }, ['Rosa', 'Annan']);
+      expect(t.people.map(p => p.name)).toEqual(['Ali Hassan (Rosa)', 'Nils Berg', 'Ali Hassan (Rosa 3)', 'Ali Hassan (Rosa 2)']);
+    });
+
+    it('visar båda i gruppvyn och delar inte noteringar', () => {
+      const t = combineSheets({ Rosa: tvilling }, ['Rosa']);
+      const present = roster(t, { klass: 'all', day: 'Måndag', pass: 'c1', added: [] }).present.map(p => p.name);
+      expect(groupView([['Ali Hassan (Rosa)', 'Nils Berg']], present).pool).toEqual(['Ali Hassan (Rosa 2)']);
+      const sess = toggleStamp(emptySession(''), 'Ali Hassan (Rosa 2)', 'aktiv');
+      expect(sessionLines(sess, present, null, DEFAULT_STAMPS)).toEqual([
+        'Ali Hassan (Rosa)', 'Nils Berg', 'Ali Hassan (Rosa 2): Aktiv',
+      ]);
+      expect(Array.from(firstNames(present).values())).toEqual(['Ali H. (Rosa)', 'Nils', 'Ali H. (Rosa 2)']);
+    });
+
+    it('läser äldre noteringar och grupper med det gemensamma namnet som den förstas', () => {
+      // Innan löpnumret fick båda "Ali Hassan (Rosa)" och kunde hamna i två grupper.
+      const t = combineSheets({ Rosa: tvilling }, ['Rosa']);
+      const present = t.people.map(p => p.name);
+      const old = sanitizeGroups({ 'x#Rosa': { groups: [['Ali Hassan (Rosa)'], ['Ali Hassan (Rosa)', 'Nils Berg']] } })['x#Rosa'].groups;
+      expect(groupView(old, present)).toEqual({
+        groups: [['Ali Hassan (Rosa)'], ['Nils Berg']],
+        pool: ['Ali Hassan (Rosa 2)'],
+      });
+      const notes = sanitizeNotes({ k: { label: '', people: { 'Ali Hassan (Rosa)': { tags: ['aktiv'], note: '' } }, added: [] } });
+      expect(sessionLines(notes.k, present, null, DEFAULT_STAMPS)[0]).toBe('Ali Hassan (Rosa): Aktiv');
+    });
+  });
+
   describe('klasser per dag', () => {
     const oliv = parsePasted([
       '\tOnsdag',
@@ -377,6 +429,10 @@ describe('grupper', () => {
 
   it('visar bara närvarande och lägger de utan grupp i poolen', () => {
     expect(groupView([['A', 'B'], ['C', 'X']], ['A', 'B', 'C', 'D'])).toEqual({ groups: [['A', 'B'], ['C']], pool: ['D'] });
+  });
+
+  it('visar ett namn som står i två grupper bara i den första', () => {
+    expect(groupView([['A', 'B'], ['A', 'C']], ['A', 'B', 'C'])).toEqual({ groups: [['A', 'B'], ['C']], pool: [] });
   });
 
   it('flyttar ett namn mellan grupper och till poolen', () => {

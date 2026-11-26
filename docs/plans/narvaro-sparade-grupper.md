@@ -50,7 +50,11 @@ Ordet i UI:t är **indelning** ("Sparade indelningar", "Lägg på indelning",
 
 ```ts
 /** En elev i en sparad indelning. `name` är namnet i arket, utan klasstillägg. */
-export type TemplateMember = { name: string; klass: string };
+export type TemplateMember = {
+  name: string;
+  klass: string;
+  n?: number; // löpnumret för samma namn i samma ark, från 2 (se nedan)
+};
 
 export type TemplateGroup = { name: string; members: TemplateMember[] };
 
@@ -68,6 +72,10 @@ export type GroupTemplate = {
 - `name` sparas **utan** tillägget " (Rosa)" som `combineSheets` sätter på
   dubbletter. Tillägget beror på vilka ark som finns just den veckan och är
   inte en del av namnet.
+- Sedan #294 får två elever med samma namn i **samma** ark var sitt namn:
+  "Ali (Rosa)" och "Ali (Rosa 2)". Numret sparas som `n` (bara från 2), så
+  att de går att skilja åt. `parseName` läser namn och nummer ur
+  tillägget.
 - Ett tomt gruppnamn betyder "Grupp N" (N = plats). Så blir en omsorterad
   eller borttagen grupp inte fel numrerad.
 - `id` skapas som i `src/utils/mindmap/mindmapTree.ts:38`:
@@ -186,11 +194,9 @@ ordning grupperna står:
    grupp).
 3. En person placeras högst en gång. Står hen i två grupper i indelningen
    vinner den första.
-4. Två personer med samma namn i **samma** ark får samma visningsnamn
-   ("Ali (Rosa)") och kan inte skiljas åt. Namnet står bara en gång i
-   grupperna. `groupView` identifierar eleverna med strängen, så den andra
-   syns inte alls i gruppvyn, inte ens i Inte indelade. Det är en känd
-   begränsning sedan tidigare och rättas inte här.
+4. Två personer med samma namn i **samma** ark ("Ali (Rosa)" och
+   "Ali (Rosa 2)", #294) skiljs åt i varv 1 med löpnumret `n`. I varv 2 är
+   namnet inte entydigt, så ingen av dem matchas bara på namnet.
 
 Klassvalet: innan indelningen läggs på väljer sidan de klasser som
 indelningens medlemmar finns i (bland de klasser som har ark den dagen),
@@ -275,9 +281,9 @@ från `pass.names`. Inte indelade tas inte med.
   och G2 {Ali, Rosa}; passet har bara Ali i Rosa. Ali hamnar i G2.
 - Två medlemmar med samma basnamn, bara en person med det namnet i passet
   och klassen stämmer för ingen: ingen matchas.
-- Två elever med samma namn i samma ark ("Ali (Rosa)" två gånger): namnet
-  står en gång i grupperna, och `groupView` visar det en gång (den andra
-  syns inte; känd begränsning).
+- Två elever med samma namn i samma ark ("Ali (Rosa)" och "Ali (Rosa 2)"):
+  var och en hamnar i sin grupp; med bara en Ali ur en annan klass i
+  indelningen matchas ingen.
 - En grupp vars medlemmar alla saknas i passets tabell finns kvar, tom.
 - `templateClasses` ger indelningens klasser som har ark den dagen.
 - `templateFromPass` → `applyTemplate` på samma pass ger samma grupper och
@@ -542,6 +548,10 @@ Steg 2–3 (2026-11-26):
 - `statusOf(key)` i `useNarvaroSync` läser ett eget state med status per
   dokument, inte bara `statuses.current`, så att sidan ritas om när just
   `grupper` blir sparat medan den samlade statusen är oförändrad.
+- Efter #294: `combineSheets` ger två elever med samma namn i samma ark var
+  sitt namn ("Ali (Rosa 2)"). Medlemmen fick fältet `n` för löpnumret,
+  `parseName` läser det, och den kända begränsningen i 4.2 punkt 4 finns
+  inte längre.
 
 Steg 4 (2026-11-26):
 
