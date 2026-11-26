@@ -1,7 +1,7 @@
 /**
  * Närvarorutornas data delad i dokument för servern: ett per ISO-vecka med
- * veckans tabeller (en per klass), anteckningar och grupper, och ett med
- * stämplarna. Varje
+ * veckans tabeller (en per klass), anteckningar och grupper, ett med
+ * stämplarna och ett med de sparade gruppindelningarna. Varje
  * dokument krypteras för sig (se narvaroCrypto) och sparas med egen version.
  *
  * Veckor vars måndag är mer än ett läsår (365 dagar) gammal gallras: de
@@ -23,9 +23,12 @@ import {
   renamePassNamesClass,
   sanitizeTable,
 } from '@/utils/narvaro';
+import { GroupTemplate, renameTemplatesClass, sanitizeTemplates } from '@/utils/narvaroTemplates';
 
 export const KEYINFO_KEY = 'keyinfo';
 export const SETTINGS_KEY = 'settings';
+/** De sparade gruppindelningarna. Backend godkänner nyckeln från backend #61. */
+export const GRUPPER_KEY = 'grupper';
 export const RETENTION_DAYS = 365;
 
 /** Klassens namn till dess tabell. `''` är en tabell som ännu inte fått någon klass. */
@@ -39,12 +42,17 @@ export type NarvaroData = {
   /** Passens egna namn, per pass och klass. */
   passNames: PassNames;
   stamps: Stamp[];
+  /** De sparade gruppindelningarna. */
+  templates: GroupTemplate[];
 };
 
 export type WeekDoc = { sheets: Sheets; notes: NotesStore; groups: GroupsStore; passNames: PassNames };
 export type SettingsDoc = { stamps: Stamp[] };
+export type GrupperDoc = { templates: GroupTemplate[] };
 
-export const emptyData = (): NarvaroData => ({ tables: {}, notes: {}, groups: {}, passNames: {}, stamps: [...DEFAULT_STAMPS] });
+export const emptyData = (): NarvaroData => ({
+  tables: {}, notes: {}, groups: {}, passNames: {}, stamps: [...DEFAULT_STAMPS], templates: [],
+});
 
 const WEEK_KEY = /^w(\d{4})-(\d{2})$/;
 
@@ -148,8 +156,8 @@ export function removeSheet(data: NarvaroData, week: string, klass: string): Nar
 }
 
 /**
- * Byter namn på en klass i alla veckor, även i passens namn. Finns målet
- * redan en vecka ersätts det.
+ * Byter namn på en klass i alla veckor, även i passens namn och i de sparade
+ * indelningarna. Finns målet redan en vecka ersätts det.
  */
 export function renameClass(data: NarvaroData, from: string, to: string): NarvaroData {
   if (from === to) return data;
@@ -159,7 +167,12 @@ export function renameClass(data: NarvaroData, from: string, to: string): Narvar
     if (from in next) { next[to] = next[from]; delete next[from]; }
     tables[week] = next;
   });
-  return { ...data, tables, passNames: renamePassNamesClass(data.passNames, from, to) };
+  return {
+    ...data,
+    tables,
+    passNames: renamePassNamesClass(data.passNames, from, to),
+    templates: renameTemplatesClass(data.templates, from, to),
+  };
 }
 
 const emptyWeek = (): WeekDoc => ({ sheets: {}, notes: {}, groups: {}, passNames: {} });
@@ -184,13 +197,19 @@ export function splitWeeks(data: NarvaroData, now: Date): Record<string, WeekDoc
 /**
  * Dokumenten som ska finnas på servern. En vecka som funnits men nu är tom
  * (till exempel när ett pass tagits bort) sparas tom, så att det borttagna
- * inte ligger kvar.
+ * inte ligger kvar. Indelningarna skickas bara när det finns någon eller
+ * dokumentet redan finns, så att en frontend före backend #61 inte skickar
+ * en nyckel som backend inte känner till förrän någon sparar en indelning.
  */
 export function documentsToSave(data: NarvaroData, now: Date, knownKeys: Iterable<string>): Record<string, unknown> {
   const docs: Record<string, unknown> = { ...splitWeeks(data, now), [SETTINGS_KEY]: { stamps: data.stamps } };
-  Array.from(knownKeys).forEach(k => {
+  const known = Array.from(knownKeys);
+  known.forEach(k => {
     if (isWeekKey(k) && !docs[k] && !isExpiredWeek(k, now)) docs[k] = emptyWeek();
   });
+  if (data.templates.length || known.includes(GRUPPER_KEY)) {
+    docs[GRUPPER_KEY] = { templates: data.templates } satisfies GrupperDoc;
+  }
   return docs;
 }
 
@@ -219,9 +238,19 @@ export function sanitizeSettingsDoc(raw: unknown): SettingsDoc {
   return { stamps: sanitizeStamps(r.stamps) };
 }
 
+export function sanitizeGrupperDoc(raw: unknown): GrupperDoc {
+  const r = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  return { templates: sanitizeTemplates(r.templates) };
+}
+
 /** Slår ihop veckodokumenten till det sidan visar. */
-export function mergeWeeks(weeks: Record<string, WeekDoc>, stamps: Stamp[], now: Date): NarvaroData {
-  const data: NarvaroData = { tables: {}, notes: {}, groups: {}, passNames: {}, stamps };
+export function mergeWeeks(
+  weeks: Record<string, WeekDoc>,
+  stamps: Stamp[],
+  now: Date,
+  templates: GroupTemplate[] = [],
+): NarvaroData {
+  const data: NarvaroData = { tables: {}, notes: {}, groups: {}, passNames: {}, stamps, templates };
   Object.entries(weeks).forEach(([key, w]) => {
     if (isExpiredWeek(key, now)) return;
     if (Object.keys(w.sheets).length) data.tables[key] = w.sheets;
@@ -259,6 +288,7 @@ export function mergeLegacy(server: NarvaroData, legacy: LegacyData, now: Date):
     notes: { ...legacy.notes, ...server.notes },
     groups: { ...legacy.groups, ...server.groups },
     passNames: server.passNames,
+    templates: server.templates,
     stamps: [...server.stamps, ...(legacy.stamps ?? []).filter(s => !ids.has(s.id))],
   };
 }

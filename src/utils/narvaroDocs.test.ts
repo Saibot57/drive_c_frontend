@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_STAMPS, emptySession, setPersonNote } from '@/utils/narvaro';
 import { exampleTable } from '@/utils/narvaroExample';
 import {
+  GRUPPER_KEY,
   NarvaroData,
   SETTINGS_KEY,
   documentsToSave,
@@ -11,6 +12,7 @@ import {
   isoWeekKey,
   mergeLegacy,
   mergeWeeks,
+  sanitizeGrupperDoc,
   sanitizeSettingsDoc,
   sanitizeWeekDoc,
   splitWeeks,
@@ -63,27 +65,35 @@ describe('dokument', () => {
       '2026-10-27|Tisdag|E|x': note('b'),
       '2025-10-27|Måndag|B|x': note('gammal'),
     },
-    groups: { '2026-11-04|Onsdag|dag|': { groups: [['Amira Haddad']] } },
+    groups: { '2026-11-04|Onsdag|dag#Rosa': { groups: [['Amira Haddad']], names: ['Röda'], from: 't1' } },
     passNames: {
       '2026-11-02|Måndag|B': { Rosa: 'Svenska' },
       '2026-10-27|Tisdag|dag': { Oliv: 'Studiedag' },
       '2025-10-27|Måndag|B': { Rosa: 'Gammal' },
     },
     stamps: [...DEFAULT_STAMPS],
+    templates: [{
+      id: 't1', name: 'Labb', updatedAt: '2026-11-01T00:00:00.000Z',
+      groups: [{ name: 'Röda', members: [{ name: 'Amira Haddad', klass: 'Rosa' }] }],
+    }],
   };
 
   it('delar per vecka och tar inte med gallrade', () => {
     const weeks = splitWeeks(data, NOW);
     expect(Object.keys(weeks).sort()).toEqual(['w2026-44', 'w2026-45']);
     expect(Object.keys(weeks['w2026-45'].notes)).toEqual(['2026-11-02|Måndag|B|8.30-9.45']);
-    expect(Object.keys(weeks['w2026-45'].groups)).toEqual(['2026-11-04|Onsdag|dag|']);
+    expect(Object.keys(weeks['w2026-45'].groups)).toEqual(['2026-11-04|Onsdag|dag#Rosa']);
     expect(Object.keys(weeks['w2026-44'].notes)).toEqual(['2026-10-27|Tisdag|E|x']);
     expect(weeks['w2026-45'].passNames).toEqual({ '2026-11-02|Måndag|B': { Rosa: 'Svenska' } });
     expect(weeks['w2026-44'].passNames).toEqual({ '2026-10-27|Tisdag|dag': { Oliv: 'Studiedag' } });
   });
 
   it('slår ihop igen utan förlust', () => {
-    const roundTrip = mergeWeeks(splitWeeks(data, NOW), data.stamps, NOW);
+    const docs = documentsToSave(data, NOW, []);
+    const templates = sanitizeGrupperDoc(JSON.parse(JSON.stringify(docs[GRUPPER_KEY]))).templates;
+    const roundTrip = mergeWeeks(splitWeeks(data, NOW), data.stamps, NOW, templates);
+    // Gruppernas namn och indelningen följer med genom veckodokumentet.
+    expect(sanitizeWeekDoc(JSON.parse(JSON.stringify(docs['w2026-45']))).groups).toEqual(data.groups);
     const { ['2025-10-27|Måndag|B|x']: _expired, ...kept } = data.notes;
     const { ['2025-10-27|Måndag|B']: _expiredName, ...keptNames } = data.passNames;
     expect(roundTrip).toEqual({ ...data, notes: kept, passNames: keptNames });
@@ -95,6 +105,14 @@ describe('dokument', () => {
     expect(docs['w2026-43']).toEqual({ sheets: {}, notes: {}, groups: {}, passNames: {} });
     expect(docs['w2025-01']).toBeUndefined();
     expect(docs.keyinfo).toBeUndefined();
+    // Inga indelningar och inget dokument på servern: nyckeln skickas inte.
+    expect(docs[GRUPPER_KEY]).toBeUndefined();
+  });
+
+  it('sparar indelningarna, och ett tomt dokument när den sista tagits bort', () => {
+    expect(documentsToSave(data, NOW, [])[GRUPPER_KEY]).toEqual({ templates: data.templates });
+    expect(documentsToSave(emptyData(), NOW, [GRUPPER_KEY])[GRUPPER_KEY]).toEqual({ templates: [] });
+    expect(sanitizeGrupperDoc(null)).toEqual({ templates: [] });
   });
 
   it('ger varje klass senaste tabell till och med veckan', () => {
@@ -112,7 +130,12 @@ describe('dokument', () => {
     d = setSheet(d, 'w2026-45', '', t);
     d = setSheet(d, 'w2026-44', '', t);
     d = { ...d, passNames: { '2026-11-02|Måndag|B': { '': 'Svenska', Rosa: 'Matte' } } };
+    d = {
+      ...d,
+      templates: [{ id: 't', name: 'T', updatedAt: '', groups: [{ name: '', members: [{ name: 'A', klass: '' }, { name: 'B', klass: 'Rosa' }] }] }],
+    };
     d = renameClass(d, '', 'Oliv');
+    expect(d.templates[0].groups[0].members).toEqual([{ name: 'A', klass: 'Oliv' }, { name: 'B', klass: 'Rosa' }]);
     expect(Object.keys(d.tables['w2026-45']).sort()).toEqual(['Oliv', 'Rosa']);
     expect(d.passNames).toEqual({ '2026-11-02|Måndag|B': { Oliv: 'Svenska', Rosa: 'Matte' } });
     expect(Object.keys(d.tables['w2026-44'])).toEqual(['Oliv']);

@@ -39,6 +39,7 @@ räcker: den som undrar ser läget på GitHub.
 | [Närvarorutor: veckokartan överst](narvaro-veckokarta.md) | Pågår. Alla steg 1–5 byggda 2026-11-16 (#287). Kvar: proven i avsnitt 10 mot riktig backend |
 | [Närvarorutor: exportera noteringar som text](narvaro-export.md) | Pågår. Byggd 2026-11-16. Kvar: proven i avsnitt 6 |
 | [Närvarorutor: exportera noteringar som Excel-fil](narvaro-excel.md) | Pågår. Byggd 2026-11-18. Kvar: Tobias prov i avsnitt 7 |
+| [Närvarorutor: sparade gruppindelningar](narvaro-sparade-grupper.md) | Pågår. Steg 1 byggt 2026-11-26 (backend #61). Steg 2–3 (logik och sparning) byggda 2026-11-26 |
 
 Lägg till en rad här när en ny plan skrivs.
 

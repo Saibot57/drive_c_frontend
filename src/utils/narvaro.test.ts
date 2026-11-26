@@ -20,6 +20,10 @@ import {
   historyKeys,
   isoWeek,
   moveToGroup,
+  movePassGroup,
+  addPassGroup,
+  removePassGroup,
+  groupTitle,
   parseAttendance,
   parsePasted,
   passTime,
@@ -427,6 +431,21 @@ describe('grupper', () => {
     expect(start).toEqual([['A', 'B'], ['C']]);
   });
 
+  it('håller gruppernas namn i takt när grupper läggs till, tas bort och namn flyttas', () => {
+    const pg = { groups: [['A'], ['B'], ['C']], names: ['Röda', '', 'Gröna'], from: 't1' };
+    expect(addPassGroup(pg)).toEqual({ groups: [['A'], ['B'], ['C'], []], names: ['Röda', '', 'Gröna', ''], from: 't1' });
+    expect(removePassGroup(pg, 1)).toEqual({ groups: [['A'], ['C']], names: ['Röda', 'Gröna'], from: 't1' });
+    expect(movePassGroup(pg, 'A', 2)).toEqual({ groups: [[], ['B'], ['C', 'A']], names: ['Röda', '', 'Gröna'], from: 't1' });
+    expect(addPassGroup({ groups: [['A']] })).toEqual({ groups: [['A'], []] });
+    expect(removePassGroup({ groups: [['A'], ['B']] }, 0)).toEqual({ groups: [['B']] });
+  });
+
+  it('ger gruppens namn eller Grupp N', () => {
+    expect(groupTitle(['Röda', ''], 0)).toBe('Röda');
+    expect(groupTitle(['Röda', ''], 1)).toBe('Grupp 2');
+    expect(groupTitle(undefined, 2)).toBe('Grupp 3');
+  });
+
   it('rensar de äldsta passen', () => {
     expect(Object.keys(trimSessions({ '2026-01-03': 1, '2026-01-01': 1, '2026-01-02': 1 }, 2))).toEqual(['2026-01-03', '2026-01-02']);
   });
@@ -455,6 +474,16 @@ describe('lagring', () => {
       .toEqual([{ id: 'a', label: 'Egen', color: 'grey', custom: true }]);
     expect(sanitizeGroups({ 'k#Rosa': { groups: [['A', 1]] }, x: 2, gammal: { groups: [['A']] } }))
       .toEqual({ 'k#Rosa': { groups: [['A']] } });
+    // Gruppernas namn och indelningen: kortas, fylls ut till gruppernas antal, släpps om de saknas.
+    expect(sanitizeGroups({
+      'k#Rosa': { groups: [['A'], ['B'], []], names: ['  Röda  ', 7], from: 't1' },
+      'k#Grön': { groups: [['A']], names: ['', ''], from: 3 },
+      'k#Blå': { groups: [['A']], names: ['x'.repeat(50)] },
+    })).toEqual({
+      'k#Rosa': { groups: [['A'], ['B'], []], names: ['Röda', '', ''], from: 't1' },
+      'k#Grön': { groups: [['A']] },
+      'k#Blå': { groups: [['A']], names: ['x'.repeat(30)] },
+    });
   });
 
   it('exemplet går att läsa och sparas oförändrat', () => {

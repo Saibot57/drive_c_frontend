@@ -57,7 +57,15 @@ export const CUSTOM_STAMP_COLORS: readonly StampColor[] = ['lilac', 'grey'];
 export type PersonNote = { tags: string[]; note: string };
 export type SessionNotes = { label: string; people: Record<string, PersonNote>; added: string[] };
 export type NotesStore = Record<string, SessionNotes>;
-export type GroupsStore = Record<string, { groups: string[][] }>;
+/** Ett pass grupper. */
+export type PassGroups = {
+  groups: string[][];
+  /** Gruppernas namn, samma ordning som `groups`. Tomt betyder "Grupp N". */
+  names?: string[];
+  /** Den sparade indelning grupperna lades på från (`GroupTemplate.id`). */
+  from?: string;
+};
+export type GroupsStore = Record<string, PassGroups>;
 /** Passets nyckel (`sessionKey`) till klassens eget namn på just det passet. */
 export type PassNames = Record<string, Record<string, string>>;
 
@@ -663,6 +671,33 @@ export function moveToGroup(groups: string[][], name: string, target: number | '
   return next;
 }
 
+/** Högsta längden på en grupps namn. */
+export const MAX_GROUP_NAME_LENGTH = 30;
+
+export const cleanGroupName = (name: string) => name.replace(/\s+/g, ' ').trim().slice(0, MAX_GROUP_NAME_LENGTH);
+
+/** Gruppens rubrik: dess namn, eller "Grupp N". */
+export const groupTitle = (names: readonly string[] | undefined, index: number) =>
+  names?.[index] || `Grupp ${index + 1}`;
+
+/** Flyttar ett namn i passets grupper. Namnen och indelningen följer med. */
+export const movePassGroup = (pg: PassGroups, name: string, target: number | 'pool'): PassGroups =>
+  ({ ...pg, groups: moveToGroup(pg.groups, name, target) });
+
+/** Lägger till en tom grupp sist, utan namn. */
+export function addPassGroup(pg: PassGroups): PassGroups {
+  return { ...pg, groups: [...pg.groups, []], ...(pg.names && { names: [...pg.names, ''] }) };
+}
+
+/** Tar bort gruppen `index` och dess namn. De som var i den blir inte indelade. */
+export function removePassGroup(pg: PassGroups, index: number): PassGroups {
+  return {
+    ...pg,
+    groups: pg.groups.filter((_, i) => i !== index),
+    ...(pg.names && { names: pg.names.filter((_, i) => i !== index) }),
+  };
+}
+
 /** Förnamnet och resten: "Amira Haddad" blir ["Amira", "Haddad"]. Ett namn utan blanktecken är bara förnamn. */
 export const splitName = (name: string) => {
   const [first, ...rest] = name.trim().split(/\s+/);
@@ -780,7 +815,16 @@ export function sanitizeGroups(raw: unknown): GroupsStore {
   if (!isRecord(raw)) return {};
   const out: GroupsStore = {};
   Object.entries(raw).forEach(([key, g]) => {
-    if (isGroupsKey(key) && isRecord(g) && Array.isArray(g.groups)) out[key] = { groups: g.groups.map(strings) };
+    if (!isGroupsKey(key) || !isRecord(g) || !Array.isArray(g.groups)) return;
+    const groups = g.groups.map(strings);
+    const pg: PassGroups = { groups };
+    // Äldre pass saknar namnen och indelningen.
+    if (Array.isArray(g.names)) {
+      const names = groups.map((_, i) => cleanGroupName(str((g.names as unknown[])[i])));
+      if (names.some(Boolean)) pg.names = names;
+    }
+    if (str(g.from)) pg.from = str(g.from);
+    out[key] = pg;
   });
   return out;
 }
