@@ -311,7 +311,7 @@ export const cleanClassName = (name: string) =>
  * får det klassen efter sig ("Ali Hassan (Rosa)"), och står det flera gånger
  * i samma ark får den andra och följande ett löpnummer ("Ali Hassan (Rosa 2)").
  * Den första behåller namnet utan nummer, så att noteringar och grupper som
- * sparats innan numret fanns stannar hos henne. Namnen räknas över alla ark,
+ * sparats innan numret fanns stannar hos den första. Namnen räknas över alla ark,
  * inte bara de valda, så att en elev heter likadant vilka klasser som än visas.
  */
 function personNames(sheets: Record<string, AttendanceTable>): Map<string, string[]> {
